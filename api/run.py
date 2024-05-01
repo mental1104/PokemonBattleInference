@@ -18,6 +18,7 @@ from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from api.db import setup
 
 app = FastAPI(
     docs_url=None,
@@ -26,6 +27,8 @@ app = FastAPI(
     description="Blue Espeon's little httpserver",
     version="0.0.1"
 )
+
+setup()
 
 absolute_path = os.path.dirname(os.path.abspath(__file__)) + "/static"
 app.mount("/static", StaticFiles(directory=absolute_path), name="static")
