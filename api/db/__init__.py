@@ -16,6 +16,7 @@ def get_db_url():
         "port": "5432",
         "database": "espeon"
     }
+
     db_url = "postgresql://{}:{}@{}:{}/{}".format(
         config.get("username", ""),
         config.get("password", ""),
@@ -27,7 +28,6 @@ def get_db_url():
 
 def init_database(create_table, func, engine):
     if create_table:
-        print(".....")
         func(bind=engine)
     return True
 
@@ -41,7 +41,6 @@ def startup(create_table: bool = False):
     )
     
     _Session.configure(bind=engine)
-    print(Base)
     return init_database(create_table, Base.metadata.create_all, engine)
 
 def setup():
