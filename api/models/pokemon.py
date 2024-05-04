@@ -34,4 +34,9 @@ class Pokemon(Base):
             special_defense=pokemon.special_defense,
             speed=pokemon.speed
         ))
+    
+    @staticmethod
+    def get_by_id(session, idx):
+        res = session.query(Pokemon).filter(Pokemon.id == idx).first()
+        return res
 
