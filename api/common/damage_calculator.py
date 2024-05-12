@@ -49,12 +49,13 @@ class Move:
 class PropertyCalculator:
     @staticmethod
     def calculate_hp(level: int, species_strength: int, basepoint: int = 252, individual_values: int = 31):
-        return ((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 10 + level
+        result = ((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 10 + level
+        return int(result)
 
     @staticmethod
-    def calculate_ability(level: int, species_strength: int, basepoint: int = 252, individual_values: int = 31, nature: str = ""):
-        return (((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 5) * 1.0
-
+    def calculate_ability(property, level: int, species_strength: int, basepoint: int = 252, individual_values: int = 31, nature: str = ""):
+        result = (((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 5) * NatureHelper.get_effectiveness(property.value, nature)
+        return int(result)
 
 class Nature(str, Enum):
     HARDY = 'Hardy'  # 勤奋
@@ -82,11 +83,50 @@ class Nature(str, Enum):
     JOLLY = 'Jolly' # 爽朗
     NAIVE = 'Naive' # 天真
     SERIOUS = 'Serious' # 认真
-    
+
+
 nature_dict = {
-    "Timid": {"attack": 0.9, "defense": 1.0, "special_attack": 1.0, "special_defense": 1.0, "speed": 1.1},
+    'Hardy':   {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Lonely':  {'attack': 1.1, 'defense': 0.9, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Adamant': {'attack': 1.1, 'defense': 1.0, 'special_attack': 0.9, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Naughty': {'attack': 1.1, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 0.9, 'speed': 1.0}, 
+    'Brave':   {'attack': 1.1, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 0.9}, 
+    'Bold':    {'attack': 0.9, 'defense': 1.1, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Docile':  {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Impish':  {'attack': 1.0, 'defense': 1.1, 'special_attack': 0.9, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Lax':     {'attack': 1.0, 'defense': 1.1, 'special_attack': 1.0, 'special_defense': 0.9, 'speed': 1.0}, 
+    'Relaxed': {'attack': 1.0, 'defense': 1.1, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 0.9}, 
+    'Modest':  {'attack': 0.9, 'defense': 1.0, 'special_attack': 1.1, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Mild':    {'attack': 1.0, 'defense': 0.9, 'special_attack': 1.1, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Bashful': {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Rash':    {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.1, 'special_defense': 0.9, 'speed': 1.0}, 
+    'Quiet':   {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.1, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Calm':    {'attack': 0.9, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.1, 'speed': 1.0}, 
+    'Gentle':  {'attack': 1.0, 'defense': 0.9, 'special_attack': 1.0, 'special_defense': 1.1, 'speed': 1.0}, 
+    'Careful': {'attack': 1.0, 'defense': 1.0, 'special_attack': 0.9, 'special_defense': 1.1, 'speed': 1.0}, 
+    'Quirky':  {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}, 
+    'Sassy':   {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.1, 'speed': 0.9}, 
+    'Timid':   {'attack': 0.9, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.1}, 
+    'Hasty':   {'attack': 1.0, 'defense': 0.9, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.1}, 
+    'Jolly':   {'attack': 1.0, 'defense': 1.0, 'special_attack': 0.9, 'special_defense': 1.0, 'speed': 1.1}, 
+    'Naive':   {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 0.9, 'speed': 1.1}, 
+    'Serious': {'attack': 1.0, 'defense': 1.0, 'special_attack': 1.0, 'special_defense': 1.0, 'speed': 1.0}
 }
 
+
+class PropertyEnum(str, Enum):
+    HP = "hp"
+    ATTACK = "attack"
+    DEFENSE = "defense"
+    SPECIAL_ATTACK = "special_attack"
+    SPECIAL_DEFENSE = "special_defense"
+    SPEED = "speed"
+
+
+class NatureHelper:
+    @staticmethod
+    def get_effectiveness(property, nature):
+        return nature_dict.get(nature, {}).get(property, 1.0)
 
 class PokemonEntity:
     def __init__(self, 
@@ -94,6 +134,7 @@ class PokemonEntity:
         level: int,
         basepoint: BasePoints,
         individual_values: IndividualValues,
+        nature: Nature,
         ability_index = 1,
         item_index = 1,
     ):
@@ -115,6 +156,7 @@ class PokemonEntity:
                 )
                 self.name = pokemon_record.name
 
+        self.nature = nature
         self.species_strength = species_strength
         self.basepoint = basepoint
         self.individual_values = individual_values
@@ -123,11 +165,11 @@ class PokemonEntity:
     
     def refresh(self):
         self.stat.hp = PropertyCalculator.calculate_hp(self.level, self.species_strength.hp, self.basepoint.hp, self.individual_values.hp)
-        self.attack = PropertyCalculator.calculate_ability(self.level, self.species_strength.attack, self.basepoint.attack, self.individual_values.attack)
-        self.defense = PropertyCalculator.calculate_ability(self.level, self.species_strength.defense, self.basepoint.defense, self.individual_values.defense)
-        self.special_attack = PropertyCalculator.calculate_ability(self.level, self.species_strength.special_attack, self.basepoint.special_attack, self.individual_values.special_attack)
-        self.special_defense = PropertyCalculator.calculate_ability(self.level, self.species_strength.special_defense, self.basepoint.special_defense, self.individual_values.special_defense)
-        self.speed = PropertyCalculator.calculate_ability(self.level, self.species_strength.speed, self.basepoint.speed, self.individual_values.speed)
+        self.stat.attack = PropertyCalculator.calculate_ability(PropertyEnum.ATTACK, self.level, self.species_strength.attack, self.basepoint.attack, self.individual_values.attack, self.nature)
+        self.stat.defense = PropertyCalculator.calculate_ability(PropertyEnum.DEFENSE, self.level, self.species_strength.defense, self.basepoint.defense, self.individual_values.defense, self.nature)
+        self.stat.special_attack = PropertyCalculator.calculate_ability(PropertyEnum.SPECIAL_ATTACK, self.level, self.species_strength.special_attack, self.basepoint.special_attack, self.individual_values.special_attack, self.nature)
+        self.stat.special_defense = PropertyCalculator.calculate_ability(PropertyEnum.SPECIAL_DEFENSE, self.level, self.species_strength.special_defense, self.basepoint.special_defense, self.individual_values.special_defense, self.nature)
+        self.stat.speed = PropertyCalculator.calculate_ability(PropertyEnum.SPEED, self.level, self.species_strength.speed, self.basepoint.speed, self.individual_values.speed, self.nature)
 
 
 class DamageCalculator:
@@ -139,7 +181,11 @@ class DamageCalculator:
 
 if __name__ == "__main__":
     setup()
-    pokemon = PokemonEntity(6, 100, BasePoints(special_attack=252, speed=252, hp=4), IndividualValues(special_attack=31, speed=31))
-    attacker = PropertyCalculator(pokemon)
-    print(attacker.stat.special_attack)
-    print(attacker.stat.speed)
+    pokemon = PokemonEntity(
+        6, 
+        100, 
+        BasePoints(special_attack=252, speed=252, hp=4), 
+        IndividualValues(hp=31, attack=31, defense=31, special_attack=31, special_defense=31, speed=31), 
+        Nature.TIMID
+    )
+    print(pokemon.stat)
