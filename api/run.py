@@ -79,6 +79,7 @@ def set_logging(process_name, log_level="INFO"):
 
 
 def main():
+    set_logging("POKEMON_CALCULATOR")
     uvicorn.run(
         app='run:app',
         host='0.0.0.0',

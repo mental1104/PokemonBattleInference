@@ -1,0 +1,8 @@
+[AppStream]
+name=AnolisOS-8.4 - AppStream
+baseurl=http://mirrors.aliyun.com/centos/$releasever/AppStream/$basearch/os/
+        http://mirrors.aliyuncs.com/centos/$releasever/AppStream/$basearch/os/
+        http://mirrors.cloud.aliyuncs.com/centos/$releasever/AppStream/$basearch/os/
+enabled=1
+gpgkey=http://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
+gpgcheck=1
