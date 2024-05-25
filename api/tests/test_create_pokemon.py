@@ -4,8 +4,20 @@ sys.path.append("../")
 from common.damage_calculator import PokemonEntity, BasePoints, IndividualValues, Nature
 from db import setup, open_session
 
+
+def set_logging(process_name, log_level="INFO"):
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        level=getattr(logging, log_level),
+        format="[SERVER]%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s"
+            " %(message)s"
+    )
+
+
 if __name__ == "__main__":
     setup()
+    set_logging('TEST', 'DEBUG')
     pokemon = PokemonEntity(
         6, 
         100, 

@@ -1,4 +1,5 @@
 import sys
+import logging
 sys.path.append("../")
 from schema.damage_calculator import Attacker, Defender, Move
 from schema.nature import Nature
@@ -30,6 +31,7 @@ class PokemonEntity:
 
         with open_session() as session:
             pokemon_record = Pokemon.get_by_id(session, id)
+            logging.debug(pokemon_record)
             if pokemon_record is not None:
                 species_strength = SpeciesStrength(
                     hp=pokemon_record.hp,
@@ -40,6 +42,8 @@ class PokemonEntity:
                     speed=pokemon_record.speed
                 )
                 self.name = pokemon_record.name
+                logging.info(species_strength)
+            
 
         self.nature = nature
         self.species_strength = species_strength

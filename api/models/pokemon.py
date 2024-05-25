@@ -38,5 +38,6 @@ class Pokemon(Base):
     @staticmethod
     def get_by_id(session, idx):
         res = session.query(Pokemon).filter(Pokemon.id == idx).first()
+        print(res)
         return res
 

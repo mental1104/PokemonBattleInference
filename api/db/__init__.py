@@ -1,3 +1,5 @@
+import os
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,11 +12,11 @@ Base = declarative_base()
 
 def get_db_url():
     config = {
-        "username": "espeon",
-        "password": "11451400",
-        "host": "localhost",
+        "username": os.getenv('POSTGRES_USER'),
+        "password": os.getenv('POSTGRES_PASSWORD'),
+        "host": "postgres",
         "port": "5432",
-        "database": "espeon"
+        "database": os.getenv('POSTGRES_DB')
     }
 
     db_url = "postgresql://{}:{}@{}:{}/{}".format(
