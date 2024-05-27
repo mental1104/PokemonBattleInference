@@ -1,1 +1,1 @@
-from models.pokemon import Pokemon
+from api.models.pokemon import Pokemon

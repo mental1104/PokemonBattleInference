@@ -1,6 +1,6 @@
-from db import Base
+from api.db import Base
+from api.schema.pokemon import PokemonCreate
 from sqlalchemy import Column, Integer, String
-from schema.pokemon import PokemonCreate
 
 class Pokemon(Base):
     __tablename__ = 'pokemon'

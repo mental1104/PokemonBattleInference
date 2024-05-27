@@ -1,8 +1,9 @@
-import sys
 import logging
-sys.path.append("../")
-from common.damage_calculator import PokemonEntity, BasePoints, IndividualValues, Nature
-from db import setup, open_session
+
+from api.schema.nature import Nature
+from api.schema.property import BasePoints, IndividualValues
+from api.factory.pokemon import PokemonEntityFactory
+from api.db import setup
 
 
 def set_logging(process_name, log_level="INFO"):
@@ -18,11 +19,9 @@ def set_logging(process_name, log_level="INFO"):
 if __name__ == "__main__":
     setup()
     set_logging('TEST', 'DEBUG')
-    pokemon = PokemonEntity(
-        6, 
-        100, 
-        BasePoints(special_attack=252, speed=252, hp=4), 
-        IndividualValues(hp=31, attack=31, defense=31, special_attack=31, special_defense=31, speed=31), 
+    pokemon = PokemonEntityFactory.create(6, 100,
+        [4,0,0,252,0,252],
+        [31,31,31,31,31,31], 
         Nature.TIMID
     )
     print(pokemon.stat)

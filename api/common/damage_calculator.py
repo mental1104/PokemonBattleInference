@@ -1,7 +1,5 @@
-import sys
 import logging
-sys.path.append("../")
-from schema.damage_calculator import Attacker, Defender, Move
+from schema.damage_calculator import Move
 from schema.nature import Nature
 from schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic, PropertyCalculator, PropertyEnum
 from db import open_session
