@@ -2,7 +2,7 @@ from enum import Enum
 from pydantic import BaseModel
 from typing import Any, Dict, Union, List
 
-from api.schema.nature import NatureHelper
+from api.utils.nature import NatureHelper
 class CommonProperty(BaseModel):
     hp: int = 0
     attack: int = 0
@@ -51,17 +51,6 @@ class BasePoints(CommonProperty):
 class Statistic(CommonProperty):
     pass
 
-
-class PropertyCalculator:
-    @staticmethod
-    def calculate_hp(level: int, species_strength: int, basepoint: int = 252, individual_values: int = 31):
-        result = ((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 10 + level
-        return int(result)
-
-    @staticmethod
-    def calculate_ability(property, level: int, species_strength: int, basepoint: int = 252, individual_values: int = 31, nature: str = ""):
-        result = (((species_strength * 2 + individual_values + basepoint / 4) * level) / 100.0 + 5) * NatureHelper.get_effectiveness(property.value, nature)
-        return int(result)
 
 class PropertyEnum(str, Enum):
     HP = "hp"

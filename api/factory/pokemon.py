@@ -4,7 +4,8 @@ from typing import Any, Dict, Union
 from api.schema.pokemon import PokemonEntity
 from api.schema.damage_calculator import Move
 from api.schema.nature import Nature
-from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic, PropertyCalculator, PropertyEnum
+from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic, PropertyEnum
+from api.utils.property import PropertyCalculator
 from api.db import open_session
 from api.models.pokemon import Pokemon
 
