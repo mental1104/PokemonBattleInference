@@ -1,14 +1,10 @@
 import logging
-from typing import Any, Dict, Union
 
 from api.schema.pokemon import PokemonEntity
-from api.schema.damage_calculator import Move
-from api.schema.nature import Nature
 from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic, PropertyEnum
 from api.utils.property import PropertyCalculator
 from api.db import open_session
 from api.models.pokemon import Pokemon
-from copy import deepcopy
 
 # 性格增益
 class PokemonEntityFactory(PokemonEntity):
@@ -32,11 +28,15 @@ class PokemonEntityFactory(PokemonEntity):
                     pokemon_record.speed
                 ])
                 logging.debug(species_strength)
-    
+            type_1 = pokemon_record.type_1
+            type_2 = pokemon_record.type_2
+
         pokemon = PokemonEntity(
             id=id,
             name=name,
             level=level,
+            type_1=type_1,
+            type_2=type_2,
             basepoint=BasePoints.create(basepoint),
             individual_values=IndividualValues.create(individual_values),
             species_strength=species_strength,

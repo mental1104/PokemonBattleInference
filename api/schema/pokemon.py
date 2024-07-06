@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic import BaseModel
 from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic
 from api.schema.nature import Nature
+from api.schema.types import Type
 
 class PokemonCreate(BaseModel):
     id: int
@@ -19,6 +20,8 @@ class PokemonCreate(BaseModel):
 class PokemonEntity(BaseModel):
     id: int
     level: int
+    type_1: Type
+    type_2: Optional[Type] = None
     basepoint: BasePoints
     individual_values: IndividualValues
     species_strength: SpeciesStrength

@@ -1,8 +1,10 @@
 import logging
 from api.factory.pokemon import PokemonEntityFactory
-from api.common.damage_calculate import calculate
+from api.common.damage_calculate import calculate_percentage
 from api.schema.nature import Nature
 from api.db import setup
+from api.schema.move import Move, MoveType
+from api.schema.types import Type
 
 def set_logging(process_name, log_level="INFO"):
     for handler in logging.root.handlers[:]:
@@ -26,6 +28,10 @@ if __name__ == "__main__":
         [31,31,31,31,31,31],
         Nature.MODEST                                 
     )
-    
-    damage = calculate(attacker, defense)
+
+    damage = calculate_percentage(attacker, defense, Move(
+        power=90,
+        type=Type.FIRE,
+        move_type=MoveType.special_move
+    ))
     logging.info(damage)
