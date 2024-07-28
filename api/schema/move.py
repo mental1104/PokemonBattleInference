@@ -10,6 +10,7 @@ class MoveType(Enum):
     status_move = "status_move"
 
 
+# TODO: 技能Move类需要加上校验，若为物理或特殊技能，则power必定不可空
 class Move(BaseModel):
     power: Optional[int] = None
     type: Type
