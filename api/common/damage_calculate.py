@@ -24,3 +24,7 @@ def calculate(attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
 def calculate_percentage(attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
     min_damage, max_damage = calculate(attacker, defenser, move)
     return (float(min_damage)/defenser.stat.hp, float(max_damage)/defenser.stat.hp)
+
+
+class DamageCalculator:
+    pass
