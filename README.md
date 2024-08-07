@@ -1,5 +1,9 @@
 # HTTPSERVER
 
+## Structrue
+
+![](./structure.png)
+
 ```
 docker build -t pokemon-calculator .
 
