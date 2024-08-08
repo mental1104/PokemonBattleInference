@@ -1,7 +1,6 @@
 import logging
 
 from api.schema.nature import Nature
-from api.schema.property import BasePoints, IndividualValues
 from api.factory.pokemon import PokemonEntityFactory
 from api.db import setup
 

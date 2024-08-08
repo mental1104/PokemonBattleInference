@@ -2,7 +2,7 @@ from enum import Enum
 from pydantic import BaseModel
 from typing import Any, Dict, Union, List
 
-from api.utils.nature import NatureHelper
+
 class CommonProperty(BaseModel):
     hp: int = 0
     attack: int = 0

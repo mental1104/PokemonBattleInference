@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from api.schema.property import PropertyEnum, BasePoints, SpeciesStrength, IndividualValues
 from api.schema.nature import Nature
-from api.utils.nature import NatureHelper
+from api.schema.nature import NatureHelper
 
 # https://wiki.52poke.com/wiki/%E8%83%BD%E5%8A%9B
 class AbilityCalculatorFactory:
@@ -16,7 +16,7 @@ class AbilityCalculatorFactory:
         elif property == PropertyEnum.HP:              return HPCalculator()
         else:
             logging.warning(f"AbilityCalculatorFactory not supported type: {property}!")
-    
+            return PropertyBase
 
 class PropertyBase(ABC):
     @abstractmethod
@@ -35,34 +35,34 @@ class CommonAbilityCalculator(PropertyBase):
 class HPCalculator(PropertyBase):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = (((species_strength * 2 + individual_values + basepoint / 4) * level) / 100) + 10 + level
-        return result
+        return int(result)
 
 
 class AttackCalculator(CommonAbilityCalculator):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = super().calculate(level, species_strength, basepoint, individual_values, nature)
-        return result * NatureHelper.get_effectiveness(PropertyEnum.ATTACK, nature)
+        return int(result * NatureHelper.get_effectiveness(PropertyEnum.ATTACK, nature))
 
 
 class DefenseCalculator(CommonAbilityCalculator):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = super().calculate(level, species_strength, basepoint, individual_values, nature)
-        return result * NatureHelper.get_effectiveness(PropertyEnum.DEFENSE, nature)
+        return int(result * NatureHelper.get_effectiveness(PropertyEnum.DEFENSE, nature))
 
 
 class SpeedCalculator(CommonAbilityCalculator):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = super().calculate(level, species_strength, basepoint, individual_values, nature)
-        return result * NatureHelper.get_effectiveness(PropertyEnum.SPEED, nature)
+        return int(result * NatureHelper.get_effectiveness(PropertyEnum.SPEED, nature))
 
 
 class SpecialAttackCalculator(CommonAbilityCalculator):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = super().calculate(level, species_strength, basepoint, individual_values, nature)
-        return result * NatureHelper.get_effectiveness(PropertyEnum.SPECIAL_ATTACK, nature)
+        return int(result * NatureHelper.get_effectiveness(PropertyEnum.SPECIAL_ATTACK, nature))
 
 
 class SpecialDefenseCalculator(CommonAbilityCalculator):
     def calculate(self, level, species_strength: SpeciesStrength, basepoint: BasePoints, individual_values: IndividualValues, nature: Nature):
         result = super().calculate(level, species_strength, basepoint, individual_values, nature)
-        return result * NatureHelper.get_effectiveness(PropertyEnum.SPECIAL_DEFENSE, nature)
+        return int(result * NatureHelper.get_effectiveness(PropertyEnum.SPECIAL_DEFENSE, nature))

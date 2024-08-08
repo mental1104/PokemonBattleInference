@@ -1,6 +1,6 @@
 from api.schema.pokemon import PokemonEntity
 from api.schema.move import Move, MoveType
-from api.utils.type import TypeHelper
+from api.schema.types import TypeHelper
 import logging
 
 def calculate(attacker: PokemonEntity, defenser: PokemonEntity, move: Move):

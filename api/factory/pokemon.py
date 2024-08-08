@@ -2,7 +2,7 @@ import logging
 
 from api.schema.pokemon import PokemonEntity
 from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic, PropertyEnum
-from api.utils.property import PropertyCalculator
+from api.common.ability_calculate import AbilityCalculatorFactory
 from api.db import open_session
 from api.models.pokemon import Pokemon
 
@@ -50,10 +50,13 @@ class PokemonEntityFactory(PokemonEntity):
     @staticmethod
     def refresh(pokemon):
         pokemon.stat = Statistic()
-        pokemon.stat.hp = PropertyCalculator.calculate_hp(pokemon.level, pokemon.species_strength.hp, pokemon.basepoint.hp, pokemon.individual_values.hp)
-        pokemon.stat.attack = PropertyCalculator.calculate_ability(PropertyEnum.ATTACK, pokemon.level, pokemon.species_strength.attack, pokemon.basepoint.attack, pokemon.individual_values.attack, pokemon.nature)
-        pokemon.stat.defense = PropertyCalculator.calculate_ability(PropertyEnum.DEFENSE, pokemon.level, pokemon.species_strength.defense, pokemon.basepoint.defense, pokemon.individual_values.defense, pokemon.nature)
-        pokemon.stat.special_attack = PropertyCalculator.calculate_ability(PropertyEnum.SPECIAL_ATTACK, pokemon.level, pokemon.species_strength.special_attack, pokemon.basepoint.special_attack, pokemon.individual_values.special_attack, pokemon.nature)
-        pokemon.stat.special_defense = PropertyCalculator.calculate_ability(PropertyEnum.SPECIAL_DEFENSE, pokemon.level, pokemon.species_strength.special_defense, pokemon.basepoint.special_defense, pokemon.individual_values.special_defense, pokemon.nature)
-        pokemon.stat.speed = PropertyCalculator.calculate_ability(PropertyEnum.SPEED, pokemon.level, pokemon.species_strength.speed, pokemon.basepoint.speed, pokemon.individual_values.speed, pokemon.nature)
+
+        for _, property in PropertyEnum.__members__.items():
+            speices = getattr(pokemon.species_strength, property.value)
+            base_point = getattr(pokemon.basepoint, property.value)
+            individual = getattr(pokemon.individual_values, property.value)
+            ability = AbilityCalculatorFactory.get(property).calculate(
+                pokemon.level, speices, base_point, individual, pokemon.nature
+            )
+            setattr(pokemon.stat, property.value, ability)
         logging.debug(pokemon.stat)

@@ -49,3 +49,9 @@ class Type(Enum):
 class TypesCreate(BaseModel):
     id: int
     name: str
+
+class TypeHelper:
+
+    @staticmethod
+    def get_type_efficacy(attacker: Type, defenser: Type):
+        return type_efficacy[attacker.value][defenser.value]
