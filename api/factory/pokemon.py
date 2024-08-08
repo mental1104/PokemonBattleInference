@@ -48,9 +48,10 @@ class PokemonEntityFactory(PokemonEntity):
         return pokemon
 
     @staticmethod
-    def refresh(pokemon):
+    def refresh(pokemon: PokemonEntity):
         pokemon.stat = Statistic()
 
+        # TODO 函数化
         for _, property in PropertyEnum.__members__.items():
             speices = getattr(pokemon.species_strength, property.value)
             base_point = getattr(pokemon.basepoint, property.value)
