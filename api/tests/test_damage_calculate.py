@@ -1,6 +1,6 @@
 import logging
 from api.factory.pokemon import PokemonEntityFactory
-from api.common.damage_calculate import calculate_percentage
+from api.common.damage_calculate import calculate_percentage, DamageCalculator
 from api.schema.nature import Nature
 from api.db import setup
 from api.schema.move import Move, MoveType
@@ -29,9 +29,24 @@ if __name__ == "__main__":
         Nature.MODEST                                 
     )
 
-    damage = calculate_percentage(attacker, defense, Move(
-        power=90,
-        type=Type.FIRE,
-        move_type=MoveType.special_move
-    ))
-    logging.info(damage)
+    calculator = DamageCalculator()
+    
+    result = calculator.calculate(attacker, defense, Move(
+            power=90,
+            type=Type.FIRE,
+            move_type=MoveType.special_move
+        )
+    )
+    logging.info(result.min_damage)
+    logging.info(result.max_damage)
+    logging.info(result.min_damage_percent)
+    logging.info(result.max_damage_percent)
+
+
+    # damage = calculate_percentage(attacker, defense, Move(
+    #     power=90,
+    #     type=Type.FIRE,
+    #     move_type=MoveType.special_move
+    # ))
+    # logging.info(damage)
+    
