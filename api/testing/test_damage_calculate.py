@@ -1,6 +1,6 @@
 import logging
 from api.factory.pokemon import PokemonEntityFactory
-from api.common.damage_calculate import calculate_percentage, DamageCalculator
+from api.common.damage_calculate.calculator import DamageCalculator
 from api.schema.nature import Nature
 from api.db import setup
 from api.schema.move import Move, MoveType
