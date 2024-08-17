@@ -46,7 +46,25 @@ class PokemonEntityFactory(PokemonEntity):
         )
         PokemonEntityFactory.refresh(pokemon)
         return pokemon
-
+    
+    @staticmethod
+    def create_by_diy(id, name, level, type_1, type_2, species_strength, basepoint, individual_values, nature):
+        pokemon = PokemonEntity(
+            id=id,
+            name=name,
+            level=level,
+            basepoint=BasePoints.create(basepoint),
+            individual_values=IndividualValues.create(individual_values),
+            species_strength=SpeciesStrength.create(species_strength),
+            type_1=type_1,
+            type_2=type_2,
+            nature=nature,
+            ability_index=0,
+            item_index=0
+        )
+        PokemonEntityFactory.refresh(pokemon)
+        return pokemon
+        
     @staticmethod
     def refresh(pokemon: PokemonEntity):
         pokemon.stat = Statistic()
