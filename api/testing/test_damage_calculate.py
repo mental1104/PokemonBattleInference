@@ -10,6 +10,9 @@ from api.schema.types import Type
 
 def create_pokemon_factory(id):
     pokemon_map = {
+        6  : Pokemon(id=6,   name='charizard',  type_1=Type.FIRE.value, type_2=Type.FLYING.value, hp=78, attack=84, defense=78, special_attack=109, special_defense=85, speed=100),
+        9  : Pokemon(id=9,   name='blastoise',  type_1=Type.WATER.value, type_2=None,             hp=79, attack=83, defense=100, special_attack=85, special_defense=105, speed=78),
+        591: Pokemon(id=591, name='amoonguss', type_1=Type.GRASS.value, type_2=Type.POISON.value, hp=114,  attack=85, defense=70, special_attack=85, special_defense=80, speed=30),
         727: Pokemon(id=727, name='incineroar', type_1=Type.FIRE.value, type_2=Type.DARK.value, hp=95,  attack=115, defense=90, special_attack=80, special_defense=90, speed=60),
         812: Pokemon(id=812, name='rillaboom', type_1=Type.GRASS.value, type_2=None,            hp=100, attack=125, defense=90, special_attack=60, special_defense=70, speed=85)
     }
@@ -19,7 +22,14 @@ def create_pokemon_factory(id):
 #      (812, 100, [4, 252, 0, 0, 0, 252], [31, 31, 31, 31, 31, 31], Nature.JOLLY),
 #      Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), 1)
 @pytest.mark.parametrize('attacker_data, defenser_data, move, expect', [
-    
+    # 100级喷火龙 喷射火焰 100级水箭龟
+    ((6, 100, [4, 0, 0, 252, 0, 252], [31, 31, 31, 31, 31, 31], Nature.TIMID),
+     (9, 100, [4, 0, 0, 252, 0, 252], [31, 31, 31, 31, 31, 31], Nature.MODEST),
+     Move(power=90, type=Type.FIRE, move_type=MoveType.special_move), ((63, 74), (21.0, 24.6))),
+    # 50级炽焰咆哮虎 火推 50级败露球菇
+    ((727, 50, [236, 4, 100, 0, 156, 12], [31, 31, 31, 31, 31, 31], Nature.CAREFUL),
+     (591, 50, [244, 0, 236, 4, 20, 4], [31, 31, 31, 31, 31, 31], Nature.BOLD),
+     Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), ((140, 168), (63.6, 76.3))),
 ])
 def test_normal_damage(attacker_data, defenser_data, move, expect):
 
@@ -56,56 +66,8 @@ def test_normal_damage(attacker_data, defenser_data, move, expect):
 
     calculator = DamageCalculator()
     result = calculator.calculate(attacker, defenser, move)
-    print(result.min_damage)
 
-
-
-
-
-
-
-
-# def set_logging(process_name, log_level="INFO"):
-#     for handler in logging.root.handlers[:]:
-#         logging.root.removeHandler(handler)
-#     logging.basicConfig(
-#         level=getattr(logging, log_level),
-#         format="[SERVER]%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s"
-#             " %(message)s"
-#     )
-
-# if __name__ == "__main__":
-#     setup()
-#     set_logging('TEST', 'DEBUG')
-#     attacker = PokemonEntityFactory.create(6, 100,
-#         [4,0,0,252,0,252],
-#         [31,31,31,31,31,31], 
-#         Nature.TIMID
-#     )
-#     defense = PokemonEntityFactory.create(9, 100,
-#         [4,0,0,252,0,252],
-#         [31,31,31,31,31,31],
-#         Nature.MODEST                                 
-#     )
-
-#     calculator = DamageCalculator()
-    
-#     result = calculator.calculate(attacker, defense, Move(
-#             power=90,
-#             type=Type.FIRE,
-#             move_type=MoveType.special_move
-#         )
-#     )
-#     logging.info(result.min_damage)
-#     logging.info(result.max_damage)
-#     logging.info(result.min_damage_percent)
-#     logging.info(result.max_damage_percent)
-
-
-    # damage = calculate_percentage(attacker, defense, Move(
-    #     power=90,
-    #     type=Type.FIRE,
-    #     move_type=MoveType.special_move
-    # ))
-    # logging.info(damage)
-    
+    assert(result.min_damage == expect[0][0])
+    assert(result.max_damage == expect[0][1])
+    assert(result.min_damage_percent == expect[1][0])
+    assert(result.max_damage_percent == expect[1][1])

@@ -1,14 +1,15 @@
 import copy
 from api.common.damage_calculate.factory import DamageCalculatorFactory
-from api.common.damage_calculate.base_chain import BaseDamageChain
+from api.common.damage_calculate.modifier_chain import BaseDamageChain, DamageResult
 from api.schema.move import Move
 from api.schema.pokemon import PokemonEntity
 
 global_responsibility_list = [
     "basic_damage",
+    "random_modifier",
     "type_stat",
     "type_efficiency",
-    "final_modifier"
+    "percent"
 ]
 
 class DamageCalculator:
@@ -22,7 +23,7 @@ class DamageCalculator:
     
     def __refresh(self, attacker, defenser, move):
         curr = self.modifier
-        result = BaseDamageChain()
+        result = DamageResult()
         attacker_copy = copy.deepcopy(attacker)
         defenser_copy = copy.deepcopy(defenser)
         move_copy = copy.deepcopy(move)

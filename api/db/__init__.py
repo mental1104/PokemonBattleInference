@@ -2,7 +2,7 @@ import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from contextlib import contextmanager
 
 

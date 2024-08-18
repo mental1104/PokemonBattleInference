@@ -1,31 +1,31 @@
 from enum import Enum
 
 class Nature(str, Enum):
-    HARDY = 'Hardy'  # 勤奋
-    LONELY = 'Lonely' # 怕寂寞
-    ADAMANT = 'Adamant' # 固执
-    NAUGHTY = 'Naughty' # 顽皮
-    BRAVE = 'Brave' # 勇敢
-    BOLD = 'Bold' # 大胆
-    DOCILE = 'Docile' # 坦率
-    IMPISH = 'Impish' # 淘气
-    LAX = 'Lax' # 乐天
-    RELAXED = 'Relaxed' # 悠闲
-    MODEST = 'Modest' # 内敛
-    MILD = 'Mild' # 慢吞吞
-    BASHFUL = 'Bashful' # 害羞
-    RASH = 'Rash' # 马虎
-    QUIET = 'Quiet' # 冷静
-    CALM = 'Calm' # 温和
-    GENTLE = 'Gentle' # 温顺
-    CAREFUL = 'Careful' # 慎重
-    QUIRKY = 'Quirky' # 浮躁
-    SASSY = 'Sassy' # 自大
-    TIMID = 'Timid' # 胆小
-    HASTY = 'Hasty' # 急躁
-    JOLLY = 'Jolly' # 爽朗
-    NAIVE = 'Naive' # 天真
-    SERIOUS = 'Serious' # 认真
+    HARDY = 'Hardy'              # 勤奋
+    LONELY = 'Lonely'            # 怕寂寞
+    ADAMANT = 'Adamant'          # 固执
+    NAUGHTY = 'Naughty'          # 顽皮
+    BRAVE = 'Brave'              # 勇敢
+    BOLD = 'Bold'                # 大胆
+    DOCILE = 'Docile'            # 坦率
+    IMPISH = 'Impish'            # 淘气
+    LAX = 'Lax'                  # 乐天
+    RELAXED = 'Relaxed'          # 悠闲
+    MODEST = 'Modest'            # 内敛
+    MILD = 'Mild'                # 慢吞吞
+    BASHFUL = 'Bashful'          # 害羞
+    RASH = 'Rash'                # 马虎
+    QUIET = 'Quiet'              # 冷静
+    CALM = 'Calm'                # 温和
+    GENTLE = 'Gentle'            # 温顺
+    CAREFUL = 'Careful'          # 慎重
+    QUIRKY = 'Quirky'            # 浮躁
+    SASSY = 'Sassy'              # 自大
+    TIMID = 'Timid'              # 胆小
+    HASTY = 'Hasty'              # 急躁
+    JOLLY = 'Jolly'              # 爽朗
+    NAIVE = 'Naive'              # 天真
+    SERIOUS = 'Serious'          # 认真
 
 
 nature_dict = {
