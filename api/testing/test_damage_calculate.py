@@ -30,6 +30,10 @@ def create_pokemon_factory(id):
     ((727, 50, [236, 4, 100, 0, 156, 12], [31, 31, 31, 31, 31, 31], Nature.CAREFUL),
      (591, 50, [244, 0, 236, 4, 20, 4], [31, 31, 31, 31, 31, 31], Nature.BOLD),
      Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), ((140, 168), (63.6, 76.3))),
+    # 50级炽焰咆哮虎 火推 50级轰雷金刚猩
+    ((727, 50, [236, 4, 100, 0, 156, 12], [31, 31, 31, 31, 31, 31], Nature.CAREFUL),
+     (812, 50, [244, 116, 36, 0, 60, 52], [31, 31, 31, 31, 31, 31], Nature.ADAMANT),
+     Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), ((162, 192), (78.6, 93.2)))
 ])
 def test_normal_damage(attacker_data, defenser_data, move, expect):
 

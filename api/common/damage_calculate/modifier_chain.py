@@ -1,4 +1,3 @@
-import math
 import random
 from api.schema.pokemon import PokemonEntity
 from api.schema.move import Move, MoveType
@@ -53,6 +52,15 @@ class DamageResult:
         return self
 
 
+def damage_chain_responsibility(func):
+    def wrapper(self, *args, **kwargs):
+        func(self, *args, **kwargs)
+        super_func = getattr(super(type(self), self), func.__name__, None)
+        if super_func:
+            super_func(*args, **kwargs)
+    return wrapper
+
+
 class BaseDamageChain:
     
     def __init__(self):
@@ -81,7 +89,8 @@ class BaseDamageChain:
 
 
 class BasicDamageModifier(BaseDamageChain):
-    
+
+    @damage_chain_responsibility
     def handle(self):
         if self.move.move_type in MoveType.get_attack_move():
             # 神秘之剑，扑击，精神冲击等需要额外考虑，这里先临时写死，后面有专门的逻辑处理这一块
@@ -91,10 +100,10 @@ class BasicDamageModifier(BaseDamageChain):
             damage = (2 * self.attacker.level + 10)/250.0 * attack / defense * self.move.power + 2
             self.result.max_damage = int(damage)
 
-        super().handle()
 
 class RandomModifier(BaseDamageChain):
-    
+
+    @damage_chain_responsibility
     def handle(self):
         damage = self.result.max_damage
         
@@ -105,20 +114,20 @@ class RandomModifier(BaseDamageChain):
         multiplier = round(random.uniform(0.85, 1.0), 2)
         self.result.random_damage = int(damage * multiplier)
         self.result.random_damage_percent = self.result.random_damage / self.defenser.stat.hp * 100000 // 10 / 100
-        
-        super().handle()
+
 
 class TypeStatModifier(BaseDamageChain):
-    
+
+    @damage_chain_responsibility
     def handle(self):
         if self.move.move_type.get_attack_move() and \
             (self.attacker.type_1 == self.move.type or self.attacker.type_2 == self.move.type):
             self.result *= 1.5
-        super().handle()
 
 
 class TypeEfficiencyModifier(BaseDamageChain):
 
+    @damage_chain_responsibility
     def handle(self):
         type_multiplier = 1.0
         type_multiplier *= TypeHelper.get_type_efficacy(self.move.type, self.defenser.type_1) / 100.0
@@ -126,14 +135,14 @@ class TypeEfficiencyModifier(BaseDamageChain):
             type_multiplier *= TypeHelper.get_type_efficacy(self.move.type, self.defenser.type_2) / 100.0
 
         self.result *= type_multiplier
-        super().handle()
 
 
 class PercentModifier(BaseDamageChain):
+
+    @damage_chain_responsibility
     def handle(self):
         def percent_decimal_places(input, place=1):
             return input * 10000 * (10 ** (place-1)) // 10 / (10 ** place)
         self.result.min_damage_percent = percent_decimal_places(self.result.min_damage / self.defenser.stat.hp)
         self.result.max_damage_percent = percent_decimal_places(self.result.max_damage / self.defenser.stat.hp)
         self.result.random_damage_percent = percent_decimal_places(self.result.random_damage / self.defenser.stat.hp)
-        super().handle()
