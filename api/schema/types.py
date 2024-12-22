@@ -45,6 +45,17 @@ class Type(Enum):
     DARK = 17
     FAIRY = 18
 
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return self is other
+        return self.value == other
+
+    @classmethod
+    def from_string(cls, name: str):
+        try:
+            return cls[name.upper()]
+        except KeyError:
+            raise ValueError(f"{name} is not a valid {cls.__name__}")
 
 class TypesCreate(BaseModel):
     id: int
@@ -54,4 +65,16 @@ class TypeHelper:
 
     @staticmethod
     def get_type_efficacy(attacker: Type, defenser: Type):
-        return type_efficacy[attacker.value][defenser.value]
+        attacker_value = 0
+        defenser_value = 0
+        if isinstance(attacker, Type):
+            attacker_value = attacker.value
+        elif isinstance(attacker, int):
+            attacker_value = attacker
+        
+        if isinstance(defenser, Type):
+            defenser_value = defenser.value
+        elif isinstance(defenser, int):
+            defenser_value = defenser
+
+        return type_efficacy[attacker_value][defenser_value]

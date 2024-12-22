@@ -1,10 +1,10 @@
 import copy
 from enum import Enum
 from api.common.damage_calculate.factory import DamageCalculatorFactory
-from api.common.damage_calculate.modifier_chain import BaseDamageChain, DamageResult
+from api.common.damage_calculate.modifier_chain import BaseDamageChain
 from api.schema.move import Move
 from api.schema.pokemon import PokemonEntity
-from api.schema.damage_calculator import DamageResponsibility
+from api.schema.damage_calculator import DamageResponsibility, DamageResult
 
 
 class DamageCalculator:
@@ -15,8 +15,9 @@ class DamageCalculator:
         for item in self.responsibility_list:
             instance = DamageCalculatorFactory.get(item)
             self.modifier.add(instance)
-    
-    def __refresh(self, attacker, defenser, move):
+
+
+    def calculate(self, attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
         attacker_copy = copy.deepcopy(attacker)
         defenser_copy = copy.deepcopy(defenser)
         move_copy = copy.deepcopy(move)
@@ -36,7 +37,3 @@ class DamageCalculator:
         final_result = self.modifier.handle(initial_result)
         return final_result
 
-    def calculate(self, attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
-        result = self.__refresh(attacker, defenser, move)
-        self.modifier.handle(result)
-        return result

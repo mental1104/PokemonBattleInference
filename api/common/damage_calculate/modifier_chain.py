@@ -2,61 +2,16 @@ import random
 from api.schema.pokemon import PokemonEntity
 from api.schema.move import Move, MoveType
 from api.schema.types import TypeHelper
+from api.schema.damage_calculator import DamageResult
 
 
-class DamageResult:
-    formula: str = ""
-    min_damage: int = 0
-    max_damage = 0
-    random_damage: int  = 0
-    min_damage_percent: float  = 0.0
-    max_damage_percent: float = 0.0
-    random_damage_percent: float  = 0.0
-    
-    def __init__(
-        self, 
-        formula="",
-        min_damage=0,
-        max_damage=0,
-        random_damage=0,
-        min_damage_percent=0.0,
-        max_damage_percent=0.0,
-        random_damage_percent=0.0
-    ):
-        self.formula = formula
-        self.min_damage = min_damage
-        self.max_damage = max_damage
-        self.random_damage = random_damage
-        self.min_damage_percent = min_damage_percent
-        self.max_damage_percent = max_damage_percent
-        self.random_damage_percent = random_damage_percent
-
-    def __mul__(self, other):
-        return DamageResult(
-            "",
-            int(self.min_damage * other),
-            int(self.max_damage * other),
-            int(self.random_damage * other)
-        )
-
-    def __imul__(self, other):
-        min_damage = int(self.min_damage * other)
-        self.min_damage = min_damage
-
-        max_damage = int(self.max_damage * other)
-        self.max_damage = max_damage
-
-        random_damage = int(self.random_damage * other)
-        self.random_damage = random_damage
-
-        return self
 
 
 def damage_chain_responsibility(func):
     def wrapper(self, result, *args, **kwargs):
         # 执行当前类的逻辑
         result = func(self, result, *args, **kwargs)
-        
+        print(f"{type(self)} {result}")
         # 调用父类的同名方法
         super_func = getattr(super(type(self), self), func.__name__, None)
         if super_func:
