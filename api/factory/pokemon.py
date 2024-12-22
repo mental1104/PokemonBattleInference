@@ -10,7 +10,15 @@ from api.models.pokemon import Pokemon
 class PokemonEntityFactory(PokemonEntity):
     
     @staticmethod
-    def create(id, level, basepoint, individual_values, nature, ability_index=0, item_index=0):
+    def create(
+        id,
+        level,
+        basepoint,
+        individual_values, 
+        nature,
+        ability_index=0,
+        item_index=0
+    ):
         
         name = ""
         species_strength = SpeciesStrength()

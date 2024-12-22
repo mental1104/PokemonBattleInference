@@ -20,3 +20,10 @@ class Attacker(CommonProperty):
 class Defender(CommonProperty):
     pass
 
+# 定义枚举
+class DamageResponsibility(Enum):
+    BASIC_DAMAGE = "basic_damage"
+    RANDOM_MODIFIER = "random_modifier"
+    TYPE_STAT = "type_stat"
+    TYPE_EFFICIENCY = "type_efficiency"
+    PERCENT = "percent"
