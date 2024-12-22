@@ -7,7 +7,7 @@ LastEditTime: 2024-12-22 04:58:25
 import logging
 
 from api.schema.nature import Nature
-from api.factory.pokemon import PokemonEntityFactory
+from api.factory.pokemon import PokemonDirector
 from api.db import setup
 from api.schema.property import PropertyEnum
 from api.common.ability_calculate import AbilityCalculatorFactory
@@ -26,10 +26,11 @@ def set_logging(process_name, log_level="INFO"):
 if __name__ == "__main__":
     setup()
     set_logging('TEST', 'DEBUG')
-    pokemon = PokemonEntityFactory.create(6, 100,
-        [4,0,0,252,0,252],
-        [31,31,31,31,31,31], 
-        Nature.TIMID
+    director = PokemonDirector()
+    pokemon = director.construct_from_database(
+        id=6,
+        basepoint=(4,0,0,252,0,252),
+        nature=Nature.TIMID
     )
     print(pokemon)
     

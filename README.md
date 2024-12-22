@@ -21,5 +21,6 @@ docker-compose up -d
 
 NOTHING ELSE ?!
 
-
+```
 export PYTHONPATH=$PYTHONPATH:/data/PokemonBattleInference
+```
