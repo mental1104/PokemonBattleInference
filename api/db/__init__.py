@@ -12,20 +12,21 @@ Base = declarative_base()
 
 def get_db_url():
     config = {
-        "username": os.getenv('POSTGRES_USER'),
-        "password": os.getenv('POSTGRES_PASSWORD'),
-        "host": "postgres",
-        "port": "5432",
-        "database": os.getenv('POSTGRES_DB')
+        "username": os.getenv('PGUSER'),
+        "password": os.getenv('PGPASSWORD'),
+        "host": os.getenv('PGHOST'),
+        "port": os.getenv('PGPORT'),
+        "database": os.getenv('PGDATABASE')
     }
 
     db_url = "postgresql://{}:{}@{}:{}/{}".format(
         config.get("username", ""),
         config.get("password", ""),
         config.get("host", ""),
-        config.get("port", ""),
+        config.get("port", 5432),
         config.get("database", "")
     )
+    print(db_url)
     return db_url
 
 def init_database(create_table, func, engine):

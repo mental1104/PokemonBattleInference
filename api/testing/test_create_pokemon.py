@@ -1,3 +1,9 @@
+'''
+Date: 2024-12-22 04:57:03
+Author: error: error: git config user.name & please set dead value or install git && error: git config user.email & please set dead value or install git & please set dead value or install git
+LastEditors: error: error: git config user.name & please set dead value or install git && error: git config user.email & please set dead value or install git & please set dead value or install git
+LastEditTime: 2024-12-22 04:58:25
+'''
 import logging
 
 from api.schema.nature import Nature
@@ -25,6 +31,7 @@ if __name__ == "__main__":
         [31,31,31,31,31,31], 
         Nature.TIMID
     )
+    print(pokemon)
     
     result = []
     for _, property in PropertyEnum.__members__.items():

@@ -22,17 +22,26 @@ class DamageCalculator:
             self.modifier.add(instance)
     
     def __refresh(self, attacker, defenser, move):
-        curr = self.modifier
-        result = DamageResult()
         attacker_copy = copy.deepcopy(attacker)
         defenser_copy = copy.deepcopy(defenser)
         move_copy = copy.deepcopy(move)
-        while(curr):
-            curr.set(attacker_copy, defenser_copy, move_copy, result)
+
+        # 初始化结果
+        initial_result = DamageResult()
+        
+        # 设置攻击者、防御者和招式到责任链中
+        curr = self.modifier
+        while curr:
+            curr.attacker = attacker_copy
+            curr.defenser = defenser_copy
+            curr.move = move_copy
             curr = curr.next
-        return result
+
+        # 从责任链开始传递
+        final_result = self.modifier.handle(initial_result)
+        return final_result
 
     def calculate(self, attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
         result = self.__refresh(attacker, defenser, move)
-        self.modifier.handle()
+        self.modifier.handle(result)
         return result

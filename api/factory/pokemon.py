@@ -28,24 +28,25 @@ class PokemonEntityFactory(PokemonEntity):
                     pokemon_record.speed
                 ])
                 logging.debug(species_strength)
-            type_1 = pokemon_record.type_1
-            type_2 = pokemon_record.type_2
-
-        pokemon = PokemonEntity(
-            id=id,
-            name=name,
-            level=level,
-            type_1=type_1,
-            type_2=type_2,
-            basepoint=BasePoints.create(basepoint),
-            individual_values=IndividualValues.create(individual_values),
-            species_strength=species_strength,
-            nature=nature,
-            ability_index=ability_index,
-            item_index=item_index
-        )
-        PokemonEntityFactory.refresh(pokemon)
-        return pokemon
+            type_1_bak = pokemon_record.type_1
+            type_2_bak = pokemon_record.type_2
+            type_1 = type_1_bak
+            type_2 = type_2_bak
+            pokemon = PokemonEntity(
+                id=id,
+                name=name,
+                level=level,
+                type_1=type_1,
+                type_2=type_2,
+                basepoint=BasePoints.create(basepoint),
+                individual_values=IndividualValues.create(individual_values),
+                species_strength=species_strength,
+                nature=nature,
+                ability_index=ability_index,
+                item_index=item_index
+            )
+            PokemonEntityFactory.refresh(pokemon)
+            return pokemon
     
     @staticmethod
     def create_by_diy(id, name, level, type_1, type_2, species_strength, basepoint, individual_values, nature):
