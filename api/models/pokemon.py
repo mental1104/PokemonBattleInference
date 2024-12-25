@@ -41,3 +41,12 @@ class Pokemon(Base):
         res = res.first()
         return res
 
+    @staticmethod
+    def get_by_fuzzy_name(session, name):
+    
+        res = session.query(Pokemon)
+        
+        if name:
+            res = res.filter(Pokemon.name.ilike(f'%{name}%'))
+        
+        return res.order_by(Pokemon.id.asc()).limit(50).all()

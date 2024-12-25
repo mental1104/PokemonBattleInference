@@ -19,6 +19,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from api.db import setup
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     docs_url=None,
@@ -32,6 +33,14 @@ setup()
 
 absolute_path = os.path.dirname(os.path.abspath(__file__)) + "/static"
 app.mount("/static", StaticFiles(directory=absolute_path), name="static")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有 HTTP 方法
+    allow_headers=["*"],  # 允许所有 HTTP 头部
+)
 
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
