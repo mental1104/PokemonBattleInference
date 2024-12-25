@@ -8,7 +8,6 @@
 
     <!-- Main Content Section -->
     <div class="content">
-      <!-- Wrapper to divide attacker and defender -->
       <div class="info-wrapper">
         <!-- Attacker Info (Left) -->
         <div class="info-section attacker">
@@ -23,6 +22,25 @@
               placeholder="Enter attacker ID" 
               required 
             />
+          </div>
+          <div>
+            <label for="attacker-name">Search by Name:</label>
+            <input 
+              id="attacker-name" 
+              v-model="attackerSearchKeyword" 
+              @input="fetchPokemonList('attacker')" 
+              type="text" 
+              placeholder="Search Pokémon name" 
+            />
+            <select v-if="attackerPokemonList.length" v-model.number="attacker.id">
+              <option 
+                v-for="pokemon in attackerPokemonList" 
+                :key="pokemon.id" 
+                :value="pokemon.id"
+              >
+                {{ pokemon.name }}
+              </option>
+            </select>
           </div>
           <div>
             <label for="attacker-level">Level:</label>
@@ -89,6 +107,25 @@
               placeholder="Enter defender ID" 
               required 
             />
+          </div>
+          <div>
+            <label for="defender-name">Search by Name:</label>
+            <input 
+              id="defender-name" 
+              v-model="defenderSearchKeyword" 
+              @input="fetchPokemonList('defender')" 
+              type="text" 
+              placeholder="Search Pokémon name" 
+            />
+            <select v-if="defenderPokemonList.length" v-model.number="defender.id">
+              <option 
+                v-for="pokemon in defenderPokemonList" 
+                :key="pokemon.id" 
+                :value="pokemon.id"
+              >
+                {{ pokemon.name }}
+              </option>
+            </select>
           </div>
           <div>
             <label for="defender-level">Level:</label>
@@ -221,33 +258,30 @@ export default {
       },
       basepointLabels: ['HP', '攻击', '防御', '特攻', '特防', '速度'],
       individualValueLabels: ['HP', '攻击', '防御', '特攻', '特防', '速度'],
-      result: null
+      result: null,
+      attackerSearchKeyword: "",
+      defenderSearchKeyword: "",
+      attackerPokemonList: [],
+      defenderPokemonList: []
     };
   },
   methods: {
+    async fetchPokemonList(type) {
+      const keyword = type === "attacker" ? this.attackerSearchKeyword : this.defenderSearchKeyword;
+      const response = await fetch(`http://localhost:8001/nexus/api/pokemon/list?keyword=${keyword}`);
+      const data = await response.json();
+      if (type === "attacker") {
+        this.attackerPokemonList = data.result || [];
+      } else {
+        this.defenderPokemonList = data.result || [];
+      }
+    },
     async sendRequest() {
       const requestBody = {
-        attacker: {
-          id: this.attacker.id,
-          level: this.attacker.level,
-          basepoint: this.attacker.basepoint,
-          individual_values: this.attacker.individual_values,
-          nature: this.attacker.nature
-        },
-        defenser: {
-          id: this.defender.id,
-          level: this.defender.level,
-          basepoint: this.defender.basepoint,
-          individual_values: this.defender.individual_values,
-          nature: this.defender.nature
-        },
-        move: {
-          power: this.move.power,
-          move_type: this.move.move_type,
-          type: this.move.type
-        }
+        attacker: { ...this.attacker },
+        defenser: { ...this.defender },
+        move: { ...this.move }
       };
-
       try {
         const response = await fetch('http://localhost:8001/nexus/api/damage', {
           method: 'POST',
