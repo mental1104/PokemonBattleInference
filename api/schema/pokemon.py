@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic
 from api.schema.nature import Nature
 from api.schema.types import Type
+from api.schema.level import DefaultLevel
 
 class PokemonCreate(BaseModel):
     id: int
@@ -25,17 +26,18 @@ class AbstractCreate(BaseModel):
 
 
 class PokemonEntity(BaseModel):
-    id: int
-    level: int
-    type_1: Type
+    id: int = 0
+    name: str = ""
+    level: int = DefaultLevel.DEFAULT_100_LEVEL.value
+    type_1: Type = Type.NORMAL
     type_2: Optional[Type] = None
-    basepoint: BasePoints
-    individual_values: IndividualValues
-    species_strength: SpeciesStrength
+    basepoint: BasePoints = (0,0,0,0,0,0)
+    individual_values: IndividualValues = (31,31,31,31,31,31)
+    species_strength: SpeciesStrength = (0,0,0,0,0,0)
     stat: Optional[Statistic] = None
-    nature: Nature
-    ability_index: int
-    item_index: int
+    nature: Nature = Nature.JOLLY
+    ability_index: int = 0
+    item_index: int = 0
     
 
         
