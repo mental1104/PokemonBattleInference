@@ -2,12 +2,12 @@ import sys
 import os
 import logging
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from models import *
+
 from db import startup
 
 from script.init_pokemon import InitPokemon
 from script.init_types import InitTypes
+from models import pokemon
 
 def init_table():
     InitPokemon.init()

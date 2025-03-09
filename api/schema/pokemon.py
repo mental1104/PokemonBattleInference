@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from api.schema.property import BasePoints, IndividualValues, SpeciesStrength, Statistic
 from api.schema.nature import Nature
@@ -15,6 +15,13 @@ class PokemonCreate(BaseModel):
     special_attack: int
     special_defense: int
     speed: int
+    move_ids: List[int]
+    ability: List[int]
+
+
+class AbstractCreate(BaseModel):
+    id: int
+    name: str
 
 
 class PokemonEntity(BaseModel):

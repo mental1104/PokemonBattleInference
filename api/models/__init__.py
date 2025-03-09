@@ -1,1 +1,2 @@
-from api.models.pokemon import Pokemon
+from models.pokemon import Pokemon
+from models.types import Types

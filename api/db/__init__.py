@@ -14,7 +14,7 @@ def get_db_url():
     config = {
         "username": os.getenv('POSTGRES_USER'),
         "password": os.getenv('POSTGRES_PASSWORD'),
-        "host": "postgres",
+        "host": "192.168.31.239",
         "port": "5432",
         "database": os.getenv('POSTGRES_DB')
     }
@@ -26,6 +26,7 @@ def get_db_url():
         config.get("port", ""),
         config.get("database", "")
     )
+    logging.info(db_url)
     return db_url
 
 def init_database(create_table, func, engine):
@@ -33,7 +34,7 @@ def init_database(create_table, func, engine):
         func(bind=engine)
     return True
 
-def startup(create_table: bool = False):
+def startup():
     sqlalchemy_url = get_db_url()
     engine = create_engine(
         sqlalchemy_url,
@@ -41,9 +42,8 @@ def startup(create_table: bool = False):
         pool_size=20,
         pool_recycle=3600
     )
-    
     _Session.configure(bind=engine)
-    return init_database(create_table, Base.metadata.create_all, engine)
+    Base.metadata.create_all(bind=engine)
 
 def setup():
     startup(False)
