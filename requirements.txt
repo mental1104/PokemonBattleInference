@@ -28,3 +28,4 @@ zstandard==0.19.0
 supervisor==4.2.1
 pyasynchat
 pytest
+pytest-cov
