@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy import ARRAY, Column, Integer, String
 
-from pokemon_battle_inference.infrastructure.db import Base
+from pokemon_battle_inference.infrastructure.db import Base, with_session
 from pokemon_battle_inference.domain.models.pokemon import PokemonCreate
 
 class Pokemon(Base):
@@ -20,13 +20,15 @@ class Pokemon(Base):
     move_ids = Column(ARRAY(Integer), comment="技能id")
     ability = Column(ARRAY(Integer), comment="特性列表")
 
-    @staticmethod
-    def count(session):
-        return session.count(Pokemon).scalar()
+    @classmethod
+    @with_session
+    def count(cls, session=None):
+        return session.query(cls).count()
         
-    @staticmethod
-    def create(session, pokemon: PokemonCreate):
-        ret = session.add(Pokemon(
+    @classmethod
+    @with_session
+    def create(cls, pokemon: PokemonCreate, session=None):
+        instance = cls(
             id=pokemon.id,
             name=pokemon.name,
             type_1=pokemon.type_1,
@@ -39,12 +41,12 @@ class Pokemon(Base):
             speed=pokemon.speed,
             move_ids=pokemon.move_ids,
             ability=pokemon.ability
-        ))
-        logging.info(ret)
-        logging.info(ret)
+        )
+        session.add(instance)
+        logging.info("queued pokemon #%s for persistence", pokemon.id)
+        return instance
     
-    @staticmethod
-    def get_by_id(session, idx):
-        res = session.query(Pokemon).filter(Pokemon.id == idx)
-        res = res.first()
-        return res
+    @classmethod
+    @with_session
+    def get_by_id(cls, idx, session=None):
+        return session.query(cls).filter(cls.id == idx).first()

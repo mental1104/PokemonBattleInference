@@ -96,8 +96,8 @@ class PokemonDirector:
         ability_index=0,
         item_index=0
     ):
-        with open_session() as session:
-            pokemon_record = Pokemon.get_by_id(session, id)
+        with open_session(commit_on_exit=False):
+            pokemon_record = Pokemon.get_by_id(id)
             if not pokemon_record:
                 raise ValueError(f"Pokemon with id {id} not found.")
 

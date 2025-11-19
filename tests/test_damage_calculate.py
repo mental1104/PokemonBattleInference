@@ -51,7 +51,7 @@ def test_normal_damage(attacker_data, defenser_data, move, expect):
     result = []
     director = PokemonDirector()
     for entity in (attacker_data, defenser_data):
-        entity_stat = Pokemon.get_by_id(mock_session_filter(entity[0]), entity[0])
+        entity_stat = Pokemon.get_by_id(entity[0], session=mock_session_filter(entity[0]))
         pokemon_entity = director.construct_custom(
             id=entity[0], 
             name=entity_stat.name,

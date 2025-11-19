@@ -107,14 +107,14 @@ class InitPokemon:
     def init(cls) -> None:
         """Materialize payloads and persist them with SQLAlchemy models."""
         payloads = list(iter_pokemon_payloads())
-        with open_session() as session:
+        with open_session():
             logging.info("准备写入 %s 条宝可梦数据", len(payloads))
             for pokemon_id, payload in payloads:
                 single_pokemon = {"id": int(pokemon_id)}
                 single_pokemon.update(payload)
                 pokemon_create = PokemonCreate(**single_pokemon)
                 logging.info("写入宝可梦 #%s", pokemon_id)
-                Pokemon.create(session, pokemon_create)
+                Pokemon.create(pokemon_create)
 
 
 def main():

@@ -21,9 +21,9 @@ class InitTypes:
     @classmethod
     def init(cls):
         name_map = load_type_names(TYPE_FILE)
-        with open_session() as session:
+        with open_session():
             for key, val in name_map.items():
                 single_item = {"id": int(key), "name": val}
                 type_create = TypesCreate(**single_item)
                 logging.info(type_create)
-                Types.create(session, type_create)
+                Types.create(type_create)
