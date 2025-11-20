@@ -2,10 +2,11 @@ import logging
 
 from sqlalchemy import ARRAY, Column, Integer, String
 
-from pokemon_battle_inference.infrastructure.db import Base, with_session
+from pokemon_battle_inference.infrastructure.db import Base, SessionAwareMixin
 from pokemon_battle_inference.domain.models.pokemon import PokemonCreate
 
-class Pokemon(Base):
+
+class Pokemon(SessionAwareMixin, Base):
     __tablename__ = 'pokemon'
     id = Column(Integer, primary_key=True, comment="主键")
     name = Column(String, comment="宝可梦默认名")
@@ -21,12 +22,10 @@ class Pokemon(Base):
     ability = Column(ARRAY(Integer), comment="特性列表")
 
     @classmethod
-    @with_session
     def count(cls, session=None):
         return session.query(cls).count()
         
     @classmethod
-    @with_session
     def create(cls, pokemon: PokemonCreate, session=None):
         instance = cls(
             id=pokemon.id,
@@ -47,6 +46,5 @@ class Pokemon(Base):
         return instance
     
     @classmethod
-    @with_session
     def get_by_id(cls, idx, session=None):
         return session.query(cls).filter(cls.id == idx).first()

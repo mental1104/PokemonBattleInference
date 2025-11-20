@@ -1,0 +1,14 @@
+export PGUSER = postgres
+export PGPASSWORD = 11451400
+export PGDATABASE = postgres
+export PGHOST = 192.168.31.239
+export PGPORT = 5432
+export PGAPPNAME = pokemon-battle-inference
+export PULSAR_HOST = 192.168.31.239
+export PULSAR_BROKER_PORT = 6650
+export PULSAR_ADMIN_PORT = 8080
+export PULSAR_TOKEN = 
+export PULSAR_SCHEMA_PATH = /tmp/pulsar_schema
+export PULSAR_DATA_PATH = /tmp/pulsar_data
+export REDIS_HOST = 192.168.31.239
+export REDIS_PORT = 6379
