@@ -1,0 +1,19 @@
+rules:
+  # 1) Python: forbid raw json.loads, suggest parse_json
+  - id: python-no-json-loads
+    languages: [python]
+    message: "Use parse_json(...) instead of json.loads(...)."
+    severity: ERROR
+    pattern: json.loads(...)
+    fix: parse_json(...)
+
+  # 2) C++: forbid direct cJSON operations, suggest mental1104::parse_json
+  - id: cpp-no-cjson-direct
+    languages: [cpp]
+    message: "Use mental1104::parse_json(...) instead of raw cJSON APIs."
+    severity: ERROR
+    pattern-either:
+      - pattern: cJSON_Parse(...)
+      - pattern: cJSON_GetObjectItem(...)
+      - pattern: cJSON_AddItemToObject(...)
+    # no auto-fix here, because arguments usually need manual mapping
