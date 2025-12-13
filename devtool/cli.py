@@ -6,11 +6,9 @@ import pkgutil
 import subprocess
 import sys
 import traceback
-from pathlib import Path
 from typing import Iterable
 
 from devtool.commands import CONFIGURATORS
-from devtool.context import ROOT
 
 
 def _import_command_modules() -> None:

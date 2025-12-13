@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from pokemon_battle_inference.domain.models.level import DefaultLevel
 from pokemon_battle_inference.domain.models.nature import Nature
-from pokemon_battle_inference.domain.models.move import Move, MoveType
+from pokemon_battle_inference.domain.models.move import MoveType
 
 
 class PokemonModelRequest(BaseModel):

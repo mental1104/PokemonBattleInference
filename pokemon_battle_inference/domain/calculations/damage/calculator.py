@@ -1,5 +1,4 @@
 import copy
-from enum import Enum
 from pokemon_battle_inference.domain.calculations.damage.factory import (
     DamageCalculatorFactory,
 )

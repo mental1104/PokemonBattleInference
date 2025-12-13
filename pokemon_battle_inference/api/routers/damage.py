@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pokemon_battle_inference.services.pokemon_builder import PokemonDirector
-from pokemon_battle_inference.domain.models.move import Move, MoveType
+from pokemon_battle_inference.domain.models.move import Move
 from pokemon_battle_inference.domain.models.types import Type
 from pokemon_battle_inference.domain.calculations.damage.calculator import (
     DamageCalculator,

@@ -1,7 +1,5 @@
 import textwrap
 
-import pytest
-
 from scripts import init_pokemon, init_types
 
 
