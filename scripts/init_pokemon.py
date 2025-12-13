@@ -82,7 +82,9 @@ def load_ability_pool(rows: Iterable[Dict[str, str]]) -> Dict[str, List[str]]:
     pokemon_abilities: Dict[str, List[str]] = defaultdict(list)
     for row in rows:
         pokemon_abilities[row["pokemon_id"]].append(row["ability_id"])
-    return {pokemon_id: abilities for pokemon_id, abilities in pokemon_abilities.items()}
+    return {
+        pokemon_id: abilities for pokemon_id, abilities in pokemon_abilities.items()
+    }
 
 
 def iter_pokemon_payloads() -> Generator[Tuple[str, Dict[str, object]], None, None]:

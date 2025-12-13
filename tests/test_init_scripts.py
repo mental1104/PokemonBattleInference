@@ -32,7 +32,16 @@ def test_load_pokemon_stats(tmp_path):
 
 
 def test_iter_pokemon_payloads_merges_sources(monkeypatch):
-    stats = {"1": {"hp": 10, "attack": 20, "defense": 0, "special_attack": 0, "special_defense": 0, "speed": 0}}
+    stats = {
+        "1": {
+            "hp": 10,
+            "attack": 20,
+            "defense": 0,
+            "special_attack": 0,
+            "special_defense": 0,
+            "speed": 0,
+        }
+    }
     names = {"1": "bulbasaur"}
     types = {"1": {"type_1": 12, "type_2": 4}}
     moves = {"1": ["33", "45"]}

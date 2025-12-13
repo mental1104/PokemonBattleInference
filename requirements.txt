@@ -1,3 +1,4 @@
+-e ../common/python
 annotated-types==0.7.0
 anyio==4.3.0
 certifi==2023.11.17
@@ -11,15 +12,19 @@ jsonpointer==2.1
 moviepy==1.0.3
 numpy==1.26.4
 packaging==23.1
-pillow==10.3.0
-psycopg2-binary==2.9.9
+pillow==10.3.0 ; python_version < "3.13"
+pillow>=11.0.0 ; python_version >= "3.13"
+psycopg2-binary==2.9.9 ; python_version < "3.13"
+# psycopg2-binary has build issues on Python 3.13; use psycopg3 wheels there
+psycopg[binary]==3.3.2 ; python_version >= "3.13"
 pydantic==2.8.2
 pydantic_core==2.20.1
 pyOpenSSL==23.2.0
 PySocks==1.7.1
 requests==2.31.0
 setuptools==68.2.2
-SQLAlchemy==2.0.29
+SQLAlchemy==2.0.29 ; python_version < "3.13"
+SQLAlchemy>=2.0.36 ; python_version >= "3.13"
 starlette==0.37.2
 urllib3==2.0.7
 uvicorn==0.29.0
@@ -29,3 +34,4 @@ supervisor==4.2.1
 pyasynchat
 pytest
 pytest-cov
+black==24.10.0

@@ -29,7 +29,7 @@ class CommonProperty(BaseModel):
                 defense=data[2],
                 special_attack=data[3],
                 special_defense=data[4],
-                speed=data[5]
+                speed=data[5],
             )
         else:
             raise TypeError("Unsupported data type for initialization")
@@ -39,13 +39,16 @@ class CommonProperty(BaseModel):
 class IndividualValues(CommonProperty):
     pass
 
+
 # 种族值
 class SpeciesStrength(CommonProperty):
     pass
 
+
 # 努力值
 class BasePoints(CommonProperty):
     pass
+
 
 # 最终能力值
 class Statistic(CommonProperty):

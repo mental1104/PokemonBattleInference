@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  dev-flow:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone common repo sibling
+        run: git clone https://github.com/mental1104/common.git ../common
+        shell: bash
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup environment
+        run: python dev setup
+        shell: bash
+
+      - name: Build
+        run: python dev build
+        shell: bash
+
+      - name: Format (check)
+        run: python dev fmt --check
+        shell: bash
+
+      - name: Vet
+        run: python dev vet
+        shell: bash
+
+      - name: Test
+        run: python dev test
+        shell: bash
+
+      - name: Coverage
+        run: python dev coverage
+        shell: bash

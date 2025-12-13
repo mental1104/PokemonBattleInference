@@ -15,14 +15,13 @@ from pokemon_battle_inference.domain.models.damage_calculator import (
 
 
 class DamageCalculator:
-    
+
     def __init__(self):
         self.responsibility_list = list(DamageResponsibility)
         self.modifier = BaseDamageChain()
         for item in self.responsibility_list:
             instance = DamageCalculatorFactory.get(item)
             self.modifier.add(instance)
-
 
     def calculate(self, attacker: PokemonEntity, defenser: PokemonEntity, move: Move):
         attacker_copy = copy.deepcopy(attacker)
@@ -31,7 +30,7 @@ class DamageCalculator:
 
         # 初始化结果
         initial_result = DamageResult()
-        
+
         # 设置攻击者、防御者和招式到责任链中
         curr = self.modifier
         while curr:

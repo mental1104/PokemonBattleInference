@@ -9,13 +9,9 @@ from pokemon_battle_inference.api.schemas.damage import DamageRequest, DamageRes
 
 router = APIRouter()
 
-@router.post(
-    "",
-    response_model=DamageResponse
-)
-async def calculate_damage(
-    input_data: DamageRequest
-):
+
+@router.post("", response_model=DamageResponse)
+async def calculate_damage(input_data: DamageRequest):
     """
     {
         "attacker": {
@@ -69,23 +65,24 @@ async def calculate_damage(
     """
     director = PokemonDirector()
     attacker = director.construct_from_database(
-        id=input_data.attacker.id, # Landorus-therian
+        id=input_data.attacker.id,  # Landorus-therian
         level=input_data.attacker.level,
         basepoint=input_data.attacker.basepoint,
-        nature=input_data.attacker.nature
+        nature=input_data.attacker.nature,
     )
 
     defenser = director.construct_from_database(
-        id=input_data.defenser.id, # Landorus-therian
+        id=input_data.defenser.id,  # Landorus-therian
         level=input_data.defenser.level,
         basepoint=input_data.defenser.basepoint,
-        nature=input_data.defenser.nature
+        nature=input_data.defenser.nature,
     )
 
     move = Move(
-        power=input_data.move.power, 
+        power=input_data.move.power,
         type=Type.from_string(input_data.move.type),
-        move_type=input_data.move.move_type)
+        move_type=input_data.move.move_type,
+    )
 
     result = DamageCalculator().calculate(attacker, defenser, move)
     return DamageResponse(**result.__dict__)

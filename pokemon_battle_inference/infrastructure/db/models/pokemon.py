@@ -7,7 +7,7 @@ from pokemon_battle_inference.domain.models.pokemon import PokemonCreate
 
 
 class Pokemon(SessionAwareMixin, Base):
-    __tablename__ = 'pokemon'
+    __tablename__ = "pokemon"
     id = Column(Integer, primary_key=True, comment="主键")
     name = Column(String, comment="宝可梦默认名")
     type_1 = Column(Integer, comment="第一属性")
@@ -24,7 +24,7 @@ class Pokemon(SessionAwareMixin, Base):
     @classmethod
     def count(cls, session=None):
         return session.query(cls).count()
-        
+
     @classmethod
     def create(cls, pokemon: PokemonCreate, session=None):
         instance = cls(
@@ -39,12 +39,12 @@ class Pokemon(SessionAwareMixin, Base):
             special_defense=pokemon.special_defense,
             speed=pokemon.speed,
             move_ids=pokemon.move_ids,
-            ability=pokemon.ability
+            ability=pokemon.ability,
         )
         session.add(instance)
         logging.info("queued pokemon #%s for persistence", pokemon.id)
         return instance
-    
+
     @classmethod
     def get_by_id(cls, idx, session=None):
         return session.query(cls).filter(cls.id == idx).first()

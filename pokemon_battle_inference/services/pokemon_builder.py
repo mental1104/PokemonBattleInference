@@ -18,6 +18,7 @@ from pokemon_battle_inference.infrastructure.db.models.pokemon import Pokemon
 
 # 性格增益
 
+
 class PokemonBuilder:
     def __init__(self):
         self._pokemon = PokemonEntity()
@@ -77,7 +78,11 @@ class PokemonBuilder:
             base_point = getattr(self._pokemon.basepoint, property.value)
             individual = getattr(self._pokemon.individual_values, property.value)
             ability = AbilityCalculatorFactory.get(property).calculate(
-                self._pokemon.level, species, base_point, individual, self._pokemon.nature
+                self._pokemon.level,
+                species,
+                base_point,
+                individual,
+                self._pokemon.nature,
             )
             setattr(self._pokemon.stat, property.value, ability)
 
@@ -90,34 +95,31 @@ class PokemonDirector:
         self,
         id,
         level=DefaultLevel.DEFAULT_100_LEVEL.value,
-        basepoint=(0,0,0,0,0,0),
-        individual_values=(31,31,31,31,31,31),
+        basepoint=(0, 0, 0, 0, 0, 0),
+        individual_values=(31, 31, 31, 31, 31, 31),
         nature=Nature.JOLLY,
         ability_index=0,
-        item_index=0
+        item_index=0,
     ):
         with open_session(commit_on_exit=False):
             pokemon_record = Pokemon.get_by_id(id)
             if not pokemon_record:
                 raise ValueError(f"Pokemon with id {id} not found.")
 
-            self.builder.set_id(
-                id
-            ).set_level(
-                level
-            ).set_name(
+            self.builder.set_id(id).set_level(level).set_name(
                 pokemon_record.name
             ).set_types(
-                pokemon_record.type_1,
-                pokemon_record.type_2
-            ).set_species_strength([
-                pokemon_record.hp,
-                pokemon_record.attack,
-                pokemon_record.defense,
-                pokemon_record.special_attack,
-                pokemon_record.special_defense,
-                pokemon_record.speed,
-            ]).set_basepoint(
+                pokemon_record.type_1, pokemon_record.type_2
+            ).set_species_strength(
+                [
+                    pokemon_record.hp,
+                    pokemon_record.attack,
+                    pokemon_record.defense,
+                    pokemon_record.special_attack,
+                    pokemon_record.special_defense,
+                    pokemon_record.speed,
+                ]
+            ).set_basepoint(
                 basepoint
             ).set_individual_values(
                 individual_values
@@ -125,7 +127,9 @@ class PokemonDirector:
                 nature
             ).set_ability_index(
                 ability_index
-            ).set_item_index(item_index)
+            ).set_item_index(
+                item_index
+            )
 
         return self.builder.build()
 
@@ -136,23 +140,14 @@ class PokemonDirector:
         level=DefaultLevel.DEFAULT_100_LEVEL.value,
         type_1=Type.NORMAL,
         type_2=None,
-        species_strength=(0,0,0,0,0,0),
-        basepoint=(0,0,0,0,0,0),
-        individual_values=(0,0,0,0,0,0),
-        nature=Nature.JOLLY
+        species_strength=(0, 0, 0, 0, 0, 0),
+        basepoint=(0, 0, 0, 0, 0, 0),
+        individual_values=(0, 0, 0, 0, 0, 0),
+        nature=Nature.JOLLY,
     ):
-        self.builder.set_id(
-            id
-        ).set_name(
-            name
-        ).set_level(
-            level
-        ).set_types(
-            type_1,
-            type_2
-        ).set_species_strength(
-            species_strength
-        ).set_basepoint(
+        self.builder.set_id(id).set_name(name).set_level(level).set_types(
+            type_1, type_2
+        ).set_species_strength(species_strength).set_basepoint(
             basepoint
         ).set_individual_values(
             individual_values

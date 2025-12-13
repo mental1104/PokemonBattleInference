@@ -3,12 +3,13 @@ from enum import Enum, unique
 from pokemon_battle_inference.domain.models.types import Type
 from pydantic import BaseModel
 
+
 @unique
 class MoveType(Enum):
     physical_move = "physical_move"
     special_move = "special_move"
     status_move = "status_move"
-    
+
     @staticmethod
     def get_attack_move():
         return [MoveType.special_move, MoveType.physical_move]

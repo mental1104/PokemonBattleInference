@@ -1,0 +1,9 @@
+{
+  "include": [
+    "pokemon_battle_inference",
+    "tests"
+  ],
+  "extraPaths": [
+    "../common/python"
+  ]
+}

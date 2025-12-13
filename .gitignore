@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # C extensions
 *.so
@@ -120,9 +121,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-!.env
-!.env.example
-!.env.mk
+.env
 .venv
 env/
 venv/
@@ -163,5 +162,4 @@ cython_debug/
 
 # vscode
 .devcontainer/
-.github/
 .vscode/

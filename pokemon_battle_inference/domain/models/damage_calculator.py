@@ -2,6 +2,7 @@ import json
 from pydantic import BaseModel
 from enum import Enum
 
+
 class CommonProperty(BaseModel):
     id: int
     name: str
@@ -20,6 +21,7 @@ class Attacker(CommonProperty):
 class Defender(CommonProperty):
     pass
 
+
 # 定义枚举
 class DamageResponsibility(Enum):
     BASIC_DAMAGE = "basic_damage"
@@ -33,20 +35,20 @@ class DamageResult:
     formula: str = ""
     min_damage: int = 0
     max_damage = 0
-    random_damage: int  = 0
-    min_damage_percent: float  = 0.0
+    random_damage: int = 0
+    min_damage_percent: float = 0.0
     max_damage_percent: float = 0.0
-    random_damage_percent: float  = 0.0
-    
+    random_damage_percent: float = 0.0
+
     def __init__(
-        self, 
+        self,
         formula="",
         min_damage=0,
         max_damage=0,
         random_damage=0,
         min_damage_percent=0.0,
         max_damage_percent=0.0,
-        random_damage_percent=0.0
+        random_damage_percent=0.0,
     ):
         self.formula = formula
         self.min_damage = min_damage
@@ -69,7 +71,7 @@ class DamageResult:
             "",
             int(self.min_damage * other),
             int(self.max_damage * other),
-            int(self.random_damage * other)
+            int(self.random_damage * other),
         )
 
     def __imul__(self, other):

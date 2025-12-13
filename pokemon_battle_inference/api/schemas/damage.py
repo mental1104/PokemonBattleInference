@@ -7,15 +7,25 @@ from pokemon_battle_inference.domain.models.move import Move, MoveType
 
 class PokemonModelRequest(BaseModel):
     id: int = Field(0, description="宝可梦ID")
-    level: Optional[int] = Field(DefaultLevel.DEFAULT_100_LEVEL, description="宝可梦等级")
-    basepoint: Optional[List[int]] = Field([0, 0, 0, 0, 0, 0], description="努力值分配，元素不足6个的会用0填充，超过6个的会忽略后面的内容")
-    individual_values: Optional[List[int]] = Field([31, 31, 31, 31, 31, 31], description="个体值分配，元素不足6个的会用0填充，超过6个的会忽略后面的内容")
+    level: Optional[int] = Field(
+        DefaultLevel.DEFAULT_100_LEVEL, description="宝可梦等级"
+    )
+    basepoint: Optional[List[int]] = Field(
+        [0, 0, 0, 0, 0, 0],
+        description="努力值分配，元素不足6个的会用0填充，超过6个的会忽略后面的内容",
+    )
+    individual_values: Optional[List[int]] = Field(
+        [31, 31, 31, 31, 31, 31],
+        description="个体值分配，元素不足6个的会用0填充，超过6个的会忽略后面的内容",
+    )
     nature: Optional[Nature] = Field(Nature.ADAMANT, description="性格")
-    
+
 
 class MoveRequest(BaseModel):
     power: int = Field(40, description="技能威力")
-    move_type: MoveType = Field(MoveType.physical_move, description="技能类型：变化/物理/特殊")
+    move_type: MoveType = Field(
+        MoveType.physical_move, description="技能类型：变化/物理/特殊"
+    )
     type: str = Field("Normal", description="技能属性")
 
 
