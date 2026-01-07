@@ -25,5 +25,4 @@ class InitTypes:
             for key, val in name_map.items():
                 single_item = {"id": int(key), "name": val}
                 type_create = TypesCreate(**single_item)
-                logging.info(type_create)
                 Types.create(type_create)
