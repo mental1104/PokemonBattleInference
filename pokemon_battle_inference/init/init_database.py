@@ -2,8 +2,8 @@ import logging
 
 from pokemon_battle_inference.infrastructure.db import startup
 from pokemon_battle_inference.infrastructure.db.models import pokemon  # noqa: F401
-from scripts.init_pokemon import InitPokemon
-from scripts.init_types import InitTypes
+from pokemon_battle_inference.init.init_pokemon import InitPokemon
+from pokemon_battle_inference.init.init_types import InitTypes
 
 def init_table():
     InitPokemon.init()

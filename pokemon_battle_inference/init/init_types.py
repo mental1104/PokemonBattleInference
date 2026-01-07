@@ -6,7 +6,7 @@ from mental1104 import iterator_csv
 from pokemon_battle_inference.domain.models.types import TypesCreate
 from pokemon_battle_inference.infrastructure.db import open_session
 from pokemon_battle_inference.infrastructure.db.models.types import Types
-from scripts import CONFIG_PATH
+from pokemon_battle_inference.init import CONFIG_PATH
 
 TYPE_FILE = CONFIG_PATH / "type" / "types.csv"
 

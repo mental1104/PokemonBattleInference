@@ -8,7 +8,7 @@ from pokemon_battle_inference.domain.models.pokemon import PokemonCreate
 from pokemon_battle_inference.infrastructure.db import open_session, startup
 from pokemon_battle_inference.infrastructure.db.models import pokemon  # noqa: F401
 from pokemon_battle_inference.infrastructure.db.models.pokemon import Pokemon
-from scripts import CONFIG_PATH
+from pokemon_battle_inference.init import CONFIG_PATH
 
 # Column order definition for stats tables so downstream code can stay agnostic to CSV order
 STAT_FIELDS: Tuple[str, ...] = (

@@ -91,7 +91,7 @@ app = create_app()
 def main() -> None:
     configure_logging("INFO")
     uvicorn.run(
-        "pokemon_battle_inference.main:app", host="0.0.0.0", port=8000, workers=2
+        "pokemon_battle_inference.main:app", host="0.0.0.0", port=41104, workers=2
     )
 
 

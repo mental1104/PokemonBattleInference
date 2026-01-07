@@ -1,8 +1,5 @@
 import textwrap
-
-import pytest
-
-from scripts import init_pokemon, init_types
+from pokemon_battle_inference.init import init_pokemon, init_types
 
 
 def write_csv(tmp_path, name, content):
