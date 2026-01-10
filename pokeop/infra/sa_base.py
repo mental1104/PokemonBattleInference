@@ -6,10 +6,10 @@ from pokeop.schema.db.db_schema import DBSchema
 
 
 class RawBase(DeclarativeBase):
-    metadata = MetaData(schema=DBSchema.POKE_RAW)
+    metadata = MetaData(schema=DBSchema.POKE_RAW.value)
 
 class AppBase(DeclarativeBase):
-    metadata = MetaData(schema=DBSchema.APP)
+    metadata = MetaData(schema=DBSchema.APP.value)
 
 class AuditBase(DeclarativeBase):
-    metadata = MetaData(schema=DBSchema.AUDIT)
+    metadata = MetaData(schema=DBSchema.AUDIT.value)

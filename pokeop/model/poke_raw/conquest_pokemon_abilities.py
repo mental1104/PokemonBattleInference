@@ -1,3 +1,4 @@
+# Auto-generated. DO NOT EDIT BY HAND.
 from __future__ import annotations
 
 from sqlalchemy import Integer
@@ -8,6 +9,8 @@ from pokeop.model.poke_raw.base import Base
 
 class ConquestPokemonAbilities(Base):
     __tablename__ = 'conquest_pokemon_abilities'
-    pokemon_species_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    slot: Mapped[int] = mapped_column(Integer, nullable=False)
-    ability_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    pokemon_species_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    slot: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    ability_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+
+__all__ = ['ConquestPokemonAbilities']

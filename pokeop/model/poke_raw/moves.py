@@ -1,3 +1,4 @@
+# Auto-generated. DO NOT EDIT BY HAND.
 from __future__ import annotations
 
 from typing import Optional
@@ -10,7 +11,7 @@ from pokeop.model.poke_raw.base import Base
 
 class Moves(Base):
     __tablename__ = 'moves'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     identifier: Mapped[str] = mapped_column(Text, nullable=False)
     generation_id: Mapped[int] = mapped_column(Integer, nullable=False)
     type_id: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -25,3 +26,5 @@ class Moves(Base):
     contest_type_id: Mapped[int] = mapped_column(Integer, nullable=False)
     contest_effect_id: Mapped[int] = mapped_column(Integer, nullable=False)
     super_contest_effect_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+__all__ = ['Moves']

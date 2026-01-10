@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from pokeop.services.pokemon_builder import PokemonDirector
 from pokeop.domain.models.move import Move, MoveType
 from pokeop.domain.models.types import Type
 from pokeop.domain.calculations.damage.calculator import (

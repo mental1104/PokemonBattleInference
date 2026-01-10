@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_sa_models_pkg.py
+# gen_model_from_csv.py
 from __future__ import annotations
 
 import csv
@@ -24,11 +24,11 @@ class Col:
     py_attr: str
     sa_type: str  # "Integer" | "Boolean" | "Text"
     nullable: bool
-    is_pk: bool   # 只有“第一个字段精确为 id”时才会为 True
+    is_pk: bool
 
 
 @dataclass(frozen=True)
-class Table:
+class TableDef:
     name: str
     module_name: str
     class_name: str
@@ -88,7 +88,7 @@ def is_bool_values(values: Sequence[str]) -> bool:
 
 
 def infer_sa_type(col: str, values: Sequence[str]) -> str:
-    # 仍保留类型推断（不涉及任何约束推断）
+    # 仅类型推断，不推断 FK/唯一约束等
     if col == "id" or col.endswith("_id") or col in ("slot", "position", "order"):
         return "Integer"
     if BOOL_NAME_RE.match(col) and is_bool_values(values):
@@ -103,11 +103,11 @@ def table_name_from_path(csv_dir: Path, csv_path: Path) -> str:
     return "_".join(rel.parts)
 
 
-def build_tables(csv_dir: Path) -> List[Table]:
+def build_tables(csv_dir: Path) -> List[TableDef]:
     csv_files = sorted(csv_dir.rglob("*.csv"))
 
     seen_modules: set[str] = set()
-    tables: List[Table] = []
+    tables: List[TableDef] = []
 
     for p in csv_files:
         tname = table_name_from_path(csv_dir, p)
@@ -115,13 +115,16 @@ def build_tables(csv_dir: Path) -> List[Table]:
         if not header:
             continue
 
-        # 新规则：只有第一个字段精确为 "id" 才设置主键；否则完全不设 PK
-        pk_col = "id" if header[0] == "id" else None
-
         values_by_col: Dict[str, List[str]] = {c: [] for c in header}
         for row in rows:
             for i, c in enumerate(header):
                 values_by_col[c].append(row[i] if i < len(row) else "")
+
+        # 你的新规则：
+        # - 有 id 列：仅 id 为 PK
+        # - 无 id 列：全字段联合 PK（每列都是 PK）
+        has_id = "id" in header
+        pk_set = {"id"} if has_id else set(header)
 
         cols: List[Col] = []
         for c in header:
@@ -129,9 +132,9 @@ def build_tables(csv_dir: Path) -> List[Table]:
             sa_type = infer_sa_type(c, values)
             nullable = any(v == "" for v in values)
 
-            is_pk = (pk_col is not None and c == pk_col)
+            is_pk = c in pk_set
             if is_pk:
-                # 主键列强制非空（只在这种唯一允许的 PK 情况下）
+                # PostgreSQL 主键列必须 NOT NULL
                 nullable = False
 
             cols.append(
@@ -155,7 +158,7 @@ def build_tables(csv_dir: Path) -> List[Table]:
         seen_modules.add(module_name)
 
         tables.append(
-            Table(
+            TableDef(
                 name=tname,
                 module_name=module_name,
                 class_name=class_name,
@@ -169,7 +172,6 @@ def build_tables(csv_dir: Path) -> List[Table]:
 def ensure_pkg_chain_inits(out_pkg: Path) -> None:
     """
     确保 out_pkg 及其上两级目录存在 __init__.py（通常是 poke_raw/ 和 model/）
-    让 `pokeop.model.poke_raw` 绝对导入更稳。
     """
     for p in [out_pkg, out_pkg.parent, out_pkg.parent.parent]:
         if p.exists() and p.is_dir():
@@ -180,7 +182,7 @@ def ensure_pkg_chain_inits(out_pkg: Path) -> None:
 
 def emit_base_py() -> str:
     """
-    生成包内 Base：直接别名为你项目里的 RawBase（metadata.schema 已固定为 DBSchema.POKE_RAW）
+    包内 Base：别名到你项目里的 RawBase（metadata.schema 已固定为 DBSchema.POKE_RAW）
     """
     return "\n".join(
         [
@@ -195,16 +197,12 @@ def emit_base_py() -> str:
     )
 
 
-def _table_needs_optional(t: Table) -> bool:
+def _table_needs_optional(t: TableDef) -> bool:
     # 只要存在 nullable 且非 pk 字段，就需要 Optional
     return any(c.nullable and not c.is_pk for c in t.cols)
 
 
-def _collect_sa_imports(t: Table) -> List[str]:
-    """
-    只导入用到的 sqlalchemy 类型。
-    注意：不生成任何 FK/PK 约束，因此不导入 ForeignKey / PrimaryKeyConstraint。
-    """
+def _collect_sa_imports(t: TableDef) -> List[str]:
     used_types = {c.sa_type for c in t.cols}
     sa_imports: List[str] = []
     for typ in ("Boolean", "Integer", "Text"):
@@ -215,11 +213,12 @@ def _collect_sa_imports(t: Table) -> List[str]:
     return sa_imports
 
 
-def emit_model_py(t: Table) -> str:
+def emit_model_py(t: TableDef) -> str:
     need_optional = _table_needs_optional(t)
     sa_imports = _collect_sa_imports(t)
 
     lines: List[str] = []
+    lines.append("# Auto-generated. DO NOT EDIT BY HAND.")
     lines.append("from __future__ import annotations")
     lines.append("")
 
@@ -242,13 +241,14 @@ def emit_model_py(t: Table) -> str:
 
         col_args: List[str] = []
         if c.is_pk:
+            # 联合主键：多列都 primary_key=True 即可
             col_args.append("primary_key=True")
-            # 不再显式写 nullable=...，交给 primary_key 语义 + 上面强制 nullable=False
+            # 主键列必须 NOT NULL（即使你 CSV 采样里出现空，也按你需求强制）
+            col_args.append("nullable=False")
         else:
             col_args.append(f"nullable={str(c.nullable)}")
 
-        needs_name = (c.py_attr != c.name)
-        if needs_name:
+        if c.py_attr != c.name:
             lines.append(
                 f'    {c.py_attr}: Mapped[{ann}] = mapped_column("{c.name}", {c.sa_type}, {", ".join(col_args)})'
             )
@@ -258,33 +258,32 @@ def emit_model_py(t: Table) -> str:
             )
 
     lines.append("")
+    lines.append(f"__all__ = [{t.class_name!r}]")
+    lines.append("")
     return "\n".join(lines)
 
 
-def emit_init_py(tables: List[Table]) -> str:
+def emit_init_py(tables: List[TableDef]) -> str:
     lines: List[str] = []
     lines.append("# Auto-generated. DO NOT EDIT BY HAND.")
     lines.append(f"from {PKG_ROOT}.base import Base")
     for t in tables:
         lines.append(f"from {PKG_ROOT}.{t.module_name} import {t.class_name}")
     lines.append("")
-
-    all_names = ["Base"] + [t.class_name for t in tables]
-
     lines.append("# fmt: off")
     lines.append("__all__ = [")
-    for n in all_names:
-        lines.append(f"    {n!r},")
+    lines.append("    'Base',")
+    for t in tables:
+        lines.append(f"    {t.class_name!r},")
     lines.append("]")
     lines.append("# fmt: on")
     lines.append("")
-
     return "\n".join(lines)
 
 
 def main() -> None:
     if len(sys.argv) != 3:
-        raise SystemExit("Usage: python gen_sa_models_pkg.py <csv_dir> <out_pkg_dir>")
+        raise SystemExit("Usage: python gen_model_from_csv.py <csv_dir> <out_pkg_dir>")
 
     csv_dir = Path(sys.argv[1]).resolve()
     out_pkg = Path(sys.argv[2]).resolve()
@@ -296,6 +295,7 @@ def main() -> None:
 
     (out_pkg / "base.py").write_text(emit_base_py(), encoding="utf-8")
 
+    # 每表一个文件
     for t in tables:
         (out_pkg / f"{t.module_name}.py").write_text(emit_model_py(t), encoding="utf-8")
 
@@ -304,7 +304,6 @@ def main() -> None:
     print(f"[gen] csv_dir={csv_dir}")
     print(f"[gen] out_pkg={out_pkg}")
     print(f"[gen] models={len(tables)}")
-    print(f"[gen] pkg_root={PKG_ROOT}")
 
 
 if __name__ == "__main__":

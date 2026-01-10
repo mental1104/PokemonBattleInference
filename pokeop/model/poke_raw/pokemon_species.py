@@ -1,3 +1,4 @@
+# Auto-generated. DO NOT EDIT BY HAND.
 from __future__ import annotations
 
 from typing import Optional
@@ -10,7 +11,7 @@ from pokeop.model.poke_raw.base import Base
 
 class PokemonSpecies(Base):
     __tablename__ = 'pokemon_species'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     identifier: Mapped[str] = mapped_column(Text, nullable=False)
     generation_id: Mapped[int] = mapped_column(Integer, nullable=False)
     evolves_from_species_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -30,3 +31,5 @@ class PokemonSpecies(Base):
     is_mythical: Mapped[bool] = mapped_column(Boolean, nullable=False)
     order: Mapped[int] = mapped_column(Integer, nullable=False)
     conquest_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+__all__ = ['PokemonSpecies']

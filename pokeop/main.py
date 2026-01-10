@@ -10,17 +10,17 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from pokeop.infra.logging import configure_logging
-from pokeop.infra.db import setup
+from pokeop.infra.db import init_db
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 ROUTER_DIR = BASE_DIR / "api" / "routers"
-ROUTER_PACKAGE = "pokemon_battle_inference.api.routers"
-COMMON_PREFIX = "/nexus/api"
+ROUTER_PACKAGE = "pokeop.api.routers"
+COMMON_PREFIX = "/v1"
 
 
 def create_app() -> FastAPI:
-    setup()
+    init_db(create_tables=True, import_csv=True)
     application = FastAPI(
         docs_url=None,
         redoc_url=None,
@@ -91,7 +91,7 @@ app = create_app()
 def main() -> None:
     configure_logging("INFO")
     uvicorn.run(
-        "pokemon_battle_inference.main:app", host="0.0.0.0", port=41104, workers=2
+        "pokeop.main:app", host="0.0.0.0", port=41104, workers=2
     )
 
 

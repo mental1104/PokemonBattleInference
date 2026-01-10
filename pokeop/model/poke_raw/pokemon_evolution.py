@@ -1,3 +1,4 @@
+# Auto-generated. DO NOT EDIT BY HAND.
 from __future__ import annotations
 
 from typing import Optional
@@ -10,7 +11,7 @@ from pokeop.model.poke_raw.base import Base
 
 class PokemonEvolution(Base):
     __tablename__ = 'pokemon_evolution'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     evolved_species_id: Mapped[int] = mapped_column(Integer, nullable=False)
     evolution_trigger_id: Mapped[int] = mapped_column(Integer, nullable=False)
     trigger_item_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -32,3 +33,5 @@ class PokemonEvolution(Base):
     turn_upside_down: Mapped[int] = mapped_column(Integer, nullable=False)
     region_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     base_form_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+__all__ = ['PokemonEvolution']
