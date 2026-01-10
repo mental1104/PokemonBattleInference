@@ -29,6 +29,18 @@ _IMPORT_TABLE = "_csv_import_version"
 _IMPORT_KEY = "poke_raw_csv_import_v1"
 
 
+def _schema_name() -> str:
+    """
+    RawBase.metadata.schema 可能是 str，也可能是 Enum（如 DBSchema.POKE_RAW）。
+    这里统一拿到最终的 schema 字符串。
+    """
+    s = RawBase.metadata.schema
+    if s is None:
+        return _IMPORT_SCHEMA
+    v = getattr(s, "value", None)
+    return v if isinstance(v, str) else str(s)
+
+
 # -----------------------------
 # 导入版本表：用 ORM + DAO（走自动注入 db）
 # -----------------------------
@@ -43,19 +55,11 @@ class _CSVImportVersionDAO(AutoSessionDAO):
     _model = _CSVImportVersion
 
     def ensure_table(self, *, db) -> None:
-        # 不依赖 create_all 是否包含它：这里兜底建 schema + 表
-        db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_IMPORT_SCHEMA}"))
-        db.execute(
-            text(
-                f"""
-                CREATE TABLE IF NOT EXISTS {_IMPORT_SCHEMA}.{_IMPORT_TABLE} (
-                    k TEXT PRIMARY KEY,
-                    v TEXT NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-        )
+        # 仍然用 SQLAlchemy 方式创建（不写原生 CREATE TABLE），但 schema 必须先存在
+        schema = _schema_name()
+        db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        # SQLAlchemy DDL：checkfirst=True 幂等
+        self._model.__table__.create(bind=db.get_bind(), checkfirst=True)
         db.flush()
 
     def is_done(self, key: str, *, db) -> bool:
@@ -123,6 +127,25 @@ def _build_model_to_dao() -> Dict[Type, object]:
 
 
 # -----------------------------
+# schema 预创建（必须在 create_all 之前）
+# -----------------------------
+
+class _BootstrapDAO(AutoSessionDAO):
+    def ensure_schema(self, schema: str, *, db) -> None:
+        db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        db.flush()
+
+
+def _ensure_schema_before_create_all(schema: str) -> None:
+    """
+    前置条件：DB 已 register（create=False 也行）
+    """
+    boot = _BootstrapDAO()
+    with tx_scope(DBKind.POSTGRES):
+        boot.ensure_schema(schema)
+
+
+# -----------------------------
 # 导入主流程（一个事务内）
 # -----------------------------
 
@@ -159,7 +182,7 @@ def _import_all_csv(
                 raise RuntimeError(f"[import] no DAO for model '{model.__name__}' (table={tname})")
 
             # 关键：依赖 AutoSessionDAO 注入 db（和你 demo 一致）
-            inserted = dao.add_all(  # type: ignore[attr-defined]
+            dao.add_all(  # type: ignore[attr-defined]
                 csv_path,
                 batch_size=batch_size,
                 ignore_conflicts=ignore_conflicts,
@@ -204,17 +227,32 @@ def init_db(
             password=os.environ["PGPASSWORD"],
         )
 
-        # 2) 注册 +（可选）建表
+        # 2) 先注册（create=False），拿到可用的 DB 连接能力
         register_db_and_create(
             DBKind.POSTGRES,
             params=params,
             db_name=db_name,
             base=RawBase,
-            create=create_tables,
-            allow_overwrite=True,  # 避免多次导入/多进程触发重复注册时报错
+            create=False,
+            allow_overwrite=True,
         )
 
-        # 3) （可选）导入 CSV（幂等）
+        # 3) 在 create_all 之前创建 schema（关键）
+        schema = _schema_name()
+        _ensure_schema_before_create_all(schema)
+
+        # 4) 再触发 SQLAlchemy create_all（此时 schema 已存在）
+        if create_tables:
+            register_db_and_create(
+                DBKind.POSTGRES,
+                params=params,
+                db_name=db_name,
+                base=RawBase,
+                create=True,
+                allow_overwrite=True,
+            )
+
+        # 5) （可选）导入 CSV（幂等）
         if import_csv:
             _import_all_csv(
                 csv_dir=Path(csv_dir) if csv_dir is not None else _DEFAULT_CSV_DIR,
