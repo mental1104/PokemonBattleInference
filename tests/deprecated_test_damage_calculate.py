@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import MagicMock
-from pokemon_battle_inference.services.pokemon_builder import PokemonDirector
-from pokemon_battle_inference.domain.calculations.damage.calculator import (
+from pokeop.services.pokemon_builder import PokemonDirector
+from pokeop.domain.calculations.damage.calculator import (
     DamageCalculator,
 )
-from pokemon_battle_inference.domain.models.nature import Nature
-from pokemon_battle_inference.infrastructure.db.models.pokemon import Pokemon
-from pokemon_battle_inference.domain.models.move import Move, MoveType
-from pokemon_battle_inference.domain.models.types import Type
+from pokeop.domain.models.nature import Nature
+from pokeop.infra.db.models.pokemon import Pokemon
+from pokeop.domain.models.move import Move, MoveType
+from pokeop.domain.models.types import Type
 
 def create_pokemon_factory(id):
     pokemon_map = {
@@ -19,7 +19,7 @@ def create_pokemon_factory(id):
     }
     return pokemon_map.get(id)
 
-# ((727, 100, [4, 252, 0, 0, 0, 252], [31, 31, 31, 31, 31, 31], Nature.ADAMANT), 
+# ((727, 100, [4, 252, 0, 0, 0, 252], [31, 31, 31, 31, 31, 31], Nature.ADAMANT),
 #      (812, 100, [4, 252, 0, 0, 0, 252], [31, 31, 31, 31, 31, 31], Nature.JOLLY),
 #      Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), 1)
 @pytest.mark.parametrize('attacker_data, defenser_data, move, expect', [
@@ -53,7 +53,7 @@ def test_normal_damage(attacker_data, defenser_data, move, expect):
     for entity in (attacker_data, defenser_data):
         entity_stat = Pokemon.get_by_id(entity[0], session=mock_session_filter(entity[0]))
         pokemon_entity = director.construct_custom(
-            id=entity[0], 
+            id=entity[0],
             name=entity_stat.name,
             level=entity[1],
             type_1=entity_stat.type_1,

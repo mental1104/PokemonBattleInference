@@ -1,7 +1,7 @@
 import textwrap
 from contextlib import contextmanager
 
-from pokemon_battle_inference.init import init_pokemon
+from pokeop.init import init_pokemon
 
 
 def write_csv(tmp_path, name, content):
