@@ -5,4 +5,4 @@
 [submodule "submodules/common"]
 	path = submodules/common
 	url = git@github.com:mental1104/common.git
-	branch = develop
+	branch = main
