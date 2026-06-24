@@ -2,3 +2,7 @@
 	path = submodules/pokeapi
 	url = git@github.com:PokeAPI/pokeapi.git
 	branch = master
+[submodule "submodules/common"]
+	path = submodules/common
+	url = git@github.com:mental1104/common.git
+	branch = develop
