@@ -192,6 +192,30 @@ def _import_all_csv(
         ver.mark_done(_IMPORT_KEY, f"done tables={ok}")
 
 
+def _run_materialized_view_actions(
+    *,
+    create_materialized_views: bool,
+    recreate_materialized_views: bool,
+    refresh_materialized_views: bool,
+) -> None:
+    if not (create_materialized_views or recreate_materialized_views or refresh_materialized_views):
+        return
+
+    from pokeop.infra.views import (
+        create_materialized_views as _create_materialized_views,
+        recreate_materialized_views as _recreate_materialized_views,
+        refresh_materialized_views as _refresh_materialized_views,
+    )
+
+    if recreate_materialized_views:
+        _recreate_materialized_views()
+    elif create_materialized_views:
+        _create_materialized_views()
+
+    if refresh_materialized_views:
+        _refresh_materialized_views()
+
+
 # -----------------------------
 # init_db：注册/建表/可选导入
 # -----------------------------
@@ -205,13 +229,26 @@ def init_db(
     force_import: bool = False,
     batch_size: int = 5000,
     ignore_conflicts: bool = True,
+    create_materialized_views: bool = False,
+    recreate_materialized_views: bool = False,
+    refresh_materialized_views: bool = False,
 ) -> None:
     global _inited
     if _inited:
+        _run_materialized_view_actions(
+            create_materialized_views=create_materialized_views,
+            recreate_materialized_views=recreate_materialized_views,
+            refresh_materialized_views=refresh_materialized_views,
+        )
         return
 
     with _init_lock:
         if _inited:
+            _run_materialized_view_actions(
+                create_materialized_views=create_materialized_views,
+                recreate_materialized_views=recreate_materialized_views,
+                refresh_materialized_views=refresh_materialized_views,
+            )
             return
 
         # 1) 先 import 所有 ORM 模型：让 RawBase.metadata 收集到全部表
@@ -260,5 +297,11 @@ def init_db(
                 batch_size=batch_size,
                 ignore_conflicts=ignore_conflicts,
             )
+
+        _run_materialized_view_actions(
+            create_materialized_views=create_materialized_views,
+            recreate_materialized_views=recreate_materialized_views,
+            refresh_materialized_views=refresh_materialized_views,
+        )
 
         _inited = True
