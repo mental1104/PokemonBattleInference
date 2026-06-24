@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+before_head="$(git -C "$repo_root" rev-parse HEAD)"
+
+"$repo_root/scripts/update-common-submodule.sh" --commit
+
+after_head="$(git -C "$repo_root" rev-parse HEAD)"
+if [ "$before_head" != "$after_head" ]; then
+  echo >&2
+  echo "common submodule pointer was updated and committed." >&2
+  echo "Run git push again to push the new commit." >&2
+  exit 1
+fi
