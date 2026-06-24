@@ -55,3 +55,8 @@ PokemonBattleInference/
 ```bash
 pytest tests
 ```
+
+## 第三方数据与许可
+
+本项目使用 PokeAPI 的 `data/v2/csv` 数据，详见
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
