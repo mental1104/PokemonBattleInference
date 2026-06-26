@@ -6,15 +6,15 @@
 
 ```
 PokemonBattleInference/
-├── data/raw/config/         # 初始化数据库所需的 CSV 数据
-├── pokemon_battle_inference/
-│   ├── api/                 # FastAPI 的 schema 和 router
-│   ├── core/                # 日志、配置等核心设施
+├── pokeop/
+│   ├── api/                 # FastAPI schema/router（后续网关层）
+│   ├── application/         # 不依赖网关的业务用例与服务
+│   ├── assets_data/         # PokeAPI CSV 静态数据（symlink）
+│   ├── assets_static/       # Swagger UI 等静态资源
 │   ├── domain/              # 领域模型与能力、伤害计算逻辑
-│   ├── infrastructure/      # 数据库连接与 SQLAlchemy 模型
-│   ├── services/            # 构建宝可梦实体的服务
-│   └── static/              # 自带的 Swagger 资源
-├── scripts/                 # 数据导入脚本（依赖 data/raw）
+│   ├── infrastructure/      # 连接池、日志、外部系统客户端等通用基础设施适配
+│   └── persistence/         # ORM model、DAO、DB schema、物化视图、数据导入
+├── scripts/                 # 数据库/维护脚本
 ├── tests/                   # Pytest 用例
 ├── requirements.txt
 └── run.sh
@@ -32,7 +32,7 @@ PokemonBattleInference/
    ```
 3. 本地启动 FastAPI 服务：
    ```bash
-   uvicorn pokemon_battle_inference.main:app --reload
+   uvicorn pokeop.main:app --reload
    ```
 4. 或者使用 Docker：
    ```bash
@@ -44,10 +44,10 @@ PokemonBattleInference/
 
 ## 数据与脚本
 
-- `scripts/` 目录包含数据导入脚本，读取 `data/raw/config` 中的 CSV。
+- `scripts/` 目录包含数据库维护脚本，默认读取 `pokeop/assets_data` 中的 CSV。
 - 执行脚本前请确保数据库环境变量已设置（`PGUSER/PGPASSWORD/PGHOST/...`）并运行：
   ```bash
-  python scripts/init_database.py
+  python3 scripts/reset_postgres_db.py --with-materialized-views
   ```
 
 ## 测试

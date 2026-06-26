@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-MODEL_PKG_ROOT = "pokeop.model.poke_raw"
+MODEL_PKG_ROOT = "pokeop.persistence.raw.models"
 
 BOOL_VALUES_TRUE = {"1", "true", "t", "yes", "y"}
 BOOL_VALUES_FALSE = {"0", "false", "f", "no", "n"}

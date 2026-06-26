@@ -1,0 +1,14 @@
+from __future__ import annotations
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import MetaData
+from pokeop.persistence.schema.db_schema import DBSchema
+
+
+class RawBase(DeclarativeBase):
+    metadata = MetaData(schema=DBSchema.POKE_RAW.value)
+
+class AppBase(DeclarativeBase):
+    metadata = MetaData(schema=DBSchema.APP.value)
+
+class AuditBase(DeclarativeBase):
+    metadata = MetaData(schema=DBSchema.AUDIT.value)

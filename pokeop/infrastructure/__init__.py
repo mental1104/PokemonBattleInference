@@ -1,0 +1,1 @@
+"""External-system infrastructure adapters."""

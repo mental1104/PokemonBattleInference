@@ -8,7 +8,7 @@ import logging
 
 from pokeop.domain.models.nature import Nature
 from pokeop.services.pokemon_builder import PokemonDirector
-from pokeop.infra.db import setup
+from pokeop.persistence.bootstrap import setup
 from pokeop.domain.models.property import PropertyEnum
 from pokeop.domain.calculations.ability import (
     AbilityCalculatorFactory,

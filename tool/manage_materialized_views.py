@@ -10,8 +10,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from pokeop.infra.db import init_db
-from pokeop.infra.views import (
+from pokeop.persistence.bootstrap import init_db
+from pokeop.persistence.views import (
     create_materialized_views,
     drop_materialized_views,
     recreate_materialized_views,
@@ -29,7 +29,7 @@ def main() -> None:
     parser.add_argument(
         "--import-csv",
         action="store_true",
-        help="Import raw pokeop/data CSV before managing materialized views.",
+        help="Import raw pokeop/assets_data CSV before managing materialized views.",
     )
     parser.add_argument(
         "--force-import",

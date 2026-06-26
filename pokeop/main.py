@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
 
@@ -9,24 +10,31 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from pokeop.infra.logging import configure_logging
-from pokeop.infra.db import init_db
+from pokeop.infrastructure.logging import configure_logging
 
 BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = BASE_DIR / "assets_static"
 ROUTER_DIR = BASE_DIR / "api" / "routers"
 ROUTER_PACKAGE = "pokeop.api.routers"
 COMMON_PREFIX = "/v1"
 
 
-def create_app() -> FastAPI:
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    from pokeop.persistence.bootstrap import init_db
+
     init_db(create_tables=True, import_csv=True)
+    yield
+
+
+def create_app() -> FastAPI:
     application = FastAPI(
         docs_url=None,
         redoc_url=None,
         title="Blue Espeon",
         description="Blue Espeon's little httpserver",
         version="0.0.1",
+        lifespan=lifespan,
     )
 
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

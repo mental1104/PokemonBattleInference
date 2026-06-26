@@ -4,7 +4,7 @@ Use this reference when building views or query services over `poke_raw`.
 
 ## Current CSV Shape
 
-`pokeop/data` points at PokeAPI `data/v2/csv`. The raw import currently covers 177 CSV tables.
+`pokeop/assets_data` points at PokeAPI `data/v2/csv`. The raw import currently covers 177 CSV tables.
 
 Key battle tables:
 
@@ -49,10 +49,10 @@ Important row counts from the current CSV snapshot:
 
 ## Materialized View Management
 
-Use `pokeop.infra.views` as the only code path for derived materialized views:
+Use `pokeop.persistence.views` as the only code path for derived materialized views:
 
-- Define each view in `pokeop/infra/views/registry.py`.
-- Keep the SELECT body in `pokeop/infra/views/sql/<schema>/<view>.sql`.
+- Define each view in `pokeop/persistence/views/registry.py`.
+- Keep the SELECT body in `pokeop/persistence/views/sql/<schema>/<view>.sql`.
 - Let the registry own schema names, materialized-view names, indexes, comments, and execution order.
 - Do not add materialized-view models to `RawBase` or call `Base.metadata.create_all()` for views.
 
@@ -72,7 +72,7 @@ python3 tool/manage_materialized_views.py recreate --import-csv
 Code entrypoint:
 
 ```python
-from pokeop.infra.db import init_db
+from pokeop.persistence.bootstrap import init_db
 
 init_db(create_tables=True, import_csv=True, recreate_materialized_views=True)
 ```

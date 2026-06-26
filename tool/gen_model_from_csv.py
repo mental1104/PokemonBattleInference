@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
 # 生成出来的代码将以这个包名作为“唯一根引用”
-PKG_ROOT = "pokeop.model.poke_raw"
+PKG_ROOT = "pokeop.persistence.raw.models"
 
 SAMPLE_ROWS = 300
 BOOL_NAME_RE = re.compile(r"^(is_|has_|can_|should_|requires_)", re.I)
@@ -189,7 +189,7 @@ def emit_base_py() -> str:
             "# Auto-generated. DO NOT EDIT BY HAND.",
             "from __future__ import annotations",
             "",
-            "from pokeop.infra.sa_base import RawBase as Base",
+            "from pokeop.persistence.base import RawBase as Base",
             "",
             "__all__ = ['Base']",
             "",

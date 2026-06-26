@@ -1,7 +1,6 @@
 """
-Bootstrap import paths so local `~/code/common` (and its export layer) are preferred
-over system-wide installs. This keeps shared capabilities in mental1104 taking
-precedence during development while still allowing a system-installed fallback.
+Bootstrap import paths so the vendored common submodule is preferred over other
+local checkouts and system-wide installs.
 """
 
 from __future__ import annotations
@@ -13,23 +12,32 @@ from pathlib import Path
 
 def _inject_common_paths() -> None:
     """
-    Prefer the developer's ~/code/common checkout (or a sibling ../common) for
-    shared libraries. If neither exists, we leave sys.path untouched so that any
-    system-installed packages are used instead.
+    Prefer this repository's submodules/common checkout for shared libraries.
+    If it is unavailable, fall back to COMMON_ROOT, then ~/code/common. If none
+    exists, leave sys.path untouched so system-installed packages can be used.
     """
 
-    preferred_root = Path(
-        os.getenv("COMMON_ROOT", Path.home() / "code" / "common")
-    ).expanduser()
-    fallback_root = Path(__file__).resolve().parents[2] / "common"
+    repo_root = Path(__file__).resolve().parents[1]
+    roots = [repo_root / "submodules" / "common"]
 
-    for root in (preferred_root, fallback_root):
+    common_root = os.getenv("COMMON_ROOT")
+    if common_root:
+        roots.append(Path(common_root).expanduser())
+
+    roots.append(Path.home() / "code" / "common")
+
+    seen: set[Path] = set()
+    for root in roots:
+        root = root.resolve()
+        if root in seen:
+            continue
+        seen.add(root)
         if not root.exists():
             continue
 
         python_layer = root / "python"
         export_python_layer = root / "export" / "python"
-        for candidate in (python_layer, export_python_layer):
+        for candidate in (export_python_layer, python_layer):
             if candidate.exists():
                 candidate_str = str(candidate)
                 if candidate_str not in sys.path:

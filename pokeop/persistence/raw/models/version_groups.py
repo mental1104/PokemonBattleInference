@@ -1,0 +1,17 @@
+# Auto-generated. DO NOT EDIT BY HAND.
+from __future__ import annotations
+
+from sqlalchemy import Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from pokeop.persistence.raw.models.base import Base
+
+
+class VersionGroups(Base):
+    __tablename__ = 'version_groups'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    identifier: Mapped[str] = mapped_column(Text, nullable=False)
+    generation_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+
+__all__ = ['VersionGroups']

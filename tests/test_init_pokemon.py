@@ -1,7 +1,7 @@
 import textwrap
 from contextlib import contextmanager
 
-from pokeop.init import init_pokemon
+from pokeop.persistence.importers import init_pokemon
 
 
 def write_csv(tmp_path, name, content):

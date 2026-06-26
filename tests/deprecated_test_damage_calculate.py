@@ -1,13 +1,45 @@
 import pytest
 from unittest.mock import MagicMock
+
 from pokeop.services.pokemon_builder import PokemonDirector
 from pokeop.domain.calculations.damage.calculator import (
     DamageCalculator,
 )
 from pokeop.domain.models.nature import Nature
-from pokeop.infra.db.models.pokemon import Pokemon
 from pokeop.domain.models.move import Move, MoveType
 from pokeop.domain.models.types import Type
+
+
+class Pokemon:
+    def __init__(
+        self,
+        *,
+        id,
+        name,
+        type_1,
+        type_2,
+        hp,
+        attack,
+        defense,
+        special_attack,
+        special_defense,
+        speed,
+    ):
+        self.id = id
+        self.name = name
+        self.type_1 = type_1
+        self.type_2 = type_2
+        self.hp = hp
+        self.attack = attack
+        self.defense = defense
+        self.special_attack = special_attack
+        self.special_defense = special_defense
+        self.speed = speed
+
+    @staticmethod
+    def get_by_id(id, session):
+        return session.query(Pokemon).filter(id).first()
+
 
 def create_pokemon_factory(id):
     pokemon_map = {
