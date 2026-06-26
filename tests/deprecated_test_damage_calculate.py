@@ -69,6 +69,12 @@ def create_pokemon_factory(id):
      Move(power=120, type=Type.FIRE, move_type=MoveType.physical_move), ((162, 192), (78.6, 93.2)))
 ])
 def test_normal_damage(attacker_data, defenser_data, move, expect):
+    """
+    验证旧版伤害计算器在参数化对战样例上的历史行为。
+    每组输入先用模拟 session 根据宝可梦 ID 返回种族值，
+    再通过 PokemonDirector 按等级、努力值、个体值和性格构造战斗实体，
+    最后断言旧 DamageCalculator 输出的伤害区间和百分比与预期一致。
+    """
 
     def mock_session_filter(id):
         # 创建一个模拟的 session 对象

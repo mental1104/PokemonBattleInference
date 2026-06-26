@@ -12,12 +12,22 @@ def write_csv(tmp_path, name, content):
 
 
 def test_empty_stats():
+    """
+    验证初始化导入器创建空能力值模板时会包含全部六项能力字段。
+    这个模板用于后续合并 CSV 里的部分 stat 行；
+    如果某个能力没有在输入 CSV 中出现，应保留默认值 0。
+    """
     result = init_pokemon.InitPokemon._empty_stats()
     assert set(result.keys()) == set(init_pokemon.STAT_FIELDS)
     assert all(value == 0 for value in result.values())
 
 
 def test_load_pokemon_stats(tmp_path):
+    """
+    验证从 pokemon_stats CSV 中读取同一只宝可梦的多行能力值。
+    测试 CSV 只给 pokemon_id=1 提供 hp、attack、speed 三项，
+    断言导入器能按 stat_id 映射字段并保留缺失 defense 的默认值 0。
+    """
     stats_file = write_csv(
         tmp_path,
         "stats.csv",
@@ -36,6 +46,11 @@ def test_load_pokemon_stats(tmp_path):
 
 
 def test_load_pokemon_names(tmp_path):
+    """
+    验证从 pokemon CSV 中读取宝可梦 ID 到 identifier 的名称映射。
+    测试输入包含 Bulbasaur 和 Ivysaur 两行，
+    断言导入器只提取 id 和 identifier，形成 {"1": "bulbasaur", "2": "ivysaur"}。
+    """
     name_file = write_csv(
         tmp_path,
         "pokemon.csv",
@@ -50,6 +65,11 @@ def test_load_pokemon_names(tmp_path):
 
 
 def test_load_pokemon_types(tmp_path):
+    """
+    验证从 pokemon_types CSV 中读取宝可梦的一号和二号属性槽。
+    测试输入故意包含 slot=3 的额外行，
+    断言导入器只保留 type_1 和 type_2，忽略不属于对战主属性槽的行。
+    """
     type_file = write_csv(
         tmp_path,
         "pokemon_types.csv",
@@ -65,6 +85,11 @@ def test_load_pokemon_types(tmp_path):
 
 
 def test_load_move_pool(tmp_path):
+    """
+    验证从 pokemon_moves CSV 中按 pokemon_id 聚合招式池。
+    测试输入让 pokemon_id=1 拥有 move_id 33 和 45，
+    pokemon_id=2 拥有 move_id 22，断言结果按宝可梦分组且保持读取顺序。
+    """
     move_file = write_csv(
         tmp_path,
         "pokemon_moves.csv",
@@ -81,6 +106,11 @@ def test_load_move_pool(tmp_path):
 
 
 def test_load_ability_pool(tmp_path):
+    """
+    验证从 pokemon_abilities CSV 中按 pokemon_id 聚合能力列表。
+    测试输入给 pokemon_id=1 两个 ability_id，
+    断言导入器返回 {"1": ["65", "34"]}，为后续 payload 合并提供能力池。
+    """
     ability_file = write_csv(
         tmp_path,
         "pokemon_abilities.csv",
@@ -95,6 +125,12 @@ def test_load_ability_pool(tmp_path):
 
 
 def test_iter_pokemon_payloads_merges_sources(monkeypatch):
+    """
+    验证 InitPokemon.iter_pokemon_payloads 会把多个 CSV 来源合成一个宝可梦载荷。
+    测试用 monkeypatch 替换 stats、names、types、moves、abilities 五个读取函数，
+    构造 pokemon_id=1 的 Bulbasaur 数据，断言最终 payload 同时包含能力值、
+    名称、双属性、招式列表和能力列表。
+    """
     stats = {
         "1": {
             "hp": 10,
@@ -158,6 +194,12 @@ def test_iter_pokemon_payloads_merges_sources(monkeypatch):
 
 
 def test_init_persists_payloads(monkeypatch):
+    """
+    验证 InitPokemon.init 会把合并后的 payload 转换成 PokemonCreate 并调用持久化入口。
+    测试替换 open_session、iter_pokemon_payloads 和 Pokemon.create，
+    避免真实数据库访问，只捕获传入 create 的对象；
+    最后断言创建了一个 id=1、name=bulbasaur 的 PokemonCreate。
+    """
     payloads = [
         (
             "1",
