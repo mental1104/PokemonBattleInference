@@ -59,6 +59,15 @@ git diff -- pokeop/persistence/raw/models pokeop/persistence/raw/dao
 - Use `api` only as an HTTP adapter: validate/translate request data, call application use cases, and translate application results into responses. Do not put domain calculations or database queries in API routers.
 - Use top-level `tests/` for tests, mirroring the production layer under test when helpful, such as `tests/domain`, `tests/application`, and `tests/persistence`.
 
+## Test Design
+
+- Keep test functions focused on scenario selection, calling the behavior under test, and assertions.
+- Do not inline large Pokemon, move, stat, status, ruleset, or fake-random setup blocks inside individual test cases when those objects are reusable.
+- Put common test data behind helper factories or builders under the relevant test package, such as `tests/domain/battle/helpers.py` for battle-domain tests.
+- Prefer named factory methods for recurring fixtures, for example common Pokemon profiles, battle snapshots, move profiles, status snapshots, and deterministic RNG.
+- Every new or substantially changed test function must begin with a triple-double-quoted Chinese docstring of at least 100 Chinese characters that explains the scenario, inputs, expected behavior, and protected boundary.
+- Treat test code as maintainable production-adjacent code: avoid copy-pasted setup, keep behavior readable, and make future test scenarios reuse existing factories before adding new raw constructors.
+
 ## Raw Data Notes
 
 - `pokeop/persistence/bootstrap.py` imports generated models and DAOs, creates schema `poke_raw`, creates all `RawBase` tables, and optionally imports every CSV.

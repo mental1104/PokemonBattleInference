@@ -1,6 +1,5 @@
 import pytest
 
-from pokeop.domain.battle.context import BattleMove, BattlePokemon, MoveCategory
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.modifiers import (
     AppliedModifier,
@@ -10,93 +9,7 @@ from pokeop.domain.battle.modifiers import (
     RandomRollModifier,
     build_damage_chain,
 )
-from pokeop.domain.battle.stats import (
-    NatureModifier,
-    StatProfile,
-    StatValues,
-    calculate_actual_stats,
-)
-from pokeop.domain.models.pokemon_fields import StatField
-from pokeop.domain.models.types import Type
-
-
-LEVEL = 50
-
-SCIZOR_BASE = StatValues(
-    hp=70,
-    attack=130,
-    defense=100,
-    special_attack=55,
-    special_defense=80,
-    speed=65,
-)
-SYLVEON_BASE = StatValues(
-    hp=95,
-    attack=65,
-    defense=65,
-    special_attack=110,
-    special_defense=130,
-    speed=60,
-)
-BULLET_PUNCH = BattleMove(
-    name="bullet-punch",
-    type=Type.STEEL,
-    category=MoveCategory.PHYSICAL,
-    power=40,
-)
-
-
-def _profile(
-    base_stats: StatValues,
-    *,
-    evs: StatValues,
-    nature_modifier: NatureModifier = NatureModifier.neutral(),
-) -> StatProfile:
-    """用测试提供的种族值、努力值和性格倍率快速创建 StatProfile。"""
-    return StatProfile(
-        base_stats=base_stats,
-        evs=evs,
-        nature_modifier=nature_modifier,
-    )
-
-
-def _scizor(profile: StatProfile) -> BattlePokemon:
-    """用给定能力配置创建 50 级虫/钢属性巨钳螳螂测试快照。"""
-    return BattlePokemon(
-        name="scizor",
-        level=LEVEL,
-        types=(Type.BUG, Type.STEEL),
-        stats=calculate_actual_stats(profile, level=LEVEL),
-    )
-
-
-def _sylveon(profile: StatProfile) -> BattlePokemon:
-    """用给定能力配置创建 50 级妖精属性仙子伊布测试快照。"""
-    return BattlePokemon(
-        name="sylveon",
-        level=LEVEL,
-        types=(Type.FAIRY,),
-        stats=calculate_actual_stats(profile, level=LEVEL),
-    )
-
-
-ATTACKER_PROFILES = {
-    "max_atk_plus": _profile(
-        SCIZOR_BASE,
-        evs=StatValues(attack=252),
-        nature_modifier=NatureModifier.increase(StatField.ATTACK),
-    ),
-    "max_atk_neutral": _profile(SCIZOR_BASE, evs=StatValues(attack=252)),
-}
-DEFENDER_PROFILES = {
-    "max_hp": _profile(SYLVEON_BASE, evs=StatValues(hp=252)),
-    "max_hp_def": _profile(SYLVEON_BASE, evs=StatValues(hp=252, defense=252)),
-    "max_hp_def_plus": _profile(
-        SYLVEON_BASE,
-        evs=StatValues(hp=252, defense=252),
-        nature_modifier=NatureModifier.increase(StatField.DEFENSE),
-    ),
-}
+from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
 
 
 @pytest.mark.parametrize(
@@ -122,9 +35,9 @@ def test_scizor_bullet_punch_sylveon_damage_ranges(
     基础伤害、STAB、钢打妖精 2 倍克制和 16 档随机伤害。
     """
     result = calculate_damage_rolls(
-        attacker=_scizor(ATTACKER_PROFILES[attacker_key]),
-        defender=_sylveon(DEFENDER_PROFILES[defender_key]),
-        move=BULLET_PUNCH,
+        attacker=BattlePokemonFactory.scizor(attacker_key),
+        defender=BattlePokemonFactory.sylveon(defender_key),
+        move=BattleMoveFactory.bullet_punch(),
     )
 
     assert (result.min_damage, result.max_damage) == expected_range
@@ -139,9 +52,9 @@ def test_applied_modifiers_include_stab_type_and_random_without_ability():
     当前阶段明确不计算 Technician，所以不能出现 ability 修正。
     """
     result = calculate_damage_rolls(
-        attacker=_scizor(ATTACKER_PROFILES["max_atk_plus"]),
-        defender=_sylveon(DEFENDER_PROFILES["max_hp"]),
-        move=BULLET_PUNCH,
+        attacker=BattlePokemonFactory.scizor("max_atk_plus"),
+        defender=BattlePokemonFactory.sylveon("max_hp"),
+        move=BattleMoveFactory.bullet_punch(),
     )
 
     modifiers = {modifier.key: modifier for modifier in result.applied_modifiers}
@@ -169,8 +82,8 @@ def test_damage_chain_allows_new_modifier_links_before_random_rolls():
                 AppliedModifier("test_ability", multiplier=2.0),
             )
 
-    attacker = _scizor(ATTACKER_PROFILES["max_atk_neutral"])
-    defender = _sylveon(DEFENDER_PROFILES["max_hp"])
+    attacker = BattlePokemonFactory.scizor("max_atk_neutral")
+    defender = BattlePokemonFactory.sylveon("max_hp")
     chain = build_damage_chain(
         (
             BaseDamageModifier(),
@@ -183,7 +96,7 @@ def test_damage_chain_allows_new_modifier_links_before_random_rolls():
         DamageCalculationState(
             attacker=attacker,
             defender=defender,
-            move=BULLET_PUNCH,
+            move=BattleMoveFactory.bullet_punch(),
         )
     )
 
