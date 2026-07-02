@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
+from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
 from pokeop.domain.battle.rulesets.models import BattleRuleset
 from pokeop.domain.battle.rulesets.status_rules import (
     BurnPolicy,
@@ -46,26 +47,67 @@ def _status_rules(paralysis_speed_multiplier: Fraction) -> StatusRules:
     )
 
 
-GEN6_RULESET = BattleRuleset(
-    ruleset_id="gen6",
-    generation_id=6,
-    version_group_id=None,
-    status_rules=_status_rules(Fraction(1, 4)),
-)
-
-GEN7_RULESET = BattleRuleset(
-    ruleset_id="gen7",
-    generation_id=7,
-    version_group_id=None,
-    status_rules=_status_rules(Fraction(1, 2)),
-)
-
-GEN9_RULESET = BattleRuleset(
-    ruleset_id="gen9",
-    generation_id=9,
-    version_group_id=None,
-    status_rules=_status_rules(Fraction(1, 2)),
-)
+def gen5_ruleset(
+    *,
+    generation_id: int = 5,
+    version_group_id: int | None = None,
+) -> BattleRuleset:
+    """Build the current legacy Gen1-Gen5 damage-policy profile."""
+    return BattleRuleset(
+        ruleset_id=f"gen{generation_id}",
+        generation_id=generation_id,
+        version_group_id=version_group_id,
+        status_rules=_status_rules(Fraction(1, 4)),
+        damage_policy=DamagePolicy.gen5(),
+    )
 
 
-__all__ = ["GEN6_RULESET", "GEN7_RULESET", "GEN9_RULESET"]
+def gen6_or_gen7_ruleset(
+    *,
+    generation_id: int = 6,
+    version_group_id: int | None = None,
+) -> BattleRuleset:
+    """Build the current Gen6/Gen7 damage-policy profile."""
+    paralysis_multiplier = Fraction(1, 4) if generation_id == 6 else Fraction(1, 2)
+    return BattleRuleset(
+        ruleset_id=f"gen{generation_id}",
+        generation_id=generation_id,
+        version_group_id=version_group_id,
+        status_rules=_status_rules(paralysis_multiplier),
+        damage_policy=DamagePolicy.gen6_or_gen7(),
+    )
+
+
+def modern_ruleset(
+    *,
+    generation_id: int = 9,
+    version_group_id: int | None = None,
+) -> BattleRuleset:
+    """Build the current modern Gen8/Gen9 damage-policy profile."""
+    return BattleRuleset(
+        ruleset_id=f"gen{generation_id}",
+        generation_id=generation_id,
+        version_group_id=version_group_id,
+        status_rules=_status_rules(Fraction(1, 2)),
+        damage_policy=DamagePolicy.modern(),
+    )
+
+
+GEN5_RULESET = gen5_ruleset()
+
+GEN6_RULESET = gen6_or_gen7_ruleset(generation_id=6)
+
+GEN7_RULESET = gen6_or_gen7_ruleset(generation_id=7)
+
+GEN9_RULESET = modern_ruleset(generation_id=9)
+
+
+__all__ = [
+    "GEN5_RULESET",
+    "GEN6_RULESET",
+    "GEN7_RULESET",
+    "GEN9_RULESET",
+    "gen5_ruleset",
+    "gen6_or_gen7_ruleset",
+    "modern_ruleset",
+]

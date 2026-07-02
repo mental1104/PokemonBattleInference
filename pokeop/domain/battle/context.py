@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING
 
+from pokeop.domain.battle.environment import BattleEnvironment
+from pokeop.domain.battle.grounding import GroundingState
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 class MoveCategory(str, Enum):
@@ -28,6 +34,10 @@ class BattlePokemon:
     level: int
     types: tuple[Type, ...]
     stats: StatValues
+    ability: str | None = None
+    item: str | None = None
+    can_evolve: bool = False
+    grounding_state: GroundingState | None = None
 
     def __post_init__(self) -> None:
         """校验战斗快照必须有正等级，并且至少拥有一个属性。"""
@@ -56,4 +66,24 @@ class BattleMove:
             raise ValueError("damaging moves must have positive power")
 
 
-__all__ = ["BattleMove", "BattlePokemon", "MoveCategory"]
+@dataclass(frozen=True)
+class DamageContext:
+    """
+    表示一次完整伤害计算所需的纯 domain 输入。
+
+    旧入口仍可分别传 attacker、defender、move；新机制统一通过该对象携带
+    ruleset 和 BattleEnvironment，方便天气、场地、特性、道具共享上下文。
+    """
+
+    attacker: BattlePokemon
+    defender: BattlePokemon
+    move: BattleMove
+    ruleset: "BattleRuleset | None" = None
+    environment: BattleEnvironment = field(default_factory=BattleEnvironment)
+    is_critical: bool = False
+    is_spread_move: bool = False
+    is_protect_reduced: bool = False
+    is_multi_target_battle: bool = False
+
+
+__all__ = ["BattleMove", "BattlePokemon", "DamageContext", "MoveCategory"]

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pokeop.domain.battle.flow.action_gate import ActionGateResult
 from pokeop.domain.battle.moves.models import MoveFlag, MoveProfile
 from pokeop.domain.battle.rng import BattleRandom
-from pokeop.domain.battle.rulesets.models import BattleRuleset
 from pokeop.domain.battle.status.kinds import VolatileStatusKind
 from pokeop.domain.battle.status.state import (
     CombatantStatus,
@@ -11,6 +12,9 @@ from pokeop.domain.battle.status.state import (
     ParalysisStatus,
     SleepStatus,
 )
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 class SleepGate:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
 from pokeop.domain.battle.rulesets.status_rules import StatusRules
 
 
@@ -13,6 +14,7 @@ class BattleRuleset:
     generation_id: int
     version_group_id: int | None
     status_rules: StatusRules
+    damage_policy: DamagePolicy = field(default_factory=DamagePolicy.modern)
 
     def __post_init__(self) -> None:
         if not self.ruleset_id:

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pokeop.domain.battle.moves.models import MoveProfile
 from pokeop.domain.battle.rng import BattleRandom
-from pokeop.domain.battle.rulesets.models import BattleRuleset
 from pokeop.domain.battle.status.state import CombatantStatus
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 @unique

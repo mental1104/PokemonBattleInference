@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from pokeop.domain.battle.context import BattleMove, BattlePokemon
+from pokeop.domain.battle.context import BattleMove, BattlePokemon, DamageContext
+from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import (
     AppliedModifier,
     DEFAULT_RANDOM_MULTIPLIERS,
@@ -10,6 +12,9 @@ from pokeop.domain.battle.modifiers import (
     build_default_damage_chain,
     calculate_base_damage,
 )
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 RANDOM_MULTIPLIERS = DEFAULT_RANDOM_MULTIPLIERS
@@ -61,29 +66,47 @@ class DamageRollResult:
 
 def calculate_damage_rolls(
     *,
-    attacker: BattlePokemon,
-    defender: BattlePokemon,
-    move: BattleMove,
+    attacker: BattlePokemon | None = None,
+    defender: BattlePokemon | None = None,
+    move: BattleMove | None = None,
+    ruleset: "BattleRuleset | None" = None,
+    environment: BattleEnvironment | None = None,
+    context: DamageContext | None = None,
+    is_critical: bool = False,
+    is_spread_move: bool = False,
+    is_protect_reduced: bool = False,
+    is_multi_target_battle: bool = False,
 ) -> DamageRollResult:
     """
     使用默认伤害责任链计算一次招式的 16 档伤害。
 
-    默认链路当前包含基础伤害、STAB、属性克制和随机倍率；
-    后续道具、特性、天气等修正应通过新增链节点插入默认链，而不是改写这里的公式流程。
+    旧调用方式可以继续分别传 attacker、defender、move；新调用方式可以直接
+    传 DamageContext，以携带 ruleset、weather、terrain 等统一上下文。
     """
-    state = build_default_damage_chain().handle(
-        DamageCalculationState(
+    if context is None:
+        if attacker is None or defender is None or move is None:
+            raise ValueError("attacker, defender and move are required without context")
+        context = DamageContext(
             attacker=attacker,
             defender=defender,
             move=move,
+            ruleset=ruleset,
+            environment=environment or BattleEnvironment(),
+            is_critical=is_critical,
+            is_spread_move=is_spread_move,
+            is_protect_reduced=is_protect_reduced,
+            is_multi_target_battle=is_multi_target_battle,
         )
+
+    state = build_default_damage_chain().handle(
+        DamageCalculationState.from_context(context)
     )
     if not state.rolls:
         raise RuntimeError("damage chain did not produce any rolls")
 
     return DamageRollResult(
         rolls=state.rolls,
-        defender_hp=defender.stats.hp,
+        defender_hp=context.defender.stats.hp,
         applied_modifiers=state.applied_modifiers,
     )
 

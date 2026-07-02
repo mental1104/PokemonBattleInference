@@ -182,6 +182,34 @@ class BattleMoveFactory:
             power=40,
         )
 
+    @staticmethod
+    def physical(
+        *,
+        name: str = "physical-test-move",
+        move_type: Type = Type.NORMAL,
+        power: int = 80,
+    ) -> BattleMove:
+        return BattleMove(
+            name=name,
+            type=move_type,
+            category=MoveCategory.PHYSICAL,
+            power=power,
+        )
+
+    @staticmethod
+    def special(
+        *,
+        name: str = "special-test-move",
+        move_type: Type = Type.NORMAL,
+        power: int = 80,
+    ) -> BattleMove:
+        return BattleMove(
+            name=name,
+            type=move_type,
+            category=MoveCategory.SPECIAL,
+            power=power,
+        )
+
 
 class MoveProfileFactory:
     """Factory for minimal status-gate move profiles."""

@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from typing import TYPE_CHECKING
 
 from pokeop.domain.battle.moves.models import DamageClass, MoveProfile
-from pokeop.domain.battle.rulesets.models import BattleRuleset
 from pokeop.domain.battle.status.state import BurnStatus, CombatantStatus, ParalysisStatus
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
+
+
+def _fraction_from_policy_multiplier(multiplier: float) -> Fraction:
+    return Fraction(str(multiplier))
 
 
 def apply_paralysis_speed_modifier(
@@ -32,7 +39,9 @@ def burn_physical_damage_multiplier(
         isinstance(status.non_volatile, BurnStatus)
         and move.damage_class is DamageClass.PHYSICAL
     ):
-        return ruleset.status_rules.burn_policy.physical_damage_multiplier
+        return _fraction_from_policy_multiplier(
+            ruleset.damage_policy.burn_physical_attack_multiplier
+        )
     return Fraction(1, 1)
 
 
