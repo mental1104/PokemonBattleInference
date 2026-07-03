@@ -40,6 +40,14 @@ class AbilityDamageEffect(Protocol):
         """Return a final-damage-stage multiplier, or None when inactive."""
         ...
 
+    def critical_hit_multiplier(
+        self,
+        context: DamageContext,
+        base_multiplier: float,
+    ) -> AbilityEffectResult | None:
+        """Return the final critical-hit multiplier, or None when inactive."""
+        ...
+
 
 class BaseAbilityDamageEffect:
     """No-op base class for damage-relevant ability implementations."""
@@ -59,6 +67,13 @@ class BaseAbilityDamageEffect:
         self,
         context: DamageContext,
         type_effectiveness: float,
+    ) -> AbilityEffectResult | None:
+        return None
+
+    def critical_hit_multiplier(
+        self,
+        context: DamageContext,
+        base_multiplier: float,
     ) -> AbilityEffectResult | None:
         return None
 
@@ -156,6 +171,24 @@ class SolidRockEffect(FilterEffect):
         )
 
 
+class SniperEffect(BaseAbilityDamageEffect):
+    """Sniper increases the critical-hit damage multiplier by 50%."""
+
+    key = "ability:sniper"
+
+    def critical_hit_multiplier(
+        self,
+        context: DamageContext,
+        base_multiplier: float,
+    ) -> AbilityEffectResult | None:
+        _ = context
+        return AbilityEffectResult(
+            key=self.key,
+            multiplier=base_multiplier * 1.5,
+            reason="Sniper increases critical-hit damage by 50%.",
+        )
+
+
 def _normalize_identifier(identifier: str) -> str:
     return identifier.strip().lower().replace("-", "_").replace(" ", "_")
 
@@ -166,6 +199,7 @@ _ABILITY_EFFECTS: dict[str, AbilityDamageEffect] = {
     "thick_fat": ThickFatEffect(),
     "filter": FilterEffect(),
     "solid_rock": SolidRockEffect(),
+    "sniper": SniperEffect(),
 }
 
 _ABILITY_ALIASES: dict[str, str] = {
@@ -177,6 +211,8 @@ _ABILITY_ALIASES: dict[str, str] = {
     "過濾": "filter",
     "坚硬岩石": "solid_rock",
     "堅硬岩石": "solid_rock",
+    "狙击手": "sniper",
+    "狙擊手": "sniper",
 }
 
 

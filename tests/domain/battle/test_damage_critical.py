@@ -5,13 +5,18 @@ from dataclasses import replace
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import ModifierStage
-from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.side_conditions import SideConditions
+from pokeop.domain.models.types import Type
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
 
 
 def _modifiers_by_key(result):
     return {modifier.key: modifier for modifier in result.applied_modifiers}
+
+
+def _ruleset(profile: BattleRulesetProfile):
+    return profile.build()
 
 
 def test_critical_hit_increases_damage_and_records_trace():
@@ -34,7 +39,7 @@ def test_critical_hit_increases_damage_and_records_trace():
 
     modifier = _modifiers_by_key(critical)["critical_hit"]
     assert critical.max_damage > normal.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.critical_hit_multiplier
+    assert modifier.multiplier == _ruleset(BattleRulesetProfile.GEN9).damage_policy.critical_hit_multiplier
     assert modifier.stage is ModifierStage.CRITICAL
     assert "Critical hit" in modifier.reason
 
@@ -45,9 +50,10 @@ def test_critical_multiplier_is_policy_configurable():
     自定义 ruleset 把会心倍率改成二倍，同一会心伤害场景应高于默认现代倍率结果；
     trace 中 critical_hit 的 multiplier 也必须反映自定义 policy，防止新增规则继续扩大硬编码债务。
     """
+    default_ruleset = _ruleset(BattleRulesetProfile.GEN9)
     ruleset = replace(
-        GEN9_RULESET,
-        damage_policy=replace(GEN9_RULESET.damage_policy, critical_hit_multiplier=2.0),
+        default_ruleset,
+        damage_policy=replace(default_ruleset.damage_policy, critical_hit_multiplier=2.0),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
@@ -69,6 +75,36 @@ def test_critical_multiplier_is_policy_configurable():
 
     assert custom.max_damage > default.max_damage
     assert _modifiers_by_key(custom)["critical_hit"].multiplier == 2.0
+
+
+def test_critical_multiplier_changes_from_two_times_to_one_point_five_after_gen_five():
+    """
+    验证基础会心倍率由 ruleset policy 决定，并锁住第六世代前后的一次关键规则变化。
+    场景使用第五世代前已经存在的刺龙王攻击巨钳螳螂，并在 Gen5 与 Gen6 ruleset 下都显式传入 is_critical=True；
+    Gen5 trace 应记录二倍会心倍率，Gen6 trace 应记录一点五倍，避免旧世代测试误用后续世代宝可梦或把旧会心伤害压低。
+    """
+    attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
+    defender = BattlePokemonFactory.scizor("max_atk_neutral")
+    move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+
+    gen5 = calculate_damage_rolls(
+        attacker=attacker,
+        defender=defender,
+        move=move,
+        ruleset=_ruleset(BattleRulesetProfile.GEN5),
+        is_critical=True,
+    )
+    gen6 = calculate_damage_rolls(
+        attacker=attacker,
+        defender=defender,
+        move=move,
+        ruleset=_ruleset(BattleRulesetProfile.GEN6),
+        is_critical=True,
+    )
+
+    assert gen5.max_damage > gen6.max_damage
+    assert _modifiers_by_key(gen5)["critical_hit"].multiplier == 2.0
+    assert _modifiers_by_key(gen6)["critical_hit"].multiplier == 1.5
 
 
 def test_critical_hit_ignores_all_screen_conditions():

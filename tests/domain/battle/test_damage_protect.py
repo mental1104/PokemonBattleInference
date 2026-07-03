@@ -4,12 +4,16 @@ from dataclasses import replace
 
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.modifiers import ModifierStage
-from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
 
 
 def _modifiers_by_key(result):
     return {modifier.key: modifier for modifier in result.applied_modifiers}
+
+
+def _gen9_ruleset():
+    return BattleRulesetProfile.GEN9.build()
 
 
 def test_protect_reduction_lowers_damage_and_records_protect_stage():
@@ -32,7 +36,7 @@ def test_protect_reduction_lowers_damage_and_records_protect_stage():
 
     modifier = _modifiers_by_key(protected)["protect_reduction"]
     assert protected.max_damage < normal.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.protect_damage_multiplier
+    assert modifier.multiplier == _gen9_ruleset().damage_policy.protect_damage_multiplier
     assert modifier.stage is ModifierStage.PROTECT
     assert "Protect-style" in modifier.reason
 
@@ -43,9 +47,10 @@ def test_protect_multiplier_is_policy_configurable():
     自定义 ruleset 将 protect_damage_multiplier 改为十分之一，同一 protect reduction 场景应比默认规则更低；
     trace multiplier 必须等于自定义 policy，保护未来 Z/Max 类穿保护减伤规则通过 policy 接入。
     """
+    default_ruleset = _gen9_ruleset()
     ruleset = replace(
-        GEN9_RULESET,
-        damage_policy=replace(GEN9_RULESET.damage_policy, protect_damage_multiplier=0.1),
+        default_ruleset,
+        damage_policy=replace(default_ruleset.damage_policy, protect_damage_multiplier=0.1),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")

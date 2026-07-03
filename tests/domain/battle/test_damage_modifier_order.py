@@ -46,9 +46,9 @@ def test_choice_band_and_eviolite_are_stat_stage_modifiers_before_base_damage_tr
     攻击方携带 Choice Band，防守方携带可生效的 Eviolite，二者应分别记录 attack stat 与 defense stat；
     两个修正都必须出现在 STAB 之前，说明它们先改变基础伤害公式输入，再由后续链路处理属性与随机档位。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="choice_band")
+    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="choice_band") # TODO 这里也是一样的，max_atk_neutral 这种东西最好还是用枚举来维护，不接受任何对象建模的硬编码字符串。
     defender = replace(
-        BattlePokemonFactory.sylveon("max_hp"),
+        BattlePokemonFactory.sylveon("max_hp"), # TODO 这里也是一样的，max_atk_neutral 这种东西最好还是用枚举来维护，不接受任何对象建模的硬编码字符串。
         item="eviolite",
         can_evolve=True,
     )
@@ -60,7 +60,7 @@ def test_choice_band_and_eviolite_are_stat_stage_modifiers_before_base_damage_tr
 
     modifiers = _modifiers_by_key(result)
     keys = _modifier_keys(result)
-    assert modifiers["item:choice_band"].stage is ModifierStage.ATTACK_STAT
+    assert modifiers["item:choice_band"].stage is ModifierStage.ATTACK_STAT # 为什么要加"item:" 这种前缀？为什么不用明确的成员变量 + 枚举类型来区分？为什么要用字符串 key 来做这个？这很容易出错。尽管python是脚本语言，请按照编译语言的标准去设计类型系统，避免字符串 key 这种容易出错的设计。
     assert modifiers["item:eviolite"].stage is ModifierStage.DEFENSE_STAT
     assert keys.index("item:choice_band") < keys.index("stab")
     assert keys.index("item:eviolite") < keys.index("stab")

@@ -4,15 +4,7 @@ from pokeop.domain.battle.rulesets.errors import (
     UnknownVersionGroupError,
 )
 from pokeop.domain.battle.rulesets.models import BattleRuleset
-from pokeop.domain.battle.rulesets.profiles import (
-    GEN5_RULESET,
-    GEN6_RULESET,
-    GEN7_RULESET,
-    GEN9_RULESET,
-    gen5_ruleset,
-    gen6_or_gen7_ruleset,
-    modern_ruleset,
-)
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.rulesets.resolver import (
     VERSION_GROUP_TO_GENERATION,
     resolve_ruleset_by_generation,
@@ -39,10 +31,7 @@ __all__ = [
     "DamagePolicy",
     "EnvironmentPolicy",
     "FreezePolicy",
-    "GEN5_RULESET",
-    "GEN6_RULESET",
-    "GEN7_RULESET",
-    "GEN9_RULESET",
+    "BattleRulesetProfile",
     "InfatuationPolicy",
     "ParalysisPolicy",
     "PoisonPolicy",
@@ -53,9 +42,6 @@ __all__ = [
     "UnknownGenerationError",
     "UnknownVersionGroupError",
     "VERSION_GROUP_TO_GENERATION",
-    "gen5_ruleset",
-    "gen6_or_gen7_ruleset",
-    "modern_ruleset",
     "resolve_ruleset_by_generation",
     "resolve_ruleset_by_version_group",
 ]

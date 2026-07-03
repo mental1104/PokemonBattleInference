@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from fractions import Fraction
 
 from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
@@ -47,67 +48,86 @@ def _status_rules(paralysis_speed_multiplier: Fraction) -> StatusRules:
     )
 
 
-def gen5_ruleset(
-    *,
-    generation_id: int = 5,
-    version_group_id: int | None = None,
-) -> BattleRuleset:
-    """Build the current legacy Gen1-Gen5 damage-policy profile."""
-    return BattleRuleset(
-        ruleset_id=f"gen{generation_id}",
-        generation_id=generation_id,
-        version_group_id=version_group_id,
-        status_rules=_status_rules(Fraction(1, 4)),
-        damage_policy=DamagePolicy.gen5(),
-    )
+class BattleRulesetProfile(str, Enum):
+    """Concrete generation ruleset profiles used to build BattleRuleset snapshots."""
+
+    GEN1 = "gen1"
+    GEN2 = "gen2"
+    GEN3 = "gen3"
+    GEN4 = "gen4"
+    GEN5 = "gen5"
+    GEN6 = "gen6"
+    GEN7 = "gen7"
+    GEN8 = "gen8"
+    GEN9 = "gen9"
+
+    @property
+    def generation_id(self) -> int:
+        """Return the concrete Pokemon generation id represented by this profile."""
+        return int(self.value.removeprefix("gen"))
+
+    @classmethod
+    def from_generation_id(cls, generation_id: int) -> "BattleRulesetProfile":
+        """Return the concrete profile for one Pokemon generation."""
+        if generation_id <= 0:
+            raise ValueError("generation_id must be greater than 0")
+        try:
+            return cls(f"gen{generation_id}")
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported generation_id for battle ruleset profile: {generation_id}"
+            ) from exc
+
+    @classmethod
+    def build_for_generation(
+        cls,
+        generation_id: int,
+        *,
+        version_group_id: int | None = None,
+    ) -> BattleRuleset:
+        """Build a BattleRuleset for one concrete generation."""
+        return cls.from_generation_id(generation_id).build(
+            generation_id=generation_id,
+            version_group_id=version_group_id,
+        )
+
+    @classmethod
+    def modern(cls) -> BattleRuleset:
+        """Build the current default modern ruleset."""
+        return cls.GEN9.build()
+
+    def build(
+        self,
+        *,
+        generation_id: int | None = None,
+        version_group_id: int | None = None,
+    ) -> BattleRuleset:
+        """Build a fresh immutable ruleset snapshot for this profile."""
+        concrete_generation_id = self._generation_id_or_default(generation_id)
+        return BattleRuleset(
+            ruleset_id=f"gen{concrete_generation_id}",
+            generation_id=concrete_generation_id,
+            version_group_id=version_group_id,
+            status_rules=self._status_rules_for_generation(concrete_generation_id),
+            damage_policy=self._damage_policy(),
+        )
+
+    def _generation_id_or_default(self, generation_id: int | None) -> int:
+        if generation_id is None:
+            return self.generation_id
+        if BattleRulesetProfile.from_generation_id(generation_id) is not self:
+            raise ValueError(
+                f"generation_id {generation_id} does not belong to profile {self.value}"
+            )
+        return generation_id
+
+    def _damage_policy(self) -> DamagePolicy:
+        return DamagePolicy.for_generation(self.generation_id)
+
+    def _status_rules_for_generation(self, generation_id: int) -> StatusRules:
+        if generation_id <= 6:
+            return _status_rules(Fraction(1, 4))
+        return _status_rules(Fraction(1, 2))
 
 
-def gen6_or_gen7_ruleset(
-    *,
-    generation_id: int = 6,
-    version_group_id: int | None = None,
-) -> BattleRuleset:
-    """Build the current Gen6/Gen7 damage-policy profile."""
-    paralysis_multiplier = Fraction(1, 4) if generation_id == 6 else Fraction(1, 2)
-    return BattleRuleset(
-        ruleset_id=f"gen{generation_id}",
-        generation_id=generation_id,
-        version_group_id=version_group_id,
-        status_rules=_status_rules(paralysis_multiplier),
-        damage_policy=DamagePolicy.gen6_or_gen7(),
-    )
-
-
-def modern_ruleset(
-    *,
-    generation_id: int = 9,
-    version_group_id: int | None = None,
-) -> BattleRuleset:
-    """Build the current modern Gen8/Gen9 damage-policy profile."""
-    return BattleRuleset(
-        ruleset_id=f"gen{generation_id}",
-        generation_id=generation_id,
-        version_group_id=version_group_id,
-        status_rules=_status_rules(Fraction(1, 2)),
-        damage_policy=DamagePolicy.modern(),
-    )
-
-
-GEN5_RULESET = gen5_ruleset()
-
-GEN6_RULESET = gen6_or_gen7_ruleset(generation_id=6)
-
-GEN7_RULESET = gen6_or_gen7_ruleset(generation_id=7)
-
-GEN9_RULESET = modern_ruleset(generation_id=9)
-
-
-__all__ = [
-    "GEN5_RULESET",
-    "GEN6_RULESET",
-    "GEN7_RULESET",
-    "GEN9_RULESET",
-    "gen5_ruleset",
-    "gen6_or_gen7_ruleset",
-    "modern_ruleset",
-]
+__all__ = ["BattleRulesetProfile"]

@@ -5,7 +5,7 @@ from dataclasses import replace
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import ModifierStage
-from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
@@ -13,6 +13,10 @@ from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
 
 def _modifiers_by_key(result):
     return {modifier.key: modifier for modifier in result.applied_modifiers}
+
+
+def _gen9_ruleset():
+    return BattleRulesetProfile.GEN9.build()
 
 
 def test_spread_move_reduces_damage_and_records_spread_stage():
@@ -35,7 +39,7 @@ def test_spread_move_reduces_damage_and_records_spread_stage():
 
     modifier = _modifiers_by_key(spread)["spread_move"]
     assert spread.max_damage < single_target.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.spread_move_multiplier
+    assert modifier.multiplier == _gen9_ruleset().damage_policy.spread_move_multiplier
     assert modifier.stage is ModifierStage.SPREAD
 
 
@@ -60,9 +64,10 @@ def test_spread_multiplier_is_policy_configurable():
     自定义 ruleset 把 spread multiplier 改成二分之一，同一 spread 场景应比默认现代规则伤害更低；
     trace 中 multiplier 也必须等于自定义值，保护后续不同世代或特殊规则能通过 policy 扩展。
     """
+    default_ruleset = _gen9_ruleset()
     ruleset = replace(
-        GEN9_RULESET,
-        damage_policy=replace(GEN9_RULESET.damage_policy, spread_move_multiplier=0.5),
+        default_ruleset,
+        damage_policy=replace(default_ruleset.damage_policy, spread_move_multiplier=0.5),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")

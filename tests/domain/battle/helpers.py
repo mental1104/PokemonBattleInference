@@ -89,6 +89,58 @@ SYLVEON = PokemonSpec(
     ),
 )
 
+KINGDRA = PokemonSpec(
+    name="kingdra",
+    types=(Type.WATER, Type.DRAGON),
+    base_stats=StatValues(
+        hp=75,
+        attack=95,
+        defense=95,
+        special_attack=95,
+        special_defense=95,
+        speed=85,
+    ),
+)
+
+CLOYSTER = PokemonSpec(
+    name="cloyster",
+    types=(Type.WATER, Type.ICE),
+    base_stats=StatValues(
+        hp=50,
+        attack=95,
+        defense=180,
+        special_attack=85,
+        special_defense=45,
+        speed=70,
+    ),
+)
+
+LUCARIO = PokemonSpec(
+    name="lucario",
+    types=(Type.FIGHTING, Type.STEEL),
+    base_stats=StatValues(
+        hp=70,
+        attack=110,
+        defense=70,
+        special_attack=115,
+        special_defense=70,
+        speed=90,
+    ),
+)
+
+CHANSEY = PokemonSpec(
+    name="chansey",
+    types=(Type.NORMAL,),
+    base_stats=StatValues(
+        hp=250,
+        attack=5,
+        defense=5,
+        special_attack=35,
+        special_defense=105,
+        speed=50,
+    ),
+)
+
 SCIZOR_PROFILES = {
     "max_atk_plus": SCIZOR.profile(
         evs=StatValues(attack=252),
@@ -104,6 +156,23 @@ SYLVEON_PROFILES = {
         evs=StatValues(hp=252, defense=252),
         nature_modifier=NatureModifier.increase(StatField.DEFENSE),
     ),
+}
+
+KINGDRA_PROFILES = {
+    "max_spa_neutral": KINGDRA.profile(evs=StatValues(special_attack=252)),
+}
+
+CLOYSTER_PROFILES = {
+    "max_hp": CLOYSTER.profile(evs=StatValues(hp=252)),
+}
+
+LUCARIO_PROFILES = {
+    "max_atk_neutral": LUCARIO.profile(evs=StatValues(attack=252)),
+    "max_spa_neutral": LUCARIO.profile(evs=StatValues(special_attack=252)),
+}
+
+CHANSEY_PROFILES = {
+    "max_hp": CHANSEY.profile(evs=StatValues(hp=252)),
 }
 
 
@@ -133,12 +202,72 @@ class BattlePokemonFactory:
         )
 
     @staticmethod
+    def kingdra(
+        profile_key: str = "max_spa_neutral",
+        *,
+        level: int = LEVEL_50,
+    ) -> BattlePokemon:
+        return KINGDRA.battle_pokemon(
+            BattlePokemonFactory.kingdra_profile(profile_key),
+            level=level,
+        )
+
+    @staticmethod
+    def cloyster(
+        profile_key: str = "max_hp",
+        *,
+        level: int = LEVEL_50,
+    ) -> BattlePokemon:
+        return CLOYSTER.battle_pokemon(
+            BattlePokemonFactory.cloyster_profile(profile_key),
+            level=level,
+        )
+
+    @staticmethod
+    def lucario(
+        profile_key: str = "max_atk_neutral",
+        *,
+        level: int = LEVEL_50,
+    ) -> BattlePokemon:
+        return LUCARIO.battle_pokemon(
+            BattlePokemonFactory.lucario_profile(profile_key),
+            level=level,
+        )
+
+    @staticmethod
+    def chansey(
+        profile_key: str = "max_hp",
+        *,
+        level: int = LEVEL_50,
+    ) -> BattlePokemon:
+        return CHANSEY.battle_pokemon(
+            BattlePokemonFactory.chansey_profile(profile_key),
+            level=level,
+        )
+
+    @staticmethod
     def scizor_profile(profile_key: str) -> StatProfile:
         return _profile_from(SCIZOR_PROFILES, "scizor", profile_key)
 
     @staticmethod
     def sylveon_profile(profile_key: str) -> StatProfile:
         return _profile_from(SYLVEON_PROFILES, "sylveon", profile_key)
+
+    @staticmethod
+    def kingdra_profile(profile_key: str) -> StatProfile:
+        return _profile_from(KINGDRA_PROFILES, "kingdra", profile_key)
+
+    @staticmethod
+    def cloyster_profile(profile_key: str) -> StatProfile:
+        return _profile_from(CLOYSTER_PROFILES, "cloyster", profile_key)
+
+    @staticmethod
+    def lucario_profile(profile_key: str) -> StatProfile:
+        return _profile_from(LUCARIO_PROFILES, "lucario", profile_key)
+
+    @staticmethod
+    def chansey_profile(profile_key: str) -> StatProfile:
+        return _profile_from(CHANSEY_PROFILES, "chansey", profile_key)
 
     @staticmethod
     def scizor_stats(profile_key: str, *, level: int = LEVEL_50) -> StatValues:

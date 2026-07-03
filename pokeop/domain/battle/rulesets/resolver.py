@@ -5,11 +5,7 @@ from pokeop.domain.battle.rulesets.errors import (
     UnknownVersionGroupError,
 )
 from pokeop.domain.battle.rulesets.models import BattleRuleset
-from pokeop.domain.battle.rulesets.profiles import (
-    gen5_ruleset,
-    gen6_or_gen7_ruleset,
-    modern_ruleset,
-)
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 
 
 # Static copy of pokeop/assets_data/version_groups.csv generation_id values.
@@ -53,20 +49,16 @@ VERSION_GROUP_TO_GENERATION: dict[int, int] = {
 
 def resolve_ruleset_by_generation(generation_id: int) -> BattleRuleset:
     """
-    Resolve the current domain ruleset profile for a Pokemon generation.
+    Resolve the current domain ruleset profile for one concrete Pokemon generation.
 
-    The profile granularity is intentionally coarse in this first resolver:
-    Gen1-Gen5 use the current legacy Gen5-style damage policy, Gen6-Gen7 share
-    the terrain-era pre-modern policy, and Gen8-Gen9 use the modern policy.
+    Profiles keep per-generation identity even when the currently modeled
+    fields happen to share values. This avoids turning partial DamagePolicy
+    coverage into a claim that adjacent generations are fully equivalent.
     """
     if generation_id < 1 or generation_id > 9:
         raise UnknownGenerationError(generation_id)
 
-    if generation_id <= 5:
-        return gen5_ruleset(generation_id=generation_id)
-    if generation_id <= 7:
-        return gen6_or_gen7_ruleset(generation_id=generation_id)
-    return modern_ruleset(generation_id=generation_id)
+    return BattleRulesetProfile.build_for_generation(generation_id)
 
 
 def resolve_ruleset_by_version_group(version_group_id: int) -> BattleRuleset:
@@ -76,17 +68,7 @@ def resolve_ruleset_by_version_group(version_group_id: int) -> BattleRuleset:
     except KeyError as exc:
         raise UnknownVersionGroupError(version_group_id) from exc
 
-    if generation_id <= 5:
-        return gen5_ruleset(
-            generation_id=generation_id,
-            version_group_id=version_group_id,
-        )
-    if generation_id <= 7:
-        return gen6_or_gen7_ruleset(
-            generation_id=generation_id,
-            version_group_id=version_group_id,
-        )
-    return modern_ruleset(
+    return BattleRulesetProfile.build_for_generation(
         generation_id=generation_id,
         version_group_id=version_group_id,
     )

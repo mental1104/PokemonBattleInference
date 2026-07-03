@@ -22,9 +22,9 @@ DEFAULT_RANDOM_MULTIPLIERS: tuple[float, ...] = tuple(i / 100 for i in range(85,
 
 
 def _default_ruleset() -> "BattleRuleset":
-    from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+    from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 
-    return GEN9_RULESET
+    return BattleRulesetProfile.modern()
 
 
 class ModifierStage(str, Enum):
@@ -379,17 +379,18 @@ class EnvironmentDefenseStatModifier(DamageModifierChain):
         """当前实现沙暴岩石特防和现代雪天冰属性物防修正。"""
         weather = state.environment.weather
         policy = state.active_ruleset.damage_policy
+        sandstorm_multiplier = policy.sandstorm_rock_spdef_multiplier
         if (
             weather is Weather.SANDSTORM
+            and sandstorm_multiplier is not None
             and state.move.category is MoveCategory.SPECIAL
             and Type.ROCK in state.defender.types
         ):
-            multiplier = policy.sandstorm_rock_spdef_multiplier
             return state.with_defense_stat_multiplier(
-                multiplier,
+                sandstorm_multiplier,
                 _applied_modifier(
                     "weather:sandstorm",
-                    multiplier=multiplier,
+                    multiplier=sandstorm_multiplier,
                     stage=ModifierStage.DEFENSE_STAT,
                     reason="Sandstorm boosts Rock-type Special Defense.",
                 ),
@@ -581,18 +582,29 @@ class CriticalHitModifier(DamageModifierChain):
     """责任链节点：应用会心一击直接伤害倍率。"""
 
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
-        """当前只实现会心倍率本身，不实现会心概率、狙击手或能力阶级穿透。"""
+        """应用 ruleset 会心倍率；Sniper 可在同一 critical 阶段改写该倍率。"""
         if not state.is_critical:
             return state
 
         multiplier = state.active_ruleset.damage_policy.critical_hit_multiplier
+        source = "critical_hit"
+        reason = "Critical hit direct damage multiplier."
+        effect = resolve_ability_effect(state.attacker.ability)
+        if effect is not None:
+            result = effect.critical_hit_multiplier(state.context, multiplier)
+            if result is not None:
+                multiplier = result.multiplier
+                source = result.key
+                reason = result.reason
+
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
                 "critical_hit",
                 multiplier=multiplier,
                 stage=ModifierStage.CRITICAL,
-                reason="Critical hit direct damage multiplier.",
+                source=source,
+                reason=reason,
             ),
         )
 

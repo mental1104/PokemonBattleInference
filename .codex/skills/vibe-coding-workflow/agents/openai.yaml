@@ -1,4 +1,0 @@
-interface:
-  display_name: "Vibe Coding Workflow"
-  short_description: "Coordinate four-phase ChatGPT x Codex workflow"
-  default_prompt: "Use $vibe-coding-workflow to choose and execute the correct Vibe Coding phase in PokemonBattleInference."

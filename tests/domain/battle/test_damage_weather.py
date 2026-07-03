@@ -5,6 +5,7 @@ from dataclasses import replace
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import ModifierStage
+from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_generation
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
@@ -140,6 +141,35 @@ def test_sandstorm_boosts_rock_special_defense_in_defense_stat_stage():
     modifier = _modifiers_by_key(sandstorm)["weather:sandstorm"]
     assert modifier.multiplier == 1.5
     assert modifier.stage is ModifierStage.DEFENSE_STAT
+
+
+def test_sandstorm_does_not_boost_rock_special_defense_before_generation_four():
+    """
+    验证第三世代规则下沙暴不会提高岩石属性防守方的特防，保护 Gen4 才引入的沙暴加特防断点。
+    场景仍然使用岩石属性目标承受水系特殊招式，普通环境与沙暴环境只差天气字段，并显式传入 Gen3 ruleset；
+    两次伤害档位必须完全一致，trace 中也不能出现 weather:sandstorm，说明 modifier 受 ruleset policy gate 控制。
+    """
+    ruleset = resolve_ruleset_by_generation(3)
+    attacker = BattlePokemonFactory.scizor("max_atk_neutral")
+    defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ROCK,))
+    move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
+
+    normal = calculate_damage_rolls(
+        attacker=attacker,
+        defender=defender,
+        move=move,
+        ruleset=ruleset,
+    )
+    sandstorm = calculate_damage_rolls(
+        attacker=attacker,
+        defender=defender,
+        move=move,
+        ruleset=ruleset,
+        environment=BattleEnvironment(weather=Weather.SANDSTORM),
+    )
+
+    assert sandstorm.rolls == normal.rolls
+    assert "weather:sandstorm" not in _modifiers_by_key(sandstorm)
 
 
 def test_snow_boosts_ice_physical_defense_in_modern_rules():

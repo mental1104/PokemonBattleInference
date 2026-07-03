@@ -1,0 +1,4 @@
+interface:
+  display_name: "PokemonBattleInference 项目统一指南"
+  short_description: "统一维护 PokemonBattleInference 的项目分层、数据视图、规则建模、测试风格与 ChatGPT x Codex 协作流程"
+  default_prompt: "使用 $pokemonbattleinference-project 维护 PokemonBattleInference/pokeop：遵守项目分层、PokeAPI 数据与视图策略、跨世代规则建模、测试质量标准，以及 ChatGPT x Codex 四阶段协作与验收输出要求。"

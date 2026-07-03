@@ -1,11 +1,15 @@
 from fractions import Fraction
 
-from pokeop.domain.battle.rulesets.profiles import GEN6_RULESET, GEN7_RULESET, GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.status.modifiers import (
     apply_burn_physical_damage_modifier,
     apply_paralysis_speed_modifier,
 )
 from tests.domain.battle.helpers import CombatantStatusFactory, MoveProfileFactory
+
+
+def _ruleset(profile: BattleRulesetProfile):
+    return profile.build()
 
 
 def test_paralysis_speed_modifier_uses_generation_specific_multiplier():
@@ -16,9 +20,9 @@ def test_paralysis_speed_modifier_uses_generation_specific_multiplier():
     """
     status = CombatantStatusFactory.paralyzed()
 
-    assert apply_paralysis_speed_modifier(100, status, GEN6_RULESET) == 25
-    assert apply_paralysis_speed_modifier(100, status, GEN7_RULESET) == 50
-    assert apply_paralysis_speed_modifier(100, status, GEN9_RULESET) == 50
+    assert apply_paralysis_speed_modifier(100, status, _ruleset(BattleRulesetProfile.GEN6)) == 25
+    assert apply_paralysis_speed_modifier(100, status, _ruleset(BattleRulesetProfile.GEN7)) == 50
+    assert apply_paralysis_speed_modifier(100, status, _ruleset(BattleRulesetProfile.GEN9)) == 50
 
 
 def test_burn_physical_damage_modifier_only_affects_physical_moves():
@@ -32,18 +36,18 @@ def test_burn_physical_damage_modifier_only_affects_physical_moves():
     assert apply_burn_physical_damage_modifier(
         Fraction(1, 1),
         burned,
-        GEN9_RULESET,
+        _ruleset(BattleRulesetProfile.GEN9),
         MoveProfileFactory.physical(),
     ) == Fraction(1, 2)
     assert apply_burn_physical_damage_modifier(
         Fraction(1, 1),
         burned,
-        GEN9_RULESET,
+        _ruleset(BattleRulesetProfile.GEN9),
         MoveProfileFactory.special(),
     ) == Fraction(1, 1)
     assert apply_burn_physical_damage_modifier(
         Fraction(1, 1),
         burned,
-        GEN9_RULESET,
+        _ruleset(BattleRulesetProfile.GEN9),
         MoveProfileFactory.status(),
     ) == Fraction(1, 1)

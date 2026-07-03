@@ -1,4 +1,0 @@
-interface:
-  display_name: "PokemonBattleInference 指南"
-  short_description: "按 PokemonBattleInference 仓库约定维护 pokeop 数据、模型、DAO 与视图"
-  default_prompt: "使用 $pokemonbattleinference-guidelines 维护 PokemonBattleInference/pokeop 的 PokeAPI CSV、生成模型/DAO、数据库初始化和多世代视图策略。"

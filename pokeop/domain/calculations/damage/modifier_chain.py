@@ -68,7 +68,7 @@ class RandomModifier(BaseDamageChain):
     def handle(self, result: DamageResult) -> DamageResult:
         damage = result.max_damage
 
-        # TODO 0.85做成可配
+        # TODO 0.85做成可配, 这些浮点数适合用静态成员类来集中管理
         result.max_damage = int(damage)
         result.min_damage = int(damage * 0.85)
         multiplier = round(random.uniform(0.85, 1.0), 2)

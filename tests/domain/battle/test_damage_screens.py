@@ -5,7 +5,7 @@ from dataclasses import replace
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import ModifierStage
-from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.models.types import Type
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
@@ -15,10 +15,15 @@ def _modifiers_by_key(result):
     return {modifier.key: modifier for modifier in result.applied_modifiers}
 
 
+def _gen9_ruleset():
+    return BattleRulesetProfile.GEN9.build()
+
+
 def _ruleset_with_policy(**changes):
+    ruleset = _gen9_ruleset()
     return replace(
-        GEN9_RULESET,
-        damage_policy=replace(GEN9_RULESET.damage_policy, **changes),
+        ruleset,
+        damage_policy=replace(ruleset.damage_policy, **changes),
     )
 
 
@@ -42,7 +47,7 @@ def test_reflect_reduces_physical_damage_and_records_screen_stage():
 
     modifier = _modifiers_by_key(reflected)["screen:reflect"]
     assert reflected.max_damage < normal.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.screen_single_target_multiplier
+    assert modifier.multiplier == _gen9_ruleset().damage_policy.screen_single_target_multiplier
     assert modifier.stage is ModifierStage.SCREEN
     assert "Reflect" in modifier.reason
 

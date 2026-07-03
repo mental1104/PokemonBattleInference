@@ -63,7 +63,7 @@ class DamageRollResult:
         """返回期望伤害占防守方 HP 的百分比。"""
         return self.expected_damage / self.defender_hp * 100
 
-
+# TODO 这里函数签名很奇怪啊，context如果传了就可以覆盖其他所有的值，然后context里面又把所有的attacker定义了一遍，有没有干净的函数签名？如果我后面又扩展了一个字段，Context类里得加，这个函数又得加。
 def calculate_damage_rolls(
     *,
     attacker: BattlePokemon | None = None,
@@ -83,6 +83,7 @@ def calculate_damage_rolls(
     旧调用方式可以继续分别传 attacker、defender、move；新调用方式可以直接
     传 DamageContext，以携带 ruleset、weather、terrain 等统一上下文。
     """
+    # TODO 这里是短路场景，但是在代码结构里面却占了大多数行，请你适当对该逻辑进行封装，同一行函数解决。
     if context is None:
         if attacker is None or defender is None or move is None:
             raise ValueError("attacker, defender and move are required without context")

@@ -24,7 +24,7 @@ class EnvironmentPolicy:
     misty_terrain_dragon_multiplier: float = 0.5
     weather_boost_multiplier: float = 1.5
     weather_weaken_multiplier: float = 0.5
-    sandstorm_rock_spdef_multiplier: float = 1.5
+    sandstorm_rock_spdef_multiplier: float | None = 1.5
     snow_ice_defense_multiplier: float | None = 1.5
     hail_ice_defense_multiplier: float | None = None
     screen_single_target_multiplier: float = 0.5
@@ -109,7 +109,65 @@ class DamagePolicy(EnvironmentPolicy):
 
     @classmethod
     def modern(cls) -> "DamagePolicy":
-        """Return the current default modern damage policy."""
+        """Return the current default Gen9 damage policy."""
+        return cls.gen9()
+
+    @classmethod
+    def for_generation(cls, generation_id: int) -> "DamagePolicy":
+        """Return the damage policy for one concrete Pokemon generation."""
+        if generation_id < 1 or generation_id > 9:
+            raise ValueError(
+                f"unsupported generation_id for damage policy: {generation_id}"
+            )
+        return getattr(cls, f"gen{generation_id}")()
+
+    @classmethod
+    def gen1(cls) -> "DamagePolicy":
+        """Return the current Gen1-compatible damage policy profile."""
+        return cls._without_sandstorm_spdef()
+
+    @classmethod
+    def gen2(cls) -> "DamagePolicy":
+        """Return the current Gen2-compatible damage policy profile."""
+        return cls._without_sandstorm_spdef()
+
+    @classmethod
+    def gen3(cls) -> "DamagePolicy":
+        """Return the current Gen3-compatible damage policy profile."""
+        return cls._without_sandstorm_spdef()
+
+    @classmethod
+    def gen4(cls) -> "DamagePolicy":
+        """Return the current Gen4-compatible damage policy profile."""
+        return cls._with_sandstorm_spdef_without_terrain()
+
+    @classmethod
+    def gen5(cls) -> "DamagePolicy":
+        """Return the current Gen5-compatible damage policy profile."""
+        return cls._with_sandstorm_spdef_without_terrain()
+
+    @classmethod
+    def gen6(cls) -> "DamagePolicy":
+        """Return the current Gen6-compatible damage policy profile."""
+        return cls._legacy_terrain_without_snow_defense()
+
+    @classmethod
+    def gen7(cls) -> "DamagePolicy":
+        """Return the current Gen7-compatible damage policy profile."""
+        return cls._legacy_terrain_without_snow_defense()
+
+    @classmethod
+    def gen8(cls) -> "DamagePolicy":
+        """Return the current Gen8-compatible damage policy profile."""
+        return cls._modern_terrain_without_snow_defense()
+
+    @classmethod
+    def gen9(cls) -> "DamagePolicy":
+        """Return the current Gen9-compatible damage policy profile."""
+        return cls._modern_terrain_with_snow_defense()
+
+    @classmethod
+    def _modern_terrain_with_snow_defense(cls) -> "DamagePolicy":
         return cls(
             terrain_boost_multiplier=1.3,
             weather_boost_multiplier=1.5,
@@ -128,8 +186,26 @@ class DamagePolicy(EnvironmentPolicy):
         )
 
     @classmethod
-    def gen6_or_gen7(cls) -> "DamagePolicy":
-        """Return a policy shape for Gen6/Gen7-style terrain and hail rules."""
+    def _modern_terrain_without_snow_defense(cls) -> "DamagePolicy":
+        return cls(
+            terrain_boost_multiplier=1.3,
+            weather_boost_multiplier=1.5,
+            weather_weaken_multiplier=0.5,
+            burn_physical_attack_multiplier=0.5,
+            sandstorm_rock_spdef_multiplier=1.5,
+            snow_ice_defense_multiplier=None,
+            hail_ice_defense_multiplier=None,
+            screen_single_target_multiplier=0.5,
+            screen_multi_target_multiplier=2 / 3,
+            aurora_veil_single_target_multiplier=0.5,
+            aurora_veil_multi_target_multiplier=2 / 3,
+            critical_hit_multiplier=1.5,
+            spread_move_multiplier=0.75,
+            protect_damage_multiplier=0.25,
+        )
+
+    @classmethod
+    def _legacy_terrain_without_snow_defense(cls) -> "DamagePolicy":
         return cls(
             terrain_boost_multiplier=1.5,
             weather_boost_multiplier=1.5,
@@ -148,8 +224,7 @@ class DamagePolicy(EnvironmentPolicy):
         )
 
     @classmethod
-    def gen5(cls) -> "DamagePolicy":
-        """Return a pre-terrain policy shape with old hail behavior."""
+    def _with_sandstorm_spdef_without_terrain(cls) -> "DamagePolicy":
         return cls(
             terrain_boost_multiplier=1.0,
             weather_boost_multiplier=1.5,
@@ -162,7 +237,26 @@ class DamagePolicy(EnvironmentPolicy):
             screen_multi_target_multiplier=2 / 3,
             aurora_veil_single_target_multiplier=0.5,
             aurora_veil_multi_target_multiplier=2 / 3,
-            critical_hit_multiplier=1.5,
+            critical_hit_multiplier=2.0,
+            spread_move_multiplier=0.75,
+            protect_damage_multiplier=0.25,
+        )
+
+    @classmethod
+    def _without_sandstorm_spdef(cls) -> "DamagePolicy":
+        return cls(
+            terrain_boost_multiplier=1.0,
+            weather_boost_multiplier=1.5,
+            weather_weaken_multiplier=0.5,
+            burn_physical_attack_multiplier=0.5,
+            sandstorm_rock_spdef_multiplier=None,
+            snow_ice_defense_multiplier=None,
+            hail_ice_defense_multiplier=None,
+            screen_single_target_multiplier=0.5,
+            screen_multi_target_multiplier=2 / 3,
+            aurora_veil_single_target_multiplier=0.5,
+            aurora_veil_multi_target_multiplier=2 / 3,
+            critical_hit_multiplier=2.0,
             spread_move_multiplier=0.75,
             protect_damage_multiplier=0.25,
         )

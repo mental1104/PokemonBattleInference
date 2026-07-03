@@ -7,7 +7,7 @@ from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
-from pokeop.domain.battle.rulesets.profiles import GEN6_RULESET, GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.status.modifiers import apply_burn_physical_damage_modifier
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.weather import Weather
@@ -24,8 +24,16 @@ def _modifiers_by_key(result):
     return {modifier.key: modifier for modifier in result.applied_modifiers}
 
 
+def _ruleset(profile: BattleRulesetProfile):
+    return profile.build()
+
+
 def _ruleset_with_damage_policy(policy: DamagePolicy):
-    return replace(GEN9_RULESET, ruleset_id="custom-policy", damage_policy=policy)
+    return replace(
+        _ruleset(BattleRulesetProfile.GEN9),
+        ruleset_id="custom-policy",
+        damage_policy=policy,
+    )
 
 
 def test_modern_terrain_boost_uses_ruleset_policy_multiplier():
@@ -34,6 +42,7 @@ def test_modern_terrain_boost_uses_ruleset_policy_multiplier():
     内部硬编码的一点三。测试使用 grounded 攻击方、电系特殊招式和同一防守方，对比无场地与电气场地；
     结果应提高，trace 中 terrain:electric_terrain 的 multiplier 必须等于 GEN9 规则集 policy 字段。
     """
+    ruleset = _ruleset(BattleRulesetProfile.GEN9)
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
@@ -42,19 +51,19 @@ def test_modern_terrain_boost_uses_ruleset_policy_multiplier():
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=ruleset,
     )
     terrain = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=ruleset,
         environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
     )
 
     modifier = _modifiers_by_key(terrain)["terrain:electric_terrain"]
     assert terrain.max_damage > normal.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.terrain_boost_multiplier
+    assert modifier.multiplier == ruleset.damage_policy.terrain_boost_multiplier
     assert modifier.stage is ModifierStage.FINAL_DAMAGE
 
 
@@ -64,6 +73,8 @@ def test_old_ruleset_can_configure_terrain_boost_to_one_point_five():
     同一只 grounded 攻击方在电气场地使用同一电系招式，分别传入 GEN9 现代规则和 GEN6 风格规则；
     GEN6 结果应高于现代结果，并且 trace 中的倍率应等于该 ruleset 的 damage_policy 配置。
     """
+    gen9_ruleset = _ruleset(BattleRulesetProfile.GEN9)
+    old_ruleset = _ruleset(BattleRulesetProfile.GEN6)
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
@@ -73,20 +84,20 @@ def test_old_ruleset_can_configure_terrain_boost_to_one_point_five():
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=gen9_ruleset,
         environment=environment,
     )
     old_style = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN6_RULESET,
+        ruleset=old_ruleset,
         environment=environment,
     )
 
     modifier = _modifiers_by_key(old_style)["terrain:electric_terrain"]
     assert old_style.max_damage > modern.max_damage
-    assert modifier.multiplier == GEN6_RULESET.damage_policy.terrain_boost_multiplier
+    assert modifier.multiplier == old_ruleset.damage_policy.terrain_boost_multiplier
     assert modifier.multiplier == 1.5
 
 
@@ -107,12 +118,13 @@ def test_sun_and_rain_weather_multipliers_are_policy_driven():
     fire_move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
     water_move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
     sunny = BattleEnvironment(weather=Weather.HARSH_SUNLIGHT)
+    gen9_ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
     modern_fire = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=fire_move,
-        ruleset=GEN9_RULESET,
+        ruleset=gen9_ruleset,
         environment=sunny,
     )
     custom_fire = calculate_damage_rolls(
@@ -126,7 +138,7 @@ def test_sun_and_rain_weather_multipliers_are_policy_driven():
         attacker=attacker,
         defender=defender,
         move=water_move,
-        ruleset=GEN9_RULESET,
+        ruleset=gen9_ruleset,
         environment=sunny,
     )
     custom_water = calculate_damage_rolls(
@@ -156,12 +168,13 @@ def test_sandstorm_rock_special_defense_boost_uses_policy():
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ROCK,))
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
     sandstorm = BattleEnvironment(weather=Weather.SANDSTORM)
+    gen9_ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
     modern = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=gen9_ruleset,
         environment=sandstorm,
     )
     custom = calculate_damage_rolls(
@@ -184,6 +197,7 @@ def test_modern_snow_ice_defense_boost_uses_policy():
     测试把防守方替换为冰属性，用钢系物理招式分别计算普通环境和雪天环境；
     雪天伤害应降低，trace 中 weather:snow 的倍率必须等于现代 policy 字段，保护 Gen9 snow 规则入口。
     """
+    ruleset = _ruleset(BattleRulesetProfile.GEN9)
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ICE,))
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
@@ -192,19 +206,19 @@ def test_modern_snow_ice_defense_boost_uses_policy():
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=ruleset,
     )
     snow = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=ruleset,
         environment=BattleEnvironment(weather=Weather.SNOW),
     )
 
     modifier = _modifiers_by_key(snow)["weather:snow"]
     assert snow.max_damage < normal.max_damage
-    assert modifier.multiplier == GEN9_RULESET.damage_policy.snow_ice_defense_multiplier
+    assert modifier.multiplier == ruleset.damage_policy.snow_ice_defense_multiplier
     assert modifier.stage is ModifierStage.DEFENSE_STAT
 
 
@@ -254,7 +268,7 @@ def test_burn_physical_damage_multiplier_uses_damage_policy():
     default_multiplier = apply_burn_physical_damage_modifier(
         Fraction(1, 1),
         status,
-        GEN9_RULESET,
+        _ruleset(BattleRulesetProfile.GEN9),
         move,
     )
     custom_multiplier = apply_burn_physical_damage_modifier(
@@ -269,22 +283,23 @@ def test_burn_physical_damage_multiplier_uses_damage_policy():
     assert custom_multiplier < default_multiplier
 
 
-def test_default_ruleset_matches_explicit_modern_ruleset_for_existing_damage_entry():
+def test_default_ruleset_matches_explicit_modern_profile_for_existing_damage_entry():
     """
     验证旧入口不显式传 ruleset 时仍使用当前现代默认规则，避免新增 damage_policy 后破坏已有调用方。
-    测试复用巨钳螳螂子弹拳攻击仙子伊布的基础伤害场景，分别不传规则集和显式传 GEN9_RULESET；
+    测试复用巨钳螳螂子弹拳攻击仙子伊布的基础伤害场景，分别不传规则集和显式传 Gen9 ruleset；
     两次伤害档位和修正倍率记录必须一致，保护 application 旧用例和 domain 旧测试的兼容性。
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
+    ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
     implicit = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
     explicit = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
         move=move,
-        ruleset=GEN9_RULESET,
+        ruleset=ruleset,
     )
 
     implicit_trace = [

@@ -2,7 +2,7 @@ from pokeop.domain.battle.flow.action_gate import (
     ActionDecision,
     default_action_gate_pipeline,
 )
-from pokeop.domain.battle.rulesets.profiles import GEN9_RULESET
+from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.status.gates import (
     ConfusionGate,
     FreezeGate,
@@ -18,6 +18,10 @@ from tests.domain.battle.helpers import (
 )
 
 
+def _gen9_ruleset():
+    return BattleRulesetProfile.GEN9.build()
+
+
 def test_sleep_gate_blocks_when_combatant_does_not_wake_up():
     """
     验证睡眠状态在本回合没有醒来时会阻止行动。本用例通过固定随机数让睡眠策略返回未醒结果，然后检查
@@ -30,7 +34,7 @@ def test_sleep_gate_blocks_when_combatant_does_not_wake_up():
     result = SleepGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -52,7 +56,7 @@ def test_sleep_gate_clears_sleep_and_allows_action_when_combatant_wakes_up():
     result = SleepGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -73,7 +77,7 @@ def test_freeze_gate_blocks_normal_move_when_combatant_does_not_thaw():
     result = FreezeGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -94,7 +98,7 @@ def test_freeze_gate_thaw_move_flag_always_clears_freeze_and_allows_action():
     result = FreezeGate().check_before_action(
         status=status,
         move=MoveProfileFactory.thawing_physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -116,7 +120,7 @@ def test_paralysis_gate_blocks_when_full_paralysis_occurs():
     result = ParalysisGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -136,7 +140,7 @@ def test_infatuation_gate_blocks_when_infatuation_immobilizes_combatant():
     result = InfatuationGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -156,7 +160,7 @@ def test_confusion_gate_replaces_move_with_self_hit_when_confusion_triggers():
     result = ConfusionGate().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
@@ -176,7 +180,7 @@ def test_action_gate_pipeline_stops_after_first_blocking_gate():
     result = default_action_gate_pipeline().check_before_action(
         status=status,
         move=MoveProfileFactory.physical(),
-        ruleset=GEN9_RULESET,
+        ruleset=_gen9_ruleset(),
         rng=rng,
     )
 
