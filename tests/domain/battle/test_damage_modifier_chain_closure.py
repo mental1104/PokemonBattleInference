@@ -9,7 +9,11 @@ from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -39,12 +43,14 @@ def test_stat_screen_spread_protect_and_random_stage_order_is_stable():
         can_evolve=True,
     )
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.bullet_punch(),
-        environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
-        is_spread_move=True,
-        is_protect_reduced=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.bullet_punch(),
+            environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
+            is_spread_move=True,
+            is_protect_reduced=True,
+        )
     )
 
     modifiers = _modifiers_by_key(result)
@@ -82,13 +88,15 @@ def test_critical_stage_precedes_spread_protect_and_final_damage_sources():
     )
     defender = BattlePokemonFactory.sylveon("max_hp")
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
-        environment=BattleEnvironment(weather=Weather.RAIN),
-        is_critical=True,
-        is_spread_move=True,
-        is_protect_reduced=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
+            environment=BattleEnvironment(weather=Weather.RAIN),
+            is_critical=True,
+            is_spread_move=True,
+            is_protect_reduced=True,
+        )
     )
 
     modifiers = _modifiers_by_key(result)
@@ -113,23 +121,37 @@ def test_final_damage_sources_keep_distinct_sources_after_closure():
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     rain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
-        environment=BattleEnvironment(weather=Weather.RAIN),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
+            environment=BattleEnvironment(weather=Weather.RAIN),
+        )
     )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.special(name="energy-ball", move_type=Type.GRASS, power=90),
-        environment=BattleEnvironment(terrain=Terrain.GRASSY),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.special(
+                name="energy-ball", move_type=Type.GRASS, power=90
+            ),
+            environment=BattleEnvironment(terrain=Terrain.GRASSY),
+        )
     )
     expert_belt = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.with_item(attacker, DamageItem.EXPERT_BELT),
-        defender=defender,
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=BattlePokemonFactory.with_item(attacker, DamageItem.EXPERT_BELT),
+            defender=defender,
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     assert _modifiers_by_key(rain)["weather:rain"].stage is ModifierStage.FINAL_DAMAGE
-    assert _modifiers_by_key(terrain)["terrain:grassy_terrain"].stage is ModifierStage.FINAL_DAMAGE
-    assert _modifiers_by_key(expert_belt)["item:expert_belt"].stage is ModifierStage.FINAL_DAMAGE
+    assert (
+        _modifiers_by_key(terrain)["terrain:grassy_terrain"].stage
+        is ModifierStage.FINAL_DAMAGE
+    )
+    assert (
+        _modifiers_by_key(expert_belt)["item:expert_belt"].stage
+        is ModifierStage.FINAL_DAMAGE
+    )

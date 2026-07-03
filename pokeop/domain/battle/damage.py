@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from pokeop.domain.battle.context import DamageContext
 from pokeop.domain.battle.modifiers import (
@@ -60,31 +59,13 @@ class DamageRollResult:
         return self.expected_damage / self.defender_hp * 100
 
 
-def _resolve_damage_context(
-    context: DamageContext | None,
-    context_fields: dict[str, Any],
-) -> DamageContext:
-    if context is not None:
-        if context_fields:
-            raise ValueError("pass either context or DamageContext fields, not both")
-        return context
-    if not context_fields:
-        raise ValueError("context or DamageContext fields are required")
-    return DamageContext(**context_fields)
-
-
-def calculate_damage_rolls(
-    context: DamageContext | None = None,
-    **context_fields: Any,
-) -> DamageRollResult:
+def calculate_damage_rolls(context: DamageContext) -> DamageRollResult:
     """
     使用默认伤害责任链计算一次招式的 16 档伤害。
 
-    推荐直接传 DamageContext；为了兼容旧调用点，也可以传 DamageContext
-    构造字段，它们会在入口处统一收敛成一个上下文对象。
+    多字段组装由 DamageContextBuilder 负责；这里保持计算入口只接收
+    已归一化的 DamageContext。
     """
-    context = _resolve_damage_context(context, context_fields)
-
     state = build_default_damage_chain().handle(
         DamageCalculationState.from_context(context)
     )

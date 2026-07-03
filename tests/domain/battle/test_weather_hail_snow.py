@@ -9,7 +9,11 @@ from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_generation
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -31,12 +35,16 @@ def test_hail_does_not_trigger_ice_defense_boost_under_modern_policy():
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
     ruleset = _gen9_ruleset()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     hail = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.HAIL),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.HAIL),
+        )
     )
 
     modifiers = _modifiers_by_key(hail)
@@ -57,17 +65,21 @@ def test_snow_triggers_ice_defense_boost_under_modern_policy():
     ruleset = _gen9_ruleset()
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     modifier = _modifiers_by_key(snow)["weather:snow"]
@@ -88,17 +100,21 @@ def test_snow_does_not_trigger_ice_defense_boost_under_generation_eight_policy()
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     assert snow.rolls == normal.rolls
@@ -117,17 +133,21 @@ def test_snow_does_not_trigger_ice_defense_boost_under_legacy_policy():
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     assert snow.rolls == normal.rolls
@@ -143,18 +163,22 @@ def test_hail_and_snow_trace_sources_remain_distinct_when_policy_enables_hail():
     default_ruleset = _gen9_ruleset()
     ruleset = replace(
         default_ruleset,
-        damage_policy=replace(default_ruleset.damage_policy, hail_ice_defense_multiplier=1.25),
+        damage_policy=replace(
+            default_ruleset.damage_policy, hail_ice_defense_multiplier=1.25
+        ),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ICE,))
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
     hail = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.HAIL),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.HAIL),
+        )
     )
 
     modifiers = _modifiers_by_key(hail)

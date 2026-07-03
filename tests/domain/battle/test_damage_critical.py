@@ -8,7 +8,11 @@ from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -29,17 +33,24 @@ def test_critical_hit_increases_damage_and_records_trace():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     critical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_critical=True,
+        )
     )
 
     modifier = _modifiers_by_key(critical)["critical_hit"]
     assert critical.max_damage > normal.max_damage
-    assert modifier.multiplier == _ruleset(BattleRulesetProfile.GEN9).damage_policy.critical_hit_multiplier
+    assert (
+        modifier.multiplier
+        == _ruleset(BattleRulesetProfile.GEN9).damage_policy.critical_hit_multiplier
+    )
     assert modifier.stage is ModifierStage.CRITICAL
     assert "Critical hit" in modifier.reason
 
@@ -53,24 +64,30 @@ def test_critical_multiplier_is_policy_configurable():
     default_ruleset = _ruleset(BattleRulesetProfile.GEN9)
     ruleset = replace(
         default_ruleset,
-        damage_policy=replace(default_ruleset.damage_policy, critical_hit_multiplier=2.0),
+        damage_policy=replace(
+            default_ruleset.damage_policy, critical_hit_multiplier=2.0
+        ),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
     default = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_critical=True,
+        )
     )
     custom = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            is_critical=True,
+        )
     )
 
     assert custom.max_damage > default.max_damage
@@ -85,21 +102,27 @@ def test_critical_multiplier_changes_from_two_times_to_one_point_five_after_gen_
     """
     attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
     defender = BattlePokemonFactory.scizor("max_atk_neutral")
-    move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+    move = BattleMoveFactory.special(
+        name="dragon-pulse", move_type=Type.DRAGON, power=85
+    )
 
     gen5 = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=_ruleset(BattleRulesetProfile.GEN5),
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=_ruleset(BattleRulesetProfile.GEN5),
+            is_critical=True,
+        )
     )
     gen6 = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=_ruleset(BattleRulesetProfile.GEN6),
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=_ruleset(BattleRulesetProfile.GEN6),
+            is_critical=True,
+        )
     )
 
     assert gen5.max_damage > gen6.max_damage
@@ -115,23 +138,29 @@ def test_critical_hit_ignores_all_screen_conditions():
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    move = BattleMoveFactory.special(name="flash-cannon", move_type=BattleMoveFactory.bullet_punch().type, power=80)
+    move = BattleMoveFactory.special(
+        name="flash-cannon", move_type=BattleMoveFactory.bullet_punch().type, power=80
+    )
     environment = BattleEnvironment(
         defender_side=SideConditions(reflect=True, light_screen=True, aurora_veil=True)
     )
 
     critical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_critical=True,
+        )
     )
     critical_with_screens = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=environment,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=environment,
+            is_critical=True,
+        )
     )
 
     modifiers = _modifiers_by_key(critical_with_screens)
@@ -147,9 +176,11 @@ def test_non_critical_damage_does_not_write_critical_trace():
     但不能出现 critical stage 记录，保护会心字段作为显式输入开关而非默认机制。
     """
     result = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
-        defender=BattlePokemonFactory.sylveon("max_hp"),
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
+            defender=BattlePokemonFactory.sylveon("max_hp"),
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     assert "critical_hit" not in _modifiers_by_key(result)

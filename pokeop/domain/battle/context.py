@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -83,8 +83,8 @@ class DamageContext:
     """
     表示一次完整伤害计算所需的纯 domain 输入。
 
-    旧入口仍可分别传 attacker、defender、move；新机制统一通过该对象携带
-    ruleset 和 BattleEnvironment，方便天气、场地、特性、道具共享上下文。
+    调用方通过 DamageContextBuilder 组装该对象；伤害计算入口只消费这个
+    已经归一化的上下文快照。
     """
 
     attacker: BattlePokemon
@@ -98,11 +98,82 @@ class DamageContext:
     is_multi_target_battle: bool = False
 
 
+@dataclass(frozen=True)
+class DamageContextBuilder:
+    """负责逐步组装一次伤害计算上下文，避免计算入口承载大量可选参数。"""
+
+    attacker: BattlePokemon
+    defender: BattlePokemon
+    move: BattleMove
+    ruleset: "BattleRuleset | None" = None
+    environment: BattleEnvironment | None = None
+    is_critical: bool = False
+    is_spread_move: bool = False
+    is_protect_reduced: bool = False
+    is_multi_target_battle: bool = False
+
+    @classmethod
+    def for_move(
+        cls,
+        *,
+        attacker: BattlePokemon,
+        defender: BattlePokemon,
+        move: BattleMove,
+    ) -> "DamageContextBuilder":
+        """以伤害计算必需的三元组创建 builder。"""
+        return cls(attacker=attacker, defender=defender, move=move)
+
+    def with_ruleset(
+        self,
+        ruleset: "BattleRuleset | None",
+    ) -> "DamageContextBuilder":
+        """设置本次伤害计算使用的规则集。"""
+        return replace(self, ruleset=ruleset)
+
+    def with_environment(
+        self,
+        environment: BattleEnvironment,
+    ) -> "DamageContextBuilder":
+        """设置天气、场地、双方场地状态等战斗环境。"""
+        return replace(self, environment=environment)
+
+    def with_critical_hit(self, enabled: bool = True) -> "DamageContextBuilder":
+        """设置本次伤害是否按会心一击计算。"""
+        return replace(self, is_critical=enabled)
+
+    def as_spread_move(self, enabled: bool = True) -> "DamageContextBuilder":
+        """设置本次招式是否按范围招式处理。"""
+        return replace(self, is_spread_move=enabled)
+
+    def with_protect_reduction(self, enabled: bool = True) -> "DamageContextBuilder":
+        """设置本次伤害是否受到守住类效果削减。"""
+        return replace(self, is_protect_reduced=enabled)
+
+    def in_multi_target_battle(self, enabled: bool = True) -> "DamageContextBuilder":
+        """设置当前战斗是否存在多个目标。"""
+        return replace(self, is_multi_target_battle=enabled)
+
+    def build(self) -> DamageContext:
+        """构建供伤害责任链消费的不可变上下文。"""
+        return DamageContext(
+            attacker=self.attacker,
+            defender=self.defender,
+            move=self.move,
+            ruleset=self.ruleset,
+            environment=self.environment or BattleEnvironment(),
+            is_critical=self.is_critical,
+            is_spread_move=self.is_spread_move,
+            is_protect_reduced=self.is_protect_reduced,
+            is_multi_target_battle=self.is_multi_target_battle,
+        )
+
+
 __all__ = [
     "BattleMove",
     "BattlePokemon",
     "DamageAbility",
     "DamageContext",
+    "DamageContextBuilder",
     "DamageItem",
     "MoveCategory",
 ]

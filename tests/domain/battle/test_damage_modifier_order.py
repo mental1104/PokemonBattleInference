@@ -8,7 +8,11 @@ from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -31,9 +35,11 @@ def test_technician_is_recorded_before_stab_as_base_power_modifier():
     )
     defender = BattlePokemonFactory.sylveon("max_hp")
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     keys = _modifier_keys(result)
@@ -59,14 +65,18 @@ def test_choice_band_and_eviolite_are_stat_stage_modifiers_before_base_damage_tr
         can_evolve=True,
     )
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     modifiers = _modifiers_by_key(result)
     keys = _modifier_keys(result)
-    assert modifiers["item:choice_band"].stage is ModifierStage.ATTACK_STAT # 为什么要加"item:" 这种前缀？为什么不用明确的成员变量 + 枚举类型来区分？为什么要用字符串 key 来做这个？这很容易出错。尽管python是脚本语言，请按照编译语言的标准去设计类型系统，避免字符串 key 这种容易出错的设计。
+    assert (
+        modifiers["item:choice_band"].stage is ModifierStage.ATTACK_STAT
+    )  # 为什么要加"item:" 这种前缀？为什么不用明确的成员变量 + 枚举类型来区分？为什么要用字符串 key 来做这个？这很容易出错。尽管python是脚本语言，请按照编译语言的标准去设计类型系统，避免字符串 key 这种容易出错的设计。
     assert modifiers["item:eviolite"].stage is ModifierStage.DEFENSE_STAT
     assert keys.index("item:choice_band") < keys.index("stab")
     assert keys.index("item:eviolite") < keys.index("stab")
@@ -89,9 +99,11 @@ def test_filter_and_expert_belt_are_applied_after_type_effectiveness():
         DamageAbility.FILTER,
     )
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     modifiers = _modifiers_by_key(result)
@@ -115,21 +127,34 @@ def test_weather_terrain_and_life_orb_are_final_damage_sources():
     )
     defender = BattlePokemonFactory.sylveon("max_hp")
     electric_result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90),
-        environment=BattleEnvironment(weather=Weather.RAIN, terrain=Terrain.ELECTRIC),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.special(
+                name="thunderbolt", move_type=Type.ELECTRIC, power=90
+            ),
+            environment=BattleEnvironment(
+                weather=Weather.RAIN, terrain=Terrain.ELECTRIC
+            ),
+        )
     )
     sunny_result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90),
-        environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=BattleMoveFactory.special(
+                name="flamethrower", move_type=Type.FIRE, power=90
+            ),
+            environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        )
     )
 
     electric_modifiers = _modifiers_by_key(electric_result)
     sunny_modifiers = _modifiers_by_key(sunny_result)
-    assert electric_modifiers["terrain:electric_terrain"].stage is ModifierStage.FINAL_DAMAGE
+    assert (
+        electric_modifiers["terrain:electric_terrain"].stage
+        is ModifierStage.FINAL_DAMAGE
+    )
     assert electric_modifiers["item:life_orb"].stage is ModifierStage.FINAL_DAMAGE
     assert "weather:rain" not in electric_modifiers
     assert sunny_modifiers["weather:harsh_sunlight"].stage is ModifierStage.FINAL_DAMAGE

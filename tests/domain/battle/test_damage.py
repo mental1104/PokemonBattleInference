@@ -9,7 +9,11 @@ from pokeop.domain.battle.modifiers import (
     RandomRollModifier,
     build_damage_chain,
 )
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 @pytest.mark.parametrize(
@@ -35,9 +39,11 @@ def test_scizor_bullet_punch_sylveon_damage_ranges(
     基础伤害、STAB、钢打妖精 2 倍克制和 16 档随机伤害。
     """
     result = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.scizor(attacker_key),
-        defender=BattlePokemonFactory.sylveon(defender_key),
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=BattlePokemonFactory.scizor(attacker_key),
+            defender=BattlePokemonFactory.sylveon(defender_key),
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     assert (result.min_damage, result.max_damage) == expected_range
@@ -52,9 +58,11 @@ def test_applied_modifiers_include_stab_type_and_random_without_ability():
     当前阶段明确不计算 Technician，所以不能出现 ability 修正。
     """
     result = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.scizor("max_atk_plus"),
-        defender=BattlePokemonFactory.sylveon("max_hp"),
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=BattlePokemonFactory.scizor("max_atk_plus"),
+            defender=BattlePokemonFactory.sylveon("max_hp"),
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     modifiers = {modifier.key: modifier for modifier in result.applied_modifiers}
@@ -72,6 +80,7 @@ def test_damage_chain_allows_new_modifier_links_before_random_rolls():
     并把它放在 BaseDamageModifier 和 RandomRollModifier 之间。
     这模拟以后接入 Technician、生命宝珠、天气等修正时，只新增链节点即可。
     """
+
     class TestAbilityModifier(DamageModifierChain):
         """测试专用链节点：模拟一个把当前伤害倍率翻倍的特性修正。"""
 

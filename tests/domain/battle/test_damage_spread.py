@@ -9,7 +9,11 @@ from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -30,12 +34,16 @@ def test_spread_move_reduces_damage_and_records_spread_stage():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
-    single_target = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    single_target = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     spread = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_spread_move=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_spread_move=True,
+        )
     )
 
     modifier = _modifiers_by_key(spread)["spread_move"]
@@ -51,9 +59,11 @@ def test_non_spread_move_does_not_write_spread_trace():
     结果 trace 应保留基础的 STAB、属性克制和随机修正，但不能出现 spread 阶段记录。
     """
     result = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
-        defender=BattlePokemonFactory.sylveon("max_hp"),
-        move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
+        damage_context(
+            attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
+            defender=BattlePokemonFactory.sylveon("max_hp"),
+            move=BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90),
+        )
     )
 
     assert "spread_move" not in _modifiers_by_key(result)
@@ -68,24 +78,30 @@ def test_spread_multiplier_is_policy_configurable():
     default_ruleset = _gen9_ruleset()
     ruleset = replace(
         default_ruleset,
-        damage_policy=replace(default_ruleset.damage_policy, spread_move_multiplier=0.5),
+        damage_policy=replace(
+            default_ruleset.damage_policy, spread_move_multiplier=0.5
+        ),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
     default = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_spread_move=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_spread_move=True,
+        )
     )
     custom = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        is_spread_move=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            is_spread_move=True,
+        )
     )
 
     assert custom.max_damage < default.max_damage
@@ -106,11 +122,13 @@ def test_spread_move_stacks_with_weather_and_life_orb_with_distinct_trace():
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
     result = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.RAIN),
-        is_spread_move=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.RAIN),
+            is_spread_move=True,
+        )
     )
 
     modifiers = _modifiers_by_key(result)

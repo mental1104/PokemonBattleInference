@@ -2,9 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from fractions import Fraction
+from typing import TYPE_CHECKING
 
 from pokeop.domain.battle.abilities import DamageAbility
-from pokeop.domain.battle.context import BattleMove, BattlePokemon, MoveCategory
+from pokeop.domain.battle.context import (
+    BattleMove,
+    BattlePokemon,
+    DamageContext,
+    DamageContextBuilder,
+    MoveCategory,
+)
+from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.moves.models import MoveFlag, MoveProfile
 from pokeop.domain.battle.stats import (
@@ -28,6 +36,9 @@ from pokeop.domain.battle.status.state import (
 )
 from pokeop.domain.models.pokemon_fields import StatField
 from pokeop.domain.models.types import Type
+
+if TYPE_CHECKING:
+    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 LEVEL_50 = 50
@@ -63,6 +74,39 @@ class PokemonSpec:
             types=self.types,
             stats=calculate_actual_stats(profile, level=level),
         )
+
+
+def damage_context(
+    *,
+    attacker: BattlePokemon,
+    defender: BattlePokemon,
+    move: BattleMove,
+    ruleset: "BattleRuleset | None" = None,
+    environment: BattleEnvironment | None = None,
+    is_critical: bool = False,
+    is_spread_move: bool = False,
+    is_protect_reduced: bool = False,
+    is_multi_target_battle: bool = False,
+) -> DamageContext:
+    """测试辅助：用 builder 组装一次伤害计算上下文。"""
+    builder = DamageContextBuilder.for_move(
+        attacker=attacker,
+        defender=defender,
+        move=move,
+    )
+    if ruleset is not None:
+        builder = builder.with_ruleset(ruleset)
+    if environment is not None:
+        builder = builder.with_environment(environment)
+    if is_critical:
+        builder = builder.with_critical_hit()
+    if is_spread_move:
+        builder = builder.as_spread_move()
+    if is_protect_reduced:
+        builder = builder.with_protect_reduction()
+    if is_multi_target_battle:
+        builder = builder.in_multi_target_battle()
+    return builder.build()
 
 
 SCIZOR = PokemonSpec(

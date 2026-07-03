@@ -1,7 +1,13 @@
 """Pure battle-domain models and calculations."""
 
 from pokeop.domain.battle.abilities import DamageAbility
-from pokeop.domain.battle.context import BattleMove, BattlePokemon, DamageContext, MoveCategory
+from pokeop.domain.battle.context import (
+    BattleMove,
+    BattlePokemon,
+    DamageContext,
+    DamageContextBuilder,
+    MoveCategory,
+)
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.grounding import GroundingState, is_grounded
 from pokeop.domain.battle.items import DamageItem
@@ -17,6 +23,7 @@ __all__ = [
     "BattlePokemon",
     "DamageAbility",
     "DamageContext",
+    "DamageContextBuilder",
     "DamageItem",
     "GroundingState",
     "ModifierKey",

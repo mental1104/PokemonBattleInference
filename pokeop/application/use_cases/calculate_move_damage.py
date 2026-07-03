@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pokeop.domain.battle.context import BattleMove, BattlePokemon, MoveCategory
+from pokeop.domain.battle.context import (
+    BattleMove,
+    BattlePokemon,
+    DamageContextBuilder,
+    MoveCategory,
+)
 from pokeop.domain.battle.damage import DamageRollResult, calculate_damage_rolls
 from pokeop.domain.battle.ko import KOChanceResult, estimate_ko_chance
 from pokeop.domain.battle.stats import (
@@ -118,9 +123,11 @@ class CalculateMoveDamageUseCase:
         )
 
         damage = calculate_damage_rolls(
-            attacker=attacker,
-            defender=defender,
-            move=move,
+            DamageContextBuilder.for_move(
+                attacker=attacker,
+                defender=defender,
+                move=move,
+            ).build()
         )
         ko_chance = estimate_ko_chance(
             rolls=damage.rolls,

@@ -17,6 +17,7 @@ from tests.domain.battle.helpers import (
     BattlePokemonFactory,
     CombatantStatusFactory,
     MoveProfileFactory,
+    damage_context,
 )
 
 
@@ -45,20 +46,26 @@ def test_modern_terrain_boost_uses_ruleset_policy_multiplier():
     ruleset = _ruleset(BattleRulesetProfile.GEN9)
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
+    move = BattleMoveFactory.special(
+        name="thunderbolt", move_type=Type.ELECTRIC, power=90
+    )
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        )
     )
 
     modifier = _modifiers_by_key(terrain)["terrain:electric_terrain"]
@@ -77,22 +84,28 @@ def test_old_ruleset_can_configure_terrain_boost_to_one_point_five():
     old_ruleset = _ruleset(BattleRulesetProfile.GEN6)
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
+    move = BattleMoveFactory.special(
+        name="thunderbolt", move_type=Type.ELECTRIC, power=90
+    )
     environment = BattleEnvironment(terrain=Terrain.ELECTRIC)
 
     modern = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=gen9_ruleset,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=gen9_ruleset,
+            environment=environment,
+        )
     )
     old_style = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=old_ruleset,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=old_ruleset,
+            environment=environment,
+        )
     )
 
     modifier = _modifiers_by_key(old_style)["terrain:electric_terrain"]
@@ -115,38 +128,48 @@ def test_sun_and_rain_weather_multipliers_are_policy_driven():
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    fire_move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
+    fire_move = BattleMoveFactory.special(
+        name="flamethrower", move_type=Type.FIRE, power=90
+    )
     water_move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
     sunny = BattleEnvironment(weather=Weather.HARSH_SUNLIGHT)
     gen9_ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
     modern_fire = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=fire_move,
-        ruleset=gen9_ruleset,
-        environment=sunny,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=fire_move,
+            ruleset=gen9_ruleset,
+            environment=sunny,
+        )
     )
     custom_fire = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=fire_move,
-        ruleset=custom_ruleset,
-        environment=sunny,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=fire_move,
+            ruleset=custom_ruleset,
+            environment=sunny,
+        )
     )
     modern_water = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=water_move,
-        ruleset=gen9_ruleset,
-        environment=sunny,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=water_move,
+            ruleset=gen9_ruleset,
+            environment=sunny,
+        )
     )
     custom_water = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=water_move,
-        ruleset=custom_ruleset,
-        environment=sunny,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=water_move,
+            ruleset=custom_ruleset,
+            environment=sunny,
+        )
     )
 
     assert custom_fire.max_damage > modern_fire.max_damage
@@ -171,23 +194,30 @@ def test_sandstorm_rock_special_defense_boost_uses_policy():
     gen9_ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
     modern = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=gen9_ruleset,
-        environment=sandstorm,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=gen9_ruleset,
+            environment=sandstorm,
+        )
     )
     custom = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=custom_ruleset,
-        environment=sandstorm,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=custom_ruleset,
+            environment=sandstorm,
+        )
     )
 
     modifier = _modifiers_by_key(custom)["weather:sandstorm"]
     assert custom.max_damage < modern.max_damage
-    assert modifier.multiplier == custom_ruleset.damage_policy.sandstorm_rock_spdef_multiplier
+    assert (
+        modifier.multiplier
+        == custom_ruleset.damage_policy.sandstorm_rock_spdef_multiplier
+    )
     assert modifier.stage is ModifierStage.DEFENSE_STAT
 
 
@@ -203,17 +233,21 @@ def test_modern_snow_ice_defense_boost_uses_policy():
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     modifier = _modifiers_by_key(snow)["weather:snow"]
@@ -236,17 +270,21 @@ def test_old_snow_or_hail_policy_can_disable_ice_defense_boost():
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=old_ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=old_ruleset,
+        )
     )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=old_ruleset,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=old_ruleset,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     assert snow.rolls == normal.rolls
@@ -294,20 +332,34 @@ def test_default_ruleset_matches_explicit_modern_profile_for_existing_damage_ent
     move = BattleMoveFactory.bullet_punch()
     ruleset = _ruleset(BattleRulesetProfile.GEN9)
 
-    implicit = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    implicit = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     explicit = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
 
     implicit_trace = [
-        (modifier.key, modifier.multiplier, modifier.min_multiplier, modifier.max_multiplier)
+        (
+            modifier.key,
+            modifier.multiplier,
+            modifier.min_multiplier,
+            modifier.max_multiplier,
+        )
         for modifier in implicit.applied_modifiers
     ]
     explicit_trace = [
-        (modifier.key, modifier.multiplier, modifier.min_multiplier, modifier.max_multiplier)
+        (
+            modifier.key,
+            modifier.multiplier,
+            modifier.min_multiplier,
+            modifier.max_multiplier,
+        )
         for modifier in explicit.applied_modifiers
     ]
     assert implicit.rolls == explicit.rolls

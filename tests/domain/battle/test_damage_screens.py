@@ -8,7 +8,11 @@ from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -37,17 +41,24 @@ def test_reflect_reduces_physical_damage_and_records_screen_stage():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     reflected = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
+        )
     )
 
     modifier = _modifiers_by_key(reflected)["screen:reflect"]
     assert reflected.max_damage < normal.max_damage
-    assert modifier.multiplier == _gen9_ruleset().damage_policy.screen_single_target_multiplier
+    assert (
+        modifier.multiplier
+        == _gen9_ruleset().damage_policy.screen_single_target_multiplier
+    )
     assert modifier.stage is ModifierStage.SCREEN
     assert "Reflect" in modifier.reason
 
@@ -62,12 +73,16 @@ def test_reflect_does_not_reduce_special_damage():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     reflected = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(defender_side=SideConditions(reflect=True)),
+        )
     )
 
     assert reflected.rolls == normal.rolls
@@ -82,31 +97,41 @@ def test_light_screen_reduces_special_damage_and_ignores_physical_damage():
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    special_move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
+    special_move = BattleMoveFactory.special(
+        name="flamethrower", move_type=Type.FIRE, power=90
+    )
     physical_move = BattleMoveFactory.bullet_punch()
     environment = BattleEnvironment(defender_side=SideConditions(light_screen=True))
 
     normal_special = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=special_move,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=special_move,
+        )
     )
     screened_special = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=special_move,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=special_move,
+            environment=environment,
+        )
     )
     normal_physical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=physical_move,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=physical_move,
+        )
     )
     screened_physical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=physical_move,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=physical_move,
+            environment=environment,
+        )
     )
 
     modifier = _modifiers_by_key(screened_special)["screen:light_screen"]
@@ -125,28 +150,44 @@ def test_aurora_veil_reduces_physical_and_special_damage():
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     physical_move = BattleMoveFactory.bullet_punch()
-    special_move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
+    special_move = BattleMoveFactory.special(
+        name="flamethrower", move_type=Type.FIRE, power=90
+    )
     environment = BattleEnvironment(defender_side=SideConditions(aurora_veil=True))
 
-    normal_physical = calculate_damage_rolls(attacker=attacker, defender=defender, move=physical_move)
-    veiled_physical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=physical_move,
-        environment=environment,
+    normal_physical = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=physical_move)
     )
-    normal_special = calculate_damage_rolls(attacker=attacker, defender=defender, move=special_move)
+    veiled_physical = calculate_damage_rolls(
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=physical_move,
+            environment=environment,
+        )
+    )
+    normal_special = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=special_move)
+    )
     veiled_special = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=special_move,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=special_move,
+            environment=environment,
+        )
     )
 
     assert veiled_physical.max_damage < normal_physical.max_damage
     assert veiled_special.max_damage < normal_special.max_damage
-    assert _modifiers_by_key(veiled_physical)["screen:aurora_veil"].stage is ModifierStage.SCREEN
-    assert _modifiers_by_key(veiled_special)["screen:aurora_veil"].stage is ModifierStage.SCREEN
+    assert (
+        _modifiers_by_key(veiled_physical)["screen:aurora_veil"].stage
+        is ModifierStage.SCREEN
+    )
+    assert (
+        _modifiers_by_key(veiled_special)["screen:aurora_veil"].stage
+        is ModifierStage.SCREEN
+    )
 
 
 def test_critical_hit_ignores_screens_without_writing_screen_trace():
@@ -163,17 +204,21 @@ def test_critical_hit_ignores_screens_without_writing_screen_trace():
     )
 
     critical = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_critical=True,
+        )
     )
     critical_with_screens = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=all_screens,
-        is_critical=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=all_screens,
+            is_critical=True,
+        )
     )
 
     modifiers = _modifiers_by_key(critical_with_screens)
@@ -196,17 +241,21 @@ def test_screen_multiplier_is_policy_configurable():
     environment = BattleEnvironment(defender_side=SideConditions(reflect=True))
 
     default = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=environment,
+        )
     )
     custom = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=environment,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=environment,
+        )
     )
 
     modifier = _modifiers_by_key(custom)["screen:reflect"]

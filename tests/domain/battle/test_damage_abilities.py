@@ -7,7 +7,11 @@ from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -33,8 +37,12 @@ class TestTechnician:
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        boosted = calculate_damage_rolls(attacker=technician, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        boosted = calculate_damage_rolls(
+            damage_context(attacker=technician, defender=defender, move=move)
+        )
 
         assert boosted.max_damage > normal.max_damage
         modifier = _modifiers_by_key(boosted)["ability:technician"]
@@ -53,10 +61,16 @@ class TestTechnician:
             DamageAbility.TECHNICIAN,
         )
         defender = BattlePokemonFactory.sylveon("max_hp")
-        move = BattleMoveFactory.physical(name="steel-wing-like", move_type=Type.STEEL, power=61)
+        move = BattleMoveFactory.physical(
+            name="steel-wing-like", move_type=Type.STEEL, power=61
+        )
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=technician, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=technician, defender=defender, move=move)
+        )
 
         assert unchanged.rolls == normal.rolls
         assert "ability:technician" not in _modifiers_by_key(unchanged)
@@ -77,8 +91,12 @@ class TestAdaptability:
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        adapted = calculate_damage_rolls(attacker=adaptability, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        adapted = calculate_damage_rolls(
+            damage_context(attacker=adaptability, defender=defender, move=move)
+        )
 
         assert adapted.max_damage > normal.max_damage
         modifier = _modifiers_by_key(adapted)["stab"]
@@ -98,10 +116,16 @@ class TestAdaptability:
             DamageAbility.ADAPTABILITY,
         )
         defender = BattlePokemonFactory.sylveon("max_hp")
-        move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
+        move = BattleMoveFactory.special(
+            name="flamethrower", move_type=Type.FIRE, power=90
+        )
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=adaptability, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=adaptability, defender=defender, move=move)
+        )
 
         assert unchanged.rolls == normal.rolls
         modifier = _modifiers_by_key(unchanged)["stab"]
@@ -120,21 +144,27 @@ class TestSniper:
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
         sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
-        move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+        move = BattleMoveFactory.special(
+            name="dragon-pulse", move_type=Type.DRAGON, power=85
+        )
 
         normal_critical = calculate_damage_rolls(
-            attacker=attacker,
-            defender=defender,
-            move=move,
-            ruleset=_ruleset(BattleRulesetProfile.GEN9),
-            is_critical=True,
+            damage_context(
+                attacker=attacker,
+                defender=defender,
+                move=move,
+                ruleset=_ruleset(BattleRulesetProfile.GEN9),
+                is_critical=True,
+            )
         )
         sniper_critical = calculate_damage_rolls(
-            attacker=sniper,
-            defender=defender,
-            move=move,
-            ruleset=_ruleset(BattleRulesetProfile.GEN9),
-            is_critical=True,
+            damage_context(
+                attacker=sniper,
+                defender=defender,
+                move=move,
+                ruleset=_ruleset(BattleRulesetProfile.GEN9),
+                is_critical=True,
+            )
         )
 
         modifier = _modifiers_by_key(sniper_critical)["critical_hit"]
@@ -152,21 +182,27 @@ class TestSniper:
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
         sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
-        move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+        move = BattleMoveFactory.special(
+            name="dragon-pulse", move_type=Type.DRAGON, power=85
+        )
 
         normal_critical = calculate_damage_rolls(
-            attacker=attacker,
-            defender=defender,
-            move=move,
-            ruleset=_ruleset(BattleRulesetProfile.GEN5),
-            is_critical=True,
+            damage_context(
+                attacker=attacker,
+                defender=defender,
+                move=move,
+                ruleset=_ruleset(BattleRulesetProfile.GEN5),
+                is_critical=True,
+            )
         )
         sniper_critical = calculate_damage_rolls(
-            attacker=sniper,
-            defender=defender,
-            move=move,
-            ruleset=_ruleset(BattleRulesetProfile.GEN5),
-            is_critical=True,
+            damage_context(
+                attacker=sniper,
+                defender=defender,
+                move=move,
+                ruleset=_ruleset(BattleRulesetProfile.GEN5),
+                is_critical=True,
+            )
         )
 
         modifier = _modifiers_by_key(sniper_critical)["critical_hit"]
@@ -184,10 +220,16 @@ class TestSniper:
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
         sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
-        move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+        move = BattleMoveFactory.special(
+            name="dragon-pulse", move_type=Type.DRAGON, power=85
+        )
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=sniper, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=sniper, defender=defender, move=move)
+        )
 
         modifiers = _modifiers_by_key(unchanged)
         assert unchanged.rolls == normal.rolls
@@ -197,7 +239,9 @@ class TestSniper:
 
 class TestThickFat:
     @pytest.mark.parametrize("move_type", [Type.FIRE, Type.ICE])
-    def test_reduces_incoming_fire_and_ice_damage_at_final_damage_stage(self, move_type):
+    def test_reduces_incoming_fire_and_ice_damage_at_final_damage_stage(
+        self, move_type
+    ):
         """
         验证厚脂肪作为防守方特性，会在 final damage 阶段削弱火系和冰系直接伤害。
         测试分别使用火系与冰系特殊招式攻击同一目标，对照组没有特性，厚脂肪组应得到更低伤害；
@@ -215,8 +259,12 @@ class TestThickFat:
             power=90,
         )
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        reduced = calculate_damage_rolls(attacker=attacker, defender=thick_fat, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        reduced = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=thick_fat, move=move)
+        )
 
         assert reduced.max_damage < normal.max_damage
         modifier = _modifiers_by_key(reduced)["ability:thick_fat"]
@@ -237,15 +285,21 @@ class TestThickFat:
         )
         move = BattleMoveFactory.bullet_punch()
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=attacker, defender=thick_fat, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=thick_fat, move=move)
+        )
 
         assert unchanged.rolls == normal.rolls
         assert "ability:thick_fat" not in _modifiers_by_key(unchanged)
 
 
 class TestFilterLikeAbilities:
-    @pytest.mark.parametrize("ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK])
+    @pytest.mark.parametrize(
+        "ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK]
+    )
     def test_reduce_super_effective_damage_at_final_damage_stage(self, ability):
         """
         验证过滤和坚硬岩石在防守方受到效果拔群招式时生效，并统一进入 final damage 阶段。
@@ -257,8 +311,12 @@ class TestFilterLikeAbilities:
         protected = BattlePokemonFactory.with_ability(defender, ability)
         move = BattleMoveFactory.bullet_punch()
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        reduced = calculate_damage_rolls(attacker=attacker, defender=protected, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        reduced = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=protected, move=move)
+        )
 
         ability_key = ability.trace_key
         assert reduced.max_damage < normal.max_damage
@@ -266,7 +324,9 @@ class TestFilterLikeAbilities:
         assert modifier.multiplier == 0.75
         assert modifier.stage is ModifierStage.FINAL_DAMAGE
 
-    @pytest.mark.parametrize("ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK])
+    @pytest.mark.parametrize(
+        "ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK]
+    )
     def test_do_not_reduce_neutral_damage(self, ability):
         """
         验证过滤和坚硬岩石不会削弱普通效果招式，保护这组特性依赖 type_effectiveness 的触发边界。
@@ -276,10 +336,16 @@ class TestFilterLikeAbilities:
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
         defender = BattlePokemonFactory.sylveon("max_hp")
         protected = BattlePokemonFactory.with_ability(defender, ability)
-        move = BattleMoveFactory.physical(name="body-slam", move_type=Type.NORMAL, power=85)
+        move = BattleMoveFactory.physical(
+            name="body-slam", move_type=Type.NORMAL, power=85
+        )
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=attacker, defender=protected, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=protected, move=move)
+        )
 
         ability_key = ability.trace_key
         assert unchanged.rolls == normal.rolls
@@ -301,8 +367,15 @@ class TestUnknownAbility:
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 
-        normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-        unchanged = calculate_damage_rolls(attacker=unknown, defender=defender, move=move)
+        normal = calculate_damage_rolls(
+            damage_context(attacker=attacker, defender=defender, move=move)
+        )
+        unchanged = calculate_damage_rolls(
+            damage_context(attacker=unknown, defender=defender, move=move)
+        )
 
         assert unchanged.rolls == normal.rolls
-        assert all(not modifier.key.startswith("ability:") for modifier in unchanged.applied_modifiers)
+        assert all(
+            not modifier.key.startswith("ability:")
+            for modifier in unchanged.applied_modifiers
+        )

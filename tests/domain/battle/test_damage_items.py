@@ -15,7 +15,11 @@ from pokeop.domain.battle.item_effects import (
 from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -25,7 +29,10 @@ def _modifiers_by_key(result):
 @pytest.mark.parametrize(
     ("item", "effect_type"),
     [
-        (DamageItem.UNKNOWN, BaseItemDamageEffect), # TODO: 这里很明显可以根据枚举直接拿到它的Effect实现类，没必要这么搞元组成对。
+        (
+            DamageItem.UNKNOWN,
+            BaseItemDamageEffect,
+        ),  # TODO: 这里很明显可以根据枚举直接拿到它的Effect实现类，没必要这么搞元组成对。
         (DamageItem.LIFE_ORB, LifeOrbEffect),
         (DamageItem.CHOICE_BAND, ChoiceBandEffect),
         (DamageItem.CHOICE_SPECS, ChoiceSpecsEffect),
@@ -76,8 +83,12 @@ def test_life_orb_boosts_final_damage_and_records_item_source():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-    boosted = calculate_damage_rolls(attacker=life_orb, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
+    boosted = calculate_damage_rolls(
+        damage_context(attacker=life_orb, defender=defender, move=move)
+    )
 
     assert boosted.max_damage > normal.max_damage
     modifier = _modifiers_by_key(boosted)["item:life_orb"]
@@ -94,13 +105,25 @@ def test_choice_band_only_boosts_physical_attack_stat():
     attacker = BattlePokemonFactory.lucario("max_atk_neutral")
     band = BattlePokemonFactory.with_item(attacker, DamageItem.CHOICE_BAND)
     defender = BattlePokemonFactory.sylveon("max_hp")
-    physical = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
-    special = BattleMoveFactory.special(name="flash-cannon", move_type=Type.STEEL, power=80)
+    physical = BattleMoveFactory.physical(
+        name="iron-head", move_type=Type.STEEL, power=80
+    )
+    special = BattleMoveFactory.special(
+        name="flash-cannon", move_type=Type.STEEL, power=80
+    )
 
-    normal_physical = calculate_damage_rolls(attacker=attacker, defender=defender, move=physical)
-    boosted_physical = calculate_damage_rolls(attacker=band, defender=defender, move=physical)
-    normal_special = calculate_damage_rolls(attacker=attacker, defender=defender, move=special)
-    unchanged_special = calculate_damage_rolls(attacker=band, defender=defender, move=special)
+    normal_physical = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=physical)
+    )
+    boosted_physical = calculate_damage_rolls(
+        damage_context(attacker=band, defender=defender, move=physical)
+    )
+    normal_special = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=special)
+    )
+    unchanged_special = calculate_damage_rolls(
+        damage_context(attacker=band, defender=defender, move=special)
+    )
 
     assert boosted_physical.max_damage > normal_physical.max_damage
     modifier = _modifiers_by_key(boosted_physical)["item:choice_band"]
@@ -119,13 +142,25 @@ def test_choice_specs_only_boosts_special_attack_stat():
     attacker = BattlePokemonFactory.lucario("max_spa_neutral")
     specs = BattlePokemonFactory.with_item(attacker, DamageItem.CHOICE_SPECS)
     defender = BattlePokemonFactory.sylveon("max_hp")
-    physical = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
-    special = BattleMoveFactory.special(name="flash-cannon", move_type=Type.STEEL, power=80)
+    physical = BattleMoveFactory.physical(
+        name="iron-head", move_type=Type.STEEL, power=80
+    )
+    special = BattleMoveFactory.special(
+        name="flash-cannon", move_type=Type.STEEL, power=80
+    )
 
-    normal_special = calculate_damage_rolls(attacker=attacker, defender=defender, move=special)
-    boosted_special = calculate_damage_rolls(attacker=specs, defender=defender, move=special)
-    normal_physical = calculate_damage_rolls(attacker=attacker, defender=defender, move=physical)
-    unchanged_physical = calculate_damage_rolls(attacker=specs, defender=defender, move=physical)
+    normal_special = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=special)
+    )
+    boosted_special = calculate_damage_rolls(
+        damage_context(attacker=specs, defender=defender, move=special)
+    )
+    normal_physical = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=physical)
+    )
+    unchanged_physical = calculate_damage_rolls(
+        damage_context(attacker=specs, defender=defender, move=physical)
+    )
 
     assert boosted_special.max_damage > normal_special.max_damage
     modifier = _modifiers_by_key(boosted_special)["item:choice_specs"]
@@ -145,12 +180,22 @@ def test_expert_belt_only_boosts_super_effective_final_damage():
     expert_belt = BattlePokemonFactory.with_item(attacker, DamageItem.EXPERT_BELT)
     defender = BattlePokemonFactory.sylveon("max_hp")
     super_effective = BattleMoveFactory.bullet_punch()
-    neutral = BattleMoveFactory.physical(name="body-slam", move_type=Type.NORMAL, power=85)
+    neutral = BattleMoveFactory.physical(
+        name="body-slam", move_type=Type.NORMAL, power=85
+    )
 
-    normal_super = calculate_damage_rolls(attacker=attacker, defender=defender, move=super_effective)
-    boosted_super = calculate_damage_rolls(attacker=expert_belt, defender=defender, move=super_effective)
-    normal_neutral = calculate_damage_rolls(attacker=attacker, defender=defender, move=neutral)
-    unchanged_neutral = calculate_damage_rolls(attacker=expert_belt, defender=defender, move=neutral)
+    normal_super = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=super_effective)
+    )
+    boosted_super = calculate_damage_rolls(
+        damage_context(attacker=expert_belt, defender=defender, move=super_effective)
+    )
+    normal_neutral = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=neutral)
+    )
+    unchanged_neutral = calculate_damage_rolls(
+        damage_context(attacker=expert_belt, defender=defender, move=neutral)
+    )
 
     assert boosted_super.max_damage > normal_super.max_damage
     modifier = _modifiers_by_key(boosted_super)["item:expert_belt"]
@@ -187,21 +232,29 @@ def test_eviolite_boosts_defenses_only_when_defender_can_evolve(move):
         can_evolve=False,
     )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     boosted_defense = calculate_damage_rolls(
-        attacker=attacker,
-        defender=eviolite_holder,
-        move=move,
+        damage_context(
+            attacker=attacker,
+            defender=eviolite_holder,
+            move=move,
+        )
     )
     cannot_evolve_normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=cannot_evolve_defender,
-        move=move,
+        damage_context(
+            attacker=attacker,
+            defender=cannot_evolve_defender,
+            move=move,
+        )
     )
     unchanged = calculate_damage_rolls(
-        attacker=attacker,
-        defender=cannot_evolve_holder,
-        move=move,
+        damage_context(
+            attacker=attacker,
+            defender=cannot_evolve_holder,
+            move=move,
+        )
     )
 
     assert boosted_defense.max_damage < normal.max_damage
@@ -226,8 +279,14 @@ def test_unknown_item_is_no_op_and_not_recorded():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
-    unchanged = calculate_damage_rolls(attacker=unknown, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
+    unchanged = calculate_damage_rolls(
+        damage_context(attacker=unknown, defender=defender, move=move)
+    )
 
     assert unchanged.rolls == normal.rolls
-    assert all(not modifier.key.startswith("item:") for modifier in unchanged.applied_modifiers)
+    assert all(
+        not modifier.key.startswith("item:") for modifier in unchanged.applied_modifiers
+    )

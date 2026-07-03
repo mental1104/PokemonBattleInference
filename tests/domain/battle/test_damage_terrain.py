@@ -8,7 +8,11 @@ from pokeop.domain.battle.grounding import GroundingState
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -23,14 +27,20 @@ def test_electric_terrain_boosts_grounded_electric_attack():
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
-    move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
+    move = BattleMoveFactory.special(
+        name="thunderbolt", move_type=Type.ELECTRIC, power=90
+    )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     electric = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        )
     )
 
     assert electric.max_damage > normal.max_damage
@@ -50,14 +60,20 @@ def test_electric_terrain_does_not_boost_airborne_attacker():
         grounding_state=GroundingState.AIRBORNE,
     )
     defender = BattlePokemonFactory.sylveon("max_hp")
-    move = BattleMoveFactory.special(name="thunderbolt", move_type=Type.ELECTRIC, power=90)
+    move = BattleMoveFactory.special(
+        name="thunderbolt", move_type=Type.ELECTRIC, power=90
+    )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     electric = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.ELECTRIC),
+        )
     )
 
     assert electric.rolls == normal.rolls
@@ -74,12 +90,16 @@ def test_psychic_terrain_boosts_grounded_psychic_attack():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="psychic", move_type=Type.PSYCHIC, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.PSYCHIC),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.PSYCHIC),
+        )
     )
 
     assert terrain.max_damage > normal.max_damage
@@ -98,12 +118,16 @@ def test_grassy_terrain_boosts_grounded_grass_attack():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="energy-ball", move_type=Type.GRASS, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.GRASSY),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.GRASSY),
+        )
     )
 
     assert terrain.max_damage > normal.max_damage
@@ -120,14 +144,20 @@ def test_misty_terrain_reduces_dragon_damage_to_grounded_defender():
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.NORMAL,))
-    move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+    move = BattleMoveFactory.special(
+        name="dragon-pulse", move_type=Type.DRAGON, power=85
+    )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.MISTY),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.MISTY),
+        )
     )
 
     assert terrain.max_damage < normal.max_damage
@@ -148,14 +178,20 @@ def test_misty_terrain_does_not_reduce_dragon_damage_to_airborne_defender():
         types=(Type.NORMAL,),
         grounding_state=GroundingState.AIRBORNE,
     )
-    move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
+    move = BattleMoveFactory.special(
+        name="dragon-pulse", move_type=Type.DRAGON, power=85
+    )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     terrain = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(terrain=Terrain.MISTY),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(terrain=Terrain.MISTY),
+        )
     )
 
     assert terrain.rolls == normal.rolls

@@ -8,7 +8,11 @@ from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_generation
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -29,12 +33,16 @@ def test_harsh_sunlight_boosts_fire_damage_and_records_final_stage():
         power=90,
     )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     sunny = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        )
     )
 
     assert sunny.max_damage > normal.max_damage
@@ -53,12 +61,16 @@ def test_harsh_sunlight_weakens_water_damage_without_other_stage_pollution():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     sunny = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.HARSH_SUNLIGHT),
+        )
     )
 
     assert sunny.max_damage < normal.max_damage
@@ -77,12 +89,16 @@ def test_rain_boosts_water_damage_and_records_final_stage():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     rainy = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.RAIN),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.RAIN),
+        )
     )
 
     assert rainy.max_damage > normal.max_damage
@@ -105,12 +121,16 @@ def test_rain_weakens_fire_damage_and_keeps_weather_trace_specific():
         power=90,
     )
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     rainy = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.RAIN),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.RAIN),
+        )
     )
 
     assert rainy.max_damage < normal.max_damage
@@ -129,12 +149,16 @@ def test_sandstorm_boosts_rock_special_defense_in_defense_stat_stage():
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ROCK,))
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     sandstorm = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.SANDSTORM),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.SANDSTORM),
+        )
     )
 
     assert sandstorm.max_damage < normal.max_damage
@@ -155,17 +179,21 @@ def test_sandstorm_does_not_boost_rock_special_defense_before_generation_four():
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 
     normal = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+        )
     )
     sandstorm = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        environment=BattleEnvironment(weather=Weather.SANDSTORM),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            environment=BattleEnvironment(weather=Weather.SANDSTORM),
+        )
     )
 
     assert sandstorm.rolls == normal.rolls
@@ -182,12 +210,16 @@ def test_snow_boosts_ice_physical_defense_in_modern_rules():
     defender = replace(BattlePokemonFactory.sylveon("max_hp"), types=(Type.ICE,))
     move = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     snow = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        environment=BattleEnvironment(weather=Weather.SNOW),
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            environment=BattleEnvironment(weather=Weather.SNOW),
+        )
     )
 
     assert snow.max_damage < normal.max_damage

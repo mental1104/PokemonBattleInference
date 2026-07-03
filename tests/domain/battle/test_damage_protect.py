@@ -5,7 +5,11 @@ from dataclasses import replace
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
-from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
+from tests.domain.battle.helpers import (
+    BattleMoveFactory,
+    BattlePokemonFactory,
+    damage_context,
+)
 
 
 def _modifiers_by_key(result):
@@ -26,17 +30,23 @@ def test_protect_reduction_lowers_damage_and_records_protect_stage():
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
-    normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
+    normal = calculate_damage_rolls(
+        damage_context(attacker=attacker, defender=defender, move=move)
+    )
     protected = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_protect_reduced=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_protect_reduced=True,
+        )
     )
 
     modifier = _modifiers_by_key(protected)["protect_reduction"]
     assert protected.max_damage < normal.max_damage
-    assert modifier.multiplier == _gen9_ruleset().damage_policy.protect_damage_multiplier
+    assert (
+        modifier.multiplier == _gen9_ruleset().damage_policy.protect_damage_multiplier
+    )
     assert modifier.stage is ModifierStage.PROTECT
     assert "Protect-style" in modifier.reason
 
@@ -50,24 +60,30 @@ def test_protect_multiplier_is_policy_configurable():
     default_ruleset = _gen9_ruleset()
     ruleset = replace(
         default_ruleset,
-        damage_policy=replace(default_ruleset.damage_policy, protect_damage_multiplier=0.1),
+        damage_policy=replace(
+            default_ruleset.damage_policy, protect_damage_multiplier=0.1
+        ),
     )
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
     default = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        is_protect_reduced=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            is_protect_reduced=True,
+        )
     )
     custom = calculate_damage_rolls(
-        attacker=attacker,
-        defender=defender,
-        move=move,
-        ruleset=ruleset,
-        is_protect_reduced=True,
+        damage_context(
+            attacker=attacker,
+            defender=defender,
+            move=move,
+            ruleset=ruleset,
+            is_protect_reduced=True,
+        )
     )
 
     assert custom.max_damage < default.max_damage
@@ -81,9 +97,11 @@ def test_non_protect_reduction_does_not_write_protect_trace():
     结果 trace 中不能出现 PROTECT 阶段，后续 application 只有显式设置该字段时才会消费此能力。
     """
     result = calculate_damage_rolls(
-        attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
-        defender=BattlePokemonFactory.sylveon("max_hp"),
-        move=BattleMoveFactory.bullet_punch(),
+        damage_context(
+            attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
+            defender=BattlePokemonFactory.sylveon("max_hp"),
+            move=BattleMoveFactory.bullet_punch(),
+        )
     )
 
     assert "protect_reduction" not in _modifiers_by_key(result)
