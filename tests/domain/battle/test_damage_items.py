@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
 from pokeop.domain.battle.damage import calculate_damage_rolls
@@ -9,12 +7,12 @@ from pokeop.domain.battle.item_effects import (
     BaseItemDamageEffect,
     ChoiceBandEffect,
     ChoiceSpecsEffect,
-    DamageItem,
     EvioliteEffect,
     ExpertBeltEffect,
     LifeOrbEffect,
     resolve_item_effect,
 )
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.models.types import Type
 from tests.domain.battle.helpers import BattleMoveFactory, BattlePokemonFactory
@@ -60,12 +58,11 @@ def test_item_string_resolution_goes_through_damage_item_enum_before_effect_look
 
     eviolite_effect = resolve_item_effect("进化奇石")
     unknown_effect = resolve_item_effect("future-unimplemented-item")
+    none_effect = resolve_item_effect(None)
 
-    assert eviolite_effect is not None
-    assert unknown_effect is not None
     assert eviolite_effect.key == DamageItem.EVIOLITE.trace_key
     assert unknown_effect.key == DamageItem.UNKNOWN.trace_key
-    assert resolve_item_effect(None) is None
+    assert none_effect.key == DamageItem.UNKNOWN.trace_key
 
 
 def test_life_orb_boosts_final_damage_and_records_item_source():
@@ -75,7 +72,7 @@ def test_life_orb_boosts_final_damage_and_records_item_source():
     trace 中的 item:life_orb 必须标记为 final damage，避免被错误实现为攻击能力值或基础威力修正。
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-    life_orb = replace(attacker, item="life_orb")
+    life_orb = BattlePokemonFactory.with_item(attacker, DamageItem.LIFE_ORB)
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 
@@ -95,7 +92,7 @@ def test_choice_band_only_boosts_physical_attack_stat():
     trace 只在物理场景记录 item:choice_band，并且阶段必须是 attack stat，避免用不会喷射火焰的宝可梦构造错误场景。
     """
     attacker = BattlePokemonFactory.lucario("max_atk_neutral")
-    band = replace(attacker, item="choice_band")
+    band = BattlePokemonFactory.with_item(attacker, DamageItem.CHOICE_BAND)
     defender = BattlePokemonFactory.sylveon("max_hp")
     physical = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
     special = BattleMoveFactory.special(name="flash-cannon", move_type=Type.STEEL, power=80)
@@ -120,7 +117,7 @@ def test_choice_specs_only_boosts_special_attack_stat():
     trace 只在特殊场景记录 item:choice_specs，阶段为 attack stat，保护物理/特殊分支边界并避免不合法招式搭配。
     """
     attacker = BattlePokemonFactory.lucario("max_spa_neutral")
-    specs = replace(attacker, item="choice_specs")
+    specs = BattlePokemonFactory.with_item(attacker, DamageItem.CHOICE_SPECS)
     defender = BattlePokemonFactory.sylveon("max_hp")
     physical = BattleMoveFactory.physical(name="iron-head", move_type=Type.STEEL, power=80)
     special = BattleMoveFactory.special(name="flash-cannon", move_type=Type.STEEL, power=80)
@@ -145,7 +142,7 @@ def test_expert_belt_only_boosts_super_effective_final_damage():
     trace 应只在效果拔群场景记录 item:expert_belt，保证该道具读取 type_effectiveness 而不是粗暴常驻增伤。
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-    expert_belt = replace(attacker, item="expert_belt")
+    expert_belt = BattlePokemonFactory.with_item(attacker, DamageItem.EXPERT_BELT)
     defender = BattlePokemonFactory.sylveon("max_hp")
     super_effective = BattleMoveFactory.bullet_punch()
     neutral = BattleMoveFactory.physical(name="body-slam", move_type=Type.NORMAL, power=85)
@@ -178,9 +175,17 @@ def test_eviolite_boosts_defenses_only_when_defender_can_evolve(move):
     """
     attacker = BattlePokemonFactory.lucario("max_atk_neutral")
     defender = BattlePokemonFactory.chansey("max_hp")
-    eviolite_holder = replace(defender, item="eviolite", can_evolve=True)
+    eviolite_holder = BattlePokemonFactory.with_item(
+        defender,
+        DamageItem.EVIOLITE,
+        can_evolve=True,
+    )
     cannot_evolve_defender = BattlePokemonFactory.cloyster("max_hp")
-    cannot_evolve_holder = replace(cannot_evolve_defender, item="eviolite", can_evolve=False)
+    cannot_evolve_holder = BattlePokemonFactory.with_item(
+        cannot_evolve_defender,
+        DamageItem.EVIOLITE,
+        can_evolve=False,
+    )
 
     normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
     boosted_defense = calculate_damage_rolls(
@@ -214,7 +219,10 @@ def test_unknown_item_is_no_op_and_not_recorded():
     两次结果必须一致，trace 中也不能出现 item:unknown，保证解释输出只记录真实生效的道具。
     """
     attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-    unknown = replace(attacker, item="future-unimplemented-item")
+    unknown = BattlePokemonFactory.with_item(
+        attacker,
+        DamageItem.from_identifier("future-unimplemented-item"),
+    )
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.bullet_punch()
 

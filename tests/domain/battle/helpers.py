@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.context import BattleMove, BattlePokemon, MoveCategory
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.moves.models import MoveFlag, MoveProfile
 from pokeop.domain.battle.stats import (
     NatureModifier,
@@ -178,6 +180,24 @@ CHANSEY_PROFILES = {
 
 class BattlePokemonFactory:
     """Factory for common battle Pokemon used by domain tests."""
+
+    @staticmethod
+    def with_ability(
+        pokemon: BattlePokemon,
+        ability: DamageAbility,
+    ) -> BattlePokemon:
+        return replace(pokemon, ability=ability)
+
+    @staticmethod
+    def with_item(
+        pokemon: BattlePokemon,
+        item: DamageItem,
+        *,
+        can_evolve: bool | None = None,
+    ) -> BattlePokemon:
+        if can_evolve is None:
+            return replace(pokemon, item=item)
+        return replace(pokemon, item=item, can_evolve=can_evolve)
 
     @staticmethod
     def scizor(

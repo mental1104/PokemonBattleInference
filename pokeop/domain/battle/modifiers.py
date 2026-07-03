@@ -10,6 +10,10 @@ from pokeop.domain.battle.context import BattleMove, BattlePokemon, DamageContex
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.grounding import is_grounded
 from pokeop.domain.battle.item_effects import resolve_item_effect
+from pokeop.domain.battle.modifier_keys import ModifierKey, ModifierKeyLike
+from pokeop.domain.battle.rulesets.damage_policy import (
+    STANDARD_RANDOM_DAMAGE_MULTIPLIERS,
+)
 from pokeop.domain.battle.terrain import Terrain, terrain_damage_boost_multiplier
 from pokeop.domain.battle.weather import Weather
 from pokeop.domain.models.types import Type, TypeHelper
@@ -18,7 +22,7 @@ if TYPE_CHECKING:
     from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
-DEFAULT_RANDOM_MULTIPLIERS: tuple[float, ...] = tuple(i / 100 for i in range(85, 101))
+DEFAULT_RANDOM_MULTIPLIERS: tuple[float, ...] = STANDARD_RANDOM_DAMAGE_MULTIPLIERS
 
 
 def _default_ruleset() -> "BattleRuleset":
@@ -53,12 +57,12 @@ class AppliedModifier:
     和 reason 让新增天气、场地、特性、道具可以进入统一 trace。
     """
 
-    key: str
+    key: ModifierKeyLike
     multiplier: float | None = None
     min_multiplier: float | None = None
     max_multiplier: float | None = None
     stage: ModifierStage | None = None
-    source: str | None = None
+    source: ModifierKeyLike | None = None
     reason: str = ""
 
 
@@ -225,9 +229,14 @@ class DamageCalculationState:
         return self._with_modifier_record(applied_modifier, rolls=rolls)
 
 
-def calculate_stab_multiplier(move_type: Type, attacker_types: tuple[Type, ...]) -> float:
-    """计算本系加成倍率：招式属性属于攻击方属性时为 1.5，否则为 1.0。"""
-    return 1.5 if move_type in attacker_types else 1.0
+def calculate_stab_multiplier(
+    move_type: Type,
+    attacker_types: tuple[Type, ...],
+    *,
+    stab_multiplier: float = 1.5,
+) -> float:
+    """计算本系加成倍率：招式属性属于攻击方属性时用规则倍率，否则为 1.0。"""
+    return stab_multiplier if move_type in attacker_types else 1.0
 
 
 def calculate_type_effectiveness(
@@ -281,11 +290,11 @@ def calculate_base_damage(
 
 
 def _applied_modifier(
-    key: str,
+    key: ModifierKeyLike,
     *,
     multiplier: float,
     stage: ModifierStage,
-    source: str | None = None,
+    source: ModifierKeyLike | None = None,
     reason: str = "",
 ) -> AppliedModifier:
     return AppliedModifier(
@@ -295,6 +304,47 @@ def _applied_modifier(
         source=source or key,
         reason=reason,
     )
+
+
+def _weather_modifier_key(weather: Weather) -> ModifierKey:
+    match weather:
+        case Weather.HARSH_SUNLIGHT:
+            return ModifierKey.WEATHER_HARSH_SUNLIGHT
+        case Weather.RAIN:
+            return ModifierKey.WEATHER_RAIN
+        case Weather.SANDSTORM:
+            return ModifierKey.WEATHER_SANDSTORM
+        case Weather.HAIL:
+            return ModifierKey.WEATHER_HAIL
+        case Weather.SNOW:
+            return ModifierKey.WEATHER_SNOW
+    raise AssertionError(f"unhandled weather: {weather!r}")
+
+
+def _terrain_modifier_key(terrain: Terrain) -> ModifierKey:
+    match terrain:
+        case Terrain.ELECTRIC:
+            return ModifierKey.TERRAIN_ELECTRIC
+        case Terrain.PSYCHIC:
+            return ModifierKey.TERRAIN_PSYCHIC
+        case Terrain.GRASSY:
+            return ModifierKey.TERRAIN_GRASSY
+        case Terrain.MISTY:
+            return ModifierKey.TERRAIN_MISTY
+    raise AssertionError(f"unhandled terrain: {terrain!r}")
+
+
+def _boosted_type_for_terrain(terrain: Terrain) -> Type | None:
+    match terrain:
+        case Terrain.ELECTRIC:
+            return Type.ELECTRIC
+        case Terrain.PSYCHIC:
+            return Type.PSYCHIC
+        case Terrain.GRASSY:
+            return Type.GRASS
+        case Terrain.MISTY:
+            return None
+    raise AssertionError(f"unhandled terrain: {terrain!r}")
 
 
 class DamageModifierChain:
@@ -332,9 +382,6 @@ class AbilityBasePowerModifier(DamageModifierChain):
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """当前实现 Technician；未知或未生效特性保持 no-op。"""
         effect = resolve_ability_effect(state.attacker.ability)
-        if effect is None:
-            return state
-
         result = effect.base_power_multiplier(state.context)
         if result is None:
             return state
@@ -355,9 +402,6 @@ class ItemAttackStatModifier(DamageModifierChain):
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """当前实现 Choice Band 与 Choice Specs；未知或未生效道具保持 no-op。"""
         effect = resolve_item_effect(state.attacker.item)
-        if effect is None:
-            return state
-
         result = effect.attack_stat_multiplier(state.context)
         if result is None:
             return state
@@ -389,7 +433,7 @@ class EnvironmentDefenseStatModifier(DamageModifierChain):
             return state.with_defense_stat_multiplier(
                 sandstorm_multiplier,
                 _applied_modifier(
-                    "weather:sandstorm",
+                    ModifierKey.WEATHER_SANDSTORM,
                     multiplier=sandstorm_multiplier,
                     stage=ModifierStage.DEFENSE_STAT,
                     reason="Sandstorm boosts Rock-type Special Defense.",
@@ -406,7 +450,7 @@ class EnvironmentDefenseStatModifier(DamageModifierChain):
             return state.with_defense_stat_multiplier(
                 snow_multiplier,
                 _applied_modifier(
-                    "weather:snow",
+                    ModifierKey.WEATHER_SNOW,
                     multiplier=snow_multiplier,
                     stage=ModifierStage.DEFENSE_STAT,
                     reason="Modern snow boosts Ice-type Defense.",
@@ -423,7 +467,7 @@ class EnvironmentDefenseStatModifier(DamageModifierChain):
             return state.with_defense_stat_multiplier(
                 hail_multiplier,
                 _applied_modifier(
-                    "weather:hail",
+                    ModifierKey.WEATHER_HAIL,
                     multiplier=hail_multiplier,
                     stage=ModifierStage.DEFENSE_STAT,
                     reason="Hail boosts Ice-type Defense when enabled by policy.",
@@ -439,9 +483,6 @@ class ItemDefenseStatModifier(DamageModifierChain):
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """当前实现 Eviolite；未知或未生效道具保持 no-op。"""
         effect = resolve_item_effect(state.defender.item)
-        if effect is None:
-            return state
-
         result = effect.defense_stat_multiplier(state.context)
         if result is None:
             return state
@@ -476,22 +517,27 @@ class StabModifier(DamageModifierChain):
 
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """如果攻击方属性包含招式属性，则应用 STAB；Adaptability 可改写倍率。"""
-        multiplier = calculate_stab_multiplier(state.move.type, state.attacker.types)
-        source = "stab"
+        multiplier = calculate_stab_multiplier(
+            state.move.type,
+            state.attacker.types,
+            stab_multiplier=(
+                state.active_ruleset.damage_policy.same_type_attack_bonus_multiplier
+            ),
+        )
+        source: ModifierKeyLike = ModifierKey.STAB
         reason = "Same-type attack bonus."
 
         effect = resolve_ability_effect(state.attacker.ability)
-        if effect is not None:
-            result = effect.stab_multiplier(state.context)
-            if result is not None:
-                multiplier = result.multiplier
-                source = result.key
-                reason = result.reason
+        result = effect.stab_multiplier(state.context)
+        if result is not None:
+            multiplier = result.multiplier
+            source = result.key
+            reason = result.reason
 
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
-                "stab",
+                ModifierKey.STAB,
                 multiplier=multiplier,
                 stage=ModifierStage.STAB,
                 source=source,
@@ -509,7 +555,7 @@ class TypeEffectivenessModifier(DamageModifierChain):
         return state.with_type_effectiveness(
             multiplier,
             _applied_modifier(
-                "type_effectiveness",
+                ModifierKey.TYPE_EFFECTIVENESS,
                 multiplier=multiplier,
                 stage=ModifierStage.TYPE_EFFECTIVENESS,
                 reason="Type effectiveness multiplier.",
@@ -543,7 +589,7 @@ class ScreenDamageModifier(DamageModifierChain):
             next_state = next_state.with_multiplier(
                 screen_multiplier,
                 _applied_modifier(
-                    "screen:reflect",
+                    ModifierKey.SCREEN_REFLECT,
                     multiplier=screen_multiplier,
                     stage=ModifierStage.SCREEN,
                     reason="Reflect reduces physical direct damage on defender side.",
@@ -554,7 +600,7 @@ class ScreenDamageModifier(DamageModifierChain):
             next_state = next_state.with_multiplier(
                 screen_multiplier,
                 _applied_modifier(
-                    "screen:light_screen",
+                    ModifierKey.SCREEN_LIGHT_SCREEN,
                     multiplier=screen_multiplier,
                     stage=ModifierStage.SCREEN,
                     reason="Light Screen reduces special direct damage on defender side.",
@@ -568,10 +614,13 @@ class ScreenDamageModifier(DamageModifierChain):
             next_state = next_state.with_multiplier(
                 aurora_multiplier,
                 _applied_modifier(
-                    "screen:aurora_veil",
+                    ModifierKey.SCREEN_AURORA_VEIL,
                     multiplier=aurora_multiplier,
                     stage=ModifierStage.SCREEN,
-                    reason="Aurora Veil reduces physical and special direct damage on defender side.",
+                    reason=(
+                        "Aurora Veil reduces physical and special direct damage "
+                        "on defender side."
+                    ),
                 ),
             )
 
@@ -587,20 +636,19 @@ class CriticalHitModifier(DamageModifierChain):
             return state
 
         multiplier = state.active_ruleset.damage_policy.critical_hit_multiplier
-        source = "critical_hit"
+        source: ModifierKeyLike = ModifierKey.CRITICAL_HIT
         reason = "Critical hit direct damage multiplier."
         effect = resolve_ability_effect(state.attacker.ability)
-        if effect is not None:
-            result = effect.critical_hit_multiplier(state.context, multiplier)
-            if result is not None:
-                multiplier = result.multiplier
-                source = result.key
-                reason = result.reason
+        result = effect.critical_hit_multiplier(state.context, multiplier)
+        if result is not None:
+            multiplier = result.multiplier
+            source = result.key
+            reason = result.reason
 
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
-                "critical_hit",
+                ModifierKey.CRITICAL_HIT,
                 multiplier=multiplier,
                 stage=ModifierStage.CRITICAL,
                 source=source,
@@ -621,7 +669,7 @@ class SpreadMoveModifier(DamageModifierChain):
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
-                "spread_move",
+                ModifierKey.SPREAD_MOVE,
                 multiplier=multiplier,
                 stage=ModifierStage.SPREAD,
                 reason="Spread move damage multiplier for this target.",
@@ -641,7 +689,7 @@ class ProtectDamageModifier(DamageModifierChain):
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
-                "protect_reduction",
+                ModifierKey.PROTECT_REDUCTION,
                 multiplier=multiplier,
                 stage=ModifierStage.PROTECT,
                 reason="Protect-style damage reduction hook.",
@@ -677,7 +725,7 @@ class WeatherFinalDamageModifier(DamageModifierChain):
         return state.with_multiplier(
             multiplier,
             _applied_modifier(
-                f"weather:{weather.value}",
+                _weather_modifier_key(weather),
                 multiplier=multiplier,
                 stage=ModifierStage.FINAL_DAMAGE,
                 reason=reason,
@@ -695,13 +743,7 @@ class TerrainFinalDamageModifier(DamageModifierChain):
             return state
 
         boost_multiplier = terrain_damage_boost_multiplier(state.active_ruleset)
-        terrain_boosts: dict[Terrain, Type] = {
-            Terrain.ELECTRIC: Type.ELECTRIC,
-            Terrain.PSYCHIC: Type.PSYCHIC,
-            Terrain.GRASSY: Type.GRASS,
-        }
-
-        boosted_type = terrain_boosts.get(terrain)
+        boosted_type = _boosted_type_for_terrain(terrain)
         if (
             boosted_type is not None
             and state.move.type is boosted_type
@@ -710,7 +752,7 @@ class TerrainFinalDamageModifier(DamageModifierChain):
             return state.with_multiplier(
                 boost_multiplier,
                 _applied_modifier(
-                    f"terrain:{terrain.value}",
+                    _terrain_modifier_key(terrain),
                     multiplier=boost_multiplier,
                     stage=ModifierStage.FINAL_DAMAGE,
                     reason=f"{terrain.value} boosts grounded matching-type attacks.",
@@ -722,11 +764,13 @@ class TerrainFinalDamageModifier(DamageModifierChain):
             and state.move.type is Type.DRAGON
             and is_grounded(state.defender, state.environment)
         ):
-            multiplier = state.active_ruleset.damage_policy.misty_terrain_dragon_multiplier
+            multiplier = (
+                state.active_ruleset.damage_policy.misty_terrain_dragon_multiplier
+            )
             return state.with_multiplier(
                 multiplier,
                 _applied_modifier(
-                    "terrain:misty_terrain",
+                    ModifierKey.TERRAIN_MISTY,
                     multiplier=multiplier,
                     stage=ModifierStage.FINAL_DAMAGE,
                     reason="Misty Terrain weakens Dragon-type damage to grounded defenders.",
@@ -742,9 +786,6 @@ class AbilityFinalDamageModifier(DamageModifierChain):
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """当前实现 Thick Fat、Filter 和 Solid Rock；未知特性保持 no-op。"""
         effect = resolve_ability_effect(state.defender.ability)
-        if effect is None:
-            return state
-
         result = effect.final_damage_multiplier(
             state.context,
             state.type_effectiveness,
@@ -768,9 +809,6 @@ class ItemFinalDamageModifier(DamageModifierChain):
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """当前实现 Life Orb 与 Expert Belt；未知或未生效道具保持 no-op。"""
         effect = resolve_item_effect(state.attacker.item)
-        if effect is None:
-            return state
-
         result = effect.final_damage_multiplier(
             state.context,
             state.type_effectiveness,
@@ -793,29 +831,33 @@ class RandomRollModifier(DamageModifierChain):
 
     def __init__(
         self,
-        random_multipliers: tuple[float, ...] = DEFAULT_RANDOM_MULTIPLIERS,
+        random_multipliers: tuple[float, ...] | None = None,
         next_link: DamageModifierChain | None = None,
     ) -> None:
         """初始化随机档位节点，默认使用宝可梦 0.85 到 1.00 的 16 档随机数。"""
         super().__init__(next_link)
-        if not random_multipliers:
+        if random_multipliers is not None and not random_multipliers:
             raise ValueError("random_multipliers must not be empty")
-        self._random_multipliers = random_multipliers
+        self._random_multipliers: tuple[float, ...] | None = random_multipliers
 
     def apply(self, state: DamageCalculationState) -> DamageCalculationState:
         """把基础伤害和已累乘倍率映射成最终随机伤害 rolls。"""
+        random_multipliers = (
+            self._random_multipliers
+            or state.active_ruleset.damage_policy.random_damage_multipliers
+        )
         rolls = tuple(
             floor(state.base_damage * state.modifier * random_multiplier)
-            for random_multiplier in self._random_multipliers
+            for random_multiplier in random_multipliers
         )
         return state.with_rolls(
             rolls,
             AppliedModifier(
-                "random",
-                min_multiplier=self._random_multipliers[0],
-                max_multiplier=self._random_multipliers[-1],
+                ModifierKey.RANDOM,
+                min_multiplier=random_multipliers[0],
+                max_multiplier=random_multipliers[-1],
                 stage=ModifierStage.RANDOM,
-                source="random",
+                source=ModifierKey.RANDOM,
                 reason="Pokemon damage random roll range.",
             ),
         )

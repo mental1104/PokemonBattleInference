@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.weather import Weather
@@ -25,7 +25,10 @@ def test_technician_is_recorded_before_stab_as_base_power_modifier():
     这个测试不只比较最终伤害，而是检查 applied_modifiers 的顺序与 stage，防止后续实现为了省事把所有倍率
     混入 final damage；如果 Technician 被错误放在随机档位前的最终倍率中，本测试会通过阶段断言失败。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), ability="technician")
+    attacker = BattlePokemonFactory.with_ability(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageAbility.TECHNICIAN,
+    )
     defender = BattlePokemonFactory.sylveon("max_hp")
     result = calculate_damage_rolls(
         attacker=attacker,
@@ -46,10 +49,13 @@ def test_choice_band_and_eviolite_are_stat_stage_modifiers_before_base_damage_tr
     攻击方携带 Choice Band，防守方携带可生效的 Eviolite，二者应分别记录 attack stat 与 defense stat；
     两个修正都必须出现在 STAB 之前，说明它们先改变基础伤害公式输入，再由后续链路处理属性与随机档位。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="choice_band") # TODO 这里也是一样的，max_atk_neutral 这种东西最好还是用枚举来维护，不接受任何对象建模的硬编码字符串。
-    defender = replace(
-        BattlePokemonFactory.sylveon("max_hp"), # TODO 这里也是一样的，max_atk_neutral 这种东西最好还是用枚举来维护，不接受任何对象建模的硬编码字符串。
-        item="eviolite",
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageItem.CHOICE_BAND,
+    )
+    defender = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.sylveon("max_hp"),
+        DamageItem.EVIOLITE,
         can_evolve=True,
     )
     result = calculate_damage_rolls(
@@ -74,8 +80,14 @@ def test_filter_and_expert_belt_are_applied_after_type_effectiveness():
     场景中钢系子弹拳攻击妖精目标，攻击方携带 Expert Belt，防守方拥有 Filter；
     trace 顺序必须先出现 type_effectiveness，再出现 ability:filter 与 item:expert_belt，保护二者读取克制结果。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="expert_belt")
-    defender = replace(BattlePokemonFactory.sylveon("max_hp"), ability="filter")
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageItem.EXPERT_BELT,
+    )
+    defender = BattlePokemonFactory.with_ability(
+        BattlePokemonFactory.sylveon("max_hp"),
+        DamageAbility.FILTER,
+    )
     result = calculate_damage_rolls(
         attacker=attacker,
         defender=defender,
@@ -97,7 +109,10 @@ def test_weather_terrain_and_life_orb_are_final_damage_sources():
     攻击方携带 Life Orb，在雨天与电气场地下使用电系招式；雨天对电系不生效，电气场地和生命宝珠应生效；
     另用晴天火系招式验证天气 final damage 记录，确保三个来源都有清晰 stage 和 key。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="life_orb")
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageItem.LIFE_ORB,
+    )
     defender = BattlePokemonFactory.sylveon("max_hp")
     electric_result = calculate_damage_rolls(
         attacker=attacker,

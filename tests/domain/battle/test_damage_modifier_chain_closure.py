@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.battle.terrain import Terrain
@@ -26,14 +26,16 @@ def test_stat_screen_spread_protect_and_random_stage_order_is_stable():
     都按各自 stage 进入 trace。场景同时启用 Technician、Choice Band、Eviolite、Reflect、spread move 与 protect reduction；
     测试不追求官方 4096 精确链，只保护当前最小兼容链不会把新增机制塞进无 stage 的裸倍率。
     """
-    attacker = replace(
-        BattlePokemonFactory.scizor("max_atk_neutral"),
-        ability="technician",
-        item="choice_band",
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.with_ability(
+            BattlePokemonFactory.scizor("max_atk_neutral"),
+            DamageAbility.TECHNICIAN,
+        ),
+        DamageItem.CHOICE_BAND,
     )
-    defender = replace(
+    defender = BattlePokemonFactory.with_item(
         BattlePokemonFactory.sylveon("max_hp"),
-        item="eviolite",
+        DamageItem.EVIOLITE,
         can_evolve=True,
     )
     result = calculate_damage_rolls(
@@ -74,7 +76,10 @@ def test_critical_stage_precedes_spread_protect_and_final_damage_sources():
     攻击方携带 Life Orb，在雨天使用水系 spread 招式，并开启 protect reduction 与 critical；
     trace 应先记录 CRITICAL，再记录 SPREAD、PROTECT，随后才是天气和道具 final damage，最后进入随机档位。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="life_orb")
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageItem.LIFE_ORB,
+    )
     defender = BattlePokemonFactory.sylveon("max_hp")
     result = calculate_damage_rolls(
         attacker=attacker,
@@ -120,7 +125,7 @@ def test_final_damage_sources_keep_distinct_sources_after_closure():
         environment=BattleEnvironment(terrain=Terrain.GRASSY),
     )
     expert_belt = calculate_damage_rolls(
-        attacker=replace(attacker, item="expert_belt"),
+        attacker=BattlePokemonFactory.with_item(attacker, DamageItem.EXPERT_BELT),
         defender=defender,
         move=BattleMoveFactory.bullet_punch(),
     )

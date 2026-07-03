@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.grounding import GroundingState
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
 
@@ -34,8 +36,8 @@ class BattlePokemon:
     level: int
     types: tuple[Type, ...]
     stats: StatValues
-    ability: str | None = None
-    item: str | None = None
+    ability: DamageAbility = DamageAbility.UNKNOWN
+    item: DamageItem = DamageItem.UNKNOWN
     can_evolve: bool = False
     grounding_state: GroundingState | None = None
 
@@ -45,6 +47,16 @@ class BattlePokemon:
             raise ValueError("level must be greater than 0")
         if not self.types:
             raise ValueError("pokemon must have at least one type")
+        object.__setattr__(
+            self,
+            "ability",
+            DamageAbility.from_identifier(self.ability),
+        )
+        object.__setattr__(
+            self,
+            "item",
+            DamageItem.from_identifier(self.item),
+        )
 
 
 @dataclass(frozen=True)
@@ -86,4 +98,11 @@ class DamageContext:
     is_multi_target_battle: bool = False
 
 
-__all__ = ["BattleMove", "BattlePokemon", "DamageContext", "MoveCategory"]
+__all__ = [
+    "BattleMove",
+    "BattlePokemon",
+    "DamageAbility",
+    "DamageContext",
+    "DamageItem",
+    "MoveCategory",
+]

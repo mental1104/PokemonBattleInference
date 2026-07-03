@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
@@ -27,7 +26,10 @@ class TestTechnician:
         伤害应提高，trace 应记录 ability:technician，保护该特性不会被错误实现成 final damage 倍率。
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-        technician = replace(attacker, ability="technician")
+        technician = BattlePokemonFactory.with_ability(
+            attacker,
+            DamageAbility.TECHNICIAN,
+        )
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 
@@ -46,7 +48,10 @@ class TestTechnician:
         两次计算的随机伤害档位应完全相同，applied_modifiers 中也不应出现 ability:technician。
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-        technician = replace(attacker, ability="technician")
+        technician = BattlePokemonFactory.with_ability(
+            attacker,
+            DamageAbility.TECHNICIAN,
+        )
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.physical(name="steel-wing-like", move_type=Type.STEEL, power=61)
 
@@ -65,7 +70,10 @@ class TestAdaptability:
         结果伤害高于普通攻击方，并且 stab 记录的 source 指向 ability:adaptability，便于解释生效来源。
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-        adaptability = replace(attacker, ability="adaptability")
+        adaptability = BattlePokemonFactory.with_ability(
+            attacker,
+            DamageAbility.ADAPTABILITY,
+        )
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 
@@ -85,7 +93,10 @@ class TestAdaptability:
         计算结果应与普通攻击方完全一致，stab trace 仍保持普通 no-op 记录且 source 不能指向 ability:adaptability。
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-        adaptability = replace(attacker, ability="adaptability")
+        adaptability = BattlePokemonFactory.with_ability(
+            attacker,
+            DamageAbility.ADAPTABILITY,
+        )
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.special(name="flamethrower", move_type=Type.FIRE, power=90)
 
@@ -107,7 +118,7 @@ class TestSniper:
         trace 仍使用 critical_hit key 和 critical stage，但 source 必须指向 ability:sniper，方便解释输出说明倍率来源。
         """
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
-        sniper = replace(attacker, ability="sniper")
+        sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
         move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
 
@@ -139,7 +150,7 @@ class TestSniper:
         Sniper 结果必须高于普通会心，critical_hit trace 的 multiplier 必须是三点零，保护旧世代会心和特性叠加规则。
         """
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
-        sniper = replace(attacker, ability="sniper")
+        sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
         move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
 
@@ -171,7 +182,7 @@ class TestSniper:
         结果应与无特性攻击方完全相同，applied_modifiers 中不能出现 critical_hit 或 ability:sniper 记录。
         """
         attacker = BattlePokemonFactory.kingdra("max_spa_neutral")
-        sniper = replace(attacker, ability="sniper")
+        sniper = BattlePokemonFactory.with_ability(attacker, DamageAbility.SNIPER)
         defender = BattlePokemonFactory.scizor("max_atk_neutral")
         move = BattleMoveFactory.special(name="dragon-pulse", move_type=Type.DRAGON, power=85)
 
@@ -194,7 +205,10 @@ class TestThickFat:
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
         defender = BattlePokemonFactory.sylveon("max_hp")
-        thick_fat = replace(defender, ability="thick_fat")
+        thick_fat = BattlePokemonFactory.with_ability(
+            defender,
+            DamageAbility.THICK_FAT,
+        )
         move = BattleMoveFactory.special(
             name=f"{move_type.name.lower()}-beam",
             move_type=move_type,
@@ -217,7 +231,10 @@ class TestThickFat:
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
         defender = BattlePokemonFactory.sylveon("max_hp")
-        thick_fat = replace(defender, ability="thick_fat")
+        thick_fat = BattlePokemonFactory.with_ability(
+            defender,
+            DamageAbility.THICK_FAT,
+        )
         move = BattleMoveFactory.bullet_punch()
 
         normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
@@ -228,7 +245,7 @@ class TestThickFat:
 
 
 class TestFilterLikeAbilities:
-    @pytest.mark.parametrize("ability", ["filter", "solid_rock"])
+    @pytest.mark.parametrize("ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK])
     def test_reduce_super_effective_damage_at_final_damage_stage(self, ability):
         """
         验证过滤和坚硬岩石在防守方受到效果拔群招式时生效，并统一进入 final damage 阶段。
@@ -237,19 +254,19 @@ class TestFilterLikeAbilities:
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
         defender = BattlePokemonFactory.sylveon("max_hp")
-        protected = replace(defender, ability=ability)
+        protected = BattlePokemonFactory.with_ability(defender, ability)
         move = BattleMoveFactory.bullet_punch()
 
         normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
         reduced = calculate_damage_rolls(attacker=attacker, defender=protected, move=move)
 
-        ability_key = f"ability:{ability}"
+        ability_key = ability.trace_key
         assert reduced.max_damage < normal.max_damage
         modifier = _modifiers_by_key(reduced)[ability_key]
         assert modifier.multiplier == 0.75
         assert modifier.stage is ModifierStage.FINAL_DAMAGE
 
-    @pytest.mark.parametrize("ability", ["filter", "solid_rock"])
+    @pytest.mark.parametrize("ability", [DamageAbility.FILTER, DamageAbility.SOLID_ROCK])
     def test_do_not_reduce_neutral_damage(self, ability):
         """
         验证过滤和坚硬岩石不会削弱普通效果招式，保护这组特性依赖 type_effectiveness 的触发边界。
@@ -258,13 +275,13 @@ class TestFilterLikeAbilities:
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
         defender = BattlePokemonFactory.sylveon("max_hp")
-        protected = replace(defender, ability=ability)
+        protected = BattlePokemonFactory.with_ability(defender, ability)
         move = BattleMoveFactory.physical(name="body-slam", move_type=Type.NORMAL, power=85)
 
         normal = calculate_damage_rolls(attacker=attacker, defender=defender, move=move)
         unchanged = calculate_damage_rolls(attacker=attacker, defender=protected, move=move)
 
-        ability_key = f"ability:{ability}"
+        ability_key = ability.trace_key
         assert unchanged.rolls == normal.rolls
         assert ability_key not in _modifiers_by_key(unchanged)
 
@@ -277,7 +294,10 @@ class TestUnknownAbility:
         trace 中也不能出现任何 ability:unknown 之类伪造记录，保证解释输出只描述实际生效机制。
         """
         attacker = BattlePokemonFactory.scizor("max_atk_neutral")
-        unknown = replace(attacker, ability="future-unimplemented-ability")
+        unknown = BattlePokemonFactory.with_ability(
+            attacker,
+            DamageAbility.from_identifier("future-unimplemented-ability"),
+        )
         defender = BattlePokemonFactory.sylveon("max_hp")
         move = BattleMoveFactory.bullet_punch()
 

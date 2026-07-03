@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+STANDARD_RANDOM_DAMAGE_MULTIPLIERS: tuple[float, ...] = tuple(
+    value / 100 for value in range(85, 101)
+)
+
+
 def _validate_positive_multiplier(value: float | None, field_name: str) -> None:
     if value is None:
         return
@@ -98,14 +103,72 @@ class EnvironmentPolicy:
 class DamagePolicy(EnvironmentPolicy):
     """Battle ruleset policy for direct-damage multipliers and feature gates."""
 
+    same_type_attack_bonus_multiplier: float = 1.5
+    technician_base_power_threshold: int = 60
+    technician_base_power_multiplier: float = 1.5
+    adaptability_stab_multiplier: float = 2.0
+    thick_fat_damage_multiplier: float = 0.5
+    filter_damage_multiplier: float = 0.75
+    sniper_critical_multiplier: float = 1.5
+    life_orb_damage_multiplier: float = 1.3
+    choice_item_attack_multiplier: float = 1.5
+    expert_belt_damage_multiplier: float = 1.2
+    eviolite_defense_multiplier: float = 1.5
     burn_physical_attack_multiplier: float = 0.5
+    random_damage_multipliers: tuple[float, ...] = STANDARD_RANDOM_DAMAGE_MULTIPLIERS
 
     def __post_init__(self) -> None:
         super().__post_init__()
         _validate_positive_multiplier(
+            self.same_type_attack_bonus_multiplier,
+            "same_type_attack_bonus_multiplier",
+        )
+        if self.technician_base_power_threshold < 0:
+            raise ValueError("technician_base_power_threshold must not be negative")
+        _validate_positive_multiplier(
+            self.technician_base_power_multiplier,
+            "technician_base_power_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.adaptability_stab_multiplier,
+            "adaptability_stab_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.thick_fat_damage_multiplier,
+            "thick_fat_damage_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.filter_damage_multiplier,
+            "filter_damage_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.sniper_critical_multiplier,
+            "sniper_critical_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.life_orb_damage_multiplier,
+            "life_orb_damage_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.choice_item_attack_multiplier,
+            "choice_item_attack_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.expert_belt_damage_multiplier,
+            "expert_belt_damage_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.eviolite_defense_multiplier,
+            "eviolite_defense_multiplier",
+        )
+        _validate_positive_multiplier(
             self.burn_physical_attack_multiplier,
             "burn_physical_attack_multiplier",
         )
+        if not self.random_damage_multipliers:
+            raise ValueError("random_damage_multipliers must not be empty")
+        for multiplier in self.random_damage_multipliers:
+            _validate_positive_multiplier(multiplier, "random_damage_multipliers")
 
     @classmethod
     def modern(cls) -> "DamagePolicy":
@@ -262,4 +325,8 @@ class DamagePolicy(EnvironmentPolicy):
         )
 
 
-__all__ = ["DamagePolicy", "EnvironmentPolicy"]
+__all__ = [
+    "DamagePolicy",
+    "EnvironmentPolicy",
+    "STANDARD_RANDOM_DAMAGE_MULTIPLIERS",
+]

@@ -1,62 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Protocol
 
 from pokeop.domain.battle.context import DamageContext, MoveCategory
-
-
-class DamageItem(str, Enum):
-    """Damage-relevant held item identifiers supported by the battle domain."""
-
-    UNKNOWN = "unknown"
-    LIFE_ORB = "life_orb"
-    CHOICE_BAND = "choice_band"
-    CHOICE_SPECS = "choice_specs"
-    EXPERT_BELT = "expert_belt"
-    EVIOLITE = "eviolite"
-
-    @property
-    def trace_key(self) -> str:
-        """Return the modifier trace key for this item."""
-        return f"item:{self.value}"
-
-    def create_effect(self) -> ItemDamageEffect:
-        """Build the damage effect implementation represented by this enum member."""
-        match self:
-            case DamageItem.UNKNOWN:
-                return BaseItemDamageEffect()
-            case DamageItem.LIFE_ORB:
-                return LifeOrbEffect()
-            case DamageItem.CHOICE_BAND:
-                return ChoiceBandEffect()
-            case DamageItem.CHOICE_SPECS:
-                return ChoiceSpecsEffect()
-            case DamageItem.EXPERT_BELT:
-                return ExpertBeltEffect()
-            case DamageItem.EVIOLITE:
-                return EvioliteEffect()
-        raise AssertionError(f"unhandled damage item: {self!r}")
-
-    @classmethod
-    def from_raw(cls, item: str) -> "DamageItem":
-        """Parse a user/data-facing item name into a supported damage item."""
-        identifier = _normalize_identifier(item)
-        alias = _ITEM_ALIASES.get(identifier)
-        if alias is not None:
-            return alias
-        try:
-            return cls(identifier)
-        except ValueError:
-            return cls.UNKNOWN
+from pokeop.domain.battle.items import DamageItem
+from pokeop.domain.battle.modifier_keys import ModifierKey
+from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
 
 
 @dataclass(frozen=True)
 class ItemEffectResult:
     """One concrete item multiplier returned to the damage modifier chain."""
 
-    key: str
+    key: ModifierKey
     multiplier: float
     reason: str
 
@@ -65,7 +22,7 @@ class ItemDamageEffect(Protocol):
     """Interface for held items that participate in damage calculation."""
 
     @property
-    def key(self) -> str:
+    def key(self) -> ModifierKey:
         """Return the modifier trace key emitted by this item effect."""
         ...
 
@@ -92,13 +49,19 @@ class ItemDamageEffect(Protocol):
         ...
 
 
+def _damage_policy(context: DamageContext) -> DamagePolicy:
+    if context.ruleset is None:
+        return DamagePolicy.modern()
+    return context.ruleset.damage_policy
+
+
 class BaseItemDamageEffect:
     """No-op base class for damage-relevant held item implementations."""
 
     item = DamageItem.UNKNOWN
 
     @property
-    def key(self) -> str:
+    def key(self) -> ModifierKey:
         return self.item.trace_key
 
     def attack_stat_multiplier(
@@ -131,10 +94,10 @@ class LifeOrbEffect(BaseItemDamageEffect):
         context: DamageContext,
         type_effectiveness: float,
     ) -> ItemEffectResult | None:
-        _ = context, type_effectiveness
+        _ = type_effectiveness
         return ItemEffectResult(
             key=self.key,
-            multiplier=1.3,
+            multiplier=_damage_policy(context).life_orb_damage_multiplier,
             reason="Life Orb boosts direct damage.",
         )
 
@@ -152,7 +115,7 @@ class ChoiceBandEffect(BaseItemDamageEffect):
             return None
         return ItemEffectResult(
             key=self.key,
-            multiplier=1.5,
+            multiplier=_damage_policy(context).choice_item_attack_multiplier,
             reason="Choice Band boosts Attack for physical moves.",
         )
 
@@ -170,7 +133,7 @@ class ChoiceSpecsEffect(BaseItemDamageEffect):
             return None
         return ItemEffectResult(
             key=self.key,
-            multiplier=1.5,
+            multiplier=_damage_policy(context).choice_item_attack_multiplier,
             reason="Choice Specs boosts Special Attack for special moves.",
         )
 
@@ -185,12 +148,11 @@ class ExpertBeltEffect(BaseItemDamageEffect):
         context: DamageContext,
         type_effectiveness: float,
     ) -> ItemEffectResult | None:
-        _ = context
         if type_effectiveness <= 1.0:
             return None
         return ItemEffectResult(
             key=self.key,
-            multiplier=1.2,
+            multiplier=_damage_policy(context).expert_belt_damage_multiplier,
             reason="Expert Belt boosts super-effective damage.",
         )
 
@@ -208,40 +170,25 @@ class EvioliteEffect(BaseItemDamageEffect):
             return None
         return ItemEffectResult(
             key=self.key,
-            multiplier=1.5,
+            multiplier=_damage_policy(context).eviolite_defense_multiplier,
             reason="Eviolite boosts Defense and Special Defense when the holder can evolve.",
         )
 
 
-def _normalize_identifier(identifier: str) -> str:
-    return identifier.strip().lower().replace("-", "_").replace(" ", "_")
-
-
-_ITEM_ALIASES: dict[str, DamageItem] = {
-    "生命宝珠": DamageItem.LIFE_ORB,
-    "生命寶珠": DamageItem.LIFE_ORB,
-    "讲究头带": DamageItem.CHOICE_BAND,
-    "講究頭帶": DamageItem.CHOICE_BAND,
-    "讲究眼镜": DamageItem.CHOICE_SPECS,
-    "講究眼鏡": DamageItem.CHOICE_SPECS,
-    "达人带": DamageItem.EXPERT_BELT,
-    "達人帶": DamageItem.EXPERT_BELT,
-    "进化奇石": DamageItem.EVIOLITE,
-    "進化奇石": DamageItem.EVIOLITE,
-}
-
-
-def resolve_item_effect(item: str | None) -> ItemDamageEffect | None:
+def resolve_item_effect(item: DamageItem | str | None) -> ItemDamageEffect:
     """Resolve a held-item effect; unknown items map to a deliberate no-op effect."""
-    if not item:
-        return None
-
-    return DamageItem.from_raw(item).create_effect()
+    return DamageItem.from_identifier(item).create_effect()
 
 
 __all__ = [
+    "BaseItemDamageEffect",
+    "ChoiceBandEffect",
+    "ChoiceSpecsEffect",
     "DamageItem",
+    "EvioliteEffect",
+    "ExpertBeltEffect",
     "ItemDamageEffect",
     "ItemEffectResult",
+    "LifeOrbEffect",
     "resolve_item_effect",
 ]

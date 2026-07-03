@@ -4,6 +4,7 @@ from dataclasses import replace
 
 from pokeop.domain.battle.damage import calculate_damage_rolls
 from pokeop.domain.battle.environment import BattleEnvironment
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import ModifierStage
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.weather import Weather
@@ -97,7 +98,10 @@ def test_spread_move_stacks_with_weather_and_life_orb_with_distinct_trace():
     攻击方携带 Life Orb，在雨天使用水系 spread 招式；伤害链应同时记录 spread_move、weather:rain 和 item:life_orb；
     这个测试保护新增阶段不会覆盖已有 final modifier，也不会把多目标修正混入天气或道具来源。
     """
-    attacker = replace(BattlePokemonFactory.scizor("max_atk_neutral"), item="life_orb")
+    attacker = BattlePokemonFactory.with_item(
+        BattlePokemonFactory.scizor("max_atk_neutral"),
+        DamageItem.LIFE_ORB,
+    )
     defender = BattlePokemonFactory.sylveon("max_hp")
     move = BattleMoveFactory.special(name="surf", move_type=Type.WATER, power=90)
 

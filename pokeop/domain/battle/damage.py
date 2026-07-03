@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Any
 
-from pokeop.domain.battle.context import BattleMove, BattlePokemon, DamageContext
-from pokeop.domain.battle.environment import BattleEnvironment
+from pokeop.domain.battle.context import DamageContext
 from pokeop.domain.battle.modifiers import (
     AppliedModifier,
     DEFAULT_RANDOM_MULTIPLIERS,
@@ -12,9 +11,6 @@ from pokeop.domain.battle.modifiers import (
     build_default_damage_chain,
     calculate_base_damage,
 )
-
-if TYPE_CHECKING:
-    from pokeop.domain.battle.rulesets.models import BattleRuleset
 
 
 RANDOM_MULTIPLIERS = DEFAULT_RANDOM_MULTIPLIERS
@@ -63,41 +59,31 @@ class DamageRollResult:
         """返回期望伤害占防守方 HP 的百分比。"""
         return self.expected_damage / self.defender_hp * 100
 
-# TODO 这里函数签名很奇怪啊，context如果传了就可以覆盖其他所有的值，然后context里面又把所有的attacker定义了一遍，有没有干净的函数签名？如果我后面又扩展了一个字段，Context类里得加，这个函数又得加。
+
+def _resolve_damage_context(
+    context: DamageContext | None,
+    context_fields: dict[str, Any],
+) -> DamageContext:
+    if context is not None:
+        if context_fields:
+            raise ValueError("pass either context or DamageContext fields, not both")
+        return context
+    if not context_fields:
+        raise ValueError("context or DamageContext fields are required")
+    return DamageContext(**context_fields)
+
+
 def calculate_damage_rolls(
-    *,
-    attacker: BattlePokemon | None = None,
-    defender: BattlePokemon | None = None,
-    move: BattleMove | None = None,
-    ruleset: "BattleRuleset | None" = None,
-    environment: BattleEnvironment | None = None,
     context: DamageContext | None = None,
-    is_critical: bool = False,
-    is_spread_move: bool = False,
-    is_protect_reduced: bool = False,
-    is_multi_target_battle: bool = False,
+    **context_fields: Any,
 ) -> DamageRollResult:
     """
     使用默认伤害责任链计算一次招式的 16 档伤害。
 
-    旧调用方式可以继续分别传 attacker、defender、move；新调用方式可以直接
-    传 DamageContext，以携带 ruleset、weather、terrain 等统一上下文。
+    推荐直接传 DamageContext；为了兼容旧调用点，也可以传 DamageContext
+    构造字段，它们会在入口处统一收敛成一个上下文对象。
     """
-    # TODO 这里是短路场景，但是在代码结构里面却占了大多数行，请你适当对该逻辑进行封装，同一行函数解决。
-    if context is None:
-        if attacker is None or defender is None or move is None:
-            raise ValueError("attacker, defender and move are required without context")
-        context = DamageContext(
-            attacker=attacker,
-            defender=defender,
-            move=move,
-            ruleset=ruleset,
-            environment=environment or BattleEnvironment(),
-            is_critical=is_critical,
-            is_spread_move=is_spread_move,
-            is_protect_reduced=is_protect_reduced,
-            is_multi_target_battle=is_multi_target_battle,
-        )
+    context = _resolve_damage_context(context, context_fields)
 
     state = build_default_damage_chain().handle(
         DamageCalculationState.from_context(context)

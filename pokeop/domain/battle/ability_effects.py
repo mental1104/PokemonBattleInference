@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.context import DamageContext
+from pokeop.domain.battle.modifier_keys import ModifierKey
+from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
 from pokeop.domain.models.types import Type
 
 
@@ -11,7 +14,7 @@ from pokeop.domain.models.types import Type
 class AbilityEffectResult:
     """One concrete ability multiplier returned to the damage modifier chain."""
 
-    key: str
+    key: ModifierKey
     multiplier: float
     reason: str
 
@@ -19,7 +22,10 @@ class AbilityEffectResult:
 class AbilityDamageEffect(Protocol):
     """Interface for ability effects that participate in damage calculation."""
 
-    key: str
+    @property
+    def key(self) -> ModifierKey:
+        """Return the modifier trace key emitted by this ability effect."""
+        ...
 
     def base_power_multiplier(
         self,
@@ -49,10 +55,20 @@ class AbilityDamageEffect(Protocol):
         ...
 
 
+def _damage_policy(context: DamageContext) -> DamagePolicy:
+    if context.ruleset is None:
+        return DamagePolicy.modern()
+    return context.ruleset.damage_policy
+
+
 class BaseAbilityDamageEffect:
     """No-op base class for damage-relevant ability implementations."""
 
-    key = "ability:unknown"
+    ability = DamageAbility.UNKNOWN
+
+    @property
+    def key(self) -> ModifierKey:
+        return self.ability.trace_key
 
     def base_power_multiplier(
         self,
@@ -81,17 +97,18 @@ class BaseAbilityDamageEffect:
 class TechnicianEffect(BaseAbilityDamageEffect):
     """Technician boosts moves with base power 60 or lower."""
 
-    key = "ability:technician"
+    ability = DamageAbility.TECHNICIAN
 
     def base_power_multiplier(
         self,
         context: DamageContext,
     ) -> AbilityEffectResult | None:
-        if context.move.power > 60:
+        policy = _damage_policy(context)
+        if context.move.power > policy.technician_base_power_threshold:
             return None
         return AbilityEffectResult(
             key=self.key,
-            multiplier=1.5,
+            multiplier=policy.technician_base_power_multiplier,
             reason="Technician boosts moves with base power 60 or lower.",
         )
 
@@ -99,14 +116,14 @@ class TechnicianEffect(BaseAbilityDamageEffect):
 class AdaptabilityEffect(BaseAbilityDamageEffect):
     """Adaptability raises same-type attack bonus from 1.5 to 2.0."""
 
-    key = "ability:adaptability"
+    ability = DamageAbility.ADAPTABILITY
 
     def stab_multiplier(self, context: DamageContext) -> AbilityEffectResult | None:
         if context.move.type not in context.attacker.types:
             return None
         return AbilityEffectResult(
             key=self.key,
-            multiplier=2.0,
+            multiplier=_damage_policy(context).adaptability_stab_multiplier,
             reason="Adaptability raises STAB to 2.0.",
         )
 
@@ -114,7 +131,7 @@ class AdaptabilityEffect(BaseAbilityDamageEffect):
 class ThickFatEffect(BaseAbilityDamageEffect):
     """Thick Fat halves incoming Fire- and Ice-type direct damage."""
 
-    key = "ability:thick_fat"
+    ability = DamageAbility.THICK_FAT
 
     def final_damage_multiplier(
         self,
@@ -126,7 +143,7 @@ class ThickFatEffect(BaseAbilityDamageEffect):
             return None
         return AbilityEffectResult(
             key=self.key,
-            multiplier=0.5,
+            multiplier=_damage_policy(context).thick_fat_damage_multiplier,
             reason="Thick Fat halves incoming Fire- and Ice-type damage.",
         )
 
@@ -134,19 +151,18 @@ class ThickFatEffect(BaseAbilityDamageEffect):
 class FilterEffect(BaseAbilityDamageEffect):
     """Filter reduces super-effective direct damage."""
 
-    key = "ability:filter"
+    ability = DamageAbility.FILTER
 
     def final_damage_multiplier(
         self,
         context: DamageContext,
         type_effectiveness: float,
     ) -> AbilityEffectResult | None:
-        _ = context
         if type_effectiveness <= 1.0:
             return None
         return AbilityEffectResult(
             key=self.key,
-            multiplier=0.75,
+            multiplier=_damage_policy(context).filter_damage_multiplier,
             reason="Filter reduces super-effective damage.",
         )
 
@@ -154,7 +170,7 @@ class FilterEffect(BaseAbilityDamageEffect):
 class SolidRockEffect(FilterEffect):
     """Solid Rock shares Filter's direct-damage behavior."""
 
-    key = "ability:solid_rock"
+    ability = DamageAbility.SOLID_ROCK
 
     def final_damage_multiplier(
         self,
@@ -174,60 +190,32 @@ class SolidRockEffect(FilterEffect):
 class SniperEffect(BaseAbilityDamageEffect):
     """Sniper increases the critical-hit damage multiplier by 50%."""
 
-    key = "ability:sniper"
+    ability = DamageAbility.SNIPER
 
     def critical_hit_multiplier(
         self,
         context: DamageContext,
         base_multiplier: float,
     ) -> AbilityEffectResult | None:
-        _ = context
         return AbilityEffectResult(
             key=self.key,
-            multiplier=base_multiplier * 1.5,
+            multiplier=(
+                base_multiplier * _damage_policy(context).sniper_critical_multiplier
+            ),
             reason="Sniper increases critical-hit damage by 50%.",
         )
 
 
-def _normalize_identifier(identifier: str) -> str:
-    return identifier.strip().lower().replace("-", "_").replace(" ", "_")
-
-
-_ABILITY_EFFECTS: dict[str, AbilityDamageEffect] = {
-    "technician": TechnicianEffect(),
-    "adaptability": AdaptabilityEffect(),
-    "thick_fat": ThickFatEffect(),
-    "filter": FilterEffect(),
-    "solid_rock": SolidRockEffect(),
-    "sniper": SniperEffect(),
-}
-
-_ABILITY_ALIASES: dict[str, str] = {
-    "技术高手": "technician",
-    "適應力": "adaptability",
-    "适应力": "adaptability",
-    "厚脂肪": "thick_fat",
-    "过滤": "filter",
-    "過濾": "filter",
-    "坚硬岩石": "solid_rock",
-    "堅硬岩石": "solid_rock",
-    "狙击手": "sniper",
-    "狙擊手": "sniper",
-}
-
-
-def resolve_ability_effect(ability: str | None) -> AbilityDamageEffect | None:
+def resolve_ability_effect(
+    ability: DamageAbility | str | None,
+) -> AbilityDamageEffect:
     """Resolve a known ability effect; unknown abilities are deliberate no-ops."""
-    if not ability:
-        return None
-
-    identifier = _normalize_identifier(ability)
-    identifier = _ABILITY_ALIASES.get(identifier, identifier)
-    return _ABILITY_EFFECTS.get(identifier)
+    return DamageAbility.from_identifier(ability).create_effect()
 
 
 __all__ = [
     "AbilityDamageEffect",
     "AbilityEffectResult",
+    "DamageAbility",
     "resolve_ability_effect",
 ]
