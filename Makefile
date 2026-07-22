@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
+export PS1 :=
 
 # === 自动加载 .env 到 Make 环境 ==========================
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -60,6 +61,9 @@ COMMON_PYPROJECT := $(COMMON_PYTHON)/pyproject.toml
 COMMON_REQUIREMENTS := $(COMMON_PYTHON)/requirements.txt
 EXPORT_LAYER_PATH := $(abspath $(COMMON_ROOT)/export/python)
 PARENT_ROOT := $(abspath $(REPO_ROOT)/..)
+COMPOSE_ENV ?= $(REPO_ROOT)/.env.compose
+COMPOSE_FILE ?= $(REPO_ROOT)/docker-compose.yaml
+COMPOSE := docker compose --env-file "$(COMPOSE_ENV)" -f "$(COMPOSE_FILE)"
 
 CLEAN_PATTERNS := \
   __pycache__ \
@@ -84,7 +88,9 @@ CLEAN_PATTERNS := \
   env.bak \
   venv.bak
 
-.PHONY: default install test coverage env-print env-clean clean setup
+.PHONY: default install test coverage env-print env-clean clean setup \
+	compose-env-check compose-port-check compose-config compose-up compose-down \
+	compose-rebuild compose-ps compose-logs compose-reset
 
 
 
@@ -131,6 +137,39 @@ setup:
 	fi
 	# 3) 安装当前项目的 requirements.txt
 	"$(VENV_PIP)" install -r "$(REPO_ROOT)/requirements.txt"
+
+compose-env-check:
+	@if [ ! -f "$(COMPOSE_ENV)" ]; then \
+	  echo "missing $(COMPOSE_ENV)"; \
+	  echo "copy .env.compose.example to .env.compose and set a local POSTGRES_PASSWORD"; \
+	  exit 2; \
+	fi
+
+compose-port-check: compose-env-check
+	"$(REPO_ROOT)/scripts/check_compose_ports.sh" "$(COMPOSE_ENV)"
+
+compose-config: compose-env-check
+	$(COMPOSE) config --services
+
+compose-up: compose-env-check compose-port-check
+	$(COMPOSE) config --services >/dev/null
+	$(COMPOSE) up -d --build --remove-orphans
+
+compose-down: compose-env-check
+	$(COMPOSE) down --remove-orphans
+
+compose-rebuild: compose-env-check compose-port-check
+	$(COMPOSE) build --no-cache frontend backend
+	$(COMPOSE) up -d --remove-orphans
+
+compose-ps: compose-env-check
+	$(COMPOSE) ps
+
+compose-logs: compose-env-check
+	$(COMPOSE) logs -f --tail=200
+
+compose-reset: compose-env-check
+	$(COMPOSE) down -v --remove-orphans
 
 clean: env-clean
 	@echo "Removing common build/cache artifacts (only if gitignored when git metadata is present)"
