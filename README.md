@@ -36,11 +36,55 @@ PokemonBattleInference/
    ```
 4. 或者使用 Docker：
    ```bash
-   docker build -t pokemon-calculator .
-   docker run -d -p 8000:8000 pokemon-calculator
-   # 或使用 docker-compose
-   docker-compose up -d
+   cp .env.compose.example .env.compose
+   # 修改 .env.compose 中的 POSTGRES_PASSWORD 后启动三服务
+   make compose-up
    ```
+
+## Calculator v0.1 本地 Compose
+
+本仓库提供项目隔离的三服务 Compose 基线：
+
+```text
+frontend  →  backend  →  postgres
+41100        41104       41132
+```
+
+首次启动：
+
+```bash
+cp .env.compose.example .env.compose
+make compose-up
+```
+
+常用操作：
+
+```bash
+make compose-ps
+make compose-logs
+make compose-down
+make compose-rebuild
+```
+
+显式清空当前项目 PostgreSQL volume：
+
+```bash
+make compose-reset
+```
+
+`.env.compose` 不提交仓库。默认 Compose project name 是
+`pokemon-battle-inference`，容器、network 和 volume 都由该 project namespace
+隔离；普通 `make compose-down` 不删除数据库数据。默认发布端口保留在
+`41100-41199`，可通过 `.env.compose` 中的 `POKEOP_FRONTEND_PORT`、
+`POKEOP_BACKEND_PORT`、`POKEOP_POSTGRES_PORT` 覆盖。
+
+访问入口：
+
+```text
+前端：http://127.0.0.1:41100
+FastAPI：http://127.0.0.1:41104/docs
+健康检查：http://127.0.0.1:41104/healthz
+```
 
 ## 数据与脚本
 
