@@ -1,3 +1,12 @@
+x-backend-image: &backend-image "${COMPOSE_PROJECT_NAME:-pokemon-battle-inference}-backend:local"
+
+x-postgres-client-environment: &postgres-client-environment
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: ${POSTGRES_DB}
+  PGUSER: ${POSTGRES_USER}
+  PGPASSWORD: ${POSTGRES_PASSWORD}
+
 services:
   frontend:
     build:
@@ -13,6 +22,7 @@ services:
       - default
 
   backend:
+    image: *backend-image
     build:
       context: .
       dockerfile: Dockerfile.backend
@@ -21,11 +31,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PGHOST: postgres
-      PGPORT: "5432"
-      PGDATABASE: ${POSTGRES_DB}
-      PGUSER: ${POSTGRES_USER}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      <<: *postgres-client-environment
       PGAPPNAME: pokemon-battle-inference
     healthcheck:
       test:
@@ -41,6 +47,20 @@ services:
       start_period: 30s
     ports:
       - "${POKEOP_BACKEND_PORT:-41104}:41104"
+    networks:
+      - default
+
+  db-init:
+    image: *backend-image
+    profiles: ["ops"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *postgres-client-environment
+      PGAPPNAME: pokemon-battle-inference-db-init
+    command: ["python3", "-m", "pokeop.persistence.commands.initialize_database"]
     networks:
       - default
 
