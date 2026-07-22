@@ -89,8 +89,8 @@ CLEAN_PATTERNS := \
   venv.bak
 
 .PHONY: default install test coverage env-print env-clean clean setup \
-	compose-env-check compose-port-check compose-config compose-up compose-down \
-	compose-rebuild compose-ps compose-logs compose-reset
+	compose-env-check compose-port-check compose-config compose-init compose-up compose-down \
+	compose-rebuild compose-assets-rebuild compose-ps compose-logs compose-reset
 
 
 
@@ -149,18 +149,36 @@ compose-port-check: compose-env-check
 	"$(REPO_ROOT)/scripts/check_compose_ports.sh" "$(COMPOSE_ENV)"
 
 compose-config: compose-env-check
-	$(COMPOSE) config --services
+	$(COMPOSE) --profile ops config --services
+
+compose-init: compose-env-check
+	$(COMPOSE) build backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
 
 compose-up: compose-env-check compose-port-check
-	$(COMPOSE) config --services >/dev/null
-	$(COMPOSE) up -d --build --remove-orphans
+	$(COMPOSE) --profile ops config --services >/dev/null
+	$(COMPOSE) build frontend backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
+	$(COMPOSE) up -d backend frontend --remove-orphans
 
 compose-down: compose-env-check
 	$(COMPOSE) down --remove-orphans
 
 compose-rebuild: compose-env-check compose-port-check
 	$(COMPOSE) build --no-cache frontend backend
-	$(COMPOSE) up -d --remove-orphans
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
+	$(COMPOSE) up -d --force-recreate backend frontend --remove-orphans
+
+compose-assets-rebuild: compose-env-check
+	$(COMPOSE) build backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init \
+	  python3 scripts/reset_postgres_db.py \
+	  --allow-remote-host \
+	  --with-materialized-views
 
 compose-ps: compose-env-check
 	$(COMPOSE) ps
@@ -184,7 +202,7 @@ clean: env-clean
 	    fi; \
 	    rm -rf "$$path"; \
 	    echo "removed $$rel_path"; \
-	  done; \
+	  done
 	done
 
 
