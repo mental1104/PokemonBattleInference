@@ -81,7 +81,7 @@ describe('calculator api', () => {
     });
 
     const [, init] = fetchMock.mock.calls[0];
-    expect(fetchMock.mock.calls[0][0]).toBe('/v1/calculator/damage');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/calculator/damage');
     expect(JSON.parse(init?.body as string)).toEqual({
       ruleset_id: 'pokemon-champion',
       attacker: { pokemon_id: 212, level: 50, stat_preset: 'max_atk_neutral' },

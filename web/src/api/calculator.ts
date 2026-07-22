@@ -109,6 +109,8 @@ export interface CalculationScope {
   excluded: string[];
 }
 
+const API_BASE = '/api/v1';
+
 /** 把失败 HTTP 响应转换成面向界面的错误文本。 */
 async function errorMessage(response: Response): Promise<string> {
   try {
@@ -137,13 +139,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 /** 搜索当前规则集下可用于计算器的宝可梦。 */
 export function searchPokemon(query: string, rulesetId: string): Promise<PokemonSearchItem[]> {
   const params = new URLSearchParams({ query, ruleset_id: rulesetId });
-  return requestJson<PokemonSearchItem[]>(`/v1/calculator/pokemon?${params.toString()}`);
+  return requestJson<PokemonSearchItem[]>(`${API_BASE}/calculator/pokemon?${params.toString()}`);
 }
 
 /** 读取一只宝可梦详情，当前用于选择后的摘要展示。 */
 export function getPokemonDetail(pokemonId: number, rulesetId: string): Promise<PokemonDetail> {
   const params = new URLSearchParams({ ruleset_id: rulesetId });
-  return requestJson<PokemonDetail>(`/v1/calculator/pokemon/${pokemonId}?${params.toString()}`);
+  return requestJson<PokemonDetail>(`${API_BASE}/calculator/pokemon/${pokemonId}?${params.toString()}`);
 }
 
 /** 列出攻击方在当前规则集下可学且基础模式可计算的招式。 */
@@ -154,18 +156,18 @@ export function listPokemonMoves(
 ): Promise<MoveSearchItem[]> {
   const params = new URLSearchParams({ ruleset_id: rulesetId, query });
   return requestJson<MoveSearchItem[]>(
-    `/v1/calculator/pokemon/${pokemonId}/moves?${params.toString()}`,
+    `${API_BASE}/calculator/pokemon/${pokemonId}/moves?${params.toString()}`,
   );
 }
 
 /** 读取 application 同源配置模板，避免前端自行解释 EV/性格含义。 */
 export function listStatPresets(): Promise<{ attacker: StatPreset[]; defender: StatPreset[] }> {
-  return requestJson<{ attacker: StatPreset[]; defender: StatPreset[] }>('/v1/calculator/presets');
+  return requestJson<{ attacker: StatPreset[]; defender: StatPreset[] }>(`${API_BASE}/calculator/presets`);
 }
 
 /** 提交基础伤害计算请求，派生战斗资料全部由服务端查询和校验。 */
 export function calculateDamage(request: CalculateDamageRequest): Promise<CalculateDamageResponse> {
-  return requestJson<CalculateDamageResponse>('/v1/calculator/damage', {
+  return requestJson<CalculateDamageResponse>(`${API_BASE}/calculator/damage`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
