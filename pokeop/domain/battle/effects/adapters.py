@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from pokeop.domain.battle.actions import BattleAction
 from pokeop.domain.battle.ability_effects import (
@@ -17,7 +17,11 @@ from pokeop.domain.battle.effects.protocols import (
     EffectCoverage,
     TransitionSet,
 )
-from pokeop.domain.battle.item_effects import ItemDamageEffect, ItemEffectResult
+from pokeop.domain.battle.item_effects import (
+    ItemCoverageDetailEffect,
+    ItemDamageEffect,
+    ItemEffectResult,
+)
 
 
 def _ability_result(result: AbilityEffectResult | None) -> DamageEffectResult:
@@ -119,6 +123,20 @@ class ItemDamageEffectAdapter:
 
     coverage: EffectCoverage
     wrapped: ItemDamageEffect
+
+    def __post_init__(self) -> None:
+        """把具体效果声明的覆盖边界合并进工厂所属规则集记录。
+
+        工厂继续负责 ruleset、来源、identifier 与 supported 状态；具体效果只覆盖 reason，
+        因而讲究头带可以明确区分已实现的倍率/锁招和延期的移除等交互，又不会把规则集
+        选择职责倒置回旧伤害效果。
+        """
+        if isinstance(self.wrapped, ItemCoverageDetailEffect):
+            object.__setattr__(
+                self,
+                "coverage",
+                replace(self.coverage, reason=self.wrapped.coverage_reason),
+            )
 
     def modify_damage(self, context: DamageEffectContext) -> DamageEffectResult:
         """按显式伤害阶段调用旧 item effect 对应能力。
