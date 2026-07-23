@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from fractions import Fraction
 
 from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.actions import BattleAction
@@ -283,12 +284,13 @@ def test_move_effect_identifier_is_normalized_and_part_of_state_semantics() -> N
 
 
 def test_ice_punch_uses_common_damage_and_reports_freeze_as_unsupported() -> None:
-    """冰冻拳独立 effect 不应复制 PP、命中、属性克制和伤害公式。本场景让快龙使用真实冰属性物理招式攻击龙与飞行双属性目标，并预置目标畏缩以排除其反击干扰；完整回合必须扣除一次 PP、通过通用 16 档伤害降低目标 HP，同时 coverage 仍明确保留尚未实现的冰冻追加效果，且回合末清理预置畏缩。"""
+    """冰冻拳独立 effect 不应复制 PP、命中、属性克制和伤害公式。本场景让快龙使用真实冰属性物理招式攻击龙与飞行双属性目标，并预置目标畏缩以排除其反击干扰；完整回合必须扣除一次 PP、按 75% 命中率产生精确的命中与未命中分支、通过通用伤害降低目标 HP，同时 coverage 仍明确保留尚未实现的冰冻追加效果。"""
     ice_punch = _move_spec(
         move_id=8,
         name="Ice Punch",
         move_type=Type.ICE,
         power=75,
+        accuracy=75,
         max_pp=15,
         effect_identifier="ice-punch",
     )
@@ -315,7 +317,24 @@ def test_ice_punch_uses_common_damage_and_reports_freeze_as_unsupported() -> Non
         transition.state.attacker.move_slot(8).current_pp == 14
         for transition in transitions
     )
-    assert all(transition.state.defender.current_hp < 260 for transition in transitions)
+    miss_probability = sum(
+        (
+            transition.probability
+            for transition in transitions
+            if transition.state.defender.current_hp == 260
+        ),
+        Fraction(0, 1),
+    )
+    hit_probability = sum(
+        (
+            transition.probability
+            for transition in transitions
+            if transition.state.defender.current_hp < 260
+        ),
+        Fraction(0, 1),
+    )
+    assert miss_probability == Fraction(1, 4)
+    assert hit_probability == Fraction(3, 4)
     assert all(
         not transition.state.defender.status.has_volatile(VolatileStatusKind.FLINCH)
         for transition in transitions
@@ -326,7 +345,7 @@ def test_ice_punch_uses_common_damage_and_reports_freeze_as_unsupported() -> Non
 
 
 def test_brick_break_uses_common_type_effectiveness_and_reports_screen_gap() -> None:
-    """劈瓦独立 effect 只声明差异能力，直接伤害必须继续走通用物理计算。测试分别让格斗招式攻击恶与冰双属性目标以及幽灵属性目标：前者应受到伤害，后者因属性免疫保持满 HP；两个目标都预置畏缩以隔离反击。与此同时 coverage 必须只把屏障破坏标为 unsupported，不能把基础伤害也误报为缺失。"""
+    """劈瓦独立 effect 只声明差异能力，直接伤害必须继续走通用物理计算。测试分别让格斗招式攻击恶与冰双属性目标以及幽灵属性目标：前者应受到伤害，后者因属性免疫保持满 HP；两个场景都必须扣除一次 PP。与此同时 coverage 只把屏障破坏标为 unsupported，不能把基础伤害误报为缺失。"""
     brick_break = _move_spec(
         move_id=280,
         name="Brick Break",
@@ -361,6 +380,10 @@ def test_brick_break_uses_common_type_effectiveness_and_reports_screen_gap() -> 
     weak_transitions = _resolve(weak_state, effect)
     immune_transitions = _resolve(immune_state, effect)
 
+    assert all(
+        transition.state.attacker.move_slot(280).current_pp == 14
+        for transition in (*weak_transitions, *immune_transitions)
+    )
     assert all(
         transition.state.defender.current_hp < weak_state.defender.current_hp
         for transition in weak_transitions
