@@ -5,7 +5,7 @@ from enum import Enum, unique
 
 @unique
 class NonVolatileStatusKind(str, Enum):
-    """Major statuses that remain after switching out."""
+    """表示交换后仍会保留的主要异常状态类型。"""
 
     SLEEP = "sleep"
     PARALYSIS = "paralysis"
@@ -17,10 +17,11 @@ class NonVolatileStatusKind(str, Enum):
 
 @unique
 class VolatileStatusKind(str, Enum):
-    """Temporary statuses that are cleared by switching out."""
+    """表示会随交换或回合阶段清理的临时状态类型。"""
 
     CONFUSION = "confusion"
     INFATUATION = "infatuation"
+    FLINCH = "flinch"
 
 
 __all__ = ["NonVolatileStatusKind", "VolatileStatusKind"]

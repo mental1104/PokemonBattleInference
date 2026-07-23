@@ -93,6 +93,20 @@ class InfatuationStatus:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class FlinchStatus:
+    """表示当前回合尚待消费的畏缩状态。
+
+    该值对象只负责让状态图完整表达并区分畏缩节点；本 Issue 不实现行动阻断、
+    回合末清理或特性联动，这些行为应由后续回合推进规则显式消费。
+    """
+
+    kind: VolatileStatusKind = field(
+        default=VolatileStatusKind.FLINCH,
+        init=False,
+    )
+
+
 NonVolatileStatus = (
     SleepStatus
     | ParalysisStatus
@@ -101,7 +115,7 @@ NonVolatileStatus = (
     | PoisonStatus
     | BadPoisonStatus
 )
-VolatileStatus = ConfusionStatus | InfatuationStatus
+VolatileStatus = ConfusionStatus | InfatuationStatus | FlinchStatus
 
 
 @dataclass(frozen=True)
@@ -170,6 +184,7 @@ __all__ = [
     "BurnStatus",
     "CombatantStatus",
     "ConfusionStatus",
+    "FlinchStatus",
     "FreezeStatus",
     "InfatuationStatus",
     "NonVolatileStatus",
