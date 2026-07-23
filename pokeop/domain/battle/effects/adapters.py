@@ -127,16 +127,22 @@ class ItemDamageEffectAdapter:
     def __post_init__(self) -> None:
         """把具体效果声明的覆盖边界合并进工厂所属规则集记录。
 
-        工厂继续负责 ruleset、来源、identifier 与 supported 状态；具体效果只覆盖 reason，
-        因而讲究头带可以明确区分已实现的倍率/锁招和延期的移除等交互，又不会把规则集
-        选择职责倒置回旧伤害效果。
+        工厂继续负责 ruleset、来源、identifier 与 supported 状态；具体效果只补充 reason。
+        合并后的同一份记录会同时写入 adapter 和具体效果副本，保证产品族内外看到的
+        规则集与覆盖状态完全一致。
         """
-        if isinstance(self.wrapped, ItemCoverageDetailEffect):
-            object.__setattr__(
-                self,
-                "coverage",
-                replace(self.coverage, reason=self.wrapped.coverage_reason),
-            )
+        if not isinstance(self.wrapped, ItemCoverageDetailEffect):
+            return
+        resolved_coverage = replace(
+            self.coverage,
+            reason=self.wrapped.coverage_reason,
+        )
+        object.__setattr__(self, "coverage", resolved_coverage)
+        object.__setattr__(
+            self,
+            "wrapped",
+            self.wrapped.with_coverage(resolved_coverage),
+        )
 
     def modify_damage(self, context: DamageEffectContext) -> DamageEffectResult:
         """按显式伤害阶段调用旧 item effect 对应能力。
