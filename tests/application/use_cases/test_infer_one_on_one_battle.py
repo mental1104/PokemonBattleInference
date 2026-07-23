@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from fractions import Fraction
 
 from pokeop.application.battle_inference_effect_factory import (
     TransparentPokemonChampionEffectFactory,
 )
-from pokeop.application.configuration_space import (
-    MechanismSupportStatus as ConfigurationMechanismSupportStatus,
-    PokemonConfigurationProfile,
+from pokeop.application.composition.battle_inference_repository import (
+    FactoryReconciledBattleInferenceRepository,
 )
 from pokeop.application.repositories.battle_inference import (
     BattleInferenceAbilityProfile,
@@ -18,7 +17,6 @@ from pokeop.application.repositories.battle_inference import (
     BattleInferenceMoveProfile,
     BattleInferencePokemonProfile,
     BattleInferenceRulesetContext,
-    BattleInferenceTypeProfile,
     MechanismCapability,
     MechanismSupportStatus,
 )
@@ -30,6 +28,7 @@ from pokeop.application.use_cases.infer_one_on_one_battle import (
 )
 from pokeop.domain.battle.context import MoveCategory
 from pokeop.domain.battle.effects.protocols import EffectSourceKind
+from pokeop.domain.battle.inference_outcome import TerminalOutcome
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
@@ -87,7 +86,11 @@ def _move(
         effect_id=None,
         effect_chance=None,
         effect_identifier=effect_identifier,
-        capability=_capability(EffectSourceKind.MOVE, effect_identifier or identifier),
+        capability=_capability(
+            EffectSourceKind.MOVE,
+            effect_identifier or identifier,
+            MechanismSupportStatus.PARTIAL,
+        ),
     )
 
 
@@ -128,8 +131,8 @@ def _dragonite() -> BattleInferencePokemonProfile:
         base_stats=StatValues(91, 134, 95, 100, 100, 80),
         can_evolve=False,
         abilities=(
-            _ability(39, "inner-focus"),
-            _ability(136, "multiscale"),
+            _ability(39, "inner-focus", status=MechanismSupportStatus.UNSUPPORTED),
+            _ability(136, "multiscale", status=MechanismSupportStatus.UNSUPPORTED),
         ),
         moves=(
             _move(
@@ -256,42 +259,22 @@ class _Repository:
         )
 
 
-class _NeutralAbilityUseCase(InferOneOnOneBattleUseCase):
-    """在测试中复现页面对压迫感采用的透明中性假设。"""
-
-    @staticmethod
-    def _configuration_profile(
-        profile: BattleInferencePokemonProfile,
-        rules: BattleInferenceRules,
-    ) -> PokemonConfigurationProfile:
-        """只把压迫感候选放行给透明工厂，其他覆盖状态保持原样。"""
-        converted = InferOneOnOneBattleUseCase._configuration_profile(profile, rules)
-        return replace(
-            converted,
-            abilities=tuple(
-                replace(
-                    ability,
-                    support_status=ConfigurationMechanismSupportStatus.SUPPORTED,
-                    support_reason="Pressure uses an explicit neutral test assumption.",
-                )
-                if ability.identifier == "pressure"
-                else ability
-                for ability in converted.abilities
-            ),
-        )
-
-
-def _use_case() -> _NeutralAbilityUseCase:
-    """创建使用真实 domain effect 和纯 Python 精确求解器的测试用例。"""
-    return _NeutralAbilityUseCase(
+def _use_case() -> InferOneOnOneBattleUseCase:
+    """创建真实 effect、覆盖对账 repository 与精确求解器组成的测试用例。"""
+    effect_factory = TransparentPokemonChampionEffectFactory()
+    repository = FactoryReconciledBattleInferenceRepository(
         repository=_Repository({149: _dragonite(), 461: _weavile()}),
-        effect_factory=TransparentPokemonChampionEffectFactory(),
+        effect_factory=effect_factory,
+    )
+    return InferOneOnOneBattleUseCase(
+        repository=repository,
+        effect_factory=effect_factory,
     )
 
 
 def test_fixed_ice_punch_journey_returns_complete_probability_result() -> None:
     """
-    固定冰冻拳旅程必须从 fake repository 读取双方 version-aware profile，经配置生成器收敛为唯一配置，再用真实多重鳞片、冰冻拳与劈瓦 effect 推进完整回合并构建状态图。测试不锁死某个伤害档概率，而是验证胜负平严格守恒、图未被运行保护截断、双方配置和策略被保留，同时压迫感真实行为作为未覆盖子机制显式出现在结果中，证明 application 没有把未实现机制伪装成完整支持或静默过滤。
+    固定冰冻拳旅程必须从 fake repository 读取双方 version-aware profile，经覆盖对账与配置生成器收敛为唯一配置，再用真实多重鳞片、冰冻拳与劈瓦 effect 推进完整回合并构建状态图。测试不锁死某个伤害档概率，而是验证胜负平严格守恒、图未被运行保护截断、双方配置和策略被保留，同时压迫感真实行为作为未覆盖子机制显式出现在结果中，证明 application 没有把未实现机制伪装成完整支持或静默过滤。
     """
     result = _use_case().execute_fixed(
         InferFixedOneOnOneBattleCommand(
@@ -325,9 +308,9 @@ def test_fixed_ice_punch_journey_returns_complete_probability_result() -> None:
     assert result.representative_paths
 
 
-def test_fake_out_pressure_journey_exposes_terminal_reachable_cycle() -> None:
+def test_fake_out_pressure_journey_keeps_both_terminal_branches_without_cycles() -> None:
     """
-    当玛纽拉把击掌奇袭和冰冻拳按均匀策略组合时，首次击掌奇袭可以造成伤害和畏缩，后续再次选择该招式会被首次出场规则拒绝，而冰冻拳仍提供离开该状态并到达终局的路径。状态键会忽略绝对回合号，因此重复失败分支应归并为可到达终局的循环，而不是无限创建节点；精确求解器仍必须给出守恒概率和有限或明确不可用的期望回合结果，并在代表路径中保留至少一种终局解释。
+    当玛纽拉在击掌奇袭与冰冻拳间等概率选择时，击掌奇袭成功分支会先造成伤害并让快龙畏缩；下一回合再次选择击掌奇袭会在执行前失败，但快龙仍能立即使用劈瓦结束战斗，因此这个分支不会形成状态循环。选择冰冻拳则可在多重鳞片已失效后结束另一条终局路径。测试要求状态图在两回合内完整收敛、没有封闭或可退出循环，同时快龙胜和玛纽拉胜都具有正概率且总概率严格守恒，从而按真实 TurnResolver 语义验收而不是强行制造不存在的 SCC。
     """
     result = _use_case().execute_fixed(
         InferFixedOneOnOneBattleCommand(
@@ -347,12 +330,15 @@ def test_fake_out_pressure_journey_exposes_terminal_reachable_cycle() -> None:
     )
 
     assert result.inference.defender_policy.policy_id == "uniform-random"
-    assert result.graph.terminal_reachable_cycle_count >= 1
+    assert result.graph.is_complete
+    assert result.graph.max_turn_number == 2
     assert result.graph.closed_cycle_count == 0
-    assert (
-        result.inference.win_probability.value
-        + result.inference.loss_probability.value
-        + result.inference.draw_probability.value
-        == Fraction(1)
-    )
-    assert result.representative_paths
+    assert result.graph.terminal_reachable_cycle_count == 0
+    assert result.inference.win_probability.value > 0
+    assert result.inference.loss_probability.value > 0
+    assert result.inference.draw_probability.value == 0
+    assert result.inference.probability_total == Fraction(1)
+    assert {path.outcome for path in result.representative_paths} == {
+        TerminalOutcome.ATTACKER_WIN,
+        TerminalOutcome.DEFENDER_WIN,
+    }
