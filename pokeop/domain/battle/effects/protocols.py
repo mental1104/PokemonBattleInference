@@ -7,11 +7,11 @@ from typing import Generic, Protocol, TypeVar, runtime_checkable
 from pokeop.domain.battle.context import DamageContext
 from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.modifier_keys import ModifierKeyLike
-from pokeop.domain.battle.transitions import StateKeyed, WeightedTransition
+from pokeop.domain.battle.state import BattleState
+from pokeop.domain.battle.transitions import WeightedTransition
 
-StateT = TypeVar("StateT", bound=StateKeyed)
 ActionT = TypeVar("ActionT")
-TransitionSet = tuple[WeightedTransition[StateT], ...]
+TransitionSet = tuple[WeightedTransition[BattleState], ...]
 
 
 class EffectSourceKind(str, Enum):
@@ -63,16 +63,16 @@ class EffectCoverage:
 
 
 @dataclass(frozen=True, slots=True)
-class ActionEffectContext(Generic[StateT, ActionT]):
+class ActionEffectContext(Generic[ActionT]):
     """向行动校验和选招后 effect 提供不可变输入。
 
     Attributes:
-        state: 当前战斗状态快照，必须提供稳定 ``state_key``。
+        state: #21 定义的当前不可变 ``BattleState`` 节点。
         actor: 本次行动所属的一方。
         action: 已由合法行动生成器产生或正在校验的类型化行动。
     """
 
-    state: StateT
+    state: BattleState
     actor: BattleSide
     action: ActionT
 
@@ -93,48 +93,46 @@ class ActionOrder:
 
 
 @dataclass(frozen=True, slots=True)
-class ActionOrderEffectContext(Generic[StateT, ActionT]):
-    """向行动顺序 effect 提供状态、行动方和类型化行动。"""
+class ActionOrderEffectContext(Generic[ActionT]):
+    """向行动顺序 effect 提供当前战斗节点、行动方和类型化行动。"""
 
-    state: StateT
+    state: BattleState
     actor: BattleSide
     action: ActionT
 
 
 @dataclass(frozen=True, slots=True)
-class MoveEffectContext(Generic[StateT, ActionT]):
-    """向招式执行前后阶段提供不可变状态和行动信息。"""
+class MoveEffectContext(Generic[ActionT]):
+    """向招式执行前后阶段提供当前战斗节点和行动信息。"""
 
-    state: StateT
+    state: BattleState
     actor: BattleSide
     action: ActionT
 
 
 @dataclass(frozen=True, slots=True)
-class TurnEndEffectContext(Generic[StateT]):
-    """向回合结束 effect 提供当前状态和即将结束的回合号。"""
+class TurnEndEffectContext:
+    """向回合结束 effect 提供唯一可信的当前 ``BattleState``。
 
-    state: StateT
-    turn_number: int
+    回合号直接读取 ``state.turn_number``，不再在上下文中复制一份可能与状态节点
+    不一致的数值。
+    """
 
-    def __post_init__(self) -> None:
-        """校验回合号从一开始递增，避免零或负数进入规则实现。"""
-        if self.turn_number < 1:
-            raise ValueError("turn_number must be greater than 0")
+    state: BattleState
 
 
 @dataclass(frozen=True, slots=True)
-class VolatileStatusEffectContext(Generic[StateT]):
+class VolatileStatusEffectContext:
     """向临时状态阻止 effect 提供来源、目标和状态标识。
 
     Attributes:
-        state: 当前不可变战斗状态。
+        state: 当前不可变 ``BattleState`` 节点。
         source: 尝试施加状态的一方。
         target: 即将接收状态的一方。
         status_identifier: 已在 domain 边界规范化的临时状态标识。
     """
 
-    state: StateT
+    state: BattleState
     source: BattleSide
     target: BattleSide
     status_identifier: str
@@ -287,24 +285,24 @@ class ItemEffect(BattleEffect, Protocol):
 
 
 @runtime_checkable
-class ValidateActionEffect(Protocol[StateT, ActionT]):
+class ValidateActionEffect(Protocol[ActionT]):
     """只负责判断一个类型化行动当前是否允许执行。"""
 
     def validate_action(
         self,
-        context: ActionEffectContext[StateT, ActionT],
+        context: ActionEffectContext[ActionT],
     ) -> ActionValidationResult:
         """返回独立校验结论，不执行行动也不修改状态。"""
         ...
 
 
 @runtime_checkable
-class ModifyActionOrderEffect(Protocol[StateT, ActionT]):
+class ModifyActionOrderEffect(Protocol[ActionT]):
     """只负责调整单个行动的显式排序键。"""
 
     def modify_action_order(
         self,
-        context: ActionOrderEffectContext[StateT, ActionT],
+        context: ActionOrderEffectContext[ActionT],
         current: ActionOrder,
     ) -> ActionOrder:
         """基于当前排序键返回新排序键，不重排完整行动列表。"""
@@ -312,14 +310,14 @@ class ModifyActionOrderEffect(Protocol[StateT, ActionT]):
 
 
 @runtime_checkable
-class BeforeMoveEffect(Protocol[StateT, ActionT]):
-    """只在招式执行前转换精确带权后继状态转移。"""
+class BeforeMoveEffect(Protocol[ActionT]):
+    """只在招式执行前转换精确带权 ``BattleState`` 后继分支。"""
 
     def before_move(
         self,
-        context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionSet[StateT],
-    ) -> TransitionSet[StateT]:
+        context: MoveEffectContext[ActionT],
+        transitions: TransitionSet,
+    ) -> TransitionSet:
         """返回新的带权转移集合，不原地修改输入状态或共享集合。"""
         ...
 
@@ -334,52 +332,52 @@ class ModifyDamageEffect(Protocol):
 
 
 @runtime_checkable
-class PreventVolatileStatusEffect(Protocol[StateT]):
+class PreventVolatileStatusEffect(Protocol):
     """只判断指定临时状态是否应被阻止。"""
 
     def prevent_volatile_status(
         self,
-        context: VolatileStatusEffectContext[StateT],
+        context: VolatileStatusEffectContext,
     ) -> StatusPreventionResult:
         """返回状态阻止结论，不直接清理或写入状态字段。"""
         ...
 
 
 @runtime_checkable
-class AfterMoveSelectedEffect(Protocol[StateT, ActionT]):
+class AfterMoveSelectedEffect(Protocol[ActionT]):
     """只在行动选定后、执行前转换精确带权后继状态转移。"""
 
     def after_move_selected(
         self,
-        context: ActionEffectContext[StateT, ActionT],
-        transitions: TransitionSet[StateT],
-    ) -> TransitionSet[StateT]:
+        context: ActionEffectContext[ActionT],
+        transitions: TransitionSet,
+    ) -> TransitionSet:
         """返回新的带权转移集合，用于锁招等选招后机制。"""
         ...
 
 
 @runtime_checkable
-class AfterDamageEffect(Protocol[StateT, ActionT]):
+class AfterDamageEffect(Protocol[ActionT]):
     """只在伤害结算后转换精确带权后继状态转移。"""
 
     def after_damage(
         self,
-        context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionSet[StateT],
-    ) -> TransitionSet[StateT]:
+        context: MoveEffectContext[ActionT],
+        transitions: TransitionSet,
+    ) -> TransitionSet:
         """返回新的带权转移集合，用于反伤、吸血或消耗品等后续扩展。"""
         ...
 
 
 @runtime_checkable
-class TurnEndEffect(Protocol[StateT]):
+class TurnEndEffect(Protocol):
     """只在回合结束阶段转换精确带权后继状态转移。"""
 
     def on_turn_end(
         self,
-        context: TurnEndEffectContext[StateT],
-        transitions: TransitionSet[StateT],
-    ) -> TransitionSet[StateT]:
+        context: TurnEndEffectContext,
+        transitions: TransitionSet,
+    ) -> TransitionSet:
         """返回新的带权转移集合，用于回合结束伤害、回复和清理。"""
         ...
 
