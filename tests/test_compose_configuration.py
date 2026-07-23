@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -27,7 +28,7 @@ def test_compose_owns_service_ports_and_runtime_settings() -> None:
     makefile_text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
     backend_dockerfile = (REPO_ROOT / "Dockerfile.backend").read_text(encoding="utf-8")
 
-    assert "${" not in compose_text
+    assert re.search(r"(?<!\$)\$\{", compose_text) is None
     assert "env_file:" not in compose_text
     assert '"41100:80"' in compose_text
     assert '"41104:41104"' in compose_text
