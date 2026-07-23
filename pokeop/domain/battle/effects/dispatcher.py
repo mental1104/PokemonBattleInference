@@ -22,20 +22,20 @@ from pokeop.domain.battle.effects.protocols import (
     MoveEffectContext,
     PreventVolatileStatusEffect,
     StatusPreventionReport,
-    TransitionBatch,
+    TransitionSet,
     TurnEndEffect,
     TurnEndEffectContext,
     ValidateActionEffect,
     VolatileStatusEffectContext,
 )
+from pokeop.domain.battle.transitions import StateKeyed, validate_transition_distribution
 
-StateT = TypeVar("StateT")
+StateT = TypeVar("StateT", bound=StateKeyed)
 ActionT = TypeVar("ActionT")
-TransitionT = TypeVar("TransitionT")
 
 
 @dataclass(frozen=True, slots=True)
-class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
+class BattleEffectDispatcher(Generic[StateT, ActionT]):
     """按窄 Protocol 能力分发 battle effect，不识别任何具体机制名称。
 
     dispatcher 在构建时只检查 effect 实现了哪些阶段方法，并把它放入对应的
@@ -47,26 +47,22 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
     _modify_action_order_effects: tuple[
         ModifyActionOrderEffect[StateT, ActionT], ...
     ]
-    _before_move_effects: tuple[
-        BeforeMoveEffect[StateT, ActionT, TransitionT], ...
-    ]
+    _before_move_effects: tuple[BeforeMoveEffect[StateT, ActionT], ...]
     _modify_damage_effects: tuple[ModifyDamageEffect, ...]
     _prevent_volatile_status_effects: tuple[
         PreventVolatileStatusEffect[StateT], ...
     ]
     _after_move_selected_effects: tuple[
-        AfterMoveSelectedEffect[StateT, ActionT, TransitionT], ...
+        AfterMoveSelectedEffect[StateT, ActionT], ...
     ]
-    _after_damage_effects: tuple[
-        AfterDamageEffect[StateT, ActionT, TransitionT], ...
-    ]
-    _turn_end_effects: tuple[TurnEndEffect[StateT, TransitionT], ...]
+    _after_damage_effects: tuple[AfterDamageEffect[StateT, ActionT], ...]
+    _turn_end_effects: tuple[TurnEndEffect[StateT], ...]
 
     @classmethod
     def from_effects(
         cls,
         effects: Iterable[BattleEffect],
-    ) -> "BattleEffectDispatcher[StateT, ActionT, TransitionT]":
+    ) -> "BattleEffectDispatcher[StateT, ActionT]":
         """根据 effect 实际实现的窄协议构建 dispatcher。
 
         Args:
@@ -89,7 +85,7 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
                 if isinstance(effect, ModifyActionOrderEffect)
             ),
             _before_move_effects=tuple(
-                cast(BeforeMoveEffect[StateT, ActionT, TransitionT], effect)
+                cast(BeforeMoveEffect[StateT, ActionT], effect)
                 for effect in effect_tuple
                 if isinstance(effect, BeforeMoveEffect)
             ),
@@ -104,17 +100,17 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
                 if isinstance(effect, PreventVolatileStatusEffect)
             ),
             _after_move_selected_effects=tuple(
-                cast(AfterMoveSelectedEffect[StateT, ActionT, TransitionT], effect)
+                cast(AfterMoveSelectedEffect[StateT, ActionT], effect)
                 for effect in effect_tuple
                 if isinstance(effect, AfterMoveSelectedEffect)
             ),
             _after_damage_effects=tuple(
-                cast(AfterDamageEffect[StateT, ActionT, TransitionT], effect)
+                cast(AfterDamageEffect[StateT, ActionT], effect)
                 for effect in effect_tuple
                 if isinstance(effect, AfterDamageEffect)
             ),
             _turn_end_effects=tuple(
-                cast(TurnEndEffect[StateT, TransitionT], effect)
+                cast(TurnEndEffect[StateT], effect)
                 for effect in effect_tuple
                 if isinstance(effect, TurnEndEffect)
             ),
@@ -124,7 +120,7 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
     def from_family(
         cls,
         family: BattleEffectFamily,
-    ) -> "BattleEffectDispatcher[StateT, ActionT, TransitionT]":
+    ) -> "BattleEffectDispatcher[StateT, ActionT]":
         """由抽象工厂创建的完整产品族构建 dispatcher。
 
         Args:
@@ -182,26 +178,42 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
             current = effect.modify_action_order(context, current)
         return current
 
+    @staticmethod
+    def _validated_transitions(
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """校验阶段 effect 返回的精确概率分布，并冻结为 tuple。
+
+        Args:
+            transitions: 一个完整随机事件产生的带权后继状态集合。
+
+        Returns:
+            概率严格归一化为 1 的不可变转移元组。
+        """
+        return validate_transition_distribution(transitions)
+
     def after_move_selected(
         self,
         context: ActionEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """按注册顺序应用选招后 effect 并返回新转移批次。"""
-        current = transitions
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """按注册顺序应用选招后 effect，并校验每一步的概率分布。"""
+        current = self._validated_transitions(transitions)
         for effect in self._after_move_selected_effects:
-            current = effect.after_move_selected(context, current)
+            current = self._validated_transitions(
+                effect.after_move_selected(context, current)
+            )
         return current
 
     def before_move(
         self,
         context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """按注册顺序应用招式执行前 effect 并返回新转移批次。"""
-        current = transitions
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """按注册顺序应用招式执行前 effect，并校验每一步的概率分布。"""
+        current = self._validated_transitions(transitions)
         for effect in self._before_move_effects:
-            current = effect.before_move(context, current)
+            current = self._validated_transitions(effect.before_move(context, current))
         return current
 
     def modify_damage(
@@ -238,23 +250,23 @@ class BattleEffectDispatcher(Generic[StateT, ActionT, TransitionT]):
     def after_damage(
         self,
         context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """按注册顺序应用伤害结算后 effect 并返回新转移批次。"""
-        current = transitions
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """按注册顺序应用伤害结算后 effect，并校验每一步的概率分布。"""
+        current = self._validated_transitions(transitions)
         for effect in self._after_damage_effects:
-            current = effect.after_damage(context, current)
+            current = self._validated_transitions(effect.after_damage(context, current))
         return current
 
     def on_turn_end(
         self,
         context: TurnEndEffectContext[StateT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """按注册顺序应用回合结束 effect 并返回新转移批次。"""
-        current = transitions
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """按注册顺序应用回合结束 effect，并校验每一步的概率分布。"""
+        current = self._validated_transitions(transitions)
         for effect in self._turn_end_effects:
-            current = effect.on_turn_end(context, current)
+            current = self._validated_transitions(effect.on_turn_end(context, current))
         return current
 
 
