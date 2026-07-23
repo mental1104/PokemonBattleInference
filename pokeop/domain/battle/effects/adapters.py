@@ -1,19 +1,27 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
+from pokeop.domain.battle.actions import BattleAction
 from pokeop.domain.battle.ability_effects import (
     AbilityDamageEffect,
     AbilityEffectResult,
 )
 from pokeop.domain.battle.effects.protocols import (
+    ActionEffectContext,
+    AfterMoveSelectedEffect,
     DamageEffectApplication,
     DamageEffectContext,
     DamageEffectResult,
     DamageEffectStage,
     EffectCoverage,
+    TransitionSet,
 )
-from pokeop.domain.battle.item_effects import ItemDamageEffect, ItemEffectResult
+from pokeop.domain.battle.item_effects import (
+    ItemCoverageDetailEffect,
+    ItemDamageEffect,
+    ItemEffectResult,
+)
 
 
 def _ability_result(result: AbilityEffectResult | None) -> DamageEffectResult:
@@ -106,14 +114,35 @@ class AbilityDamageEffectAdapter:
 
 @dataclass(frozen=True, slots=True)
 class ItemDamageEffectAdapter:
-    """把现有 ``ItemDamageEffect`` 接入新的窄 ``ModifyDamageEffect`` 协议。
+    """把既有道具效果接入伤害与选招后的类型化阶段协议。
 
-    适配器保留 Choice Band、Choice Specs、Eviolite、Life Orb 和 Expert Belt 的
-    既有实现，使工厂迁移不会一次性推翻当前伤害责任链测试。
+    适配器保留 Choice Band、Choice Specs、Eviolite、Life Orb 和 Expert Belt 的旧伤害
+    入口；当被包装的具体效果额外实现 ``AfterMoveSelectedEffect`` 时，再显式转发选招
+    后状态转换。该兼容层不理解任何道具 identifier，也不自行创建锁招状态。
     """
 
     coverage: EffectCoverage
     wrapped: ItemDamageEffect
+
+    def __post_init__(self) -> None:
+        """把具体效果声明的覆盖边界合并进工厂所属规则集记录。
+
+        工厂继续负责 ruleset、来源、identifier 与 supported 状态；具体效果只补充 reason。
+        合并后的同一份记录会同时写入 adapter 和具体效果副本，保证产品族内外看到的
+        规则集与覆盖状态完全一致。
+        """
+        if not isinstance(self.wrapped, ItemCoverageDetailEffect):
+            return
+        resolved_coverage = replace(
+            self.coverage,
+            reason=self.wrapped.coverage_reason,
+        )
+        object.__setattr__(self, "coverage", resolved_coverage)
+        object.__setattr__(
+            self,
+            "wrapped",
+            self.wrapped.with_coverage(resolved_coverage),
+        )
 
     def modify_damage(self, context: DamageEffectContext) -> DamageEffectResult:
         """按显式伤害阶段调用旧 item effect 对应能力。
@@ -147,6 +176,25 @@ class ItemDamageEffectAdapter:
             ):
                 return DamageEffectResult.inactive()
         raise AssertionError(f"unhandled damage effect stage: {context.stage!r}")
+
+    def after_move_selected(
+        self,
+        context: ActionEffectContext[BattleAction],
+        transitions: TransitionSet,
+    ) -> TransitionSet:
+        """把选招后阶段转发给确实实现该窄协议的具体道具效果。
+
+        Args:
+            context: 当前不可变战斗状态、行动方和已选定行动。
+            transitions: 当前完整且已归一化的状态转移集合。
+
+        Returns:
+            具体道具效果转换后的新转移集合；旧道具只支持伤害阶段时原样返回输入。
+        """
+        if not isinstance(self.wrapped, AfterMoveSelectedEffect):
+            # 兼容旧伤害道具时保持显式 no-op，不把锁招逻辑散落到通用适配器。
+            return transitions
+        return self.wrapped.after_move_selected(context, transitions)
 
 
 __all__ = ["AbilityDamageEffectAdapter", "ItemDamageEffectAdapter"]
