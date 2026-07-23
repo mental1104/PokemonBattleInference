@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import type { PokemonSearchItem } from '../api/calculator';
 import CalculationScope from '../components/CalculationScope.vue';
 import DamageResult from '../components/DamageResult.vue';
 import MoveSelector from '../components/MoveSelector.vue';
@@ -7,13 +8,37 @@ import PokemonSelector from '../components/PokemonSelector.vue';
 import PokemonSummaryCard from '../components/PokemonSummaryCard.vue';
 import StatPresetSelector from '../components/StatPresetSelector.vue';
 import { useDamageCalculator } from '../composables/useDamageCalculator';
+import { useRecentPokemon } from '../composables/useRecentPokemon';
 
 const calculator = useDamageCalculator();
+const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
 
 /** 初始化页面所需的服务端模板。 */
 onMounted(() => {
   void calculator.loadPresets();
 });
+
+/**
+ * 记录攻击方选择并交给 calculator 加载详情和招式。
+ *
+ * @param pokemon 用户在攻击方选择器中选中的 Pokémon。
+ */
+async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
+  // 先更新页面内存，使防守方选择器无需等待详情请求即可看到最近记录。
+  rememberPokemon(pokemon);
+  await calculator.selectAttacker(pokemon);
+}
+
+/**
+ * 记录防守方选择并交给 calculator 加载详情。
+ *
+ * @param pokemon 用户在防守方选择器中选中的 Pokémon。
+ */
+async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
+  // 两侧共享同一个 store，但只更新当前被操作一侧的 calculator 选择。
+  rememberPokemon(pokemon);
+  await calculator.selectDefender(pokemon);
+}
 </script>
 
 <template>
@@ -32,7 +57,8 @@ onMounted(() => {
           title="攻击方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
           :selected="calculator.attacker.value"
-          @select="calculator.selectAttacker"
+          :recent-pokemon="recentPokemon"
+          @select="selectAttacker"
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
         <MoveSelector
@@ -54,7 +80,8 @@ onMounted(() => {
           title="防守方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
           :selected="calculator.defender.value"
-          @select="calculator.selectDefender"
+          :recent-pokemon="recentPokemon"
+          @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
         <StatPresetSelector
