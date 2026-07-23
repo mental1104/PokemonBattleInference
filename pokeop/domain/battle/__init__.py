@@ -10,9 +10,28 @@ from pokeop.domain.battle.context import (
 )
 from pokeop.domain.battle.environment import BattleEnvironment
 from pokeop.domain.battle.grounding import GroundingState, is_grounded
+from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifier_keys import ModifierKey
+from pokeop.domain.battle.move_slots import MoveSlotState
 from pokeop.domain.battle.side_conditions import SideConditions
+from pokeop.domain.battle.specs import (
+    InvalidBattleState,
+    MoveSpec,
+    MoveSpecKey,
+    PokemonSpec,
+    PokemonSpecKey,
+)
+from pokeop.domain.battle.state import (
+    BattleFieldState,
+    BattlePhase,
+    BattleState,
+    BattlerState,
+    BattlerStateKey,
+    StateKey,
+    StatStageField,
+    StatStages,
+)
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.transitions import (
     StateKeyed,
@@ -32,17 +51,32 @@ from pokeop.domain.battle.weather import Weather
 
 __all__ = [
     "BattleEnvironment",
+    "BattleFieldState",
     "BattleMove",
+    "BattlePhase",
     "BattlePokemon",
+    "BattleSide",
+    "BattleState",
+    "BattlerState",
+    "BattlerStateKey",
     "DamageAbility",
     "DamageContext",
     "DamageContextBuilder",
     "DamageItem",
     "GroundingState",
+    "InvalidBattleState",
     "ModifierKey",
     "MoveCategory",
+    "MoveSlotState",
+    "MoveSpec",
+    "MoveSpecKey",
+    "PokemonSpec",
+    "PokemonSpecKey",
     "SideConditions",
+    "StateKey",
     "StateKeyed",
+    "StatStageField",
+    "StatStages",
     "Terrain",
     "TransitionEvent",
     "TransitionEventSummary",
