@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from fastapi import HTTPException
 
 from pokeop.api.schemas.inference import (
@@ -14,14 +12,10 @@ from pokeop.api.schemas.inference import (
 from pokeop.application.battle_inference_effect_factory import (
     TransparentPokemonChampionEffectFactory,
 )
-from pokeop.application.configuration_space import (
-    ConfigurationSpaceError,
-    MechanismSupportStatus,
-    PokemonConfigurationProfile,
+from pokeop.application.composition.battle_inference_repository import (
+    FactoryReconciledBattleInferenceRepository,
 )
-from pokeop.application.repositories.battle_inference import (
-    BattleInferencePokemonProfile,
-)
+from pokeop.application.configuration_space import ConfigurationSpaceError
 from pokeop.application.use_cases.infer_one_on_one_battle import (
     BattleActionPolicyKind,
     BattleInferenceExecutionError,
@@ -43,53 +37,23 @@ _WEAVILE_ID = 461
 _BRICK_BREAK_ID = 280
 _ICE_PUNCH_ID = 8
 _FAKE_OUT_ID = 252
-_NEUTRAL_ABILITY_IDENTIFIERS = frozenset({"pressure", "pickpocket"})
-
-
-class _JourneyInferenceUseCase(InferOneOnOneBattleUseCase):
-    """为页面旅程显式放行采用中性假设的合法特性候选。"""
-
-    @staticmethod
-    def _configuration_profile(
-        profile: BattleInferencePokemonProfile,
-        rules: BattleInferenceRules,
-    ) -> PokemonConfigurationProfile:
-        """把中性假设白名单从 repository unsupported 转成可执行候选。
-
-        Args:
-            profile: persistence 已还原当前 version group 的 Pokémon profile。
-            rules: 当前推演规则轴。
-
-        Returns:
-            保留全部原候选，并只把透明工厂可解释处理的特性标记为可执行的配置 profile。
-        """
-        converted = InferOneOnOneBattleUseCase._configuration_profile(profile, rules)
-        return replace(
-            converted,
-            abilities=tuple(
-                replace(
-                    ability,
-                    support_status=MechanismSupportStatus.SUPPORTED,
-                    support_reason=(
-                        "该合法特性尚未实现；页面旅程采用透明中性假设并在结果中报告缺口。"
-                    ),
-                )
-                if ability.identifier in _NEUTRAL_ABILITY_IDENTIFIERS
-                else ability
-                for ability in converted.abilities
-            ),
-        )
 
 
 def _use_case() -> InferOneOnOneBattleUseCase:
     """创建 HTTP 边界使用的完整推演 composition root。
 
     Returns:
-        使用物化视图 repository、透明中性特性假设和精确图求解器的 application 用例。
+        使用物化视图 repository、factory 覆盖对账、透明中性特性假设和精确图求解器的
+        application 用例。
     """
-    return _JourneyInferenceUseCase(
+    effect_factory = TransparentPokemonChampionEffectFactory()
+    repository = FactoryReconciledBattleInferenceRepository(
         repository=MaterializedViewBattleInferenceRepository(),
-        effect_factory=TransparentPokemonChampionEffectFactory(),
+        effect_factory=effect_factory,
+    )
+    return InferOneOnOneBattleUseCase(
+        repository=repository,
+        effect_factory=effect_factory,
     )
 
 
