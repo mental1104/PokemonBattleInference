@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Hashable
 
 import pytest
 
@@ -22,24 +21,14 @@ from pokeop.domain.battle.effects import (
     PokemonChampionEffectFactory,
 )
 from pokeop.domain.battle.items import DamageItem
+from pokeop.domain.battle.state import BattleState
 from pokeop.domain.battle.transitions import WeightedTransition
+from tests.domain.battle.effect_test_helpers import build_effect_test_battle_state
 from tests.domain.battle.helpers import (
     BattleMoveFactory,
     BattlePokemonFactory,
     damage_context,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class StubBattleState:
-    """测试用可哈希状态，只通过 value 定义未来战斗语义。"""
-
-    value: str
-
-    @property
-    def state_key(self) -> Hashable:
-        """返回供 ``WeightedTransition`` 验证和归并使用的稳定键。"""
-        return self.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,15 +39,26 @@ class RegisteredMoveEffect:
 
     def before_move(
         self,
-        context: MoveEffectContext[StubBattleState, str],
-        transitions: tuple[WeightedTransition[StubBattleState], ...],
-    ) -> tuple[WeightedTransition[StubBattleState], ...]:
-        """返回状态已追加 actor/action 说明的新精确带权转移集合。"""
+        context: MoveEffectContext[str],
+        transitions: tuple[WeightedTransition[BattleState], ...],
+    ) -> tuple[WeightedTransition[BattleState], ...]:
+        """通过不可变更新把行动方 HP 减一，证明 registry 可接入 #21 状态模型。
+
+        Args:
+            context: 包含真实 ``BattleState``、行动方和类型化测试行动的上下文。
+            transitions: 已归一化的 #23 带权 ``BattleState`` 分支。
+
+        Returns:
+            保留概率和事件摘要、仅替换行动方 HP 的新转移集合。
+        """
         return tuple(
             WeightedTransition(
                 probability=transition.probability,
-                state=StubBattleState(
-                    f"{transition.state.value}|{context.actor.value}:{context.action}"
+                state=transition.state.with_battler(
+                    context.actor,
+                    transition.state.battler(context.actor).with_current_hp(
+                        transition.state.battler(context.actor).current_hp - 1
+                    ),
                 ),
                 event_summary=transition.event_summary,
                 source_key=transition.source_key,
@@ -68,7 +68,11 @@ class RegisteredMoveEffect:
 
 
 def _registered_move_effect() -> RegisteredMoveEffect:
-    """创建属于 Pokemon Champion 规则集的测试招式 effect。"""
+    """创建属于 Pokemon Champion 规则集的测试招式 effect。
+
+    Returns:
+        带 supported 覆盖记录且只实现 ``BeforeMoveEffect`` 的测试产品。
+    """
     return RegisteredMoveEffect(
         EffectCoverage(
             ruleset_id=PokemonChampionEffectFactory.RULESET_ID,
@@ -135,7 +139,7 @@ class TestPokemonChampionEffectFactory:
     def test_new_registered_move_effect_is_dispatched_without_dispatcher_changes(
         self,
     ) -> None:
-        """新增实现和注册项后，既有 dispatcher 应自动识别其窄阶段协议。"""
+        """新增实现和注册项后，dispatcher 应自动转换真实 ``BattleState``。"""
         factory = PokemonChampionEffectFactory(
             move_registry=EffectRegistry(
                 (EffectRegistration("registered_move", _registered_move_effect),)
@@ -146,25 +150,25 @@ class TestPokemonChampionEffectFactory:
             ability_identifier=None,
             item_identifier=None,
         )
-        dispatcher = BattleEffectDispatcher[StubBattleState, str].from_family(family)
+        dispatcher = BattleEffectDispatcher[str].from_family(family)
+        state = build_effect_test_battle_state()
         context = MoveEffectContext(
-            state=StubBattleState("turn-state"),
+            state=state,
             actor=BattleSide.ATTACKER,
             action="sample-action",
         )
         transitions = (
             WeightedTransition(
                 probability=Fraction(1, 1),
-                state=StubBattleState("initial"),
+                state=state,
             ),
         )
 
         result = dispatcher.before_move(context, transitions)
 
-        assert result[0].state == StubBattleState(
-            "initial|attacker:sample-action"
-        )
+        assert result[0].state.attacker.current_hp == state.attacker.current_hp - 1
         assert result[0].probability == Fraction(1, 1)
+        assert state.attacker.current_hp == state.attacker.spec.stats.hp
 
     def test_unknown_identifiers_are_reported_as_unsupported(self) -> None:
         """未知机制必须进入覆盖结果，不能伪装成 no-op 或完整支持。"""
@@ -173,7 +177,7 @@ class TestPokemonChampionEffectFactory:
             ability_identifier="future-ability",
             item_identifier="future-item",
         )
-        dispatcher = BattleEffectDispatcher[StubBattleState, object].from_family(family)
+        dispatcher = BattleEffectDispatcher[object].from_family(family)
 
         assert tuple(item.status for item in family.coverage) == (
             EffectCoverageStatus.UNSUPPORTED,
@@ -214,7 +218,7 @@ class TestPokemonChampionEffectFactory:
             ability_identifier=DamageAbility.TECHNICIAN,
             item_identifier=DamageItem.CHOICE_BAND,
         )
-        dispatcher = BattleEffectDispatcher[StubBattleState, object].from_family(family)
+        dispatcher = BattleEffectDispatcher[object].from_family(family)
         context = damage_context(
             attacker=BattlePokemonFactory.scizor("max_atk_neutral"),
             defender=BattlePokemonFactory.sylveon("max_hp"),
