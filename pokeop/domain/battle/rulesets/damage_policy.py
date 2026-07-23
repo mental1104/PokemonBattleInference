@@ -101,7 +101,12 @@ class EnvironmentPolicy:
 
 @dataclass(frozen=True)
 class DamagePolicy(EnvironmentPolicy):
-    """Battle ruleset policy for direct-damage multipliers and feature gates."""
+    """集中声明直接伤害阶段使用的规则集倍率和功能边界。
+
+    Attributes:
+        multiscale_damage_multiplier: 多重鳞片在持有者满 HP 时应用于直接伤害的倍率；
+            默认 0.5，具体规则集可以显式覆盖。
+    """
 
     same_type_attack_bonus_multiplier: float = 1.5
     technician_base_power_threshold: int = 60
@@ -110,6 +115,7 @@ class DamagePolicy(EnvironmentPolicy):
     thick_fat_damage_multiplier: float = 0.5
     filter_damage_multiplier: float = 0.75
     sniper_critical_multiplier: float = 1.5
+    multiscale_damage_multiplier: float = 0.5
     life_orb_damage_multiplier: float = 1.3
     choice_item_attack_multiplier: float = 1.5
     expert_belt_damage_multiplier: float = 1.2
@@ -118,6 +124,11 @@ class DamagePolicy(EnvironmentPolicy):
     random_damage_multipliers: tuple[float, ...] = STANDARD_RANDOM_DAMAGE_MULTIPLIERS
 
     def __post_init__(self) -> None:
+        """校验全部伤害倍率、阈值和随机档位都可安全参与计算。
+
+        Raises:
+            ValueError: 任一倍率或技术高手阈值为负，或随机伤害档位为空。
+        """
         super().__post_init__()
         _validate_positive_multiplier(
             self.same_type_attack_bonus_multiplier,
@@ -144,6 +155,10 @@ class DamagePolicy(EnvironmentPolicy):
         _validate_positive_multiplier(
             self.sniper_critical_multiplier,
             "sniper_critical_multiplier",
+        )
+        _validate_positive_multiplier(
+            self.multiscale_damage_multiplier,
+            "multiscale_damage_multiplier",
         )
         _validate_positive_multiplier(
             self.life_orb_damage_multiplier,

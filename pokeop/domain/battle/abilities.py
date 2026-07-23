@@ -15,7 +15,7 @@ def _normalize_identifier(identifier: str) -> str:
 
 @unique
 class DamageAbility(str, Enum):
-    """Damage-relevant ability identifiers supported by the battle domain."""
+    """表示当前 battle domain 已识别并可创建 effect 的特性标识。"""
 
     UNKNOWN = "unknown"
     TECHNICIAN = "technician"
@@ -24,10 +24,16 @@ class DamageAbility(str, Enum):
     FILTER = "filter"
     SOLID_ROCK = "solid_rock"
     SNIPER = "sniper"
+    MULTISCALE = "multiscale"
+    INNER_FOCUS = "inner_focus"
 
     @property
     def trace_key(self) -> ModifierKey:
-        """Return the modifier trace key for this ability."""
+        """返回该特性用于伤害 trace 或机制诊断的稳定键。
+
+        Returns:
+            与当前枚举成员一一对应的 ``ModifierKey``。
+        """
         match self:
             case DamageAbility.UNKNOWN:
                 return ModifierKey.ABILITY_UNKNOWN
@@ -43,14 +49,25 @@ class DamageAbility(str, Enum):
                 return ModifierKey.ABILITY_SOLID_ROCK
             case DamageAbility.SNIPER:
                 return ModifierKey.ABILITY_SNIPER
+            case DamageAbility.MULTISCALE:
+                return ModifierKey.ABILITY_MULTISCALE
+            case DamageAbility.INNER_FOCUS:
+                return ModifierKey.ABILITY_INNER_FOCUS
         raise AssertionError(f"unhandled damage ability: {self!r}")
 
     def create_effect(self) -> "AbilityDamageEffect":
-        """Build the damage effect implementation represented by this enum member."""
+        """创建该特性对应的兼容 domain effect。
+
+        Returns:
+            已知特性的具体 effect；``UNKNOWN`` 返回显式 no-op 实现。具体 effect 可以
+            在旧伤害接口之外额外实现动态伤害或临时状态阻止窄协议。
+        """
         from pokeop.domain.battle.ability_effects import (
             AdaptabilityEffect,
             BaseAbilityDamageEffect,
             FilterEffect,
+            InnerFocusEffect,
+            MultiscaleEffect,
             SniperEffect,
             SolidRockEffect,
             TechnicianEffect,
@@ -72,6 +89,10 @@ class DamageAbility(str, Enum):
                 return SolidRockEffect()
             case DamageAbility.SNIPER:
                 return SniperEffect()
+            case DamageAbility.MULTISCALE:
+                return MultiscaleEffect()
+            case DamageAbility.INNER_FOCUS:
+                return InnerFocusEffect()
         raise AssertionError(f"unhandled damage ability: {self!r}")
 
     @classmethod
@@ -108,6 +129,9 @@ _ABILITY_ALIASES: dict[str, DamageAbility] = {
     "堅硬岩石": DamageAbility.SOLID_ROCK,
     "狙击手": DamageAbility.SNIPER,
     "狙擊手": DamageAbility.SNIPER,
+    "多重鳞片": DamageAbility.MULTISCALE,
+    "多重鱗片": DamageAbility.MULTISCALE,
+    "精神力": DamageAbility.INNER_FOCUS,
 }
 
 
