@@ -21,6 +21,7 @@ class PokemonSearchItem(BaseModel):
     form_identifier: str | None = Field(default=None, description="默认形态标识。")
     types: list[str] = Field(description="英文属性标识列表。")
     type_names: list[str] = Field(description="中文属性名列表。")
+    sprite_url: str = Field(description="项目内 front_default 图片 URL。")
 
 
 class PokemonDetailResponse(PokemonSearchItem):
@@ -72,6 +73,7 @@ class ResultPokemon(BaseModel):
     pokemon_id: int
     identifier: str
     display_name: str
+    sprite_url: str
     level: int
     preset_label: str
     preset_assumption: str
@@ -161,7 +163,33 @@ def _stats_to_dict(stats: StatValues) -> dict[str, int]:
     }
 
 
-def pokemon_search_item_from_result(result: CalculatorPokemonSearchResult) -> PokemonSearchItem:
+def _pokemon_sprite_url(
+    *,
+    ruleset_id: str,
+    pokemon_id: int,
+    slot: str = "front_default",
+) -> str:
+    """按前端代理路径构造项目内图片 URL。
+
+    Args:
+        ruleset_id: 当前规则集标识。
+        pokemon_id: PokeAPI pokemon_id。
+        slot: 图片槽位，第一阶段使用 front_default。
+
+    Returns:
+        浏览器可直接加载的相对 URL；后端 assets API 负责不存在时返回 404。
+    """
+    return (
+        f"/api/v1/assets/pokemon/{pokemon_id}/sprite"
+        f"?ruleset_id={ruleset_id}&slot={slot}"
+    )
+
+
+def pokemon_search_item_from_result(
+    result: CalculatorPokemonSearchResult,
+    *,
+    ruleset_id: str,
+) -> PokemonSearchItem:
     """把 application 宝可梦搜索结果转换成 HTTP schema。"""
     return PokemonSearchItem(
         pokemon_id=result.pokemon_id,
@@ -170,10 +198,15 @@ def pokemon_search_item_from_result(result: CalculatorPokemonSearchResult) -> Po
         form_identifier=result.form_identifier,
         types=list(result.types),
         type_names=list(result.type_names),
+        sprite_url=_pokemon_sprite_url(ruleset_id=ruleset_id, pokemon_id=result.pokemon_id),
     )
 
 
-def pokemon_detail_from_profile(profile: CalculatorPokemonProfile) -> PokemonDetailResponse:
+def pokemon_detail_from_profile(
+    profile: CalculatorPokemonProfile,
+    *,
+    ruleset_id: str,
+) -> PokemonDetailResponse:
     """把 application 宝可梦详情读取模型转换成 HTTP schema。"""
     return PokemonDetailResponse(
         pokemon_id=profile.pokemon_id,
@@ -182,6 +215,7 @@ def pokemon_detail_from_profile(profile: CalculatorPokemonProfile) -> PokemonDet
         form_identifier=profile.form_identifier,
         types=[type_value.name.lower() for type_value in profile.types],
         type_names=list(profile.type_names),
+        sprite_url=_pokemon_sprite_url(ruleset_id=ruleset_id, pokemon_id=profile.pokemon_id),
         base_stats=_stats_to_dict(profile.base_stats),
     )
 
@@ -221,6 +255,10 @@ def damage_response_from_result(result: CalculateCatalogDamageResult) -> Calcula
             pokemon_id=result.attacker.pokemon_id,
             identifier=result.attacker.identifier,
             display_name=result.attacker.display_name,
+            sprite_url=_pokemon_sprite_url(
+                ruleset_id=result.ruleset.ruleset_id,
+                pokemon_id=result.attacker.pokemon_id,
+            ),
             level=result.attacker.level,
             preset_label=result.attacker.preset.label,
             preset_assumption=result.attacker.preset.assumption,
@@ -231,6 +269,10 @@ def damage_response_from_result(result: CalculateCatalogDamageResult) -> Calcula
             pokemon_id=result.defender.pokemon_id,
             identifier=result.defender.identifier,
             display_name=result.defender.display_name,
+            sprite_url=_pokemon_sprite_url(
+                ruleset_id=result.ruleset.ruleset_id,
+                pokemon_id=result.defender.pokemon_id,
+            ),
             level=result.defender.level,
             preset_label=result.defender.preset.label,
             preset_assumption=result.defender.preset.assumption,

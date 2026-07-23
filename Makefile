@@ -3,33 +3,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 export PS1 :=
 
-# === 自动加载 .env 到 Make 环境 ==========================
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-ENV_SRC   ?= $(REPO_ROOT)/.env
-ENV_HAVE  := $(wildcard $(ENV_SRC))
-
-ifeq ($(strip $(ENV_HAVE)),)
-  ENV_MK := /dev/null
-else
-  ENV_MK := $(abspath $(ENV_SRC)).mk
-
-  $(ENV_MK): $(ENV_SRC)
-	@set -e
-	awk '\
-	  /^[[:space:]]*#/ || /^[[:space:]]*$$/ { next } \
-	  { line=$$0; sub(/^[[:space:]]*export[[:space:]]+/, "", line); \
-	    i=index(line,"="); if(i==0) next; \
-	    key=substr(line,1,i-1); val=substr(line,i+1); \
-	    sub(/^[[:space:]]+|[[:space:]]+$$/,"",key); \
-	    sub(/^[[:space:]]+/,"",val); sub(/[[:space:]]+#.*/, "", val); \
-	    if(val ~ /^".*"$$/){sub(/^"/,"",val); sub(/"$$/,"",val)} \
-	    else if(val ~ /^'\''.*'\''$$/){sub(/^'\''/,"",val); sub(/'\''$$/,"",val)} \
-	    print "export " key " = " val; }' \
-	  "$(ENV_SRC)" > "$(ENV_MK)"
-	echo "[ok] .env -> $(ENV_MK)"
-  include $(ENV_MK)
-endif
-# =========================================================
 
 # --- Common repo resolution (prefer ~/code/common, fallback to ../common) ---
 PREFERRED_COMMON_ROOT := $(HOME)/code/common
@@ -61,9 +35,8 @@ COMMON_PYPROJECT := $(COMMON_PYTHON)/pyproject.toml
 COMMON_REQUIREMENTS := $(COMMON_PYTHON)/requirements.txt
 EXPORT_LAYER_PATH := $(abspath $(COMMON_ROOT)/export/python)
 PARENT_ROOT := $(abspath $(REPO_ROOT)/..)
-COMPOSE_ENV ?= $(REPO_ROOT)/.env.compose
 COMPOSE_FILE ?= $(REPO_ROOT)/docker-compose.yaml
-COMPOSE := docker compose --env-file "$(COMPOSE_ENV)" -f "$(COMPOSE_FILE)"
+COMPOSE := docker compose -f "$(COMPOSE_FILE)"
 
 CLEAN_PATTERNS := \
   __pycache__ \
@@ -88,11 +61,9 @@ CLEAN_PATTERNS := \
   env.bak \
   venv.bak
 
-.PHONY: default install test coverage env-print env-clean clean setup \
-	compose-env-check compose-port-check compose-config compose-up compose-down \
-	compose-rebuild compose-ps compose-logs compose-reset
-
-
+.PHONY: default install test coverage clean setup \
+	compose-config compose-init compose-up compose-down compose-rebuild \
+	compose-assets-rebuild compose-ps compose-logs compose-reset
 
 install:
 	python3 -m pip install -r requirements.txt --break-system-packages
@@ -102,12 +73,6 @@ test:
 
 coverage:
 	pytest --cov=pokemon_battle_inference --cov-report=term-missing
-
-env-print:
-	@env | grep -E '^(PG|PULSAR|REDIS|CLICKHOUSE)' | sort || true
-
-env-clean:
-	@[ "$(ENV_MK)" != "/dev/null" ] && rm -f "$(ENV_MK)" || true
 
 setup:
 	# 1) 创建虚拟环境
@@ -138,40 +103,48 @@ setup:
 	# 3) 安装当前项目的 requirements.txt
 	"$(VENV_PIP)" install -r "$(REPO_ROOT)/requirements.txt"
 
-compose-env-check:
-	@if [ ! -f "$(COMPOSE_ENV)" ]; then \
-	  echo "missing $(COMPOSE_ENV)"; \
-	  echo "copy .env.compose.example to .env.compose and set a local POSTGRES_PASSWORD"; \
-	  exit 2; \
-	fi
+compose-config:
+	$(COMPOSE) --profile ops config --services
 
-compose-port-check: compose-env-check
-	"$(REPO_ROOT)/scripts/check_compose_ports.sh" "$(COMPOSE_ENV)"
+compose-init:
+	$(COMPOSE) build backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
 
-compose-config: compose-env-check
-	$(COMPOSE) config --services
+compose-up:
+	$(COMPOSE) --profile ops config --services >/dev/null
+	$(COMPOSE) build frontend backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
+	$(COMPOSE) up -d backend frontend --remove-orphans
 
-compose-up: compose-env-check compose-port-check
-	$(COMPOSE) config --services >/dev/null
-	$(COMPOSE) up -d --build --remove-orphans
-
-compose-down: compose-env-check
+compose-down:
 	$(COMPOSE) down --remove-orphans
 
-compose-rebuild: compose-env-check compose-port-check
+compose-rebuild:
 	$(COMPOSE) build --no-cache frontend backend
-	$(COMPOSE) up -d --remove-orphans
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init
+	$(COMPOSE) up -d --force-recreate backend frontend --remove-orphans
 
-compose-ps: compose-env-check
+compose-assets-rebuild:
+	$(COMPOSE) build backend
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm db-init \
+	  python3 scripts/reset_postgres_db.py \
+	  --allow-remote-host \
+	  --with-materialized-views
+
+compose-ps:
 	$(COMPOSE) ps
 
-compose-logs: compose-env-check
+compose-logs:
 	$(COMPOSE) logs -f --tail=200
 
-compose-reset: compose-env-check
+compose-reset:
 	$(COMPOSE) down -v --remove-orphans
 
-clean: env-clean
+clean:
 	@echo "Removing common build/cache artifacts (only if gitignored when git metadata is present)"
 	@for pattern in $(CLEAN_PATTERNS); do \
 	  find "$(REPO_ROOT)" -path "$(REPO_ROOT)/.git" -prune -o -name "$$pattern" -print0 | while IFS= read -r -d '' path; do \
@@ -184,8 +157,7 @@ clean: env-clean
 	    fi; \
 	    rm -rf "$$path"; \
 	    echo "removed $$rel_path"; \
-	  done; \
+	  done
 	done
-
 
 .DEFAULT_GOAL := setup

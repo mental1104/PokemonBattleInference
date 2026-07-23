@@ -1,3 +1,15 @@
+x-backend-image: &backend-image pokemon-battle-inference-backend:local
+
+x-postgres-settings:
+  database: &postgres-database pokemon_battle_inference
+  user: &postgres-user pokeop
+
+x-postgres-client-environment: &postgres-client-environment
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: *postgres-database
+  PGUSER: *postgres-user
+
 services:
   frontend:
     build:
@@ -8,11 +20,12 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${POKEOP_FRONTEND_PORT:-41100}:80"
+      - "41100:80"
     networks:
       - default
 
   backend:
+    image: *backend-image
     build:
       context: .
       dockerfile: Dockerfile.backend
@@ -21,12 +34,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PGHOST: postgres
-      PGPORT: "5432"
-      PGDATABASE: ${POSTGRES_DB}
-      PGUSER: ${POSTGRES_USER}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      <<: *postgres-client-environment
       PGAPPNAME: pokemon-battle-inference
+    command: ["uvicorn", "pokeop.main:app", "--host", "0.0.0.0", "--port", "41104"]
     healthcheck:
       test:
         [
@@ -40,7 +50,25 @@ services:
       retries: 12
       start_period: 30s
     ports:
-      - "${POKEOP_BACKEND_PORT:-41104}:41104"
+      - "41104:41104"
+    networks:
+      - default
+
+  db-init:
+    image: *backend-image
+    profiles: ["ops"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *postgres-client-environment
+      PGAPPNAME: pokemon-battle-inference-db-init
+      POKEOP_SPRITES_DIR: /data/pokeapi-sprites:/data/pokeapi-nested-sprites
+    command: ["python3", "-m", "pokeop.persistence.commands.initialize_database"]
+    volumes:
+      - ./submodules/pokeapi-sprites:/data/pokeapi-sprites:ro
+      - ./submodules/pokeapi/data/v2/sprites:/data/pokeapi-nested-sprites:ro
     networks:
       - default
 
@@ -48,16 +76,17 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: *postgres-database
+      POSTGRES_USER: *postgres-user
+      # 仅用于本地 Compose；宿主机发布端口限制在 127.0.0.1，避免 trust 认证暴露到局域网。
+      POSTGRES_HOST_AUTH_METHOD: trust
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 20
     ports:
-      - "${POKEOP_POSTGRES_PORT:-41132}:5432"
+      - "127.0.0.1:41132:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

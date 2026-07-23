@@ -200,6 +200,30 @@ input:disabled {
   padding: 14px;
 }
 
+.summary-layout {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-copy {
+  min-width: 0;
+}
+
+.pokemon-sprite {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.pokemon-sprite.placeholder {
+  border: 1px dashed #bdc9c0;
+  border-radius: 6px;
+  background: #f7faf6;
+}
+
 .summary-name {
   font-size: 20px;
   font-weight: 800;
@@ -289,6 +313,14 @@ input:disabled {
   border-radius: 6px;
   padding: 12px;
   background: #fbfcfa;
+}
+
+.result-sprite {
+  display: block;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 8px;
+  object-fit: contain;
 }
 
 .metric span,

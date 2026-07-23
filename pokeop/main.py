@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
 
@@ -19,26 +18,22 @@ ROUTER_PACKAGE = "pokeop.api.routers"
 COMMON_PREFIX = "/v1"
 
 
-@asynccontextmanager
-async def lifespan(application: FastAPI):
-    """FastAPI 生命周期入口，启动时幂等准备 raw 数据和 calculator 物化视图。"""
-    from pokeop.persistence.bootstrap import init_db
-
-    init_db(create_tables=True, import_csv=True, create_materialized_views=True)
-    yield
-
-
 def create_app() -> FastAPI:
-    """创建 FastAPI 应用并注册静态资源、路由、文档和异常处理器。"""
+    """创建 FastAPI 应用并注册静态资源、路由、文档和异常处理器。
+
+    数据库 schema、CSV 资产和物化视图由独立的一次性初始化命令准备；HTTP 服务
+    生命周期不得修改数据库结构，以便未来安全运行多个 worker 或容器副本。
+
+    Returns:
+        已完成路由和异常处理器注册的 FastAPI 应用。
+    """
     application = FastAPI(
         docs_url=None,
         redoc_url=None,
         title="Blue Espeon",
         description="Blue Espeon's little httpserver",
         version="0.0.1",
-        lifespan=lifespan,
     )
-
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     register_routes(ROUTER_DIR, ROUTER_PACKAGE, COMMON_PREFIX, application)
     register_documentation(application)
@@ -47,7 +42,13 @@ def create_app() -> FastAPI:
 
 
 def include_router(application: FastAPI, module, prefix: str) -> None:
-    """把带有 router 变量的模块挂载到统一 /v1 前缀下。"""
+    """把带有 router 变量的模块挂载到统一 `/v1` 前缀下。
+
+    Args:
+        application: 接收路由注册的 FastAPI 应用。
+        module: 动态导入的 router 模块；没有 `router` 属性时忽略。
+        prefix: 由目录路径推导出的 HTTP 前缀。
+    """
     if hasattr(module, "router"):
         application.include_router(
             module.router,
@@ -59,7 +60,14 @@ def include_router(application: FastAPI, module, prefix: str) -> None:
 def register_routes(
     directory: Path, module_name: str, prefix: str, application: FastAPI
 ) -> None:
-    """递归扫描 api/routers 目录并按文件路径生成路由前缀。"""
+    """递归扫描 `api/routers` 目录并按文件路径生成路由前缀。
+
+    Args:
+        directory: 当前扫描的 router 文件系统目录。
+        module_name: 当前目录对应的 Python package 名称。
+        prefix: 当前目录对应的 HTTP 路径前缀。
+        application: 接收路由注册的 FastAPI 应用。
+    """
     if not directory.exists():
         return
     for entry in sorted(directory.iterdir()):
@@ -78,11 +86,15 @@ def register_routes(
 
 
 def register_documentation(application: FastAPI) -> None:
-    """注册使用本地静态资源的 Swagger UI 页面。"""
+    """注册使用本地静态资源的 Swagger UI 页面。
+
+    Args:
+        application: 接收文档路由注册的 FastAPI 应用。
+    """
 
     @application.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
-        """返回绑定本地 swagger 静态文件的文档页面。"""
+        """返回绑定本地 Swagger 静态文件的文档页面。"""
         return get_swagger_ui_html(
             openapi_url=application.openapi_url,
             title=application.title + " - ",
@@ -92,11 +104,23 @@ def register_documentation(application: FastAPI) -> None:
 
 
 def register_exception_handlers(application: FastAPI) -> None:
-    """注册统一异常处理器，保持 HTTP 错误响应结构稳定。"""
+    """注册统一异常处理器，保持 HTTP 错误响应结构稳定。
+
+    Args:
+        application: 接收异常处理器注册的 FastAPI 应用。
+    """
 
     @application.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """把 FastAPI/Pydantic 校验错误转换成 JSON 响应。"""
+        """把 FastAPI/Pydantic 校验错误转换成稳定 JSON 响应。
+
+        Args:
+            request: 触发校验错误的 HTTP 请求；当前仅保留以满足处理器签名。
+            exc: FastAPI 捕获的请求校验异常。
+
+        Returns:
+            HTTP 422 JSON 响应，`detail` 保存可序列化的校验错误列表。
+        """
         return JSONResponse(
             status_code=422,
             content={"detail": jsonable_encoder(exc.errors())},

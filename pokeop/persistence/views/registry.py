@@ -100,6 +100,32 @@ MATERIALIZED_VIEWS: Sequence[MaterializedView] = (
         ),
         comment="Pokemon Champion zh-Hans catalog view for manual SQL analysis.",
     ),
+    MaterializedView(
+        schema=CHAMPION_SCHEMA,
+        name="pokemon_sprite_candidates_mv",
+        select_sql="poke_champion/pokemon_sprite_candidates.sql",
+        indexes=(
+            "CREATE INDEX IF NOT EXISTS pokemon_sprite_candidates_mv_lookup_idx "
+            "ON poke_champion.pokemon_sprite_candidates_mv "
+            "(ruleset_id, version_group_id, pokemon_id, sprite_slot, priority)",
+            "CREATE INDEX IF NOT EXISTS pokemon_sprite_candidates_mv_asset_idx "
+            "ON poke_champion.pokemon_sprite_candidates_mv (asset_id)",
+        ),
+        comment="Pokemon Champion sprite candidates by explicit version-group priority; no BYTEA content.",
+    ),
+    MaterializedView(
+        schema=CHAMPION_SCHEMA,
+        name="pokemon_sprite_by_version_group_mv",
+        select_sql="poke_champion/pokemon_sprite_by_version_group.sql",
+        indexes=(
+            "CREATE UNIQUE INDEX IF NOT EXISTS pokemon_sprite_by_version_group_mv_pk "
+            "ON poke_champion.pokemon_sprite_by_version_group_mv "
+            "(ruleset_id, version_group_id, pokemon_id, sprite_slot)",
+            "CREATE INDEX IF NOT EXISTS pokemon_sprite_by_version_group_mv_asset_idx "
+            "ON poke_champion.pokemon_sprite_by_version_group_mv (asset_id)",
+        ),
+        comment="Pokemon Champion selected display sprite per version group and Pokemon; no BYTEA content.",
+    ),
 )
 
 
@@ -117,4 +143,3 @@ def recreate_materialized_views() -> None:
 
 def refresh_materialized_views(*, concurrently: bool = False) -> None:
     refresh_all(MATERIALIZED_VIEWS, concurrently=concurrently)
-

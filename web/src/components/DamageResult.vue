@@ -1,14 +1,30 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import type { CalculateDamageResponse } from '../api/calculator';
 
-defineProps<{
+const props = defineProps<{
   result: CalculateDamageResponse | null;
   stale: boolean;
 }>();
 
+const failedSprites = ref<Set<string>>(new Set());
+
 /** 把概率转换成一位小数百分比文本。 */
 function percent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+/** 新结果进入页面时清空失败缓存，让双方图片按新 URL 重新尝试加载。 */
+watch(
+  () => props.result,
+  () => {
+    failedSprites.value = new Set();
+  },
+);
+
+/** 标记某个结果图片加载失败；这只影响展示，不阻断伤害结果。 */
+function markSpriteFailed(key: string): void {
+  failedSprites.value = new Set([...failedSprites.value, key]);
 }
 </script>
 
@@ -39,10 +55,26 @@ function percent(value: number): string {
       </div>
       <div class="result-details">
         <div>
+          <img
+            v-if="!failedSprites.has('attacker')"
+            class="result-sprite"
+            :src="result.attacker.sprite_url"
+            :alt="result.attacker.display_name"
+            loading="lazy"
+            @error="markSpriteFailed('attacker')"
+          />
           <strong>{{ result.attacker.display_name }}</strong>
           <span class="muted">Atk/SpA {{ result.attacker.effective_attack }}</span>
         </div>
         <div>
+          <img
+            v-if="!failedSprites.has('defender')"
+            class="result-sprite"
+            :src="result.defender.sprite_url"
+            :alt="result.defender.display_name"
+            loading="lazy"
+            @error="markSpriteFailed('defender')"
+          />
           <strong>{{ result.defender.display_name }}</strong>
           <span class="muted">HP {{ result.defender.effective_hp }} · Def/SpD {{ result.defender.effective_defense }}</span>
         </div>
