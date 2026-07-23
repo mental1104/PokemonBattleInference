@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from math import floor
 
@@ -25,6 +25,8 @@ from pokeop.domain.battle.effects.protocols import (
     ActionOrder,
     ActionValidationResult,
     BattleEffect,
+    DamageEffectContext,
+    DamageEffectStage,
     EffectCoverage,
     EffectCoverageStatus,
     EffectSourceKind,
@@ -32,7 +34,12 @@ from pokeop.domain.battle.effects.protocols import (
 )
 from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.items import DamageItem
-from pokeop.domain.battle.modifiers import calculate_base_damage
+from pokeop.domain.battle.modifier_keys import ModifierKey
+from pokeop.domain.battle.modifiers import (
+    AppliedModifier,
+    ModifierStage,
+    calculate_base_damage,
+)
 from pokeop.domain.battle.rulesets.profiles import BattleRulesetProfile
 from pokeop.domain.battle.state import BattleState, BattlerState
 from pokeop.domain.battle.status.kinds import VolatileStatusKind
@@ -261,12 +268,21 @@ class FlinchActionGateEffect:
 
 @dataclass(frozen=True, slots=True)
 class StandardMoveDamagePolicy(DamageResolutionPolicy):
-    """复用现有伤害链生成普通招式和挣扎的精确 HP 状态转移。
+    """复用现有伤害链并补充需要实时状态的最终伤害 effect。
 
     普通物理/特殊招式继续调用 ``calculate_damage_rolls``，不会复制第二套完整伤害
-    公式。挣扎只使用首版 policy 声明的基础威力、现有随机伤害档位和最大 HP 反伤；
-    接触、多段、会心、吸血、固定伤害与 OHKO 保留给后续窄策略或 effect。
+    公式。旧伤害链负责基础伤害、STAB、属性克制、既有特性和道具；dispatcher 只补充
+    需要当前 ``BattleState`` 的最终伤害 effect，并按 trace key 去重。挣扎继续使用
+    首版 policy 声明的基础威力、随机档位和最大 HP 反伤。
+
+    Attributes:
+        effects: 当前完整回合使用的阶段 dispatcher。默认空 dispatcher 保持旧的单独
+            ``StandardMoveDamagePolicy`` 调用兼容。
     """
+
+    effects: BattleEffectDispatcher[BattleAction] = field(
+        default_factory=lambda: BattleEffectDispatcher.from_effects(())
+    )
 
     def resolve(
         self,
@@ -297,7 +313,11 @@ class StandardMoveDamagePolicy(DamageResolutionPolicy):
             context: 当前行动必须是 ``UseMoveAction`` 的执行上下文。
 
         Returns:
-            16 档伤害转换并归并后的 HP 状态分布；变化招式返回确定性原状态。
+            伤害链与实时 final-damage effect 共同计算并归并后的 HP 状态分布；
+            变化招式返回确定性原状态。
+
+        Raises:
+            TypeError: 调用方传入的行动不是 ``UseMoveAction``。
         """
         action = context.action
         if not isinstance(action, UseMoveAction):
@@ -306,14 +326,19 @@ class StandardMoveDamagePolicy(DamageResolutionPolicy):
         if move_spec.move.category is MoveCategory.STATUS:
             return (_deterministic_transition(context.state),)
 
-        damage_result = calculate_damage_rolls(
-            self._damage_context(
-                state=context.state,
-                actor=context.actor,
-                move_id=action.move_id,
-            )
+        damage_context = self._damage_context(
+            state=context.state,
+            actor=context.actor,
+            move_id=action.move_id,
         )
         target_side = _opponent_side(context.actor)
+        damage_result = self._apply_typed_final_damage_effects(
+            state=context.state,
+            actor_side=context.actor,
+            target_side=target_side,
+            damage_context=damage_context,
+            damage_result=calculate_damage_rolls(damage_context),
+        )
         return damage_rolls_to_transitions(
             state=context.state,
             damage_result=damage_result,
@@ -328,6 +353,90 @@ class StandardMoveDamagePolicy(DamageResolutionPolicy):
             ),
             source_key="damage.random-roll",
         )
+
+    def _apply_typed_final_damage_effects(
+        self,
+        *,
+        state: BattleState,
+        actor_side: BattleSide,
+        target_side: BattleSide,
+        damage_context: DamageContext,
+        damage_result: DamageRollResult,
+    ) -> DamageRollResult:
+        """应用需要当前战斗状态的最终伤害 effect，并按 trace key 去重。
+
+        Args:
+            state: 本次伤害发生前、PP 已扣除后的不可变战斗状态。
+            actor_side: 使用招式的一方。
+            target_side: 接收直接伤害的一方。
+            damage_context: 已交给旧伤害责任链计算的只读快照。
+            damage_result: 旧伤害链已经生成的随机伤害档位和 modifier trace。
+
+        Returns:
+            依次应用尚未出现在 trace 中的动态最终倍率后的新 ``DamageRollResult``。
+            零伤害保持为零；非零伤害倍率后至少为 1。
+        """
+        type_effectiveness = self._type_effectiveness(damage_result)
+        applications = self.effects.modify_damage(
+            DamageEffectContext(
+                damage_context=damage_context,
+                stage=DamageEffectStage.FINAL_DAMAGE,
+                type_effectiveness=type_effectiveness,
+                battle_state=state,
+                actor=actor_side,
+                target=target_side,
+                is_direct_damage=True,
+            )
+        )
+        existing_keys = {
+            applied_modifier.key
+            for applied_modifier in damage_result.applied_modifiers
+        }
+        current = damage_result
+        for application in applications:
+            if application.key in existing_keys:
+                # 旧伤害链已应用同一特性或道具时跳过，避免 adapter 重复累乘。
+                continue
+            current = DamageRollResult(
+                rolls=tuple(
+                    0
+                    if damage == 0 or application.multiplier == 0
+                    else max(1, floor(damage * application.multiplier))
+                    for damage in current.rolls
+                ),
+                defender_hp=current.defender_hp,
+                applied_modifiers=current.applied_modifiers
+                + (
+                    AppliedModifier(
+                        key=application.key,
+                        multiplier=application.multiplier,
+                        stage=ModifierStage.FINAL_DAMAGE,
+                        source=application.key,
+                        reason=application.reason,
+                    ),
+                ),
+            )
+            existing_keys.add(application.key)
+        return current
+
+    @staticmethod
+    def _type_effectiveness(damage_result: DamageRollResult) -> float:
+        """从既有伤害 trace 中读取属性克制倍率。
+
+        Args:
+            damage_result: 旧伤害责任链生成的结果，通常包含属性克制 modifier。
+
+        Returns:
+            trace 中记录的克制倍率；旧结果缺少该记录时返回中性倍率 1.0。
+        """
+        for applied_modifier in damage_result.applied_modifiers:
+            if applied_modifier.key == ModifierKey.TYPE_EFFECTIVENESS:
+                return (
+                    applied_modifier.multiplier
+                    if applied_modifier.multiplier is not None
+                    else 1.0
+                )
+        return 1.0
 
     def _resolve_struggle(
         self,
@@ -561,7 +670,7 @@ class StandardMoveTurnResolver:
             action_order_policy=EffectiveSpeedActionOrderPolicy(),
             effects=dispatcher,
             accuracy_policy=MoveAccuracyCheckPolicy(),
-            damage_policy=StandardMoveDamagePolicy(),
+            damage_policy=StandardMoveDamagePolicy(effects=dispatcher),
         ).resolve(state, attacker_action, defender_action)
 
 

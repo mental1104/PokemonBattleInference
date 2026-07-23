@@ -14,6 +14,8 @@ class ModifierKey(str, Enum):
     ABILITY_FILTER = "ability:filter"
     ABILITY_SOLID_ROCK = "ability:solid_rock"
     ABILITY_SNIPER = "ability:sniper"
+    ABILITY_MULTISCALE = "ability:multiscale"
+    ABILITY_INNER_FOCUS = "ability:inner_focus"
 
     ITEM_UNKNOWN = "item:unknown"
     ITEM_LIFE_ORB = "item:life_orb"

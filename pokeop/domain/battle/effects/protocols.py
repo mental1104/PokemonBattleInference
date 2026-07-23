@@ -28,6 +28,7 @@ class EffectCoverageStatus(str, Enum):
     """描述一个机制标识在当前规则集中的支持状态。"""
 
     SUPPORTED = "supported"
+    PARTIAL = "partial"
     NO_EFFECT = "no_effect"
     UNSUPPORTED = "unsupported"
 
@@ -67,6 +68,7 @@ class EffectCoverage:
         status: 当前规则集对该机制整体的支持状态。
         reason: 面向诊断和结果 DTO 的简短解释，不参与状态判等。
         capabilities: 该 effect 内部可独立声明的子机制覆盖结果。
+        unsupported_aspects: ``PARTIAL`` 状态下明确延期的稳定能力标识集合。
     """
 
     ruleset_id: str
@@ -75,9 +77,10 @@ class EffectCoverage:
     status: EffectCoverageStatus
     reason: str
     capabilities: tuple[EffectCapabilityCoverage, ...] = ()
+    unsupported_aspects: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        """校验覆盖记录必须包含可追踪的规则集、机制标识和子能力。"""
+        """校验覆盖记录、子能力与 partial 元数据必须保持一致。"""
         if not self.ruleset_id.strip():
             raise ValueError("ruleset_id must not be blank")
         if not self.identifier.strip():
@@ -88,6 +91,7 @@ class EffectCoverage:
             raise ValueError("status must be an EffectCoverageStatus")
         if not self.reason.strip():
             raise ValueError("reason must not be blank")
+
         capabilities = tuple(self.capabilities)
         if any(
             not isinstance(capability, EffectCapabilityCoverage)
@@ -99,7 +103,19 @@ class EffectCoverage:
         identifiers = tuple(capability.identifier for capability in capabilities)
         if len(identifiers) != len(set(identifiers)):
             raise ValueError("capability identifiers must be unique")
+
+        normalized_aspects = tuple(self.unsupported_aspects)
+        if any(not aspect.strip() for aspect in normalized_aspects):
+            raise ValueError("unsupported_aspects must not contain blank values")
+        if len(normalized_aspects) != len(set(normalized_aspects)):
+            raise ValueError("unsupported_aspects must be unique")
+        if self.status is EffectCoverageStatus.PARTIAL and not normalized_aspects:
+            raise ValueError("partial coverage requires unsupported_aspects")
+        if self.status is not EffectCoverageStatus.PARTIAL and normalized_aspects:
+            raise ValueError("unsupported_aspects require partial coverage")
+
         object.__setattr__(self, "capabilities", capabilities)
+        object.__setattr__(self, "unsupported_aspects", normalized_aspects)
 
     @property
     def unsupported_capabilities(self) -> tuple[EffectCapabilityCoverage, ...]:
@@ -287,26 +303,53 @@ class DamageEffectStage(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class DamageEffectContext:
-    """向 ``ModifyDamageEffect`` 提供现有伤害链可理解的阶段输入。
+    """向 ``ModifyDamageEffect`` 提供静态伤害快照和可选动态战斗状态。
 
     Attributes:
         damage_context: 已规范化的单次伤害计算上下文。
         stage: 当前需要执行的伤害修正阶段。
         type_effectiveness: final damage effect 需要读取的属性克制倍率。
         base_multiplier: critical effect 需要读取的规则集基础会心倍率。
+        battle_state: 多回合执行时的当前不可变状态；旧单次伤害入口可以为 None。
+        actor: 多回合执行时的行动方；必须与 ``battle_state``、``target`` 同时提供。
+        target: 多回合执行时的伤害目标；必须与 ``battle_state``、``actor`` 同时提供。
+        is_direct_damage: 本阶段是否处理直接伤害；默认 True 保持旧调用兼容。
     """
 
     damage_context: DamageContext
     stage: DamageEffectStage
     type_effectiveness: float = 1.0
     base_multiplier: float = 1.0
+    battle_state: BattleState | None = None
+    actor: BattleSide | None = None
+    target: BattleSide | None = None
+    is_direct_damage: bool = True
 
     def __post_init__(self) -> None:
-        """校验倍率输入不能为负，零仍允许表达属性免疫。"""
+        """校验倍率和动态战斗字段不能形成不完整或歧义的上下文。
+
+        Raises:
+            ValueError: 任一倍率为负；直接伤害标志不是 bool；动态状态字段仅提供一部分；
+                或行动方与目标方相同。
+        """
         if self.type_effectiveness < 0:
             raise ValueError("type_effectiveness must not be negative")
         if self.base_multiplier < 0:
             raise ValueError("base_multiplier must not be negative")
+        if not isinstance(self.is_direct_damage, bool):
+            raise ValueError("is_direct_damage must be a bool")
+
+        battle_fields = (
+            self.battle_state is not None,
+            self.actor is not None,
+            self.target is not None,
+        )
+        if any(battle_fields) and not all(battle_fields):
+            raise ValueError(
+                "battle_state, actor and target must be provided together"
+            )
+        if self.actor is not None and self.actor is self.target:
+            raise ValueError("actor and target must be different battle sides")
 
 
 @dataclass(frozen=True, slots=True)
