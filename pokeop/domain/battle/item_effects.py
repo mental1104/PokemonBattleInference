@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from pokeop.domain.battle.actions import BattleAction, UseMoveAction
 from pokeop.domain.battle.context import DamageContext, MoveCategory
@@ -18,6 +18,11 @@ if TYPE_CHECKING:
         EffectCoverage,
         TransitionSet,
     )
+
+_CHOICE_BAND_COVERAGE_REASON = (
+    "Choice Band attack multiplier and move-selection lock are supported; "
+    "item removal, suppression, swap, and consumption interactions are deferred."
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +62,16 @@ class ItemDamageEffect(Protocol):
         type_effectiveness: float,
     ) -> ItemEffectResult | None:
         """Return a final-damage-stage multiplier, or None when inactive."""
+        ...
+
+
+@runtime_checkable
+class ItemCoverageDetailEffect(Protocol):
+    """允许具体道具效果补充当前实现边界的覆盖说明。"""
+
+    @property
+    def coverage_reason(self) -> str:
+        """返回当前已支持能力和明确延期交互组成的稳定说明。"""
         ...
 
 
@@ -131,10 +146,7 @@ def _default_choice_band_coverage() -> EffectCoverage:
         source_kind=EffectSourceKind.ITEM,
         identifier=DamageItem.CHOICE_BAND.value,
         status=EffectCoverageStatus.SUPPORTED,
-        reason=(
-            "Choice Band attack multiplier and move-selection lock are supported; "
-            "item removal, suppression, swap, and consumption interactions are deferred."
-        ),
+        reason=_CHOICE_BAND_COVERAGE_REASON,
     )
 
 
@@ -152,6 +164,11 @@ class ChoiceBandEffect(BaseItemDamageEffect):
 
     coverage: EffectCoverage = field(default_factory=_default_choice_band_coverage)
     item = DamageItem.CHOICE_BAND
+
+    @property
+    def coverage_reason(self) -> str:
+        """返回讲究头带当前已实现与明确延期的机制边界。"""
+        return _CHOICE_BAND_COVERAGE_REASON
 
     def attack_stat_multiplier(
         self,
@@ -316,6 +333,7 @@ __all__ = [
     "DamageItem",
     "EvioliteEffect",
     "ExpertBeltEffect",
+    "ItemCoverageDetailEffect",
     "ItemDamageEffect",
     "ItemEffectResult",
     "LifeOrbEffect",
