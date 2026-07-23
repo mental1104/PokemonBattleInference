@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
+from typing import Hashable
 
 from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.effects import (
@@ -21,9 +23,21 @@ from pokeop.domain.battle.effects import (
     MoveEffectContext,
     NoOpAbilityEffect,
     NoOpItemEffect,
-    TransitionBatch,
 )
 from pokeop.domain.battle.items import DamageItem
+from pokeop.domain.battle.transitions import WeightedTransition
+
+
+@dataclass(frozen=True, slots=True)
+class StubBattleState:
+    """测试用不可变状态，以 value 作为稳定状态键。"""
+
+    value: str
+
+    @property
+    def state_key(self) -> Hashable:
+        """返回 ``WeightedTransition`` 所需的稳定可哈希键。"""
+        return self.value
 
 
 def _coverage(kind: EffectSourceKind, identifier: str) -> EffectCoverage:
@@ -45,7 +59,7 @@ class MultiPhaseMoveEffect:
 
     def validate_action(
         self,
-        context: ActionEffectContext[str, str],
+        context: ActionEffectContext[StubBattleState, str],
     ) -> ActionValidationResult:
         """只允许名称不是 blocked 的测试行动。"""
         return ActionValidationResult(
@@ -56,7 +70,7 @@ class MultiPhaseMoveEffect:
 
     def modify_action_order(
         self,
-        context: ActionOrderEffectContext[str, str],
+        context: ActionOrderEffectContext[StubBattleState, str],
         current: ActionOrder,
     ) -> ActionOrder:
         """为测试行动增加一级优先级，并保留速度和同速键。"""
@@ -69,12 +83,20 @@ class MultiPhaseMoveEffect:
 
     def after_damage(
         self,
-        context: MoveEffectContext[str, str],
-        transitions: TransitionBatch[str],
-    ) -> TransitionBatch[str]:
-        """在伤害后返回追加说明的新批次，不修改输入 tuple。"""
-        return TransitionBatch(
-            transitions.transitions + (f"after:{context.action}",)
+        context: MoveEffectContext[StubBattleState, str],
+        transitions: tuple[WeightedTransition[StubBattleState], ...],
+    ) -> tuple[WeightedTransition[StubBattleState], ...]:
+        """返回状态已追加行动说明的新转移，不修改输入 tuple。"""
+        return tuple(
+            WeightedTransition(
+                probability=transition.probability,
+                state=StubBattleState(
+                    f"{transition.state.value}|after:{context.action}"
+                ),
+                event_summary=transition.event_summary,
+                source_key=transition.source_key,
+            )
+            for transition in transitions
         )
 
 
@@ -96,14 +118,7 @@ class FakeBattleEffectFactory:
         self,
         identifier: DamageAbility | str | None,
     ) -> AbilityEffect:
-        """返回显式 no-op 特性产品，避免参与任何窄阶段。
-
-        Args:
-            identifier: 测试不使用的特性标识。
-
-        Returns:
-            不实现任何阶段协议的 no-op 特性产品。
-        """
+        """返回显式 no-op 特性产品，避免参与任何窄阶段。"""
         _ = identifier
         return NoOpAbilityEffect(
             EffectCoverage(
@@ -119,14 +134,7 @@ class FakeBattleEffectFactory:
         self,
         identifier: DamageItem | str | None,
     ) -> ItemEffect:
-        """返回显式 no-op 道具产品，避免参与任何窄阶段。
-
-        Args:
-            identifier: 测试不使用的道具标识。
-
-        Returns:
-            不实现任何阶段协议的 no-op 道具产品。
-        """
+        """返回显式 no-op 道具产品，避免参与任何窄阶段。"""
         _ = identifier
         return NoOpItemEffect(
             EffectCoverage(
@@ -161,17 +169,24 @@ def test_fake_factory_can_drive_typed_dispatcher_phases() -> None:
         ability_identifier=None,
         item_identifier=None,
     )
-    dispatcher = BattleEffectDispatcher[str, str, str].from_family(family)
+    dispatcher = BattleEffectDispatcher[StubBattleState, str].from_family(family)
+    state = StubBattleState("turn-state")
     action_context = ActionEffectContext(
-        state="turn-state",
+        state=state,
         actor=BattleSide.ATTACKER,
         action="blocked",
+    )
+    transitions = (
+        WeightedTransition(
+            probability=Fraction(1, 1),
+            state=StubBattleState("initial"),
+        ),
     )
 
     validation = dispatcher.validate_action(action_context)
     order = dispatcher.modify_action_order(
         ActionOrderEffectContext(
-            state="turn-state",
+            state=state,
             actor=BattleSide.ATTACKER,
             action="blocked",
         ),
@@ -179,23 +194,24 @@ def test_fake_factory_can_drive_typed_dispatcher_phases() -> None:
     )
     before_move = dispatcher.before_move(
         MoveEffectContext(
-            state="turn-state",
+            state=state,
             actor=BattleSide.ATTACKER,
             action="blocked",
         ),
-        TransitionBatch(("initial",)),
+        transitions,
     )
     after_damage = dispatcher.after_damage(
         MoveEffectContext(
-            state="turn-state",
+            state=state,
             actor=BattleSide.ATTACKER,
             action="blocked",
         ),
-        TransitionBatch(("initial",)),
+        transitions,
     )
 
     assert validation.allowed is False
     assert validation.decisions[0].source_identifier == "multi-phase"
     assert order == ActionOrder(priority=1, speed=100)
-    assert before_move.transitions == ("initial",)
-    assert after_damage.transitions == ("initial", "after:blocked")
+    assert before_move == transitions
+    assert after_damage[0].state == StubBattleState("initial|after:blocked")
+    assert after_damage[0].probability == Fraction(1, 1)
