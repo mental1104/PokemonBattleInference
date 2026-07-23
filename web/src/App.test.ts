@@ -11,14 +11,14 @@ describe('App home tabs', () => {
     const buttons = wrapper.findAll('.home-tabs__actions button');
 
     expect(buttons).toHaveLength(2);
-    expect(wrapper.findComponent({ name: 'DamageCalculatorView' }).exists()).toBe(true);
-    expect(wrapper.findComponent({ name: 'BattleInferenceView' }).exists()).toBe(false);
+    expect(wrapper.find('damage-calculator-view-stub').exists()).toBe(true);
+    expect(wrapper.find('battle-inference-view-stub').exists()).toBe(false);
     expect(buttons[0].classes()).toContain('home-tab--active');
 
     await buttons[1].trigger('click');
 
-    expect(wrapper.findComponent({ name: 'DamageCalculatorView' }).exists()).toBe(false);
-    expect(wrapper.findComponent({ name: 'BattleInferenceView' }).exists()).toBe(true);
+    expect(wrapper.find('damage-calculator-view-stub').exists()).toBe(false);
+    expect(wrapper.find('battle-inference-view-stub').exists()).toBe(true);
     expect(buttons[1].classes()).toContain('home-tab--active');
   });
 });
