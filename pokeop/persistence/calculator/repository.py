@@ -169,7 +169,7 @@ class MaterializedViewCalculatorRepository:
         query: str,
         limit: int,
     ) -> tuple[CalculatorPokemonSearchResult, ...]:
-        """按中文名或 identifier 搜索当前规则集可用宝可梦。"""
+        """按中文名或 identifier 搜索，并按 Pokémon ID 与形态标识稳定排序。"""
         pattern = f"%{query.strip()}%"
         DBKind, tx_scope = _db_runtime()
         with tx_scope(DBKind.POSTGRES) as db:
@@ -183,7 +183,9 @@ class MaterializedViewCalculatorRepository:
                       AND (:query = ''
                            OR pokemon_identifier ILIKE :pattern
                            OR pokemon_name ILIKE :pattern)
-                    ORDER BY pokemon_identifier
+                    ORDER BY pokemon_id ASC,
+                             form_identifier ASC NULLS FIRST,
+                             pokemon_identifier ASC
                     LIMIT :limit
                     """
                 ),
