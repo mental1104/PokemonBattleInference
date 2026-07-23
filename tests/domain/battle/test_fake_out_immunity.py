@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pokeop.domain.battle.actions import BattleAction
 from pokeop.domain.battle.context import BattleMove, MoveCategory
 from pokeop.domain.battle.effects import PokemonChampionEffectFactory
 from pokeop.domain.battle.inference_outcome import BattleSide
@@ -72,7 +71,7 @@ def test_fake_out_type_immunity_does_not_emit_flinch_attempt() -> None:
         rules=BattleInferenceRules(level=50),
     )
     effect = PokemonChampionEffectFactory().create_move_effect("fake_out")
-    resolver = StandardMoveTurnResolver[BattleAction](effects=(effect,))
+    resolver = StandardMoveTurnResolver(effects=(effect,))
     attacker_action = resolver.legal_actions(state, BattleSide.ATTACKER)[0]
     defender_action = resolver.legal_actions(state, BattleSide.DEFENDER)[0]
 
