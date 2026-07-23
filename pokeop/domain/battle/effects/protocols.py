@@ -7,10 +7,11 @@ from typing import Generic, Protocol, TypeVar, runtime_checkable
 from pokeop.domain.battle.context import DamageContext
 from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.modifier_keys import ModifierKeyLike
+from pokeop.domain.battle.transitions import StateKeyed, WeightedTransition
 
-StateT = TypeVar("StateT")
+StateT = TypeVar("StateT", bound=StateKeyed)
 ActionT = TypeVar("ActionT")
-TransitionT = TypeVar("TransitionT")
+TransitionSet = tuple[WeightedTransition[StateT], ...]
 
 
 class EffectSourceKind(str, Enum):
@@ -66,7 +67,7 @@ class ActionEffectContext(Generic[StateT, ActionT]):
     """向行动校验和选招后 effect 提供不可变输入。
 
     Attributes:
-        state: 当前战斗状态快照；具体类型由未来 TurnResolver 决定。
+        state: 当前战斗状态快照，必须提供稳定 ``state_key``。
         actor: 本次行动所属的一方。
         action: 已由合法行动生成器产生或正在校验的类型化行动。
     """
@@ -196,29 +197,6 @@ class StatusPreventionReport:
         return any(decision.prevented for decision in self.decisions)
 
 
-@dataclass(frozen=True, slots=True)
-class TransitionBatch(Generic[TransitionT]):
-    """封装一个阶段产生的不可变后继转移集合。
-
-    该类型不理解 ``WeightedTransition`` 的内部结构。未来状态转移模型只需把
-    自身类型作为 ``TransitionT`` 传入，effect 便可返回新的批次而不修改共享状态。
-    """
-
-    transitions: tuple[TransitionT, ...]
-
-    @classmethod
-    def from_transition(cls, transition: TransitionT) -> "TransitionBatch[TransitionT]":
-        """由单个后继转移创建批次。
-
-        Args:
-            transition: 当前阶段唯一的后继转移。
-
-        Returns:
-            只包含该转移的新批次。
-        """
-        return cls((transition,))
-
-
 class DamageEffectStage(str, Enum):
     """标识旧伤害 effect 适配到统一协议时的调用阶段。"""
 
@@ -334,15 +312,15 @@ class ModifyActionOrderEffect(Protocol[StateT, ActionT]):
 
 
 @runtime_checkable
-class BeforeMoveEffect(Protocol[StateT, ActionT, TransitionT]):
-    """只在招式执行前转换后继状态转移批次。"""
+class BeforeMoveEffect(Protocol[StateT, ActionT]):
+    """只在招式执行前转换精确带权后继状态转移。"""
 
     def before_move(
         self,
         context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """返回新的转移批次，不原地修改输入状态或共享集合。"""
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """返回新的带权转移集合，不原地修改输入状态或共享集合。"""
         ...
 
 
@@ -368,41 +346,41 @@ class PreventVolatileStatusEffect(Protocol[StateT]):
 
 
 @runtime_checkable
-class AfterMoveSelectedEffect(Protocol[StateT, ActionT, TransitionT]):
-    """只在行动选定后、执行前转换后继状态转移批次。"""
+class AfterMoveSelectedEffect(Protocol[StateT, ActionT]):
+    """只在行动选定后、执行前转换精确带权后继状态转移。"""
 
     def after_move_selected(
         self,
         context: ActionEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """返回新的转移批次，用于锁招等选招后机制。"""
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """返回新的带权转移集合，用于锁招等选招后机制。"""
         ...
 
 
 @runtime_checkable
-class AfterDamageEffect(Protocol[StateT, ActionT, TransitionT]):
-    """只在伤害结算后转换后继状态转移批次。"""
+class AfterDamageEffect(Protocol[StateT, ActionT]):
+    """只在伤害结算后转换精确带权后继状态转移。"""
 
     def after_damage(
         self,
         context: MoveEffectContext[StateT, ActionT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """返回新的转移批次，用于反伤、吸血或消耗品等后续扩展。"""
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """返回新的带权转移集合，用于反伤、吸血或消耗品等后续扩展。"""
         ...
 
 
 @runtime_checkable
-class TurnEndEffect(Protocol[StateT, TransitionT]):
-    """只在回合结束阶段转换后继状态转移批次。"""
+class TurnEndEffect(Protocol[StateT]):
+    """只在回合结束阶段转换精确带权后继状态转移。"""
 
     def on_turn_end(
         self,
         context: TurnEndEffectContext[StateT],
-        transitions: TransitionBatch[TransitionT],
-    ) -> TransitionBatch[TransitionT]:
-        """返回新的转移批次，用于回合结束伤害、回复和清理。"""
+        transitions: TransitionSet[StateT],
+    ) -> TransitionSet[StateT]:
+        """返回新的带权转移集合，用于回合结束伤害、回复和清理。"""
         ...
 
 
@@ -433,7 +411,7 @@ __all__ = [
     "PreventVolatileStatusEffect",
     "StatusPreventionReport",
     "StatusPreventionResult",
-    "TransitionBatch",
+    "TransitionSet",
     "TurnEndEffect",
     "TurnEndEffectContext",
     "ValidateActionEffect",
