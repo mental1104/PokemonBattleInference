@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from pokeop.domain.battle.actions import BattleAction, UseMoveAction
@@ -67,11 +67,15 @@ class ItemDamageEffect(Protocol):
 
 @runtime_checkable
 class ItemCoverageDetailEffect(Protocol):
-    """允许具体道具效果补充当前实现边界的覆盖说明。"""
+    """允许具体道具效果补充覆盖说明并接收工厂确定的规则集记录。"""
 
     @property
     def coverage_reason(self) -> str:
         """返回当前已支持能力和明确延期交互组成的稳定说明。"""
+        ...
+
+    def with_coverage(self, coverage: EffectCoverage) -> ItemDamageEffect:
+        """返回绑定工厂规则集覆盖记录的不可变具体效果副本。"""
         ...
 
 
@@ -169,6 +173,17 @@ class ChoiceBandEffect(BaseItemDamageEffect):
     def coverage_reason(self) -> str:
         """返回讲究头带当前已实现与明确延期的机制边界。"""
         return _CHOICE_BAND_COVERAGE_REASON
+
+    def with_coverage(self, coverage: EffectCoverage) -> ChoiceBandEffect:
+        """返回绑定具体工厂规则集覆盖记录的讲究头带效果副本。
+
+        Args:
+            coverage: 工厂已经确定 ruleset、来源、identifier 和支持状态的覆盖记录。
+
+        Returns:
+            只替换覆盖信息、保持倍率与锁招行为不变的不可变效果对象。
+        """
+        return replace(self, coverage=coverage)
 
     def attack_stat_multiplier(
         self,
