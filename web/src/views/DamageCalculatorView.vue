@@ -19,7 +19,7 @@ onMounted(() => {
 });
 
 /**
- * 记录攻击方选择并交给 calculator 加载详情和招式。
+ * 记录攻击方选择并交给 calculator 加载详情。
  *
  * @param pokemon 用户在攻击方选择器中选中的 Pokémon。
  */
@@ -62,11 +62,12 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
         <MoveSelector
-          :moves="calculator.moves.value"
+          :pokemon-id="calculator.attacker.value?.pokemon_id ?? null"
+          :ruleset-id="calculator.rulesetId.value"
           :selected="calculator.move.value"
           :disabled="!calculator.attacker.value"
           @select="calculator.move.value = $event"
-          @search="calculator.refreshMoves"
+          @clear-selection="calculator.move.value = null"
         />
         <StatPresetSelector
           v-model="calculator.attackerPreset.value"

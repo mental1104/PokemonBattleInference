@@ -12,6 +12,11 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
     CalculatorPokemonSearchResult,
     CalculatorRulesetContext,
 )
+from pokeop.application.use_cases.list_calculable_moves import (
+    CalculatorMoveFilterCategory,
+    CalculatorMoveTypeOption,
+    ListCalculatorMovesQuery,
+)
 from pokeop.domain.battle.context import MoveCategory
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
@@ -103,7 +108,7 @@ def _pokemon_search_from_row(row: Mapping[str, Any]) -> CalculatorPokemonSearchR
 
 
 def _move_profile_from_row(row: Mapping[str, Any]) -> CalculatorMoveProfile:
-    """把 move_profile_mv 行转换成 application 招式读取模型。"""
+    """把 move_profile_mv 行转换成 application 招式战斗读取模型。"""
     return CalculatorMoveProfile(
         move_id=row["move_id"],
         identifier=row["move_identifier"],
@@ -126,6 +131,69 @@ def _move_search_from_row(row: Mapping[str, Any]) -> CalculatorMoveSearchResult:
         category=_move_category_from_identifier(row["damage_class_identifier"]),
         power=row["power"],
     )
+
+
+def _move_type_option_from_row(row: Mapping[str, Any]) -> CalculatorMoveTypeOption:
+    """把 type_efficacy_mv 的攻击属性行转换成筛选元数据。"""
+    return CalculatorMoveTypeOption(
+        identifier=row["damage_type_identifier"],
+        display_name=row["damage_type_name"] or row["damage_type_identifier"],
+    )
+
+
+def _filtered_moves_cte_sql() -> str:
+    """返回可复用于总数和分页查询的去重过滤 CTE。
+
+    DISTINCT ON 先按 move_id 收口 learnset 的多个学习方式记录；外层查询再按威力、
+    属性和 move_id 做稳定排序，避免 PostgreSQL 对 DISTINCT ON 首排序键的限制泄漏到 UI。
+    """
+    return """
+        filtered_moves AS (
+            SELECT DISTINCT ON (move_id)
+                   move_id, move_identifier, move_name,
+                   type_identifier, type_name,
+                   damage_class_identifier, power
+            FROM poke_champion.pokemon_learnset_mv
+            WHERE ruleset_id = :ruleset_id
+              AND pokemon_id = :pokemon_id
+              AND damage_class_identifier IN ('physical', 'special')
+              AND power IS NOT NULL
+              AND power > 0
+              AND (:category = 'all' OR damage_class_identifier = :category)
+              AND (
+                    :type_count = 0
+                    OR type_identifier = ANY(CAST(:type_identifiers AS TEXT[]))
+                  )
+              AND (
+                    :query = ''
+                    OR move_identifier ILIKE :pattern
+                    OR move_name ILIKE :pattern
+                  )
+            ORDER BY move_id ASC, move_identifier ASC
+        )
+    """
+
+
+def _move_filter_params(request: ListCalculatorMovesQuery) -> dict[str, object]:
+    """把 application 查询对象转换成 SQL 绑定参数。
+
+    Args:
+        request: 已由 use case 完成范围校验和属性去重的查询对象。
+
+    Returns:
+        可同时传给总数和分页 SQL 的参数字典；属性集合保持为 PostgreSQL text[] 输入。
+    """
+    return {
+        "ruleset_id": request.ruleset_id,
+        "pokemon_id": request.pokemon_id,
+        "query": request.query,
+        "pattern": f"%{request.query}%",
+        "category": request.category.value,
+        "type_identifiers": list(request.type_identifiers),
+        "type_count": len(request.type_identifiers),
+        "limit": request.limit,
+        "offset": request.offset,
+    }
 
 
 class MaterializedViewCalculatorRepository:
@@ -219,6 +287,74 @@ class MaterializedViewCalculatorRepository:
             return None
         return _pokemon_profile_from_row(_row_mapping(row))
 
+    def list_move_filter_types(
+        self,
+        *,
+        ruleset_id: str,
+    ) -> tuple[CalculatorMoveTypeOption, ...]:
+        """读取当前规则集支持的完整攻击属性元数据。"""
+        DBKind, tx_scope = _db_runtime()
+        with tx_scope(DBKind.POSTGRES) as db:
+            rows = db.execute(
+                text(
+                    """
+                    SELECT DISTINCT damage_type_id,
+                           damage_type_identifier,
+                           damage_type_name
+                    FROM poke_champion.type_efficacy_mv
+                    WHERE ruleset_id = :ruleset_id
+                    ORDER BY damage_type_id ASC
+                    """
+                ),
+                {"ruleset_id": ruleset_id},
+            ).all()
+        return tuple(_move_type_option_from_row(_row_mapping(row)) for row in rows)
+
+    def search_calculable_moves(
+        self,
+        *,
+        request: ListCalculatorMovesQuery,
+    ) -> tuple[tuple[CalculatorMoveSearchResult, ...], int]:
+        """按复合筛选查询可计算招式，并返回稳定分页结果和去重后总数。"""
+        cte_sql = _filtered_moves_cte_sql()
+        params = _move_filter_params(request)
+        DBKind, tx_scope = _db_runtime()
+        with tx_scope(DBKind.POSTGRES) as db:
+            total = int(
+                db.execute(
+                    text(
+                        f"""
+                        WITH {cte_sql}
+                        SELECT COUNT(*)
+                        FROM filtered_moves
+                        """
+                    ),
+                    params,
+                ).scalar_one()
+            )
+            rows = db.execute(
+                text(
+                    f"""
+                    WITH {cte_sql}
+                    SELECT move_id, move_identifier, move_name,
+                           type_identifier, type_name,
+                           damage_class_identifier, power
+                    FROM filtered_moves
+                    ORDER BY power DESC,
+                             type_identifier DESC,
+                             move_id ASC,
+                             move_identifier ASC
+                    LIMIT :limit
+                    OFFSET :offset
+                    """
+                ),
+                params,
+            ).all()
+        return (
+            tuple(_move_search_from_row(_row_mapping(row)) for row in rows),
+            total,
+        )
+
     def list_calculable_moves(
         self,
         *,
@@ -227,39 +363,19 @@ class MaterializedViewCalculatorRepository:
         query: str,
         limit: int,
     ) -> tuple[CalculatorMoveSearchResult, ...]:
-        """列出固定正威力的物理/特殊可学招式，并按 move_id 去重。"""
-        pattern = f"%{query.strip()}%"
-        DBKind, tx_scope = _db_runtime()
-        with tx_scope(DBKind.POSTGRES) as db:
-            rows = db.execute(
-                text(
-                    """
-                    SELECT DISTINCT ON (move_id)
-                           move_id, move_identifier, move_name,
-                           type_identifier, type_name,
-                           damage_class_identifier, power
-                    FROM poke_champion.pokemon_learnset_mv
-                    WHERE ruleset_id = :ruleset_id
-                      AND pokemon_id = :pokemon_id
-                      AND damage_class_identifier IN ('physical', 'special')
-                      AND power IS NOT NULL
-                      AND power > 0
-                      AND (:query = ''
-                           OR move_identifier ILIKE :pattern
-                           OR move_name ILIKE :pattern)
-                    ORDER BY move_id, move_identifier
-                    LIMIT :limit
-                    """
-                ),
-                {
-                    "ruleset_id": ruleset_id,
-                    "pokemon_id": pokemon_id,
-                    "query": query.strip(),
-                    "pattern": pattern,
-                    "limit": limit,
-                },
-            ).all()
-        return tuple(_move_search_from_row(_row_mapping(row)) for row in rows)
+        """兼容旧调用方的无分页招式列表入口；新 API 应使用 search_calculable_moves。"""
+        items, _ = self.search_calculable_moves(
+            request=ListCalculatorMovesQuery(
+                ruleset_id=ruleset_id,
+                pokemon_id=pokemon_id,
+                query=query.strip(),
+                category=CalculatorMoveFilterCategory.ALL,
+                type_identifiers=(),
+                limit=min(limit, 50),
+                offset=0,
+            )
+        )
+        return items
 
     def get_move_profile(
         self,

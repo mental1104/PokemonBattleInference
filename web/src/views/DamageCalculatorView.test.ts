@@ -72,7 +72,14 @@ beforeEach(() => {
     const selected = pokemonId === BULBASAUR.pokemon_id ? BULBASAUR : PIKACHU;
     return detail(selected);
   });
-  listPokemonMovesMock.mockReset().mockResolvedValue([]);
+  listPokemonMovesMock.mockReset().mockResolvedValue({
+    items: [],
+    total: 0,
+    limit: 10,
+    offset: 0,
+    has_more: false,
+    available_types: [],
+  });
   listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
 });
 
@@ -101,5 +108,12 @@ describe('DamageCalculatorView recent pokemon sharing', () => {
     expect(selectors[1].props('selected')).toBeNull();
     expect(selectors[1].find('[data-mode="recent"]').text()).toContain('妙蛙种子');
     expect(getPokemonDetailMock).toHaveBeenCalledWith(1, 'pokemon-champion');
+    expect(listPokemonMovesMock).toHaveBeenCalledWith(1, 'pokemon-champion', {
+      query: '',
+      category: 'all',
+      typeIdentifiers: [],
+      limit: 10,
+      offset: 0,
+    });
   });
 });

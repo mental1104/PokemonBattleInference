@@ -8,6 +8,10 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
     CalculatorPokemonProfile,
     CalculatorPokemonSearchResult,
 )
+from pokeop.application.use_cases.list_calculable_moves import (
+    CalculatorMovePage,
+    CalculatorMoveTypeOption,
+)
 from pokeop.domain.battle.modifiers import AppliedModifier
 from pokeop.domain.battle.stats import StatValues
 
@@ -40,6 +44,26 @@ class MoveSearchItem(BaseModel):
     type_name: str = Field(description="中文属性名。")
     category: str = Field(description="physical 或 special。")
     power: int = Field(description="固定正威力。")
+
+
+class MoveTypeOptionResponse(BaseModel):
+    """当前规则集可用于招式筛选的一个属性选项。"""
+
+    identifier: str = Field(description="英文稳定属性 identifier。")
+    display_name: str = Field(description="面向用户的本地化属性名。")
+
+
+class MoveSearchPageResponse(BaseModel):
+    """招式选择器的分页 envelope 与完整属性筛选元数据。"""
+
+    items: list[MoveSearchItem]
+    total: int = Field(ge=0, description="复合过滤并按 move_id 去重后的总数。")
+    limit: int = Field(ge=1, le=50, description="本页请求上限。")
+    offset: int = Field(ge=0, description="本页在稳定排序结果中的起始偏移。")
+    has_more: bool = Field(description="当前页之后是否仍有结果。")
+    available_types: list[MoveTypeOptionResponse] = Field(
+        description="当前规则集支持的完整属性筛选选项，不从当前页反推。"
+    )
 
 
 class StatPresetResponse(BaseModel):
@@ -233,6 +257,30 @@ def move_search_item_from_result(result: CalculatorMoveSearchResult) -> MoveSear
     )
 
 
+def _move_type_option_from_result(
+    result: CalculatorMoveTypeOption,
+) -> MoveTypeOptionResponse:
+    """把 application 属性筛选元数据转换成 HTTP schema。"""
+    return MoveTypeOptionResponse(
+        identifier=result.identifier,
+        display_name=result.display_name,
+    )
+
+
+def move_search_page_from_result(result: CalculatorMovePage) -> MoveSearchPageResponse:
+    """把 application 招式分页结果转换成稳定 HTTP envelope。"""
+    return MoveSearchPageResponse(
+        items=[move_search_item_from_result(item) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+        has_more=result.has_more,
+        available_types=[
+            _move_type_option_from_result(item) for item in result.available_types
+        ],
+    )
+
+
 def modifier_from_domain(modifier: AppliedModifier) -> ModifierTraceItem:
     """把 domain modifier trace 转成 HTTP schema。"""
     return ModifierTraceItem(
@@ -292,10 +340,13 @@ def damage_response_from_result(result: CalculateCatalogDamageResult) -> Calcula
         damage=DamageRange(
             min=result.damage.min_damage,
             max=result.damage.max_damage,
-            min_percent=result.damage.min_percent,
-            max_percent=result.damage.max_percent,
-            expected=result.damage.expected_damage,
-            expected_percent=result.damage.expected_percent,
+            min_percent=round(result.damage.min_damage / result.defender.stats.hp * 100, 1),
+            max_percent=round(result.damage.max_damage / result.defender.stats.hp * 100, 1),
+            expected=round(sum(result.damage.rolls) / len(result.damage.rolls), 1),
+            expected_percent=round(
+                sum(result.damage.rolls) / len(result.damage.rolls) / result.defender.stats.hp * 100,
+                1,
+            ),
             rolls=list(result.damage.rolls),
         ),
         ko=KOResult(
@@ -312,17 +363,3 @@ def damage_response_from_result(result: CalculateCatalogDamageResult) -> Calcula
         ),
         warnings=list(result.warnings),
     )
-
-
-__all__ = [
-    "CalculateDamageRequest",
-    "CalculateDamageResponse",
-    "MoveSearchItem",
-    "PokemonDetailResponse",
-    "PokemonSearchItem",
-    "StatPresetResponse",
-    "damage_response_from_result",
-    "move_search_item_from_result",
-    "pokemon_detail_from_profile",
-    "pokemon_search_item_from_result",
-]
