@@ -1,0 +1,103 @@
+import { flushPromises, mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  getPokemonDetail,
+  listPokemonMoves,
+  listStatPresets,
+  searchPokemon,
+  type PokemonDetail,
+  type PokemonSearchItem,
+} from '../api/calculator';
+import PokemonSelector from '../components/PokemonSelector.vue';
+import DamageCalculatorView from './DamageCalculatorView.vue';
+
+vi.mock('../api/calculator', () => ({
+  calculateDamage: vi.fn(),
+  getPokemonDetail: vi.fn(),
+  listPokemonMoves: vi.fn(),
+  listStatPresets: vi.fn(),
+  searchPokemon: vi.fn(),
+}));
+
+const searchPokemonMock = vi.mocked(searchPokemon);
+const getPokemonDetailMock = vi.mocked(getPokemonDetail);
+const listPokemonMovesMock = vi.mocked(listPokemonMoves);
+const listStatPresetsMock = vi.mocked(listStatPresets);
+
+/**
+ * 构造页面联动测试使用的 Pokémon 搜索结果。
+ *
+ * @param pokemonId Pokémon ID。
+ * @param displayName 页面展示名称。
+ * @returns 满足搜索接口合同的 DTO。
+ */
+function searchItem(pokemonId: number, displayName: string): PokemonSearchItem {
+  return {
+    pokemon_id: pokemonId,
+    identifier: `pokemon-${pokemonId}`,
+    display_name: displayName,
+    form_identifier: null,
+    types: ['normal'],
+    type_names: ['一般'],
+    sprite_url: `/sprites/${pokemonId}.png`,
+  };
+}
+
+/**
+ * 将搜索结果扩展成 calculator 选择后需要的详情 DTO。
+ *
+ * @param item 已选 Pokémon 搜索结果。
+ * @returns 带有基础种族值字段的详情对象。
+ */
+function detail(item: PokemonSearchItem): PokemonDetail {
+  return {
+    ...item,
+    base_stats: {
+      hp: 50,
+      attack: 50,
+      defense: 50,
+      special_attack: 50,
+      special_defense: 50,
+      speed: 50,
+    },
+  };
+}
+
+const BULBASAUR = searchItem(1, '妙蛙种子');
+const PIKACHU = searchItem(25, '皮卡丘');
+
+beforeEach(() => {
+  searchPokemonMock.mockReset().mockResolvedValue([BULBASAUR, PIKACHU]);
+  getPokemonDetailMock.mockReset().mockImplementation(async (pokemonId) => {
+    const selected = pokemonId === BULBASAUR.pokemon_id ? BULBASAUR : PIKACHU;
+    return detail(selected);
+  });
+  listPokemonMovesMock.mockReset().mockResolvedValue([]);
+  listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
+});
+
+describe('DamageCalculatorView recent pokemon sharing', () => {
+  it('shares a selection between both selectors without changing the other side selection', async () => {
+    /**
+     * 攻击方和防守方必须共享页面级最近记录，但各自当前选择仍保持独立。测试挂载完整计算器页面，等待
+     * 两侧加载默认列表后在攻击方点击妙蛙种子；断言两个 PokemonSelector 都收到同一个最近列表，
+     * 防守方仍未被自动选中，并且防守方界面已经切换到 recent 模式。该场景验证共享状态放在页面层，
+     * 而不是两个组件各自维护或把一次选择错误同步成双方当前 Pokémon。
+     */
+    const wrapper = mount(DamageCalculatorView);
+    await flushPromises();
+
+    let selectors = wrapper.findAllComponents(PokemonSelector);
+    expect(selectors).toHaveLength(2);
+
+    await selectors[0].get(`[data-pokemon-id="${BULBASAUR.pokemon_id}"]`).trigger('click');
+    await flushPromises();
+
+    selectors = wrapper.findAllComponents(PokemonSelector);
+    expect(selectors[0].props('recentPokemon').map((item) => item.pokemon_id)).toEqual([1]);
+    expect(selectors[1].props('recentPokemon').map((item) => item.pokemon_id)).toEqual([1]);
+    expect(selectors[1].props('selected')).toBeNull();
+    expect(selectors[1].find('[data-mode="recent"]').text()).toContain('妙蛙种子');
+    expect(getPokemonDetailMock).toHaveBeenCalledWith(1, 'pokemon-champion');
+  });
+});
