@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Generic, Iterable, Mapping, Protocol, TypeVar
 
+from pokeop.domain.battle.effect_identifiers import normalize_effect_identifier
 from pokeop.domain.battle.effects.protocols import BattleEffect
 
 EffectT = TypeVar("EffectT", bound=BattleEffect)
@@ -12,18 +13,6 @@ EffectCovariantT = TypeVar(
     bound=BattleEffect,
     covariant=True,
 )
-
-
-def normalize_effect_identifier(identifier: str) -> str:
-    """把边界字符串规范化为 registry 使用的稳定 identifier。
-
-    Args:
-        identifier: 来自 application、测试或数据映射层的机制名称。
-
-    Returns:
-        去除首尾空白、统一小写并把连字符和空格转换为下划线的标识。
-    """
-    return identifier.strip().lower().replace("-", "_").replace(" ", "_")
 
 
 class EffectProvider(Protocol[EffectCovariantT]):
