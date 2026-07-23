@@ -32,10 +32,12 @@ def test_compose_owns_service_ports_and_runtime_settings() -> None:
     assert "env_file:" not in compose_text
     assert '"41100:80"' in compose_text
     assert '"41104:41104"' in compose_text
-    assert '"41132:5432"' in compose_text
+    assert '"127.0.0.1:41132:5432"' in compose_text
     assert "POSTGRES_DB: *postgres-database" in compose_text
     assert "POSTGRES_USER: *postgres-user" in compose_text
-    assert "POSTGRES_PASSWORD: *postgres-password" in compose_text
+    assert "POSTGRES_HOST_AUTH_METHOD: trust" in compose_text
+    assert "POSTGRES_PASSWORD" not in compose_text
+    assert "PGPASSWORD" not in compose_text
     assert 'command: ["uvicorn", "pokeop.main:app"' in compose_text
 
     assert "--env-file" not in makefile_text
