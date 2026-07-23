@@ -14,6 +14,7 @@ from pokeop.domain.battle.effects.protocols import (
     VolatileStatusAttempt,
 )
 from pokeop.domain.battle.inference_outcome import BattleSide
+from pokeop.domain.battle.modifiers import calculate_type_effectiveness
 from pokeop.domain.battle.status.state import FlinchStatus
 
 
@@ -160,19 +161,31 @@ class FakeOutEffect:
         self,
         context: MoveEffectContext[BattleAction],
     ) -> tuple[VolatileStatusAttempt, ...]:
-        """在击掌奇袭命中并完成伤害后发出一次畏缩施加请求。
+        """在击掌奇袭实际能够造成直接伤害后发出畏缩施加请求。
 
         Args:
             context: 当前行动以及完成直接伤害后的不可变战斗状态。
 
         Returns:
-            非击掌奇袭或目标已濒死时返回空元组；否则返回一条由 dispatcher 交给目标
-            特性 effect 裁决的 ``FlinchStatus`` 请求，本方法不直接修改目标状态。
+            非击掌奇袭、目标已濒死或属性免疫导致本次招式不能造成直接伤害时返回空元组；
+            否则返回一条由 dispatcher 交给目标特性 effect 裁决的 ``FlinchStatus`` 请求。
+            本方法复用统一属性克制函数判定免疫，不复制伤害公式，也不直接修改目标状态。
         """
         if not _matches_move_effect(context, self.coverage.identifier):
             return ()
+        action = context.action
+        if not isinstance(action, UseMoveAction):
+            return ()
+        actor = context.state.battler(context.actor)
+        move_spec = actor.spec.move_spec(action.move_id)
         target = _opponent_side(context.actor)
-        if context.state.battler(target).current_hp == 0:
+        target_battler = context.state.battler(target)
+        if target_battler.current_hp == 0:
+            return ()
+        if calculate_type_effectiveness(
+            move_spec.move.type,
+            target_battler.spec.types,
+        ) == 0:
             return ()
         return (
             VolatileStatusAttempt(
