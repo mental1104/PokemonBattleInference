@@ -39,6 +39,60 @@ def _db_runtime():
     return ConnParams, DBKind, register_db_and_create, tx_scope
 
 
+def _postgres_conn_params_from_env(conn_params_type):
+    """从标准 PostgreSQL 环境变量组装 shared common 连接参数。
+
+    Args:
+        conn_params_type: `mental1104.db.ConnParams` 类型；由 `_db_runtime()` 延迟传入，
+            避免模块导入阶段过早加载 common 的可选依赖。
+
+    Returns:
+        可交给 `register_db_and_create` 的 PostgreSQL 连接参数。`PGPASSWORD` 允许缺省或
+        空字符串，以支持 Compose 中绑定到本机并使用 `trust` 认证的初始化流程。
+
+    Raises:
+        KeyError: `PGHOST`、`PGPORT`、`PGDATABASE` 或 `PGUSER` 缺失时抛出，调用方需要
+            修正运行环境后再初始化数据库。
+        ValueError: `PGPORT` 不是整数时抛出。
+    """
+    password = os.environ.get("PGPASSWORD") or None
+    return conn_params_type(
+        ip=os.environ["PGHOST"],
+        port=int(os.environ["PGPORT"]),
+        database=os.environ["PGDATABASE"],
+        user=os.environ["PGUSER"],
+        password=password,
+    )
+
+
+def register_postgres_runtime(*, db_name: str = "default") -> None:
+    """为当前 Python 进程注册 PostgreSQL runtime 连接。
+
+    该函数只把 `PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD` 转换成 shared common
+    的默认 registry 配置，不创建 schema、不建表、不导入 CSV，也不刷新物化视图。
+    FastAPI backend 进程必须在启动时调用它；一次性 `db-init` 容器中的 registry 状态
+    不会跨进程共享到 HTTP 服务。
+
+    Args:
+        db_name: shared common registry 中的连接名称。calculator repository 目前使用
+            默认连接，因此生产启动保持 `"default"`。
+
+    Raises:
+        KeyError: 必需的 PostgreSQL 环境变量缺失时抛出。
+        ValueError: `PGPORT` 非整数，或 shared common registry 拒绝注册时抛出。
+    """
+    ConnParams, DBKind, register_db_and_create, _ = _db_runtime()
+    params = _postgres_conn_params_from_env(ConnParams)
+    register_db_and_create(
+        DBKind.POSTGRES,
+        params=params,
+        db_name=db_name,
+        base=RawBase,
+        create=False,
+        allow_overwrite=True,
+    )
+
+
 def _ensure_import_table(db) -> None:
     schema = _schema_name()
     db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
@@ -322,13 +376,7 @@ def init_db(
 
         ConnParams, DBKind, register_db_and_create, _ = _db_runtime()
 
-        params = ConnParams(
-            ip=os.environ["PGHOST"],
-            port=int(os.environ["PGPORT"]),
-            database=os.environ["PGDATABASE"],
-            user=os.environ["PGUSER"],
-            password=os.environ["PGPASSWORD"],
-        )
+        params = _postgres_conn_params_from_env(ConnParams)
 
         # 2) 先注册（create=False），拿到可用的 DB 连接能力
         register_db_and_create(
