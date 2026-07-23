@@ -1,0 +1,33 @@
+.pokemon-summary-card {
+  --pokemon-summary-sprite-size: 120px;
+  min-height: calc(var(--pokemon-summary-sprite-size) + 28px);
+}
+
+.pokemon-summary-card .summary-layout {
+  grid-template-columns: var(--pokemon-summary-sprite-size) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.pokemon-summary-card .summary-copy {
+  overflow-wrap: anywhere;
+}
+
+.pokemon-summary-card .pokemon-sprite {
+  display: block;
+  width: var(--pokemon-summary-sprite-size);
+  height: var(--pokemon-summary-sprite-size);
+  max-width: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 760px) {
+  .pokemon-summary-card {
+    --pokemon-summary-sprite-size: 88px;
+    min-height: calc(var(--pokemon-summary-sprite-size) + 24px);
+    padding: 12px;
+  }
+
+  .pokemon-summary-card .summary-layout {
+    gap: 12px;
+  }
+}
