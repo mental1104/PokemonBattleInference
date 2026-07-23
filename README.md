@@ -36,8 +36,6 @@ PokemonBattleInference/
    ```
 4. 或者使用 Docker：
    ```bash
-   cp .env.compose.example .env.compose
-   # 修改 .env.compose 中的 POSTGRES_PASSWORD 后启动三服务
    make compose-up
    ```
 
@@ -53,7 +51,6 @@ frontend  →  backend  →  postgres
 首次启动：
 
 ```bash
-cp .env.compose.example .env.compose
 make compose-up
 ```
 
@@ -72,11 +69,9 @@ make compose-rebuild
 make compose-reset
 ```
 
-`.env.compose` 不提交仓库。默认 Compose project name 是
-`pokemon-battle-inference`，容器、network 和 volume 都由该 project namespace
-隔离；普通 `make compose-down` 不删除数据库数据。默认发布端口保留在
-`41100-41199`，可通过 `.env.compose` 中的 `POKEOP_FRONTEND_PORT`、
-`POKEOP_BACKEND_PORT`、`POKEOP_POSTGRES_PORT` 覆盖。
+默认 Compose project name 由目录名决定，容器、network 和 volume 都由该 project
+namespace 隔离；普通 `make compose-down` 不删除数据库数据。默认发布端口固定为
+`41100`、`41104` 和仅绑定本机的 `41132`。
 
 访问入口：
 
@@ -89,10 +84,29 @@ FastAPI：http://127.0.0.1:41104/docs
 ## 数据与脚本
 
 - `scripts/` 目录包含数据库维护脚本，默认读取 `pokeop/assets_data` 中的 CSV。
+- CSV 数据源来自 `submodules/pokeapi`；sprites 图片数据源应作为主仓库直接管理的
+  `submodules/pokeapi-sprites` submodule 初始化，不需要递归拉取
+  `submodules/pokeapi/data/v2/sprites` 中的嵌套副本：
+  ```bash
+  git submodule update --init submodules/pokeapi submodules/common submodules/pokeapi-sprites
+  ```
+- sprites 仅供 `db-init` 通过只读 bind mount 导入 PostgreSQL，已经从 Docker build
+  context 排除，不会进入 frontend/backend 镜像层。可用 `POKEOP_SPRITES_DIR` 指向
+  PokeAPI/sprites 仓库根目录或其中的 `sprites/` 目录。Compose 的 `db-init`
+  同时只读挂载顶层 `submodules/pokeapi-sprites` 和嵌套
+  `submodules/pokeapi/data/v2/sprites`；顶层目录未初始化时会自动使用嵌套目录，
+  顶层目录包含 `sprites/` 后会自动优先使用顶层数据源。
 - 执行脚本前请确保数据库环境变量已设置（`PGUSER/PGPASSWORD/PGHOST/...`）并运行：
   ```bash
   python3 scripts/reset_postgres_db.py --with-materialized-views
   ```
+
+Compose 初始化 CSV、sprites 和物化视图：
+
+```bash
+make compose-up
+make compose-init
+```
 
 ## 测试
 
