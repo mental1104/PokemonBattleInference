@@ -17,6 +17,7 @@ from pokeop.application.repositories.battle_inference import (
     BattleInferenceMoveProfile,
     BattleInferencePokemonProfile,
     BattleInferenceRulesetContext,
+    BattleInferenceTypeProfile,
     MechanismCapability,
     MechanismSupportStatus,
 )
