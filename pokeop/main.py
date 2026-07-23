@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
+from typing import AsyncIterator
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -10,6 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from pokeop.infrastructure.logging import configure_logging
+from pokeop.persistence.bootstrap import register_postgres_runtime
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "assets_static"
@@ -30,6 +33,7 @@ def create_app() -> FastAPI:
     application = FastAPI(
         docs_url=None,
         redoc_url=None,
+        lifespan=application_lifespan,
         title="Blue Espeon",
         description="Blue Espeon's little httpserver",
         version="0.0.1",
@@ -39,6 +43,25 @@ def create_app() -> FastAPI:
     register_documentation(application)
     register_exception_handlers(application)
     return application
+
+
+@asynccontextmanager
+async def application_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """管理 HTTP 服务生命周期中的只读运行时依赖。
+
+    数据库内容仍由 `db-init` 一次性命令准备；这里仅把 PostgreSQL 连接写入当前
+    backend 进程的 shared common registry，让后续 request-scoped repository 能进入
+    `tx_scope(DBKind.POSTGRES)`。
+
+    Args:
+        application: 正在启动的 FastAPI 应用；当前不读取应用状态，保留参数以满足
+            FastAPI lifespan 协议。
+
+    Yields:
+        应用运行控制权；退出阶段目前没有额外资源需要释放。
+    """
+    register_postgres_runtime()
+    yield
 
 
 def include_router(application: FastAPI, module, prefix: str) -> None:
