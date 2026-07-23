@@ -17,12 +17,27 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Compile Python sources
         run: python -m compileall -q pokeop tests
-      - name: Run issue 33 backend tests
-        run: >-
-          python -m pytest -q
-          tests/application/use_cases/test_infer_one_on_one_battle.py
-          tests/application/composition/test_battle_inference_repository.py
-          tests/api/test_inference_router.py
+      - name: Capture issue 33 backend tests
+        run: |
+          set +e
+          python -m pytest -q \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/application/composition/test_battle_inference_repository.py \
+            tests/api/test_inference_router.py \
+            > issue33-backend.log 2>&1
+          echo "$?" > issue33-backend.status
+      - name: Upload backend validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue33-backend-log
+          path: |
+            issue33-backend.log
+            issue33-backend.status
+      - name: Assert backend tests passed
+        run: |
+          cat issue33-backend.log
+          test "$(cat issue33-backend.status)" = "0"
 
   frontend:
     runs-on: ubuntu-latest
@@ -40,5 +55,21 @@ jobs:
         run: npm ci
       - name: Type-check and build frontend
         run: npm run build
-      - name: Run frontend tests
-        run: npm test -- src/App.test.ts src/views/BattleInferenceView.test.ts
+      - name: Capture frontend tests
+        run: |
+          set +e
+          npm test -- src/App.test.ts src/views/BattleInferenceView.test.ts \
+            > issue33-frontend.log 2>&1
+          echo "$?" > issue33-frontend.status
+      - name: Upload frontend validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue33-frontend-log
+          path: |
+            web/issue33-frontend.log
+            web/issue33-frontend.status
+      - name: Assert frontend tests passed
+        run: |
+          cat issue33-frontend.log
+          test "$(cat issue33-frontend.status)" = "0"
