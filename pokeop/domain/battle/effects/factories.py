@@ -9,6 +9,11 @@ from pokeop.domain.battle.effects.adapters import (
     AbilityDamageEffectAdapter,
     ItemDamageEffectAdapter,
 )
+from pokeop.domain.battle.effects.move_effects import (
+    BrickBreakEffect,
+    FakeOutEffect,
+    IcePunchEffect,
+)
 from pokeop.domain.battle.effects.products import (
     NoOpAbilityEffect,
     NoOpItemEffect,
@@ -144,9 +149,9 @@ def _supported_item_effect(
 class PokemonChampionEffectFactory:
     """创建 Pokemon Champion 规则集使用的显式 battle effect 产品族。
 
-    默认 registry 只注册当前已经有真实 domain 实现的伤害相关特性和道具。
-    招式 registry 初始为空，因此非空招式 identifier 会明确标记为 unsupported，
-    而不是伪装成完整支持。后续新增机制只需提供实现并追加注册项。
+    默认 move registry 注册冰冻拳、击掌奇袭和劈瓦；ability/item registry 注册当前
+    已有真实 domain 实现的伤害相关 adapter。未知非空标识会明确标记为 unsupported，
+    而不是伪装成完整支持。后续新增同类机制只需提供实现并追加注册项。
     """
 
     RULESET_ID = "pokemon-champion"
@@ -161,11 +166,11 @@ class PokemonChampionEffectFactory:
         """初始化当前规则集使用的三个类型化 registry。
 
         Args:
-            move_registry: 招式 effect registry；None 使用空 registry。
+            move_registry: 招式 effect registry；None 注册当前已支持的具体招式产品。
             ability_registry: 特性 effect registry；None 注册现有伤害特性 adapter。
             item_registry: 道具 effect registry；None 注册现有伤害道具 adapter。
         """
-        self._move_registry = move_registry or EffectRegistry()
+        self._move_registry = move_registry or self._default_move_registry()
         self._ability_registry = ability_registry or self._default_ability_registry()
         self._item_registry = item_registry or self._default_item_registry()
 
@@ -173,6 +178,20 @@ class PokemonChampionEffectFactory:
     def ruleset_id(self) -> str:
         """返回当前具体工厂负责的 Pokemon Champion 规则集标识。"""
         return self.RULESET_ID
+
+    def _default_move_registry(self) -> EffectRegistry[MoveEffect]:
+        """构建包含 issue #28 三项具体招式产品的默认显式 registry。
+
+        Returns:
+            可按规范化 identifier 创建冰冻拳、击掌奇袭和劈瓦 effect 的 registry。
+        """
+        return EffectRegistry(
+            (
+                EffectRegistration("ice_punch", IcePunchEffect),
+                EffectRegistration("fake_out", FakeOutEffect),
+                EffectRegistration("brick_break", BrickBreakEffect),
+            )
+        )
 
     def _default_ability_registry(self) -> EffectRegistry[AbilityEffect]:
         """构建包含现有伤害特性 adapter 的默认显式 registry。"""
