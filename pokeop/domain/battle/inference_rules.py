@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from pokeop.domain.battle.rulesets.damage_policy import DamagePolicy
+from pokeop.domain.battle.rulesets.move_execution_policy import MoveExecutionPolicy
 
 
 class BattleFormat(str, Enum):
@@ -40,9 +41,10 @@ class InvalidBattleInferenceRules(ValueError):
 class BattleInferenceRules:
     """冻结一次 1v1 多回合推演使用的规则语义。
 
-    `max_turns` 只是产品运行保护；重复状态与封闭循环仍由各自策略处理，后续求解器
+    ``max_turns`` 只是产品运行保护；重复状态与封闭循环仍由各自策略处理，后续求解器
     不得把回合上限冒充为循环证明。首版明确禁止交换与三种形态变换，避免调用方通过
-    默认值差异隐式扩大规则范围。
+    默认值差异隐式扩大规则范围。伤害公式与通用招式执行规则分别由显式 policy 承担，
+    从而让状态键完整包含会影响后续结果的规则配置。
     """
 
     ruleset_id: str = "pokemon-champion"
@@ -57,8 +59,16 @@ class BattleInferenceRules:
     repetition_resolution: RepetitionResolution = RepetitionResolution.DECLARE_DRAW
     cycle_resolution: CycleResolution = CycleResolution.DECLARE_DRAW
     damage_policy: DamagePolicy = field(default_factory=DamagePolicy)
+    move_execution_policy: MoveExecutionPolicy = field(
+        default_factory=MoveExecutionPolicy
+    )
 
     def __post_init__(self) -> None:
+        """校验规则标识、首版能力边界以及组合 policy 类型。
+
+        Raises:
+            InvalidBattleInferenceRules: 任一规则字段不满足首版推演合同时抛出。
+        """
         if not self.ruleset_id or self.ruleset_id != self.ruleset_id.strip():
             raise InvalidBattleInferenceRules(
                 "ruleset_id must be a non-empty normalized identifier"
@@ -105,3 +115,7 @@ class BattleInferenceRules:
             )
         if not isinstance(self.damage_policy, DamagePolicy):
             raise InvalidBattleInferenceRules("damage_policy must be a DamagePolicy")
+        if not isinstance(self.move_execution_policy, MoveExecutionPolicy):
+            raise InvalidBattleInferenceRules(
+                "move_execution_policy must be a MoveExecutionPolicy"
+            )

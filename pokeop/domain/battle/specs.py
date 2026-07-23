@@ -18,14 +18,15 @@ class InvalidBattleState(ValueError):
 class MoveSpecKey:
     """表示影响后续战斗结果的招式配置规范化键。
 
-    招式名称属于展示信息，因此不会进入键；招式 ID、属性、分类、威力、最大 PP 和
-    优先级会影响合法行动、行动顺序或伤害结果，必须参与状态去重。
+    招式名称属于展示信息，因此不会进入键；招式 ID、属性、分类、威力、命中率、
+    最大 PP 和优先级会影响合法行动、行动顺序或状态转移，必须参与状态去重。
     """
 
     move_id: int
     move_type_id: int
     category: MoveCategory
     power: int
+    accuracy: int | None
     max_pp: int
     priority: int
 
@@ -39,18 +40,20 @@ class MoveSpec:
         move: 现有伤害计算入口使用的只读招式快照。
         max_pp: 当前规则集和配置下的最大 PP，必须大于 0。
         priority: 当前规则集下的招式优先级；数值越大越早执行。
+        accuracy: 百分制基础命中率，必须位于 1 到 100；None 表示跳过普通命中判定。
     """
 
     move_id: int
     move: BattleMove
     max_pp: int
     priority: int = 0
+    accuracy: int | None = 100
 
     def __post_init__(self) -> None:
-        """校验招式 ID、最大 PP 和行动优先级。
+        """校验招式 ID、PP、优先级和基础命中率。
 
         Raises:
-            InvalidBattleState: 招式 ID、最大 PP 或优先级类型不合法时抛出。
+            InvalidBattleState: 任一招式配置字段不满足稳定领域合同时抛出。
         """
         if isinstance(self.move_id, bool) or self.move_id <= 0:
             raise InvalidBattleState("move_id must be greater than 0")
@@ -60,19 +63,26 @@ class MoveSpec:
             raise InvalidBattleState("max_pp must be greater than 0")
         if isinstance(self.priority, bool) or not isinstance(self.priority, int):
             raise InvalidBattleState("move priority must be an integer")
+        if self.accuracy is not None and (
+            isinstance(self.accuracy, bool) or not 1 <= self.accuracy <= 100
+        ):
+            raise InvalidBattleState(
+                "move accuracy must be between 1 and 100 or None"
+            )
 
     @property
     def state_key(self) -> MoveSpecKey:
         """返回排除展示名称后的稳定招式配置键。
 
         Returns:
-            包含招式 ID、战斗属性、伤害分类、威力、最大 PP 和优先级的不可变键。
+            包含招式 ID、战斗属性、伤害分类、威力、命中率、最大 PP 和优先级的键。
         """
         return MoveSpecKey(
             move_id=self.move_id,
             move_type_id=self.move.type.value,
             category=self.move.category,
             power=self.move.power,
+            accuracy=self.accuracy,
             max_pp=self.max_pp,
             priority=self.priority,
         )
