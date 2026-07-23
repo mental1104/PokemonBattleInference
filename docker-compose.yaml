@@ -1,11 +1,16 @@
-x-backend-image: &backend-image "${COMPOSE_PROJECT_NAME:-pokemon-battle-inference}-backend:local"
+x-backend-image: &backend-image pokemon-battle-inference-backend:local
+
+x-postgres-settings:
+  database: &postgres-database pokemon_battle_inference
+  user: &postgres-user pokeop
+  password: &postgres-password pokemon-battle-inference-local-only
 
 x-postgres-client-environment: &postgres-client-environment
   PGHOST: postgres
   PGPORT: "5432"
-  PGDATABASE: ${POSTGRES_DB}
-  PGUSER: ${POSTGRES_USER}
-  PGPASSWORD: ${POSTGRES_PASSWORD}
+  PGDATABASE: *postgres-database
+  PGUSER: *postgres-user
+  PGPASSWORD: *postgres-password
 
 services:
   frontend:
@@ -17,7 +22,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${POKEOP_FRONTEND_PORT:-41100}:80"
+      - "41100:80"
     networks:
       - default
 
@@ -33,6 +38,7 @@ services:
     environment:
       <<: *postgres-client-environment
       PGAPPNAME: pokemon-battle-inference
+    command: ["uvicorn", "pokeop.main:app", "--host", "0.0.0.0", "--port", "41104"]
     healthcheck:
       test:
         [
@@ -46,7 +52,7 @@ services:
       retries: 12
       start_period: 30s
     ports:
-      - "${POKEOP_BACKEND_PORT:-41104}:41104"
+      - "41104:41104"
     networks:
       - default
 
@@ -68,16 +74,16 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: *postgres-database
+      POSTGRES_USER: *postgres-user
+      POSTGRES_PASSWORD: *postgres-password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 20
     ports:
-      - "${POKEOP_POSTGRES_PORT:-41132}:5432"
+      - "41132:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
