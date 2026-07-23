@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Hashable
 
+import pytest
+
 from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.effects import (
     ActionEffectContext,
@@ -25,7 +27,10 @@ from pokeop.domain.battle.effects import (
     NoOpItemEffect,
 )
 from pokeop.domain.battle.items import DamageItem
-from pokeop.domain.battle.transitions import WeightedTransition
+from pokeop.domain.battle.transitions import (
+    UnnormalizedTransitionSetError,
+    WeightedTransition,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,3 +220,31 @@ def test_fake_factory_can_drive_typed_dispatcher_phases() -> None:
     assert before_move == transitions
     assert after_damage[0].state == StubBattleState("initial|after:blocked")
     assert after_damage[0].probability == Fraction(1, 1)
+
+
+def test_dispatcher_rejects_unnormalized_transition_input() -> None:
+    """阶段入口必须拒绝概率总和不为一的带权转移集合。"""
+    factory: BattleEffectAbstractFactory = FakeBattleEffectFactory()
+    family = factory.create_effect_family(
+        move_identifier="multi-phase",
+        ability_identifier=None,
+        item_identifier=None,
+    )
+    dispatcher = BattleEffectDispatcher[StubBattleState, str].from_family(family)
+    state = StubBattleState("turn-state")
+    transitions = (
+        WeightedTransition(
+            probability=Fraction(1, 2),
+            state=StubBattleState("incomplete-branch"),
+        ),
+    )
+
+    with pytest.raises(UnnormalizedTransitionSetError):
+        dispatcher.before_move(
+            MoveEffectContext(
+                state=state,
+                actor=BattleSide.ATTACKER,
+                action="sample-action",
+            ),
+            transitions,
+        )
