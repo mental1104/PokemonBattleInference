@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.context import BattleMove, MoveCategory
+from pokeop.domain.battle.effect_identifiers import normalize_effect_identifier
 from pokeop.domain.battle.grounding import GroundingState
 from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.stats import StatValues
@@ -19,7 +20,8 @@ class MoveSpecKey:
     """表示影响后续战斗结果的招式配置规范化键。
 
     招式名称属于展示信息，因此不会进入键；招式 ID、属性、分类、威力、命中率、
-    最大 PP 和优先级会影响合法行动、行动顺序或状态转移，必须参与状态去重。
+    最大 PP、优先级和具体 effect 标识会影响合法行动、行动顺序或状态转移，必须参与
+    状态去重。
     """
 
     move_id: int
@@ -29,6 +31,7 @@ class MoveSpecKey:
     accuracy: int | None
     max_pp: int
     priority: int
+    effect_identifier: str | None
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -41,6 +44,8 @@ class MoveSpec:
         max_pp: 当前规则集和配置下的最大 PP，必须大于 0。
         priority: 当前规则集下的招式优先级；数值越大越早执行。
         accuracy: 百分制基础命中率，必须位于 1 到 100；None 表示跳过普通命中判定。
+        effect_identifier: 由 application 或数据映射层提供的具体招式机制标识；None
+            表示该招式只使用通用执行流程，不需要额外 effect。非空值会在构造时规范化。
     """
 
     move_id: int
@@ -48,9 +53,10 @@ class MoveSpec:
     max_pp: int
     priority: int = 0
     accuracy: int | None = 100
+    effect_identifier: str | None = None
 
     def __post_init__(self) -> None:
-        """校验招式 ID、PP、优先级和基础命中率。
+        """校验招式字段并规范化进入状态键的具体 effect 标识。
 
         Raises:
             InvalidBattleState: 任一招式配置字段不满足稳定领域合同时抛出。
@@ -69,13 +75,30 @@ class MoveSpec:
             raise InvalidBattleState(
                 "move accuracy must be between 1 and 100 or None"
             )
+        if self.effect_identifier is not None and not isinstance(
+            self.effect_identifier,
+            str,
+        ):
+            raise InvalidBattleState("effect_identifier must be a string or None")
+
+        normalized_identifier = (
+            normalize_effect_identifier(self.effect_identifier)
+            if self.effect_identifier is not None
+            else ""
+        )
+        object.__setattr__(
+            self,
+            "effect_identifier",
+            normalized_identifier or None,
+        )
 
     @property
     def state_key(self) -> MoveSpecKey:
         """返回排除展示名称后的稳定招式配置键。
 
         Returns:
-            包含招式 ID、战斗属性、伤害分类、威力、命中率、最大 PP 和优先级的键。
+            包含招式 ID、战斗属性、伤害分类、威力、命中率、最大 PP、优先级和
+            effect 标识的键。
         """
         return MoveSpecKey(
             move_id=self.move_id,
@@ -85,6 +108,7 @@ class MoveSpec:
             accuracy=self.accuracy,
             max_pp=self.max_pp,
             priority=self.priority,
+            effect_identifier=self.effect_identifier,
         )
 
     def __hash__(self) -> int:
@@ -188,7 +212,9 @@ class PokemonSpec:
 
         normalized_moves = tuple(self.moves)
         if not 1 <= len(normalized_moves) <= 4:
-            raise InvalidBattleState("pokemon must configure between one and four moves")
+            raise InvalidBattleState(
+                "pokemon must configure between one and four moves"
+            )
         if any(not isinstance(move, MoveSpec) for move in normalized_moves):
             raise InvalidBattleState("moves must contain only MoveSpec values")
         move_ids = tuple(move.move_id for move in normalized_moves)

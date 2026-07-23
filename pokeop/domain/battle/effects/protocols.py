@@ -8,6 +8,8 @@ from pokeop.domain.battle.context import DamageContext
 from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.modifier_keys import ModifierKeyLike
 from pokeop.domain.battle.state import BattleState
+from pokeop.domain.battle.status.kinds import VolatileStatusKind
+from pokeop.domain.battle.status.state import VolatileStatus
 from pokeop.domain.battle.transitions import WeightedTransition
 
 ActionT = TypeVar("ActionT")
@@ -31,6 +33,30 @@ class EffectCoverageStatus(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class EffectCapabilityCoverage:
+    """记录一个 effect 内部子机制的结构化覆盖状态。
+
+    Attributes:
+        identifier: 子机制的稳定标识，例如 ``freeze_secondary_effect``。
+        status: 当前规则集对该子机制的支持状态。
+        reason: 面向诊断和结果 DTO 的简短解释，不参与行为分发。
+    """
+
+    identifier: str
+    status: EffectCoverageStatus
+    reason: str
+
+    def __post_init__(self) -> None:
+        """拒绝空标识、非法状态和空解释，保证覆盖结果可被稳定消费。"""
+        if not self.identifier.strip():
+            raise ValueError("capability identifier must not be blank")
+        if not isinstance(self.status, EffectCoverageStatus):
+            raise ValueError("capability status must be an EffectCoverageStatus")
+        if not self.reason.strip():
+            raise ValueError("capability reason must not be blank")
+
+
+@dataclass(frozen=True, slots=True)
 class EffectCoverage:
     """记录工厂创建出的 effect 对当前机制的覆盖结论。
 
@@ -38,8 +64,9 @@ class EffectCoverage:
         ruleset_id: 创建该 effect 的规则集标识。
         source_kind: 机制来自招式、特性还是道具。
         identifier: 规范化后的机制标识；未配置时使用 ``none``。
-        status: 当前规则集对该机制的支持状态。
+        status: 当前规则集对该机制整体的支持状态。
         reason: 面向诊断和结果 DTO 的简短解释，不参与状态判等。
+        capabilities: 该 effect 内部可独立声明的子机制覆盖结果。
     """
 
     ruleset_id: str
@@ -47,9 +74,10 @@ class EffectCoverage:
     identifier: str
     status: EffectCoverageStatus
     reason: str
+    capabilities: tuple[EffectCapabilityCoverage, ...] = ()
 
     def __post_init__(self) -> None:
-        """校验覆盖记录必须包含可追踪的规则集和机制标识。"""
+        """校验覆盖记录必须包含可追踪的规则集、机制标识和子能力。"""
         if not self.ruleset_id.strip():
             raise ValueError("ruleset_id must not be blank")
         if not self.identifier.strip():
@@ -60,6 +88,27 @@ class EffectCoverage:
             raise ValueError("status must be an EffectCoverageStatus")
         if not self.reason.strip():
             raise ValueError("reason must not be blank")
+        capabilities = tuple(self.capabilities)
+        if any(
+            not isinstance(capability, EffectCapabilityCoverage)
+            for capability in capabilities
+        ):
+            raise ValueError(
+                "capabilities must contain EffectCapabilityCoverage values"
+            )
+        identifiers = tuple(capability.identifier for capability in capabilities)
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("capability identifiers must be unique")
+        object.__setattr__(self, "capabilities", capabilities)
+
+    @property
+    def unsupported_capabilities(self) -> tuple[EffectCapabilityCoverage, ...]:
+        """返回当前 effect 明确声明为尚未支持的子机制。"""
+        return tuple(
+            capability
+            for capability in self.capabilities
+            if capability.status is EffectCoverageStatus.UNSUPPORTED
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +190,36 @@ class VolatileStatusEffectContext:
         """拒绝空状态标识，避免 effect 把未知输入误判为已支持机制。"""
         if not self.status_identifier.strip():
             raise ValueError("status_identifier must not be blank")
+
+
+@dataclass(frozen=True, slots=True)
+class VolatileStatusAttempt:
+    """表示招式在伤害后发出的一次类型化临时状态施加请求。
+
+    Attributes:
+        source: 发出状态请求的稳定战斗侧。
+        target: 接收状态请求的另一稳定战斗侧。
+        status: 已构造完成的不可变临时状态值对象。
+        source_identifier: 发出请求的 effect 标识，用于诊断和测试追踪。
+    """
+
+    source: BattleSide
+    target: BattleSide
+    status: VolatileStatus
+    source_identifier: str
+
+    def __post_init__(self) -> None:
+        """校验状态请求必须指向对手且携带可追踪的临时状态。"""
+        if not isinstance(self.source, BattleSide):
+            raise ValueError("status attempt source must be a BattleSide")
+        if not isinstance(self.target, BattleSide):
+            raise ValueError("status attempt target must be a BattleSide")
+        if self.source is self.target:
+            raise ValueError("status attempt target must differ from source")
+        if not isinstance(self.status.kind, VolatileStatusKind):
+            raise ValueError("status attempt must carry a volatile status")
+        if not self.source_identifier.strip():
+            raise ValueError("status attempt source_identifier must not be blank")
 
 
 @dataclass(frozen=True, slots=True)
@@ -370,6 +449,18 @@ class AfterDamageEffect(Protocol[ActionT]):
 
 
 @runtime_checkable
+class AfterDamageVolatileStatusEffect(Protocol[ActionT]):
+    """只在伤害完成后发出类型化临时状态请求，不直接写入目标状态。"""
+
+    def after_damage_volatile_status_attempts(
+        self,
+        context: MoveEffectContext[ActionT],
+    ) -> tuple[VolatileStatusAttempt, ...]:
+        """返回需要经过目标特性等阻止 effect 裁决的状态请求。"""
+        ...
+
+
+@runtime_checkable
 class TurnEndEffect(Protocol):
     """只在回合结束阶段转换精确带权后继状态转移。"""
 
@@ -390,6 +481,7 @@ __all__ = [
     "ActionValidationReport",
     "ActionValidationResult",
     "AfterDamageEffect",
+    "AfterDamageVolatileStatusEffect",
     "AfterMoveSelectedEffect",
     "BattleEffect",
     "BattleSide",
@@ -398,6 +490,7 @@ __all__ = [
     "DamageEffectContext",
     "DamageEffectResult",
     "DamageEffectStage",
+    "EffectCapabilityCoverage",
     "EffectSourceKind",
     "ItemEffect",
     "EffectCoverage",
@@ -413,5 +506,6 @@ __all__ = [
     "TurnEndEffect",
     "TurnEndEffectContext",
     "ValidateActionEffect",
+    "VolatileStatusAttempt",
     "VolatileStatusEffectContext",
 ]
