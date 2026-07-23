@@ -18,8 +18,8 @@ class InvalidBattleState(ValueError):
 class MoveSpecKey:
     """表示影响后续战斗结果的招式配置规范化键。
 
-    招式名称属于展示信息，因此不会进入键；招式 ID、属性、分类、威力和最大 PP
-    会影响合法行动或伤害结果，必须参与状态去重。
+    招式名称属于展示信息，因此不会进入键；招式 ID、属性、分类、威力、最大 PP 和
+    优先级会影响合法行动、行动顺序或伤害结果，必须参与状态去重。
     """
 
     move_id: int
@@ -27,6 +27,7 @@ class MoveSpecKey:
     category: MoveCategory
     power: int
     max_pp: int
+    priority: int
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -37,17 +38,19 @@ class MoveSpec:
         move_id: 规则集内稳定的招式 ID，必须为正整数。
         move: 现有伤害计算入口使用的只读招式快照。
         max_pp: 当前规则集和配置下的最大 PP，必须大于 0。
+        priority: 当前规则集下的招式优先级；数值越大越早执行。
     """
 
     move_id: int
     move: BattleMove
     max_pp: int
+    priority: int = 0
 
     def __post_init__(self) -> None:
-        """校验招式 ID 与最大 PP，拒绝不能形成合法招式槽的配置。
+        """校验招式 ID、最大 PP 和行动优先级。
 
         Raises:
-            InvalidBattleState: 招式 ID 或最大 PP 不是合法正整数时抛出。
+            InvalidBattleState: 招式 ID、最大 PP 或优先级类型不合法时抛出。
         """
         if isinstance(self.move_id, bool) or self.move_id <= 0:
             raise InvalidBattleState("move_id must be greater than 0")
@@ -55,13 +58,15 @@ class MoveSpec:
             raise InvalidBattleState("move must be a BattleMove")
         if isinstance(self.max_pp, bool) or self.max_pp <= 0:
             raise InvalidBattleState("max_pp must be greater than 0")
+        if isinstance(self.priority, bool) or not isinstance(self.priority, int):
+            raise InvalidBattleState("move priority must be an integer")
 
     @property
     def state_key(self) -> MoveSpecKey:
         """返回排除展示名称后的稳定招式配置键。
 
         Returns:
-            包含招式 ID、战斗属性、伤害分类、威力和最大 PP 的不可变键。
+            包含招式 ID、战斗属性、伤害分类、威力、最大 PP 和优先级的不可变键。
         """
         return MoveSpecKey(
             move_id=self.move_id,
@@ -69,6 +74,7 @@ class MoveSpec:
             category=self.move.category,
             power=self.move.power,
             max_pp=self.max_pp,
+            priority=self.priority,
         )
 
     def __hash__(self) -> int:
