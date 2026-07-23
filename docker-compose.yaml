@@ -3,14 +3,12 @@ x-backend-image: &backend-image pokemon-battle-inference-backend:local
 x-postgres-settings:
   database: &postgres-database pokemon_battle_inference
   user: &postgres-user pokeop
-  password: &postgres-password pokemon-battle-inference-local-only
 
 x-postgres-client-environment: &postgres-client-environment
   PGHOST: postgres
   PGPORT: "5432"
   PGDATABASE: *postgres-database
   PGUSER: *postgres-user
-  PGPASSWORD: *postgres-password
 
 services:
   frontend:
@@ -76,14 +74,15 @@ services:
     environment:
       POSTGRES_DB: *postgres-database
       POSTGRES_USER: *postgres-user
-      POSTGRES_PASSWORD: *postgres-password
+      # 仅用于本地 Compose；宿主机发布端口限制在 127.0.0.1，避免 trust 认证暴露到局域网。
+      POSTGRES_HOST_AUTH_METHOD: trust
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 20
     ports:
-      - "41132:5432"
+      - "127.0.0.1:41132:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
