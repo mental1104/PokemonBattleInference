@@ -10,6 +10,7 @@ from sqlalchemy import text
 from pokeop.persistence.base import RawBase
 
 _DEFAULT_CSV_DIR = Path(__file__).resolve().parents[1] / "assets_data"
+_DEFAULT_SPRITES_DIR = Path(__file__).resolve().parents[2] / "submodules" / "pokeapi-sprites"
 
 _init_lock = threading.Lock()
 _inited = False
@@ -229,6 +230,32 @@ def _run_materialized_view_actions(
         _refresh_materialized_views()
 
 
+def _import_all_sprites(
+    *,
+    sprites_dir: Path,
+    source_commit: str | None,
+) -> bool:
+    """在一个事务内导入 sprites 二进制资产。
+
+    Args:
+        sprites_dir: PokeAPI/sprites submodule 根目录，或其中的 `sprites/` 目录。
+        source_commit: 调用方传入的可选 submodule commit；容器内不读取宿主机 git 元数据。
+
+    Returns:
+        manifest 未变化时返回 False；发生实际导入或清理时返回 True。
+    """
+    from pokeop.persistence.assets import import_sprite_assets
+
+    _, DBKind, _, tx_scope = _db_runtime()
+    with tx_scope(DBKind.POSTGRES) as db:
+        result = import_sprite_assets(
+            db,
+            source_root=sprites_dir,
+            source_commit=source_commit,
+        )
+    return not result.skipped
+
+
 # -----------------------------
 # init_db：注册/建表/可选导入
 # -----------------------------
@@ -239,6 +266,9 @@ def init_db(
     create_tables: bool = True,
     import_csv: bool = False,
     csv_dir: str | Path | None = None,
+    import_sprites: bool | None = None,
+    sprites_dir: str | Path | None = None,
+    sprites_source_commit: str | None = None,
     force_import: bool = False,
     batch_size: int = 5000,
     ignore_conflicts: bool = True,
@@ -248,6 +278,16 @@ def init_db(
 ) -> None:
     global _inited
     if _inited:
+        if import_sprites or (import_sprites is None and os.environ.get("POKEOP_SPRITES_DIR")):
+            changed = _import_all_sprites(
+                sprites_dir=Path(
+                    sprites_dir
+                    if sprites_dir is not None
+                    else os.environ.get("POKEOP_SPRITES_DIR", _DEFAULT_SPRITES_DIR)
+                ),
+                source_commit=sprites_source_commit or os.environ.get("POKEOP_SPRITES_COMMIT"),
+            )
+            refresh_materialized_views = refresh_materialized_views or changed
         _run_materialized_view_actions(
             create_materialized_views=create_materialized_views,
             recreate_materialized_views=recreate_materialized_views,
@@ -257,6 +297,16 @@ def init_db(
 
     with _init_lock:
         if _inited:
+            if import_sprites or (import_sprites is None and os.environ.get("POKEOP_SPRITES_DIR")):
+                changed = _import_all_sprites(
+                    sprites_dir=Path(
+                        sprites_dir
+                        if sprites_dir is not None
+                        else os.environ.get("POKEOP_SPRITES_DIR", _DEFAULT_SPRITES_DIR)
+                    ),
+                    source_commit=sprites_source_commit or os.environ.get("POKEOP_SPRITES_COMMIT"),
+                )
+                refresh_materialized_views = refresh_materialized_views or changed
             _run_materialized_view_actions(
                 create_materialized_views=create_materialized_views,
                 recreate_materialized_views=recreate_materialized_views,
@@ -266,6 +316,7 @@ def init_db(
 
         # 1) 先 import 所有 ORM 模型：让 RawBase.metadata 收集到全部表
         import pokeop.persistence.raw.models as _poke_raw_models  # noqa: F401
+        import pokeop.persistence.assets.models as _poke_sprite_models  # noqa: F401
         # 也 import DAO 包，保证 __all__ 可用（不强依赖，但更稳）
         import pokeop.persistence.raw.dao as _poke_raw_daos  # noqa: F401
 
@@ -312,6 +363,22 @@ def init_db(
                 batch_size=batch_size,
                 ignore_conflicts=ignore_conflicts,
             )
+
+        should_import_sprites = (
+            import_sprites
+            if import_sprites is not None
+            else bool(os.environ.get("POKEOP_SPRITES_DIR"))
+        )
+        if should_import_sprites:
+            changed = _import_all_sprites(
+                sprites_dir=Path(
+                    sprites_dir
+                    if sprites_dir is not None
+                    else os.environ.get("POKEOP_SPRITES_DIR", _DEFAULT_SPRITES_DIR)
+                ),
+                source_commit=sprites_source_commit or os.environ.get("POKEOP_SPRITES_COMMIT"),
+            )
+            refresh_materialized_views = refresh_materialized_views or changed
 
         _run_materialized_view_actions(
             create_materialized_views=create_materialized_views,

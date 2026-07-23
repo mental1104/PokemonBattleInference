@@ -13,4 +13,5 @@ dist
 submodules/common/cpp/build
 submodules/common/build
 submodules/common/export
+submodules/pokeapi-sprites
 .env*

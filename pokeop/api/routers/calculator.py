@@ -55,7 +55,7 @@ async def search_pokemon(
 ) -> list[PokemonSearchItem]:
     """搜索当前规则集下可用于 calculator 的宝可梦。"""
     results = repository.search_pokemon(ruleset_id=ruleset_id, query=query, limit=limit)
-    return [pokemon_search_item_from_result(item) for item in results]
+    return [pokemon_search_item_from_result(item, ruleset_id=ruleset_id) for item in results]
 
 
 @router.get("/pokemon/{pokemon_id}", response_model=PokemonDetailResponse)
@@ -68,7 +68,7 @@ async def get_pokemon_detail(
     profile = repository.get_pokemon_profile(ruleset_id=ruleset_id, pokemon_id=pokemon_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="pokemon not found in ruleset")
-    return pokemon_detail_from_profile(profile)
+    return pokemon_detail_from_profile(profile, ruleset_id=ruleset_id)
 
 
 @router.get("/pokemon/{pokemon_id}/moves", response_model=list[MoveSearchItem])

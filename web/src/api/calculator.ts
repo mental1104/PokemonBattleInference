@@ -5,6 +5,7 @@ export interface PokemonSearchItem {
   form_identifier: string | null;
   types: string[];
   type_names: string[];
+  sprite_url: string;
 }
 
 export interface PokemonDetail extends PokemonSearchItem {
@@ -57,6 +58,7 @@ export interface ResultPokemon {
   pokemon_id: number;
   identifier: string;
   display_name: string;
+  sprite_url: string;
   level: number;
   preset_label: string;
   preset_assumption: string;

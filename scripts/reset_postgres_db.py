@@ -92,7 +92,9 @@ def connection_label() -> str:
 
 
 def import_raw_models():
+    """导入所有 poke_raw SQLAlchemy model，包括 generated CSV 表和手写资产表。"""
     import pokeop.persistence.raw.models  # noqa: F401
+    import pokeop.persistence.assets.models  # noqa: F401
     from pokeop.persistence.base import RawBase
 
     return RawBase

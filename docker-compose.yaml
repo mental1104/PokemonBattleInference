@@ -64,7 +64,11 @@ services:
     environment:
       <<: *postgres-client-environment
       PGAPPNAME: pokemon-battle-inference-db-init
+      POKEOP_SPRITES_DIR: /data/pokeapi-sprites:/data/pokeapi-nested-sprites
     command: ["python3", "-m", "pokeop.persistence.commands.initialize_database"]
+    volumes:
+      - ./submodules/pokeapi-sprites:/data/pokeapi-sprites:ro
+      - ./submodules/pokeapi/data/v2/sprites:/data/pokeapi-nested-sprites:ro
     networks:
       - default
 

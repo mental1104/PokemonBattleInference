@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from unittest.mock import Mock
+from pathlib import Path
 
 from pokeop.persistence.commands import initialize_database as command
 
@@ -16,11 +17,15 @@ def test_initialize_database_prepares_regenerable_assets(monkeypatch) -> None:
     """
     init_db = Mock()
     monkeypatch.setattr(command, "init_db", init_db)
+    monkeypatch.setattr(command, "_sprites_source_dir", lambda: Path("/data/pokeapi-sprites"))
 
     command.initialize_database()
 
     init_db.assert_called_once_with(
         create_tables=True,
         import_csv=True,
+        import_sprites=True,
+        sprites_dir=Path("/data/pokeapi-sprites"),
         create_materialized_views=True,
+        refresh_materialized_views=True,
     )
