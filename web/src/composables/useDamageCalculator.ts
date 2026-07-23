@@ -2,7 +2,6 @@ import { computed, ref, watch } from 'vue';
 import {
   calculateDamage,
   getPokemonDetail,
-  listPokemonMoves,
   listStatPresets,
   type CalculateDamageResponse,
   type MoveSearchItem,
@@ -20,7 +19,6 @@ export function useDamageCalculator() {
   const attacker = ref<PokemonDetail | null>(null);
   const defender = ref<PokemonDetail | null>(null);
   const move = ref<MoveSearchItem | null>(null);
-  const moves = ref<MoveSearchItem[]>([]);
   const attackerPreset = ref('max_atk_neutral');
   const defenderPreset = ref('max_hp');
   const attackerPresets = ref<StatPreset[]>([]);
@@ -52,23 +50,18 @@ export function useDamageCalculator() {
     }
   }
 
-  /** 选择攻击方后读取详情并刷新可计算招式列表。 */
+  /**
+   * 选择攻击方后读取详情，并清空依赖旧攻击方的招式和伤害结果。
+   *
+   * @param item 用户从攻击方选择器选中的 Pokémon 搜索结果。
+   */
   async function selectAttacker(item: PokemonSearchItem): Promise<void> {
     error.value = null;
     attacker.value = await getPokemonDetail(item.pokemon_id, rulesetId.value);
+    // 招式列表由 MoveSelector 按新攻击方重新分页读取，旧选择不能继续提交。
     move.value = null;
     result.value = null;
     staleResult.value = false;
-    moves.value = await listPokemonMoves(item.pokemon_id, rulesetId.value, '');
-  }
-
-  /** 根据攻击方和搜索词刷新招式列表。 */
-  async function refreshMoves(query: string): Promise<void> {
-    if (!attacker.value) {
-      moves.value = [];
-      return;
-    }
-    moves.value = await listPokemonMoves(attacker.value.pokemon_id, rulesetId.value, query);
   }
 
   /** 选择防守方后读取详情。 */
@@ -116,7 +109,6 @@ export function useDamageCalculator() {
     attacker,
     defender,
     move,
-    moves,
     attackerPreset,
     defenderPreset,
     attackerPresets,
@@ -130,7 +122,6 @@ export function useDamageCalculator() {
     loadPresets,
     selectAttacker,
     selectDefender,
-    refreshMoves,
     submit,
   };
 }

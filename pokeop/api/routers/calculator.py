@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pokeop.api.schemas.calculator import (
     CalculateDamageRequest,
     CalculateDamageResponse,
-    MoveSearchItem,
+    MoveSearchPageResponse,
     PokemonDetailResponse,
     PokemonSearchItem,
     StatPresetResponse,
     damage_response_from_result,
-    move_search_item_from_result,
+    move_search_page_from_result,
     pokemon_detail_from_profile,
     pokemon_search_item_from_result,
 )
@@ -24,12 +24,19 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
     CalculatorCatalogRepository,
     CalculatorInputError,
 )
+from pokeop.application.use_cases.list_calculable_moves import (
+    CalculatorMoveCatalogRepository,
+    CalculatorMoveFilterCategory,
+    CalculatorMoveQueryError,
+    ListCalculatorMovesQuery,
+    ListCalculatorMovesUseCase,
+)
 from pokeop.persistence.calculator import MaterializedViewCalculatorRepository
 
 router = APIRouter()
 
 
-def get_calculator_repository() -> CalculatorCatalogRepository:
+def get_calculator_repository() -> MaterializedViewCalculatorRepository:
     """创建 calculator repository 依赖。
 
     Returns:
@@ -44,6 +51,13 @@ def get_calculator_use_case(
 ) -> CalculateCatalogDamageUseCase:
     """创建数据库驱动伤害计算 use case。"""
     return CalculateCatalogDamageUseCase(repository)
+
+
+def get_calculator_move_use_case(
+    repository: CalculatorMoveCatalogRepository = Depends(get_calculator_repository),
+) -> ListCalculatorMovesUseCase:
+    """创建招式复合过滤与分页查询 use case。"""
+    return ListCalculatorMovesUseCase(repository)
 
 
 @router.get("/pokemon", response_model=list[PokemonSearchItem])
@@ -71,22 +85,40 @@ async def get_pokemon_detail(
     return pokemon_detail_from_profile(profile, ruleset_id=ruleset_id)
 
 
-@router.get("/pokemon/{pokemon_id}/moves", response_model=list[MoveSearchItem])
+@router.get("/pokemon/{pokemon_id}/moves", response_model=MoveSearchPageResponse)
 async def list_pokemon_moves(
     pokemon_id: int,
     ruleset_id: str = Query(default=DEFAULT_RULESET_ID, description="当前规则集。"),
     query: str = Query(default="", description="中文名或 identifier 搜索词。"),
-    limit: int = Query(default=50, ge=1, le=100, description="最大返回数量。"),
-    repository: CalculatorCatalogRepository = Depends(get_calculator_repository),
-) -> list[MoveSearchItem]:
-    """列出一只宝可梦当前可学且基础模式可计算的招式。"""
-    results = repository.list_calculable_moves(
-        ruleset_id=ruleset_id,
-        pokemon_id=pokemon_id,
-        query=query,
-        limit=limit,
-    )
-    return [move_search_item_from_result(item) for item in results]
+    category: CalculatorMoveFilterCategory = Query(
+        default=CalculatorMoveFilterCategory.ALL,
+        description="全部、物理或特殊招式。",
+    ),
+    type_identifiers: list[str] | None = Query(
+        default=None,
+        alias="type",
+        description="可重复传入的属性 identifier；多个值之间使用 OR。",
+    ),
+    limit: int = Query(default=10, ge=1, le=50, description="单页最大返回数量。"),
+    offset: int = Query(default=0, ge=0, description="稳定排序结果的起始偏移。"),
+    use_case: ListCalculatorMovesUseCase = Depends(get_calculator_move_use_case),
+) -> MoveSearchPageResponse:
+    """按文本、类别和属性复合筛选一只 Pokémon 的可计算招式。"""
+    try:
+        result = use_case.execute(
+            ListCalculatorMovesQuery(
+                ruleset_id=ruleset_id,
+                pokemon_id=pokemon_id,
+                query=query,
+                category=category,
+                type_identifiers=tuple(type_identifiers or ()),
+                limit=limit,
+                offset=offset,
+            )
+        )
+    except CalculatorMoveQueryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return move_search_page_from_result(result)
 
 
 @router.get("/presets", response_model=dict[str, list[StatPresetResponse]])
@@ -127,6 +159,7 @@ async def calculate_damage(
 
 
 __all__ = [
+    "get_calculator_move_use_case",
     "get_calculator_repository",
     "get_calculator_use_case",
     "router",

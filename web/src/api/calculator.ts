@@ -12,6 +12,8 @@ export interface PokemonDetail extends PokemonSearchItem {
   base_stats: Record<string, number>;
 }
 
+export type MoveFilterCategory = 'all' | 'physical' | 'special';
+
 export interface MoveSearchItem {
   move_id: number;
   identifier: string;
@@ -20,6 +22,28 @@ export interface MoveSearchItem {
   type_name: string;
   category: 'physical' | 'special';
   power: number;
+}
+
+export interface MoveTypeOption {
+  identifier: string;
+  display_name: string;
+}
+
+export interface MoveSearchPage {
+  items: MoveSearchItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  available_types: MoveTypeOption[];
+}
+
+export interface ListPokemonMovesRequest {
+  query: string;
+  category: MoveFilterCategory;
+  typeIdentifiers: readonly string[];
+  limit: number;
+  offset: number;
 }
 
 export interface StatPreset {
@@ -150,14 +174,30 @@ export function getPokemonDetail(pokemonId: number, rulesetId: string): Promise<
   return requestJson<PokemonDetail>(`${API_BASE}/calculator/pokemon/${pokemonId}?${params.toString()}`);
 }
 
-/** 列出攻击方在当前规则集下可学且基础模式可计算的招式。 */
+/**
+ * 按文本、类别、属性和分页参数读取攻击方可计算招式。
+ *
+ * @param pokemonId 当前攻击方的 PokeAPI Pokémon ID。
+ * @param rulesetId 当前规则集稳定标识。
+ * @param request 招式筛选和分页参数；多个 typeIdentifiers 会编码为重复 type 查询参数。
+ * @returns 服务端稳定分页 envelope 与当前规则集完整属性元数据。
+ */
 export function listPokemonMoves(
   pokemonId: number,
   rulesetId: string,
-  query: string,
-): Promise<MoveSearchItem[]> {
-  const params = new URLSearchParams({ ruleset_id: rulesetId, query });
-  return requestJson<MoveSearchItem[]>(
+  request: ListPokemonMovesRequest,
+): Promise<MoveSearchPage> {
+  const params = new URLSearchParams({
+    ruleset_id: rulesetId,
+    query: request.query,
+    category: request.category,
+    limit: String(request.limit),
+    offset: String(request.offset),
+  });
+  for (const typeIdentifier of request.typeIdentifiers) {
+    params.append('type', typeIdentifier);
+  }
+  return requestJson<MoveSearchPage>(
     `${API_BASE}/calculator/pokemon/${pokemonId}/moves?${params.toString()}`,
   );
 }
