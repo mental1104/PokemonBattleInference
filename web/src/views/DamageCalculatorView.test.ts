@@ -94,8 +94,10 @@ describe('DamageCalculatorView recent pokemon sharing', () => {
     await flushPromises();
 
     selectors = wrapper.findAllComponents(PokemonSelector);
-    expect(selectors[0].props('recentPokemon').map((item) => item.pokemon_id)).toEqual([1]);
-    expect(selectors[1].props('recentPokemon').map((item) => item.pokemon_id)).toEqual([1]);
+    const attackerRecent = selectors[0].props('recentPokemon') as PokemonSearchItem[];
+    const defenderRecent = selectors[1].props('recentPokemon') as PokemonSearchItem[];
+    expect(attackerRecent.map((item) => item.pokemon_id)).toEqual([1]);
+    expect(defenderRecent.map((item) => item.pokemon_id)).toEqual([1]);
     expect(selectors[1].props('selected')).toBeNull();
     expect(selectors[1].find('[data-mode="recent"]').text()).toContain('妙蛙种子');
     expect(getPokemonDetailMock).toHaveBeenCalledWith(1, 'pokemon-champion');
