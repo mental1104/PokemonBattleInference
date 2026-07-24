@@ -25,11 +25,8 @@ jobs:
       - name: Execute guarded repository patch
         shell: bash
         run: |
-          if [[ -f issue52-bootstrap-error.log ]]; then
-            cat issue52-bootstrap-error.log
-            exit 1
-          fi
-          python3 - <<'EXTRACT'
+          set +e
+          python3 - <<'EXTRACT' > /tmp/issue-52-extract.log 2>&1
           from pathlib import Path
 
           workflow = Path('.github/workflows/issue-52-bootstrap.yml').read_text(
@@ -46,20 +43,37 @@ jobs:
           )
           Path('/tmp/issue-52-patch.py').write_text(source, encoding='utf-8')
           EXTRACT
-          set +e
-          python3 /tmp/issue-52-patch.py > /tmp/issue-52-patch.log 2>&1
-          status=$?
-          set -e
-          if [[ $status -ne 0 ]]; then
-            cp /tmp/issue-52-patch.log issue52-bootstrap-error.log
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add issue52-bootstrap-error.log
-            git commit -m "Record issue 52 bootstrap failure"
-            git push origin HEAD:${{ github.head_ref }}
-            cat issue52-bootstrap-error.log
-            exit $status
+          extract_status=$?
+          if [[ $extract_status -ne 0 ]]; then
+            cp /tmp/issue-52-extract.log issue52-bootstrap-error.log
+            echo "extract_status=$extract_status" >> issue52-bootstrap-error.log
+            echo "$extract_status" > /tmp/issue-52-status
+            exit 0
           fi
+          python3 /tmp/issue-52-patch.py > /tmp/issue-52-patch.log 2>&1
+          patch_status=$?
+          if [[ $patch_status -ne 0 ]]; then
+            cp /tmp/issue-52-patch.log issue52-bootstrap-error.log
+            echo "patch_status=$patch_status" >> issue52-bootstrap-error.log
+          fi
+          echo "$patch_status" > /tmp/issue-52-status
+          exit 0
+
+      - name: Persist bootstrap failure
+        if: always()
+        shell: bash
+        run: |
+          status=$(cat /tmp/issue-52-status 2>/dev/null || echo 1)
+          if [[ "$status" == "0" ]]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add issue52-bootstrap-error.log
+          git commit -m "Record issue 52 bootstrap failure"
+          git push origin HEAD:${{ github.head_ref }}
+          cat issue52-bootstrap-error.log
+          exit "$status"
 
       - name: Validate Python contract
         shell: bash
