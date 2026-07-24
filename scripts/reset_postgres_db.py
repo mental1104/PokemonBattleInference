@@ -101,12 +101,32 @@ def import_raw_models():
 
 
 def drop_business_schemas(engine: Engine) -> None:
-    from pokeop.persistence.views.registry import CHAMPION_SCHEMA
+    """删除可重建读取模型、运行时任务和 raw 数据 schema。
+
+    Args:
+        engine: 已通过本地/显式远端安全检查的目标 PostgreSQL engine。
+    """
     from pokeop.persistence.schema.db_schema import DBSchema
+    from pokeop.persistence.views.registry import CHAMPION_SCHEMA
 
     with engine.begin() as conn:
-        for schema in (CHAMPION_SCHEMA, DBSchema.POKE_RAW.value):
+        for schema in (
+            CHAMPION_SCHEMA,
+            DBSchema.POKE_RUNTIME.value,
+            DBSchema.POKE_RAW.value,
+        ):
             conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+
+
+def create_runtime_tables(engine: Engine) -> None:
+    """创建 poke_runtime schema 中的后台任务运行时表。
+
+    Args:
+        engine: 指向 reset 目标 database 的 SQLAlchemy engine。
+    """
+    from pokeop.persistence.runtime_schema import create_runtime_tables as create_tables
+
+    create_tables(engine)
 
 
 def create_raw_tables(engine: Engine) -> None:
@@ -285,6 +305,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """按安全检查、schema、raw 数据和可选视图顺序重建本地数据库。"""
     args = parse_args()
     if args.batch_size < 1:
         raise SystemExit("--batch-size must be greater than 0")
@@ -294,7 +315,7 @@ def main() -> None:
     require_localhost_unless_allowed(allow_remote_host=args.allow_remote_host)
 
     print(f"target PostgreSQL: {connection_label()}")
-    print("schemas to reset: poke_champion, poke_raw")
+    print("schemas to reset: poke_champion, poke_runtime, poke_raw")
     if args.dry_run:
         print("dry run only; no PostgreSQL changes were made")
         return
@@ -303,6 +324,9 @@ def main() -> None:
     try:
         drop_business_schemas(engine)
         print("dropped business schemas")
+
+        create_runtime_tables(engine)
+        print("created poke_runtime SQLAlchemy tables")
 
         create_raw_tables(engine)
         print("created poke_raw SQLAlchemy tables")
