@@ -21,6 +21,22 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm test
-      - run: npm run type-check
-      - run: npm run build
+      - id: test
+        continue-on-error: true
+        run: npm test > issue-89-test.log 2>&1
+      - id: typecheck
+        continue-on-error: true
+        run: npm run type-check > issue-89-typecheck.log 2>&1
+      - id: build
+        continue-on-error: true
+        run: npm run build > issue-89-build.log 2>&1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue-89-validation-logs
+          path: |
+            web/issue-89-test.log
+            web/issue-89-typecheck.log
+            web/issue-89-build.log
+      - name: Fail when validation failed
+        if: steps.test.outcome != 'success' || steps.typecheck.outcome != 'success' || steps.build.outcome != 'success'
+        run: exit 1
