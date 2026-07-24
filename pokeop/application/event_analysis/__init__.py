@@ -17,19 +17,21 @@ from .counterfactual import (
     CounterfactualInferenceRequest,
     CounterfactualInferenceRunner,
 )
-from .models import (
-    BattleEventAnalysisArtifact,
-    BattleEventAnalysisComputationCost,
+from .query import (
     BattleEventAnalysisError,
-    BattleEventAnalysisResult,
     BattleEventPredicate,
     BattleEventQuery,
-    ConditionalProbability,
     ConditionalProbabilityStatus,
     EventOccurrenceMode,
-    EventPathGroupCoverage,
     EventSideRole,
     EventTurnRange,
+)
+from .results import (
+    BattleEventAnalysisArtifact,
+    BattleEventAnalysisComputationCost,
+    BattleEventAnalysisResult,
+    ConditionalProbability,
+    EventPathGroupCoverage,
     KeyEventSummary,
     ProbabilityDistributionBucket,
 )
