@@ -1,0 +1,129 @@
+name: Apply Variable Power Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-variable-power-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/inference-variable-power-candidates
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Patch application adapter and regression fixtures
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file_path = Path(path)
+              content = file_path.read_text()
+              count = content.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one match, found {count}")
+              file_path.write_text(content.replace(old, new, 1))
+
+          use_case = 'pokeop/application/use_cases/infer_one_on_one_battle.py'
+          replace_once(
+              use_case,
+              '''from pokeop.application.repositories.battle_inference import (\n    BattleInferencePokemonProfile,\n    BattleInferenceRepository,''',
+              '''from pokeop.application.repositories.battle_inference import (\n    BattleInferenceMoveProfile,\n    BattleInferencePokemonProfile,\n    BattleInferenceRepository,''',
+          )
+          replace_once(
+              use_case,
+              'from pokeop.domain.battle.context import BattleMove\n',
+              'from pokeop.domain.battle.context import BattleMove, MoveCategory\n',
+          )
+          replace_once(
+              use_case,
+              '''            moves=tuple(\n                MoveConfigurationCandidate(\n                    move_spec=MoveSpec(\n                        move_id=move.move_id,\n                        move=BattleMove(\n                            move.display_name,\n                            move.type.domain_type,\n                            move.category,\n                            move.power or 0,\n                        ),\n                        max_pp=move.pp,\n                        priority=move.priority,\n                        accuracy=move.accuracy,\n                        effect_identifier=move.effect_identifier,\n                    ),\n                    effect_identifier=move.effect_identifier,\n                    support_status=_configuration_support_status(\n                        move.capability.status\n                    ),\n                    support_reason=move.capability.reason,\n                )\n                for move in profile.moves\n            ),''',
+              '''            moves=tuple(\n                _configuration_move_candidate(move)\n                for move in profile.moves\n            ),''',
+          )
+          helper = '''def _configuration_move_candidate(\n    move: BattleInferenceMoveProfile,\n) -> MoveConfigurationCandidate:\n    \"\"\"把合法招式 projection 转换为可执行或仅报告用途的配置候选。\n\n    固定威力攻击招式和变化招式可以安全构造 domain ``MoveSpec``。变化威力攻击招式在\n    当前没有动态威力解析器时只保留稳定 ID 与 unsupported 覆盖状态，避免用 ``0`` 或任意\n    正数伪造基础威力并破坏 domain 不变量。\n\n    Args:\n        move: persistence 已按 version group 还原的合法招式 projection。\n\n    Returns:\n        可由 move provider 记录覆盖并在支持时参与配置枚举的候选。\n\n    Raises:\n        BattleInferenceExecutionError: 上游错误地把缺少基础威力的攻击招式标记为 supported\n            时抛出，防止不完整机制进入战斗执行。\n    \"\"\"\n    support_status = _configuration_support_status(move.capability.status)\n    move_spec: MoveSpec | None = None\n    if move.category is MoveCategory.STATUS or move.power is not None:\n        move_spec = MoveSpec(\n            move_id=move.move_id,\n            move=BattleMove(\n                move.display_name,\n                move.type.domain_type,\n                move.category,\n                move.power or 0,\n            ),\n            max_pp=move.pp,\n            priority=move.priority,\n            accuracy=move.accuracy,\n            effect_identifier=move.effect_identifier,\n        )\n    elif support_status is ConfigurationMechanismSupportStatus.SUPPORTED:\n        raise BattleInferenceExecutionError(\n            f\"damaging move {move.identifier!r} is marked supported without positive power\"\n        )\n\n    return MoveConfigurationCandidate(\n        move_spec=move_spec,\n        effect_identifier=move.effect_identifier,\n        support_status=support_status,\n        support_reason=move.capability.reason,\n        candidate_move_id=move.move_id,\n    )\n\n\n'''
+          replace_once(
+              use_case,
+              'def _configuration_support_status(\n',
+              helper + 'def _configuration_support_status(\n',
+          )
+
+          infer_test = 'tests/application/use_cases/test_infer_one_on_one_battle.py'
+          replace_once(
+              infer_test,
+              '''    power: int,\n    *,\n    priority: int = 0,\n    effect_identifier: str | None = None,\n) -> BattleInferenceMoveProfile:''',
+              '''    power: int | None,\n    *,\n    priority: int = 0,\n    effect_identifier: str | None = None,\n    support_status: MechanismSupportStatus = MechanismSupportStatus.PARTIAL,\n) -> BattleInferenceMoveProfile:''',
+          )
+          replace_once(
+              infer_test,
+              '''        capability=_capability(\n            EffectSourceKind.MOVE,\n            effect_identifier or identifier,\n            MechanismSupportStatus.PARTIAL,\n        ),''',
+              '''        capability=_capability(\n            EffectSourceKind.MOVE,\n            effect_identifier or identifier,\n            support_status,\n        ),''',
+          )
+          replace_once(
+              infer_test,
+              '''            _move(\n                280,\n                \"brick-break\",\n                _type(2, \"fighting\", Type.FIGHTING),\n                75,\n                effect_identifier=\"brick-break\",\n            ),\n        ),''',
+              '''            _move(\n                280,\n                \"brick-break\",\n                _type(2, \"fighting\", Type.FIGHTING),\n                75,\n                effect_identifier=\"brick-break\",\n            ),\n            _move(\n                216,\n                \"return\",\n                _type(1, \"normal\", Type.NORMAL),\n                None,\n                support_status=MechanismSupportStatus.UNSUPPORTED,\n            ),\n        ),''',
+          )
+
+          composition_test = 'tests/application/composition/test_battle_inference_repository.py'
+          replace_once(
+              composition_test,
+              '''        moves=(\n            BattleInferenceMoveProfile(\n                move_id=8,''',
+              '''        moves=(\n            BattleInferenceMoveProfile(\n                move_id=8,''',
+          )
+          replace_once(
+              composition_test,
+              '''                capability=_capability(\n                    EffectSourceKind.MOVE,\n                    \"ice-punch\",\n                    MechanismSupportStatus.PARTIAL,\n                ),\n            ),\n        ),''',
+              '''                capability=_capability(\n                    EffectSourceKind.MOVE,\n                    \"ice-punch\",\n                    MechanismSupportStatus.PARTIAL,\n                ),\n            ),\n            BattleInferenceMoveProfile(\n                move_id=216,\n                identifier=\"return\",\n                display_name=\"报恩\",\n                type=_type(),\n                category=MoveCategory.PHYSICAL,\n                power=None,\n                pp=20,\n                accuracy=100,\n                priority=0,\n                target_id=10,\n                target_identifier=\"selected-pokemon\",\n                effect_id=1,\n                effect_chance=None,\n                effect_identifier=None,\n                capability=_capability(\n                    EffectSourceKind.MOVE,\n                    \"return\",\n                    MechanismSupportStatus.UNSUPPORTED,\n                ),\n            ),\n        ),''',
+          )
+          replace_once(
+              composition_test,
+              '''    assert len(profile.moves) == 1\n    assert profile.moves[0].move_id == 8\n    assert profile.moves[0].capability.status is MechanismSupportStatus.SUPPORTED''',
+              '''    assert len(profile.moves) == 2\n    assert profile.moves[0].move_id == 8\n    assert profile.moves[0].capability.status is MechanismSupportStatus.SUPPORTED\n    assert profile.moves[1].move_id == 216\n    assert profile.moves[1].power is None\n    assert profile.moves[1].capability.status is MechanismSupportStatus.UNSUPPORTED''',
+          )
+
+          filtering_test = 'tests/application/configuration_space/test_candidate_filtering.py'
+          replace_once(
+              filtering_test,
+              '''    MechanismSupportStatus,\n    MoveSpaceCommand,''',
+              '''    MechanismSupportStatus,\n    MoveConfigurationCandidate,\n    MoveSpaceCommand,''',
+          )
+          replace_once(
+              filtering_test,
+              '''            _move(4, \"status-noop\", Type.NORMAL, 0, category=MoveCategory.STATUS),\n        ),''',
+              '''            _move(4, \"status-noop\", Type.NORMAL, 0, category=MoveCategory.STATUS),\n            MoveConfigurationCandidate(\n                move_spec=None,\n                support_status=MechanismSupportStatus.UNSUPPORTED,\n                support_reason=\"Variable power is not executable yet.\",\n                candidate_move_id=5,\n            ),\n        ),''',
+          )
+          replace_once(
+              filtering_test,
+              '''        record.identifier == \"4\"\n        and record.support_status is MechanismSupportStatus.UNSUPPORTED\n        and not record.included\n        for record in result.coverage_records\n    )\n    assert result.statistics.unsupported_mechanism_count == 1''',
+              '''        record.identifier in {\"4\", \"5\"}\n        and record.support_status is MechanismSupportStatus.UNSUPPORTED\n        and not record.included\n        for record in result.coverage_records\n    )\n    assert {\n        record.identifier\n        for record in result.coverage_records\n        if record.support_status is MechanismSupportStatus.UNSUPPORTED\n        and not record.included\n    } >= {\"4\", \"5\"}\n    assert result.statistics.unsupported_mechanism_count == 2''',
+          )
+          PY
+      - name: Compile changed Python sources
+        run: python -m compileall -q pokeop/application tests/application
+      - name: Run targeted regression tests
+        run: |
+          python -m pytest -q \
+            tests/application/configuration_space/test_candidate_filtering.py \
+            tests/application/composition/test_battle_inference_repository.py \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_router.py
+      - name: Commit validated patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add pokeop/application/use_cases/infer_one_on_one_battle.py \
+                  tests/application/configuration_space/test_candidate_filtering.py \
+                  tests/application/composition/test_battle_inference_repository.py \
+                  tests/application/use_cases/test_infer_one_on_one_battle.py
+          git commit -m 'fix: 保留未支持变化威力招式的覆盖记录'
+          git push origin HEAD:fix/inference-variable-power-candidates
