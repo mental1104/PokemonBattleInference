@@ -10,6 +10,15 @@ from pokeop.domain.battle.actions import (
     StruggleAction,
     UseMoveAction,
 )
+from pokeop.domain.battle.battle_events import (
+    BattleEvent,
+    BattleEventKind,
+    InvalidBattleEventError,
+    append_battle_events,
+    battle_event_paths,
+    event_summary,
+    prepend_battle_events,
+)
 from pokeop.domain.battle.context import (
     BattleMove,
     BattlePokemon,
@@ -51,6 +60,12 @@ from pokeop.domain.battle.state import (
     StateKey,
     StatStageField,
     StatStages,
+)
+from pokeop.domain.battle.structured_turn_resolver import (
+    BattleEventDamagePolicy,
+    BattleEventEffectDispatcher,
+    BattleEventStandardMoveTurnResolver,
+    BattleEventTurnResolver,
 )
 from pokeop.domain.battle.terrain import Terrain
 from pokeop.domain.battle.transitions import (
@@ -95,6 +110,12 @@ __all__ = [
     "AlwaysHitAccuracyCheckPolicy",
     "BattleAction",
     "BattleEnvironment",
+    "BattleEvent",
+    "BattleEventDamagePolicy",
+    "BattleEventEffectDispatcher",
+    "BattleEventKind",
+    "BattleEventStandardMoveTurnResolver",
+    "BattleEventTurnResolver",
     "BattleFieldState",
     "BattleMove",
     "BattlePhase",
@@ -114,6 +135,7 @@ __all__ = [
     "GroundingState",
     "InvalidAccuracyDistributionError",
     "InvalidBattleAction",
+    "InvalidBattleEventError",
     "InvalidBattleState",
     "InvalidMoveExecutionPolicy",
     "LegalActionGenerator",
@@ -151,11 +173,15 @@ __all__ = [
     "UseMoveAction",
     "Weather",
     "WeightedTransition",
+    "append_battle_events",
+    "battle_event_paths",
     "branch_transitions",
     "combine_independent_transitions",
     "damage_rolls_to_transitions",
+    "event_summary",
     "is_grounded",
     "merge_equivalent_transitions",
     "normalize_transition_weights",
+    "prepend_battle_events",
     "validate_transition_distribution",
 ]
