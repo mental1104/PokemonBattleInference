@@ -27,7 +27,9 @@ function outcomeTitle(outcome: TransitionOutcomeResult): string {
     return minimum === maximum ? `造成 ${minimum} HP 损失` : `造成 ${minimum}～${maximum} HP 损失`;
   }
   const resultKey = outcome.label_fields.result_keys[0];
-  return resultKey ? resultKey.replaceAll('_', ' ') : `进入节点 #${outcome.target_node_id}`;
+  return resultKey
+    ? resultKey.replaceAll('-', ' ').replaceAll('_', ' ')
+    : `进入节点 #${outcome.target_node_id}`;
 }
 
 /**
