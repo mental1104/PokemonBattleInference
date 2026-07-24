@@ -82,7 +82,9 @@ from pokeop.domain.battle.inference_outcome import (
     TerminationReason,
 )
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
-from pokeop.domain.battle.move_execution import StandardMoveTurnResolver
+from pokeop.domain.battle.structured_turn_resolver import (
+    BattleEventStandardMoveTurnResolver,
+)
 from pokeop.domain.battle.move_slots import MoveSlotState
 from pokeop.domain.battle.specs import MoveSpec, PokemonSpec
 from pokeop.domain.battle.state import BattleState, BattlerState
@@ -318,7 +320,7 @@ class ConfigurationSpaceBattleResult:
 class _PolicyDrivenBattleStateExpander:
     """组合双方行动策略与完整回合 resolver，生成状态图后继分布。"""
 
-    turn_resolver: StandardMoveTurnResolver
+    turn_resolver: BattleEventStandardMoveTurnResolver
     attacker_policy: ActionPolicy[BattleAction]
     defender_policy: ActionPolicy[BattleAction]
 
@@ -701,7 +703,7 @@ class InferOneOnOneBattleUseCase:
         attacker_policy = _policy(attacker_policy_kind)
         defender_policy = _policy(defender_policy_kind)
         expander = _PolicyDrivenBattleStateExpander(
-            turn_resolver=StandardMoveTurnResolver(effects=effects),
+            turn_resolver=BattleEventStandardMoveTurnResolver(effects=effects),
             attacker_policy=attacker_policy,
             defender_policy=defender_policy,
         )
@@ -742,7 +744,7 @@ class InferOneOnOneBattleUseCase:
             configuration: 双方已经完成合法性和行为归并的固定配置。
 
         Returns:
-            可直接注入 StandardMoveTurnResolver 的同规则集 effect 元组。
+            可直接注入 BattleEventStandardMoveTurnResolver 的同规则集 effect 元组。
         """
         effects: list[BattleEffect] = []
         for pokemon in (configuration.attacker, configuration.defender):
