@@ -21,14 +21,14 @@ const emit = defineEmits<{
  */
 function groupKindLabel(kind: string): string {
   const labels: Record<string, string> = {
-    action_selection: '行动选择',
-    hit_check: '命中判定',
-    speed_tie: '同速判定',
-    damage_roll: '伤害乱数',
-    additional_effect: '追加效果',
+    'action-selection': '行动选择',
+    'action-order': '行动顺序',
+    'hit-check': '命中判定',
+    'damage-distribution': '伤害乱数',
+    'secondary-effect': '追加效果',
     composite: '组合结果',
   };
-  return labels[kind] ?? kind.replaceAll('_', ' ');
+  return labels[kind] ?? kind.replaceAll('-', ' ').replaceAll('_', ' ');
 }
 
 /**
@@ -66,7 +66,7 @@ function toggle(): void {
       <span class="transition-group-card__icon">{{ expanded ? '−' : '+' }}</span>
       <span class="transition-group-card__copy">
         <strong>{{ groupKindLabel(group.kind) }}</strong>
-        <small>{{ summaryLabel(group) }}</small>
+        <small>{{ summaryLabel(group) }} · {{ group.raw_result_count }} 条原始路径</small>
       </span>
       <span class="transition-group-card__metrics">
         <strong>{{ group.probability.percent.toFixed(2) }}%</strong>
