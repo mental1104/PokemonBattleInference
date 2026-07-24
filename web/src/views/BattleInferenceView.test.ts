@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   inferDragoniteVsWeavile,
@@ -6,9 +6,13 @@ import {
 } from '../api/inference';
 import BattleInferenceView from './BattleInferenceView.vue';
 
-vi.mock('../api/inference', () => ({
-  inferDragoniteVsWeavile: vi.fn(),
-}));
+vi.mock('../api/inference', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/inference')>();
+  return {
+    ...actual,
+    inferDragoniteVsWeavile: vi.fn(),
+  };
+});
 
 const inferMock = vi.mocked(inferDragoniteVsWeavile);
 
@@ -146,6 +150,21 @@ const RESULT: BattleJourneyResult = {
   },
 };
 
+/**
+ * 挂载页面并用轻量 stub 隔离状态图浏览器的独立交互测试。
+ *
+ * @returns 可用于选择场景、提交推演和检查 summary 的 Vue wrapper。
+ */
+function mountView(): VueWrapper {
+  return mount(BattleInferenceView, {
+    global: {
+      stubs: {
+        BattleGraphExplorer: true,
+      },
+    },
+  });
+}
+
 beforeEach(() => {
   inferMock.mockReset().mockResolvedValue(RESULT);
 });
@@ -153,9 +172,9 @@ beforeEach(() => {
 describe('BattleInferenceView', () => {
   it('submits the selected journey and renders exact probability, graph and coverage results', async () => {
     /**
-     * 页面必须作为独立用户旅程完成“选择假设—提交推演—阅读结果”的闭环，而不是复用单次伤害计算器的局部状态。测试先选择精神力与击掌奇袭施压方案，再点击完整推演按钮；随后断言请求携带稳定 identifier 和双方预设，并验证返回的胜率、期望回合、状态图规模、代表性路径以及未实现压迫感真实行为都进入页面。这样既覆盖了首页新页面的主要交互，也证明前端没有把机制缺口静默隐藏或把小数结果误当作唯一精度来源。
+     * 页面必须作为独立用户旅程完成“选择假设—提交推演—阅读结果”的闭环，而不是复用单次伤害计算器的局部状态。测试先选择精神力与击掌奇袭施压方案，再点击完整推演按钮；随后断言请求携带稳定 identifier 和双方预设，并验证返回的胜率、期望回合、状态图规模、代表性路径以及未实现压迫感真实行为都进入页面。
      */
-    const wrapper = mount(BattleInferenceView);
+    const wrapper = mountView();
 
     await wrapper.get('input[value="inner-focus"]').setValue(true);
     await wrapper.get('input[value="fake-out-pressure"]').setValue(true);
@@ -173,13 +192,14 @@ describe('BattleInferenceView', () => {
     expect(wrapper.text()).toContain('18');
     expect(wrapper.text()).toContain('快龙获胜路径');
     expect(wrapper.text()).toContain('ability:pressure:real_ability_behavior');
+    expect(wrapper.findComponent({ name: 'BattleGraphExplorer' }).exists()).toBe(true);
   });
 
-  it('clears stale results and exposes backend errors', async () => {
+  it('clears stale results before rerun and exposes backend errors', async () => {
     /**
-     * 当后端因为状态图运行保护、规则轴缺失或配置不合法返回错误时，页面不能继续展示上一次成功概率，否则用户会把陈旧结果误认为当前选择的答案。测试先完成一次成功推演并确认结果存在，再让下一次请求失败；断言旧的 75% 胜率被清除，服务端错误文本进入页面，同时按钮恢复可操作状态。该场景覆盖用户反复调整假设时最容易出现的陈旧数据风险，并验证异步状态在异常路径也能正确收口。
+     * 请求开始时先卸载旧 explorer，防止旧 graph cache 与新场景并存。测试先完成成功推演，再让下一次请求失败；断言旧胜率和 explorer 均被清除，服务端错误文本进入页面，同时按钮恢复可操作状态。
      */
-    const wrapper = mount(BattleInferenceView);
+    const wrapper = mountView();
     await wrapper.get('.inference-run-button').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('75.00%');
@@ -189,6 +209,7 @@ describe('BattleInferenceView', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('75.00%');
+    expect(wrapper.findComponent({ name: 'BattleGraphExplorer' }).exists()).toBe(false);
     expect(wrapper.text()).toContain('状态图超过节点上限');
     expect(wrapper.get('.inference-run-button').attributes('disabled')).toBeUndefined();
   });

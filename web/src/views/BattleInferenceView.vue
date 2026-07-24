@@ -7,6 +7,7 @@ import {
   type RepresentativePathResult,
   type WeavilePlan,
 } from '../api/inference';
+import BattleGraphExplorer from '../components/inference/BattleGraphExplorer.vue';
 
 const dragoniteAbility = ref<DragoniteAbility>('multiscale');
 const weavilePlan = ref<WeavilePlan>('ice-punch');
@@ -26,10 +27,14 @@ const scenarioSummary = computed(() => {
 
 /**
  * 提交当前受控场景，并用新的结果替换上一次推演。
+ *
+ * 旧结果在请求开始前清空，使旧 graph explorer 立即卸载并释放窗口 cache，避免新旧 graph
+ * 生命周期在同一页面同时驻留。
  */
 async function runInference(): Promise<void> {
   loading.value = true;
   errorMessage.value = '';
+  result.value = null;
   try {
     result.value = await inferDragoniteVsWeavile({
       dragonite_ability: dragoniteAbility.value,
@@ -38,7 +43,6 @@ async function runInference(): Promise<void> {
       weavile_stat_preset: 'max_atk_plus',
     });
   } catch (error) {
-    result.value = null;
     errorMessage.value = error instanceof Error ? error.message : '推演请求失败';
   } finally {
     loading.value = false;
@@ -252,6 +256,13 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
           </div>
         </article>
       </section>
+
+      <BattleGraphExplorer
+        v-if="result?.exploration.expandable"
+        :key="result.exploration.graph_id"
+        :handle="result.exploration"
+        @rerun="runInference"
+      />
 
       <section class="path-section">
         <div class="result-heading result-heading--compact">
