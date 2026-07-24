@@ -11,8 +11,8 @@ export interface BattleJourneyRequest {
 }
 
 export interface ProbabilityResult {
-  numerator: number;
-  denominator: number;
+  numerator: string;
+  denominator: string;
   decimal: number;
   percent: number;
 }
