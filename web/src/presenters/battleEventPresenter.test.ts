@@ -1,0 +1,200 @@
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  BattleEventDetailResult,
+  BattleInferenceSummaryResult,
+  BattleReportResult,
+} from '../api/inference';
+import {
+  createBattleReportPresenterContext,
+  presentBattleEvent,
+  presentBattleReport,
+} from './battleEventPresenter';
+
+const SUMMARY: BattleInferenceSummaryResult = {
+  ruleset_id: 'pokemon-champion',
+  version_group_id: 25,
+  observer: 'attacker',
+  attacker: {
+    pokemon_id: 149,
+    name: 'dragonite',
+    level: 50,
+    ability_identifier: 'inner_focus',
+    item_identifier: 'none',
+    move_ids: [280],
+    move_names: ['劈瓦'],
+    stats: { hp: 166, attack: 204, defense: 115, special_attack: 120, special_defense: 120, speed: 100 },
+    dimension_labels: {},
+  },
+  defender: {
+    pokemon_id: 461,
+    name: 'weavile',
+    level: 50,
+    ability_identifier: 'pressure',
+    item_identifier: 'none',
+    move_ids: [8, 252],
+    move_names: ['冰冻拳', '击掌奇袭'],
+    stats: { hp: 145, attack: 189, defense: 85, special_attack: 65, special_defense: 105, speed: 145 },
+    dimension_labels: {},
+  },
+  win_probability: { numerator: '1', denominator: '2', decimal: 0.5, percent: 50 },
+  loss_probability: { numerator: '1', denominator: '2', decimal: 0.5, percent: 50 },
+  draw_probability: { numerator: '0', denominator: '1', decimal: 0, percent: 0 },
+  expected_turns: { available: true, numerator: 2, denominator: 1, decimal: 2 },
+  attacker_policy: 'first-legal-action',
+  defender_policy: 'uniform-random',
+  graph: {
+    unique_state_count: 4,
+    edge_count: 5,
+    max_turn_number: 2,
+    closed_cycle_count: 0,
+    terminal_reachable_cycle_count: 0,
+    is_complete: true,
+    truncation_reasons: [],
+  },
+  representative_paths: [],
+  included_mechanisms: [],
+  excluded_mechanisms: [],
+  configuration_coverage_percent: 100,
+  completeness: {
+    graph_complete: true,
+    solver_status: 'solved',
+    truncation_reasons: [],
+    diagnostics: [],
+    warnings: [],
+  },
+};
+
+const CONTEXT = createBattleReportPresenterContext(SUMMARY);
+
+/**
+ * 构造单个结构化战斗事件，允许测试只覆盖当前语义相关字段。
+ *
+ * @param patch 待覆盖的事件字段。
+ * @returns 具有合法默认值的新事件 DTO。
+ */
+function event(patch: Partial<BattleEventDetailResult>): BattleEventDetailResult {
+  return {
+    kind: 'move-used',
+    turn_number: 1,
+    actor: 'attacker',
+    target: 'defender',
+    move_id: 280,
+    source_identifier: null,
+    value: null,
+    before_value: null,
+    after_value: null,
+    ...patch,
+  };
+}
+
+/**
+ * 构造一条仅包含结构化 BattleEvent 的真实 cursor report。
+ *
+ * @param events 服务端在同一正式 edge 上按顺序返回的事件。
+ * @returns 深度为 1、精确路径概率为 1/2 的 report DTO。
+ */
+function report(events: BattleEventDetailResult[]): BattleReportResult {
+  const probability = { numerator: '1', denominator: '2', decimal: 0.5, percent: 50 };
+  return {
+    graph_id: 'graph-68',
+    calculation_revision: 'battle-inference.summary-exploration.v1',
+    root_node_id: 0,
+    current_node_id: 1,
+    depth: 1,
+    cumulative_probability: probability,
+    steps: [
+      {
+        depth: 1,
+        source_node_id: 0,
+        edge_id: 7,
+        target_node_id: 1,
+        edge_probability: probability,
+        cumulative_probability: probability,
+        event_paths: [{ random_results: [], damage_rolls: [], battle_events: events }],
+      },
+    ],
+  };
+}
+
+describe('battleEventPresenter', () => {
+  it('maps moves, abilities, damage, HP, PP and fainting from structured events', () => {
+    /**
+     * 首版必须直接消费 BattleEvent DTO，而不是解析代表路径自由字符串。
+     */
+    const turns = presentBattleReport(
+      report([
+        event({ kind: 'move-used', actor: 'defender', target: 'attacker', move_id: 8 }),
+        event({ kind: 'ability-triggered', actor: 'attacker', target: 'attacker', move_id: null, source_identifier: 'ability:multiscale' }),
+        event({ kind: 'pp-changed', actor: 'defender', target: null, move_id: 8, before_value: 15, after_value: 14, value: -1 }),
+        event({ kind: 'damage', actor: 'defender', target: 'attacker', move_id: 8, value: 57 }),
+        event({ kind: 'hp-changed', actor: 'defender', target: 'attacker', move_id: 8, before_value: 166, after_value: 109, value: -57 }),
+        event({ kind: 'move-used', actor: 'attacker', target: 'defender', move_id: 280 }),
+        event({ kind: 'damage', actor: 'attacker', target: 'defender', move_id: 280, value: 145 }),
+        event({ kind: 'hp-changed', actor: 'attacker', target: 'defender', move_id: 280, before_value: 145, after_value: 0, value: -145 }),
+        event({ kind: 'fainted', actor: 'attacker', target: 'defender', move_id: 280 }),
+      ]),
+      CONTEXT,
+    );
+
+    expect(turns[0]?.events.map((item) => item.text)).toEqual([
+      '玛纽拉使用了冰冻拳！',
+      '快龙的多重鳞片触发了。',
+      '玛纽拉的冰冻拳 PP：15 → 14。',
+      '快龙失去了 57 点 HP。',
+      '快龙剩余 109 / 166 HP。',
+      '快龙使用了劈瓦！',
+      '玛纽拉失去了 145 点 HP。',
+      '玛纽拉剩余 0 / 145 HP。',
+      '玛纽拉倒下了。',
+    ]);
+  });
+
+  it('distinguishes miss, fake-out flinch, inner-focus prevention and action blocking', () => {
+    /** 每种结构化事实必须保持独立文案，不能合并为模糊状态描述。 */
+    const cases = [
+      event({ kind: 'miss', actor: 'defender', target: 'attacker', move_id: 8 }),
+      event({ kind: 'move-used', actor: 'defender', target: 'attacker', move_id: 252 }),
+      event({ kind: 'status-applied', actor: 'defender', target: 'attacker', move_id: 252, source_identifier: 'flinch' }),
+      event({ kind: 'ability-triggered', actor: 'attacker', target: 'attacker', move_id: null, source_identifier: 'ability:inner_focus' }),
+      event({ kind: 'status-prevented', actor: 'attacker', target: 'attacker', move_id: 252, source_identifier: 'flinch' }),
+      event({ kind: 'action-blocked', actor: 'attacker', target: null, move_id: 280, source_identifier: 'flinch' }),
+    ];
+
+    expect(cases.map((item, index) => presentBattleEvent(item, CONTEXT, `event-${index}`)?.text)).toEqual([
+      '玛纽拉的冰冻拳没有命中！',
+      '玛纽拉使用了击掌奇袭！',
+      '快龙畏缩了。',
+      '快龙的精神力触发了。',
+      '快龙没有陷入畏缩。',
+      '快龙因畏缩无法行动！',
+    ]);
+  });
+
+  it('renders different damage outcomes with different remaining HP', () => {
+    /** 正式 damage outcome 只能使用本 edge 的 damage/hp-changed 数值。 */
+    const first = presentBattleReport(report([
+      event({ kind: 'damage', actor: 'defender', target: 'attacker', move_id: 8, value: 57 }),
+      event({ kind: 'hp-changed', actor: 'defender', target: 'attacker', move_id: 8, before_value: 166, after_value: 109 }),
+    ]), CONTEXT);
+    const second = presentBattleReport(report([
+      event({ kind: 'damage', actor: 'defender', target: 'attacker', move_id: 8, value: 63 }),
+      event({ kind: 'hp-changed', actor: 'defender', target: 'attacker', move_id: 8, before_value: 166, after_value: 103 }),
+    ]), CONTEXT);
+
+    expect(first[0]?.events.map((item) => item.text)).toContain('快龙剩余 109 / 166 HP。');
+    expect(second[0]?.events.map((item) => item.text)).toContain('快龙剩余 103 / 166 HP。');
+  });
+
+  it('keeps unknown event kinds visible and observable for developers', () => {
+    /** 后端新增 kind 时不能静默丢失事实。 */
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const unknown = event({ kind: 'terrain-shifted', source_identifier: 'electric-terrain' });
+
+    const presented = presentBattleEvent(unknown, CONTEXT, 'unknown-event');
+
+    expect(presented?.text).toBe('未识别事件：terrain-shifted · electric-terrain');
+    expect(presented?.debug).toContain('"kind":"terrain-shifted"');
+    expect(warning).toHaveBeenCalledWith('[battle-report] 未识别结构化事件', unknown);
+    warning.mockRestore();
+  });
+});

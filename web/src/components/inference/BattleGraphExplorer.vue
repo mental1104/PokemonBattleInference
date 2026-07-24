@@ -1,19 +1,31 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { BattleExplorationResult, TransitionOutcomeResult } from '../../api/inference';
+import type {
+  BattleExplorationResult,
+  BattleGraphExplorationResult,
+  TransitionOutcomeResult,
+} from '../../api/inference';
 import { useBattleExploration } from '../../composables/useBattleExploration';
 import BattleGraphNode from './BattleGraphNode.vue';
 import TransitionGroupCard from './TransitionGroupCard.vue';
 import TransitionOutcomeList from './TransitionOutcomeList.vue';
 
+/** 路径聚焦式状态图浏览器的只读入口。 */
 interface Props {
+  /** 首次完整推演返回的 graph handle。 */
   handle: BattleExplorationResult;
 }
 
 const props = defineProps<Props>();
 
+/**
+ * 向父页面发送 graph 生命周期操作和当前服务端 exploration。
+ *
+ * explorationChange 只传递纯 DTO，不暴露内部 cache、组件实例或节点引用。
+ */
 const emit = defineEmits<{
   rerun: [];
+  explorationChange: [exploration: BattleGraphExplorationResult | null];
 }>();
 
 const BREADCRUMB_WINDOW_SIZE = 7;
@@ -98,6 +110,15 @@ watch(
     breadcrumbWindowStart.value = 0;
     await start(handle);
     focusLatestBreadcrumbs();
+  },
+  { immediate: true },
+);
+
+watch(
+  current,
+  (exploration) => {
+    // 父页面只保存服务端返回的 DTO，因此左侧组件卸载后战报仍可继续渲染。
+    emit('explorationChange', exploration);
   },
   { immediate: true },
 );
