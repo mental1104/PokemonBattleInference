@@ -1,8 +1,11 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   inferDragoniteVsWeavile,
+  type BattleGraphExplorationResult,
   type BattleJourneyResult,
+  type ProbabilityResult,
 } from '../api/inference';
 import BattleInferenceView from './BattleInferenceView.vue';
 
@@ -15,6 +18,22 @@ vi.mock('../api/inference', async (importOriginal) => {
 });
 
 const inferMock = vi.mocked(inferDragoniteVsWeavile);
+
+/**
+ * 构造测试使用的精确概率 DTO。
+ *
+ * @param numerator 约分后的分子。
+ * @param denominator 约分后的分母。
+ * @param decimal 浮点近似值。
+ * @returns 同时保留精确字符串和视觉近似值的概率对象。
+ */
+function probability(
+  numerator: string,
+  denominator: string,
+  decimal: number,
+): ProbabilityResult {
+  return { numerator, denominator, decimal, percent: decimal * 100 };
+}
 
 const RESULT: BattleJourneyResult = {
   summary: {
@@ -29,18 +48,8 @@ const RESULT: BattleJourneyResult = {
       item_identifier: 'none',
       move_ids: [280],
       move_names: ['劈瓦'],
-      stats: {
-        hp: 166,
-        attack: 204,
-        defense: 115,
-        special_attack: 120,
-        special_defense: 120,
-        speed: 100,
-      },
-      dimension_labels: {
-        moves: '劈瓦',
-        ability: 'inner_focus',
-      },
+      stats: { hp: 166, attack: 204, defense: 115, special_attack: 120, special_defense: 120, speed: 100 },
+      dimension_labels: { moves: '劈瓦', ability: 'inner_focus' },
     },
     defender: {
       pokemon_id: 461,
@@ -50,43 +59,13 @@ const RESULT: BattleJourneyResult = {
       item_identifier: 'none',
       move_ids: [8, 252],
       move_names: ['冰冻拳', '击掌奇袭'],
-      stats: {
-        hp: 145,
-        attack: 189,
-        defense: 85,
-        special_attack: 65,
-        special_defense: 105,
-        speed: 145,
-      },
-      dimension_labels: {
-        moves: '冰冻拳 / 击掌奇袭',
-        ability: 'pressure',
-      },
+      stats: { hp: 145, attack: 189, defense: 85, special_attack: 65, special_defense: 105, speed: 145 },
+      dimension_labels: { moves: '冰冻拳 / 击掌奇袭', ability: 'pressure' },
     },
-    win_probability: {
-      numerator: '3',
-      denominator: '4',
-      decimal: 0.75,
-      percent: 75,
-    },
-    loss_probability: {
-      numerator: '1',
-      denominator: '4',
-      decimal: 0.25,
-      percent: 25,
-    },
-    draw_probability: {
-      numerator: '0',
-      denominator: '1',
-      decimal: 0,
-      percent: 0,
-    },
-    expected_turns: {
-      available: true,
-      numerator: 5,
-      denominator: 2,
-      decimal: 2.5,
-    },
+    win_probability: probability('3', '4', 0.75),
+    loss_probability: probability('1', '4', 0.25),
+    draw_probability: probability('0', '1', 0),
+    expected_turns: { available: true, numerator: 5, denominator: 2, decimal: 2.5 },
     attacker_policy: 'first-legal-action',
     defender_policy: 'uniform-random',
     graph: {
@@ -103,33 +82,12 @@ const RESULT: BattleJourneyResult = {
         reference: 'path:attacker-win:node-7',
         outcome: 'attacker-win',
         steps: [
-          {
-            node_id: 0,
-            turn_number: 1,
-            phase: 'action-selection',
-            attacker_hp: 166,
-            defender_hp: 145,
-            outcome: 'non-terminal',
-            events: [],
-          },
-          {
-            node_id: 7,
-            turn_number: 2,
-            phase: 'terminal',
-            attacker_hp: 132,
-            defender_hp: 0,
-            outcome: 'attacker-win',
-            events: ['damage_roll:roll-16:145'],
-          },
+          { node_id: 0, turn_number: 1, phase: 'action-selection', attacker_hp: 166, defender_hp: 145, outcome: 'non-terminal', events: [] },
+          { node_id: 7, turn_number: 2, phase: 'terminal', attacker_hp: 132, defender_hp: 0, outcome: 'attacker-win', events: ['damage_roll:roll-16:145'] },
         ],
       },
     ],
-    included_mechanisms: [
-      'move:brick_break',
-      'move:fake_out',
-      'ability:inner_focus',
-      'ability:pressure',
-    ],
+    included_mechanisms: ['move:brick_break', 'move:fake_out', 'ability:inner_focus', 'ability:pressure'],
     excluded_mechanisms: ['ability:pressure:real_ability_behavior'],
     configuration_coverage_percent: 100,
     completeness: {
@@ -150,18 +108,115 @@ const RESULT: BattleJourneyResult = {
   },
 };
 
+const REPORT_EXPLORATION: BattleGraphExplorationResult = {
+  graph_id: 'stored-graph',
+  calculation_revision: 'battle-inference.summary-exploration.v1',
+  cursor: { steps: [{ source_node_id: 0, edge_id: 10, target_node_id: 1 }] },
+  node: {
+    node_id: 1,
+    turn_number: 2,
+    phase: 'action-selection',
+    outcome: 'non-terminal',
+    termination_reason: null,
+    attacker: {
+      pokemon_id: 149,
+      name: 'dragonite',
+      ability: 'inner_focus',
+      item: 'none',
+      current_hp: 109,
+      max_hp: 166,
+      moves: [],
+      major_status: null,
+      volatile_statuses: [],
+      stat_stages: { attack: 0, defense: 0, special_attack: 0, special_defense: 0, speed: 0, accuracy: 0, evasion: 0 },
+      last_move_id: null,
+      choice_lock_move_id: null,
+      item_consumed: false,
+      first_turn: false,
+    },
+    defender: {
+      pokemon_id: 461,
+      name: 'weavile',
+      ability: 'pressure',
+      item: 'none',
+      current_hp: 145,
+      max_hp: 145,
+      moves: [],
+      major_status: null,
+      volatile_statuses: [],
+      stat_stages: { attack: 0, defense: 0, special_attack: 0, special_defense: 0, speed: 0, accuracy: 0, evasion: 0 },
+      last_move_id: 8,
+      choice_lock_move_id: null,
+      item_consumed: false,
+      first_turn: false,
+    },
+    field: {
+      weather: null,
+      terrain: null,
+      attacker_side_conditions: { reflect: false, light_screen: false, aurora_veil: false },
+      defender_side_conditions: { reflect: false, light_screen: false, aurora_veil: false },
+    },
+    terminal: false,
+    has_outgoing_edges: true,
+  },
+  transition_groups: [],
+  cumulative_probability: probability('1', '2', 0.5),
+  breadcrumbs: [{ source_node_id: 0, edge_id: 10, target_node_id: 1 }],
+  battle_report: {
+    graph_id: 'stored-graph',
+    calculation_revision: 'battle-inference.summary-exploration.v1',
+    root_node_id: 0,
+    current_node_id: 1,
+    depth: 1,
+    cumulative_probability: probability('1', '2', 0.5),
+    steps: [
+      {
+        depth: 1,
+        source_node_id: 0,
+        edge_id: 10,
+        target_node_id: 1,
+        edge_probability: probability('1', '2', 0.5),
+        cumulative_probability: probability('1', '2', 0.5),
+        event_paths: [{
+          random_results: [],
+          damage_rolls: [],
+          battle_events: [
+            { kind: 'move-used', turn_number: 1, actor: 'defender', target: 'attacker', move_id: 8, source_identifier: null, value: null, before_value: null, after_value: null },
+            { kind: 'damage', turn_number: 1, actor: 'defender', target: 'attacker', move_id: 8, source_identifier: null, value: 57, before_value: null, after_value: null },
+            { kind: 'hp-changed', turn_number: 1, actor: 'defender', target: 'attacker', move_id: 8, source_identifier: null, value: -57, before_value: 166, after_value: 109 },
+          ],
+        }],
+      },
+    ],
+  },
+  terminal: false,
+};
+
+/** 使用可主动上报 exploration 的轻量组件替代状态图独立交互。 */
+const BattleGraphExplorerStub = defineComponent({
+  name: 'BattleGraphExplorer',
+  emits: ['explorationChange', 'rerun'],
+  setup(_, { emit }) {
+    return () => h(
+      'button',
+      {
+        type: 'button',
+        'data-emit-exploration': '',
+        onClick: () => emit('explorationChange', REPORT_EXPLORATION),
+      },
+      '同步当前路径',
+    );
+  },
+});
+
 /**
  * 挂载页面并用轻量 stub 隔离状态图浏览器的独立交互测试。
  *
- * @returns 可用于选择场景、提交推演和检查 summary 的 Vue wrapper。
+ * @returns 可用于选择场景、提交推演和检查战报生命周期的 Vue wrapper。
  */
 function mountView(): VueWrapper {
   return mount(BattleInferenceView, {
-    global: {
-      stubs: {
-        BattleGraphExplorer: true,
-      },
-    },
+    global: { stubs: { BattleGraphExplorer: BattleGraphExplorerStub } },
   });
 }
 
@@ -171,9 +226,7 @@ beforeEach(() => {
 
 describe('BattleInferenceView', () => {
   it('submits the selected journey and renders exact probability, graph and coverage results', async () => {
-    /**
-     * 页面必须作为独立用户旅程完成“选择假设—提交推演—阅读结果”的闭环，而不是复用单次伤害计算器的局部状态。测试先选择精神力与击掌奇袭施压方案，再点击完整推演按钮；随后断言请求携带稳定 identifier 和双方预设，并验证返回的胜率、期望回合、状态图规模、代表性路径以及未实现压迫感真实行为都进入页面。
-     */
+    /** 页面继续完成选择假设、提交推演和阅读全局结果的既有闭环。 */
     const wrapper = mountView();
 
     await wrapper.get('input[value="inner-focus"]').setValue(true);
@@ -193,23 +246,32 @@ describe('BattleInferenceView', () => {
     expect(wrapper.text()).toContain('快龙获胜路径');
     expect(wrapper.text()).toContain('ability:pressure:real_ability_behavior');
     expect(wrapper.findComponent({ name: 'BattleGraphExplorer' }).exists()).toBe(true);
+    expect(wrapper.text()).toContain('尚未选择任何路径');
   });
 
-  it('clears stale results before rerun and exposes backend errors', async () => {
+  it('keeps report DTO after GraphExplorer unmount and clears it before rerun', async () => {
     /**
-     * 请求开始时先卸载旧 explorer，防止旧 graph cache 与新场景并存。测试先完成成功推演，再让下一次请求失败；断言旧胜率和 explorer 均被清除，服务端错误文本进入页面，同时按钮恢复可操作状态。
+     * 父页面持有 battle_report，因此隐藏左侧 GraphExplorer 后历史战报仍存在；新推演开始时再统一清空。
      */
     const wrapper = mountView();
     await wrapper.get('.inference-run-button').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('75.00%');
+    await wrapper.get('[data-emit-exploration]').trigger('click');
+
+    expect(wrapper.text()).toContain('玛纽拉使用了冰冻拳！');
+    expect(wrapper.text()).toContain('快龙失去了 57 点 HP。');
+    expect(wrapper.text()).toContain('快龙剩余 109 / 166 HP。');
+
+    await wrapper.get('[data-toggle-graph-explorer]').trigger('click');
+    expect(wrapper.findComponent({ name: 'BattleGraphExplorer' }).exists()).toBe(false);
+    expect(wrapper.text()).toContain('快龙剩余 109 / 166 HP。');
 
     inferMock.mockRejectedValueOnce(new Error('状态图超过节点上限'));
     await wrapper.get('.inference-run-button').trigger('click');
     await flushPromises();
 
+    expect(wrapper.text()).not.toContain('快龙剩余 109 / 166 HP。');
     expect(wrapper.text()).not.toContain('75.00%');
-    expect(wrapper.findComponent({ name: 'BattleGraphExplorer' }).exists()).toBe(false);
     expect(wrapper.text()).toContain('状态图超过节点上限');
     expect(wrapper.get('.inference-run-button').attributes('disabled')).toBeUndefined();
   });
