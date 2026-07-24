@@ -45,16 +45,16 @@ jobs:
           EXTRACT
           extract_status=$?
           if [[ $extract_status -ne 0 ]]; then
-            cp /tmp/issue-52-extract.log issue52-bootstrap-error.log
-            echo "extract_status=$extract_status" >> issue52-bootstrap-error.log
+            cp /tmp/issue-52-extract.log issue52-bootstrap-error.txt
+            echo "extract_status=$extract_status" >> issue52-bootstrap-error.txt
             echo "$extract_status" > /tmp/issue-52-status
             exit 0
           fi
           python3 /tmp/issue-52-patch.py > /tmp/issue-52-patch.log 2>&1
           patch_status=$?
           if [[ $patch_status -ne 0 ]]; then
-            cp /tmp/issue-52-patch.log issue52-bootstrap-error.log
-            echo "patch_status=$patch_status" >> issue52-bootstrap-error.log
+            cp /tmp/issue-52-patch.log issue52-bootstrap-error.txt
+            echo "patch_status=$patch_status" >> issue52-bootstrap-error.txt
           fi
           echo "$patch_status" > /tmp/issue-52-status
           exit 0
@@ -69,10 +69,10 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add issue52-bootstrap-error.log
+          git add issue52-bootstrap-error.txt
           git commit -m "Record issue 52 bootstrap failure"
           git push origin HEAD:${{ github.head_ref }}
-          cat issue52-bootstrap-error.log
+          cat issue52-bootstrap-error.txt
           exit "$status"
 
       - name: Validate Python contract
@@ -101,7 +101,7 @@ jobs:
         run: |
           rm .github/workflows/issue-52-bootstrap.yml
           rm .github/workflows/issue-52-pr-runner.yml
-          rm -f issue52-bootstrap-error.log
+          rm -f issue52-bootstrap-error.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
