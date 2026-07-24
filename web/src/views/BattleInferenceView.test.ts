@@ -1,16 +1,55 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  advanceBattleExploration,
+  backtrackBattleExploration,
+  exploreBattleGraph,
   inferDragoniteVsWeavile,
+  loadTransitionGroupOutcomes,
+  type BattleEventResult,
+  type BattleGraphExplorationResult,
   type BattleJourneyResult,
+  type BattleReportStepResult,
+  type BattleTransitionGroupOutcomesResult,
+  type ProbabilityResult,
+  type TransitionGroupResult,
 } from '../api/inference';
 import BattleInferenceView from './BattleInferenceView.vue';
 
 vi.mock('../api/inference', () => ({
   inferDragoniteVsWeavile: vi.fn(),
+  exploreBattleGraph: vi.fn(),
+  loadTransitionGroupOutcomes: vi.fn(),
+  advanceBattleExploration: vi.fn(),
+  backtrackBattleExploration: vi.fn(),
 }));
 
 const inferMock = vi.mocked(inferDragoniteVsWeavile);
+const exploreMock = vi.mocked(exploreBattleGraph);
+const outcomesMock = vi.mocked(loadTransitionGroupOutcomes);
+const advanceMock = vi.mocked(advanceBattleExploration);
+const backtrackMock = vi.mocked(backtrackBattleExploration);
+
+/**
+ * 构造同时保留精确字符串和展示近似值的概率 DTO。
+ *
+ * @param numerator 约分后的分子字符串。
+ * @param denominator 约分后的分母字符串。
+ * @param decimal 对应的展示小数。
+ * @returns API 概率对象。
+ */
+function probability(
+  numerator: string,
+  denominator: string,
+  decimal: number,
+): ProbabilityResult {
+  return {
+    numerator,
+    denominator,
+    decimal,
+    percent: decimal * 100,
+  };
+}
 
 const RESULT: BattleJourneyResult = {
   summary: {
@@ -59,24 +98,9 @@ const RESULT: BattleJourneyResult = {
         ability: 'pressure',
       },
     },
-    win_probability: {
-      numerator: '3',
-      denominator: '4',
-      decimal: 0.75,
-      percent: 75,
-    },
-    loss_probability: {
-      numerator: '1',
-      denominator: '4',
-      decimal: 0.25,
-      percent: 25,
-    },
-    draw_probability: {
-      numerator: '0',
-      denominator: '1',
-      decimal: 0,
-      percent: 0,
-    },
+    win_probability: probability('3', '4', 0.75),
+    loss_probability: probability('1', '4', 0.25),
+    draw_probability: probability('0', '1', 0),
     expected_turns: {
       available: true,
       numerator: 5,
@@ -146,14 +170,337 @@ const RESULT: BattleJourneyResult = {
   },
 };
 
+/**
+ * 构造 cursor 节点一侧的完整动态状态。
+ *
+ * @param pokemonId Pokémon ID。
+ * @param name 稳定英文 identifier。
+ * @param currentHp 当前 HP。
+ * @param maximumHp 最大 HP。
+ * @returns 满足 exploration API 合同的 battler DTO。
+ */
+function battler(
+  pokemonId: number,
+  name: string,
+  currentHp: number,
+  maximumHp: number,
+) {
+  return {
+    pokemon_id: pokemonId,
+    name,
+    ability: name === 'dragonite' ? 'inner_focus' : 'pressure',
+    item: 'none',
+    current_hp: currentHp,
+    max_hp: maximumHp,
+    moves: [],
+    major_status: null,
+    volatile_statuses: [],
+    last_move_id: null,
+    choice_lock_move_id: null,
+    item_consumed: false,
+    first_turn: false,
+  };
+}
+
+/**
+ * 构造一个结构化事件，供 view 断言真实 battle report 文本。
+ *
+ * @param patch 待覆盖的事件字段。
+ * @returns 具有合法默认值的新事件。
+ */
+function event(patch: Partial<BattleEventResult>): BattleEventResult {
+  return {
+    kind: 'move-used',
+    turn_number: 1,
+    actor: 'defender',
+    target: 'attacker',
+    move_id: 8,
+    source_identifier: null,
+    value: null,
+    before_value: null,
+    after_value: null,
+    ...patch,
+  };
+}
+
+/**
+ * 构造一条 cursor edge 对应的 report step。
+ *
+ * @param depth 当前路径深度。
+ * @param sourceNodeId edge 起点。
+ * @param edgeId 正式 edge ID。
+ * @param targetNodeId edge 终点，可重复已有节点形成循环。
+ * @param events 当前 edge 的结构化事件序列。
+ * @returns 可直接放入 BattleReportResult.steps 的 DTO。
+ */
+function reportStep(
+  depth: number,
+  sourceNodeId: number,
+  edgeId: number,
+  targetNodeId: number,
+  events: BattleEventResult[],
+): BattleReportStepResult {
+  return {
+    depth,
+    source_node_id: sourceNodeId,
+    edge_id: edgeId,
+    target_node_id: targetNodeId,
+    edge_probability: probability('1', '2', 0.5),
+    cumulative_probability:
+      depth === 1 ? probability('1', '2', 0.5) : probability('1', '4', 0.25),
+    event_paths: [
+      {
+        random_results: [],
+        damage_rolls: [],
+        battle_events: events,
+      },
+    ],
+  };
+}
+
+const ROOT_GROUP: TransitionGroupResult = {
+  group_id: 'damage-group',
+  kind: 'damage-distribution',
+  label_key: 'damage-distribution',
+  probability: probability('1', '1', 1),
+  raw_result_count: 16,
+  distinct_outcome_count: 2,
+  summary: {
+    minimum_damage: 57,
+    maximum_damage: 63,
+    minimum_hp_loss: 57,
+    maximum_hp_loss: 63,
+  },
+  expanded: false,
+  outcomes: [],
+};
+
+const EXPANDED_GROUP: TransitionGroupResult = {
+  ...ROOT_GROUP,
+  expanded: true,
+  outcomes: [
+    {
+      edge_id: 10,
+      target_node_id: 1,
+      probability: probability('1', '2', 0.5),
+      cumulative_probability: probability('1', '2', 0.5),
+      label_fields: {
+        selected_move_ids: [8],
+        acting_sides: ['defender'],
+        target_sides: ['attacker'],
+        result_keys: ['damage:57'],
+        source_identifiers: [],
+      },
+      raw_random_values: [85],
+      random_results: [],
+      damage_rolls: [
+        {
+          raw_roll_index: 0,
+          raw_roll_value: 85,
+          final_damage: 57,
+          actual_hp_loss: 57,
+        },
+      ],
+      battle_event_paths: [],
+      event_paths: [],
+    },
+    {
+      edge_id: 12,
+      target_node_id: 2,
+      probability: probability('1', '2', 0.5),
+      cumulative_probability: probability('1', '2', 0.5),
+      label_fields: {
+        selected_move_ids: [8],
+        acting_sides: ['defender'],
+        target_sides: ['attacker'],
+        result_keys: ['damage:63'],
+        source_identifiers: [],
+      },
+      raw_random_values: [100],
+      random_results: [],
+      damage_rolls: [
+        {
+          raw_roll_index: 15,
+          raw_roll_value: 100,
+          final_damage: 63,
+          actual_hp_loss: 63,
+        },
+      ],
+      battle_event_paths: [],
+      event_paths: [],
+    },
+  ],
+};
+
+const ROOT_EXPLORATION: BattleGraphExplorationResult = {
+  graph_id: 'stored-graph',
+  calculation_revision: 'battle-inference.summary-exploration.v1',
+  cursor: { steps: [] },
+  node: {
+    node_id: 0,
+    turn_number: 1,
+    phase: 'action-selection',
+    outcome: 'non-terminal',
+    termination_reason: null,
+    attacker: battler(149, 'dragonite', 166, 166),
+    defender: battler(461, 'weavile', 145, 145),
+    terminal: false,
+    has_outgoing_edges: true,
+  },
+  transition_groups: [ROOT_GROUP],
+  cumulative_probability: probability('1', '1', 1),
+  breadcrumbs: [],
+  battle_report: {
+    graph_id: 'stored-graph',
+    calculation_revision: 'battle-inference.summary-exploration.v1',
+    root_node_id: 0,
+    current_node_id: 0,
+    depth: 0,
+    cumulative_probability: probability('1', '1', 1),
+    steps: [],
+  },
+  terminal: false,
+};
+
+const FIRST_STEP = reportStep(1, 0, 10, 1, [
+  event({ kind: 'move-used' }),
+  event({
+    kind: 'damage',
+    value: 57,
+  }),
+  event({
+    kind: 'hp-changed',
+    before_value: 166,
+    after_value: 109,
+    value: -57,
+  }),
+]);
+
+const ADVANCED_EXPLORATION: BattleGraphExplorationResult = {
+  ...ROOT_EXPLORATION,
+  cursor: {
+    steps: [
+      {
+        source_node_id: 0,
+        edge_id: 10,
+        target_node_id: 1,
+      },
+    ],
+  },
+  node: {
+    ...ROOT_EXPLORATION.node,
+    node_id: 1,
+    turn_number: 2,
+    attacker: battler(149, 'dragonite', 109, 166),
+  },
+  transition_groups: [],
+  cumulative_probability: probability('1', '2', 0.5),
+  breadcrumbs: [
+    {
+      source_node_id: 0,
+      edge_id: 10,
+      target_node_id: 1,
+    },
+  ],
+  battle_report: {
+    graph_id: 'stored-graph',
+    calculation_revision: 'battle-inference.summary-exploration.v1',
+    root_node_id: 0,
+    current_node_id: 1,
+    depth: 1,
+    cumulative_probability: probability('1', '2', 0.5),
+    steps: [FIRST_STEP],
+  },
+};
+
+const CYCLE_EXPLORATION: BattleGraphExplorationResult = {
+  ...ROOT_EXPLORATION,
+  cursor: {
+    steps: [
+      {
+        source_node_id: 0,
+        edge_id: 10,
+        target_node_id: 1,
+      },
+      {
+        source_node_id: 1,
+        edge_id: 20,
+        target_node_id: 0,
+      },
+    ],
+  },
+  node: {
+    ...ROOT_EXPLORATION.node,
+    node_id: 0,
+    turn_number: 3,
+  },
+  transition_groups: [],
+  cumulative_probability: probability('1', '4', 0.25),
+  breadcrumbs: [
+    {
+      source_node_id: 0,
+      edge_id: 10,
+      target_node_id: 1,
+    },
+    {
+      source_node_id: 1,
+      edge_id: 20,
+      target_node_id: 0,
+    },
+  ],
+  battle_report: {
+    graph_id: 'stored-graph',
+    calculation_revision: 'battle-inference.summary-exploration.v1',
+    root_node_id: 0,
+    current_node_id: 0,
+    depth: 2,
+    cumulative_probability: probability('1', '4', 0.25),
+    steps: [
+      FIRST_STEP,
+      reportStep(2, 1, 20, 0, [
+        event({
+          kind: 'move-used',
+          turn_number: 2,
+          actor: 'attacker',
+          target: 'defender',
+          move_id: 280,
+        }),
+        event({
+          kind: 'damage',
+          turn_number: 2,
+          actor: 'attacker',
+          target: 'defender',
+          move_id: 280,
+          value: 64,
+        }),
+      ]),
+    ],
+  },
+};
+
+const OUTCOMES_RESPONSE: BattleTransitionGroupOutcomesResult = {
+  graph_id: 'stored-graph',
+  calculation_revision: 'battle-inference.summary-exploration.v1',
+  cursor: { steps: [] },
+  current_node_id: 0,
+  cumulative_probability: probability('1', '1', 1),
+  transition_group: EXPANDED_GROUP,
+};
+
 beforeEach(() => {
   inferMock.mockReset().mockResolvedValue(RESULT);
+  exploreMock.mockReset().mockResolvedValue(ROOT_EXPLORATION);
+  outcomesMock.mockReset().mockResolvedValue(OUTCOMES_RESPONSE);
+  advanceMock.mockReset().mockResolvedValue(ADVANCED_EXPLORATION);
+  backtrackMock.mockReset().mockResolvedValue(ROOT_EXPLORATION);
 });
 
 describe('BattleInferenceView', () => {
   it('submits the selected journey and renders exact probability, graph and coverage results', async () => {
     /**
-     * 页面必须作为独立用户旅程完成“选择假设—提交推演—阅读结果”的闭环，而不是复用单次伤害计算器的局部状态。测试先选择精神力与击掌奇袭施压方案，再点击完整推演按钮；随后断言请求携带稳定 identifier 和双方预设，并验证返回的胜率、期望回合、状态图规模、代表性路径以及未实现压迫感真实行为都进入页面。这样既覆盖了首页新页面的主要交互，也证明前端没有把机制缺口静默隐藏或把小数结果误当作唯一精度来源。
+     * 页面必须继续完成“选择假设—提交推演—阅读全局结果”的既有闭环，同时在成功后使用
+     * 同一个 graph handle 加载根 cursor。测试选择精神力与击掌奇袭方案，断言首次请求
+     * 参数、根探索上下文、精确胜率、期望回合、图规模和机制缺口均未因战报接入而回退。
      */
     const wrapper = mount(BattleInferenceView);
 
@@ -168,28 +515,114 @@ describe('BattleInferenceView', () => {
       dragonite_stat_preset: 'max_atk_plus',
       weavile_stat_preset: 'max_atk_plus',
     });
+    expect(exploreMock).toHaveBeenCalledWith({
+      graphId: 'stored-graph',
+      calculationRevision: 'battle-inference.summary-exploration.v1',
+      cursor: { steps: [] },
+    });
     expect(wrapper.text()).toContain('75.00%');
     expect(wrapper.text()).toContain('2.50');
     expect(wrapper.text()).toContain('18');
     expect(wrapper.text()).toContain('快龙获胜路径');
     expect(wrapper.text()).toContain('ability:pressure:real_ability_behavior');
+    expect(wrapper.text()).toContain('尚未选择任何路径');
   });
 
-  it('clears stale results and exposes backend errors', async () => {
+  it('expands a structured damage outcome, advances the cursor and keeps report state when explorer unmounts', async () => {
     /**
-     * 当后端因为状态图运行保护、规则轴缺失或配置不合法返回错误时，页面不能继续展示上一次成功概率，否则用户会把陈旧结果误认为当前选择的答案。测试先完成一次成功推演并确认结果存在，再让下一次请求失败；断言旧的 75% 胜率被清除，服务端错误文本进入页面，同时按钮恢复可操作状态。该场景覆盖用户反复调整假设时最容易出现的陈旧数据风险，并验证异步状态在异常路径也能正确收口。
+     * 用户从左侧展开 damage group 并选择 57 点正式 edge 后，父视图必须用 advance
+     * 响应整体替换 cursor 和 battle report。断言右侧显示冰冻拳、57 点伤害和 109/166
+     * HP；随后卸载左侧 explorer，右侧文本仍存在，证明 report 不绑定子组件实例。
      */
     const wrapper = mount(BattleInferenceView);
     await wrapper.get('.inference-run-button').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('75.00%');
+
+    await wrapper.get('[data-group-id="damage-group"]').trigger('click');
+    await flushPromises();
+    expect(outcomesMock).toHaveBeenCalled();
+    expect(wrapper.find('[data-edge-id="10"]').exists()).toBe(true);
+
+    await wrapper.get('[data-edge-id="10"]').trigger('click');
+    await flushPromises();
+
+    expect(advanceMock).toHaveBeenCalledWith(
+      {
+        graphId: 'stored-graph',
+        calculationRevision: 'battle-inference.summary-exploration.v1',
+        cursor: { steps: [] },
+      },
+      10,
+    );
+    expect(wrapper.text()).toContain('玛纽拉使用了冰冻拳！');
+    expect(wrapper.text()).toContain('快龙失去了 57 点 HP。');
+    expect(wrapper.text()).toContain('快龙剩余 109 / 166 HP。');
+
+    await wrapper.get('[data-toggle-explorer]').trigger('click');
+    expect(wrapper.find('.battle-path-explorer').exists()).toBe(false);
+    expect(wrapper.text()).toContain('快龙剩余 109 / 166 HP。');
+  });
+
+  it('removes report lines on backtrack and preserves actual edge order through a cycle', async () => {
+    /**
+     * 回退必须采用服务端截断后的 report，而不是在前端猜测删除最后一个节点；循环回边
+     * 则必须保留 `0 -> 1 -> 0` 的两条真实 edge。测试先前进到循环响应，确认两个回合
+     * 同时显示，再调用 backtrack 并断言所有路径事件被根 report 清空。
+     */
+    advanceMock.mockResolvedValueOnce(CYCLE_EXPLORATION);
+    const wrapper = mount(BattleInferenceView);
+    await wrapper.get('.inference-run-button').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-group-id="damage-group"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-edge-id="10"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('回合 1');
+    expect(wrapper.text()).toContain('回合 2');
+    expect(wrapper.text()).toContain('快龙使用了劈瓦！');
+
+    await wrapper.get('[data-backtrack]').trigger('click');
+    await flushPromises();
+
+    expect(backtrackMock).toHaveBeenCalledWith(
+      {
+        graphId: 'stored-graph',
+        calculationRevision: 'battle-inference.summary-exploration.v1',
+        cursor: CYCLE_EXPLORATION.cursor,
+      },
+      undefined,
+    );
+    expect(wrapper.text()).not.toContain('快龙使用了劈瓦！');
+    expect(wrapper.text()).toContain('尚未选择任何路径');
+  });
+
+  it('clears stale report when configuration changes or a new inference fails', async () => {
+    /**
+     * 切换特性或行动方案后，旧 cursor 战报必须立即清空；再次提交失败时也不能恢复上一条
+     * 路径。测试先展示 57 点战报，切换配置后确认 summary/report 消失，再让新请求失败，
+     * 断言只保留后端错误且按钮恢复可操作。
+     */
+    const wrapper = mount(BattleInferenceView);
+    await wrapper.get('.inference-run-button').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-group-id="damage-group"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-edge-id="10"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('快龙失去了 57 点 HP。');
+
+    await wrapper.get('input[value="inner-focus"]').setValue(true);
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('快龙失去了 57 点 HP。');
+    expect(wrapper.text()).not.toContain('75.00%');
 
     inferMock.mockRejectedValueOnce(new Error('状态图超过节点上限'));
     await wrapper.get('.inference-run-button').trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).not.toContain('75.00%');
     expect(wrapper.text()).toContain('状态图超过节点上限');
+    expect(wrapper.text()).not.toContain('快龙失去了 57 点 HP。');
     expect(wrapper.get('.inference-run-button').attributes('disabled')).toBeUndefined();
   });
 });

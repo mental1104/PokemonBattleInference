@@ -1,19 +1,47 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
+  advanceBattleExploration,
+  backtrackBattleExploration,
+  exploreBattleGraph,
   inferDragoniteVsWeavile,
+  loadTransitionGroupOutcomes,
+  type BattleGraphExplorationResult,
+  type BattleGraphRequestContext,
   type BattleJourneyResult,
   type DragoniteAbility,
   type RepresentativePathResult,
+  type TransitionGroupResult,
   type WeavilePlan,
 } from '../api/inference';
+import BattlePathExplorer from '../components/inference/BattlePathExplorer.vue';
+import BattleReportPanel from '../components/inference/BattleReportPanel.vue';
+import {
+  createBattleReportPresenterContext,
+  type BattleReportPresenterContext,
+} from '../presenters/battleEventPresenter';
 
 const dragoniteAbility = ref<DragoniteAbility>('multiscale');
 const weavilePlan = ref<WeavilePlan>('ice-punch');
 const loading = ref(false);
+const explorationLoading = ref(false);
 const errorMessage = ref('');
+const explorationError = ref('');
 const result = ref<BattleJourneyResult | null>(null);
+const exploration = ref<BattleGraphExplorationResult | null>(null);
+const expandedGroups = ref<Record<string, TransitionGroupResult>>({});
+const showExplorer = ref(true);
+let requestGeneration = 0;
+
 const summary = computed(() => result.value?.summary ?? null);
+const presenterContext = computed<BattleReportPresenterContext | null>(() =>
+  summary.value === null
+    ? null
+    : createBattleReportPresenterContext(summary.value),
+);
+const moveNames = computed<Readonly<Record<number, string>>>(
+  () => presenterContext.value?.moveNames ?? {},
+);
 
 const scenarioSummary = computed(() => {
   const ability = dragoniteAbility.value === 'multiscale' ? '多重鳞片' : '精神力';
@@ -25,23 +53,187 @@ const scenarioSummary = computed(() => {
 });
 
 /**
- * 提交当前受控场景，并用新的结果替换上一次推演。
+ * 清空上一组配置的 summary、cursor、展开分支和逐回合战报。
+ *
+ * 该状态归父视图所有；左侧 explorer 组件即使卸载，也不会单独销毁右侧 report。
+ */
+function clearSolvedState(): void {
+  requestGeneration += 1;
+  result.value = null;
+  exploration.value = null;
+  expandedGroups.value = {};
+  errorMessage.value = '';
+  explorationError.value = '';
+  showExplorer.value = true;
+}
+
+/**
+ * 把首次推演 handle 或当前 exploration 组合成下一次 API 请求上下文。
+ *
+ * @param journey 当前已保存图的首次推演结果。
+ * @param current 当前服务端校验过的 exploration；根加载前为 null。
+ * @returns 图 ID、计算版本和真实 edge cursor；缺少 journey 时返回 null。
+ */
+function graphContext(
+  journey: BattleJourneyResult | null,
+  current: BattleGraphExplorationResult | null,
+): BattleGraphRequestContext | null {
+  if (journey === null) {
+    return null;
+  }
+  return {
+    graphId: journey.exploration.graph_id,
+    calculationRevision: journey.exploration.calculation_revision,
+    cursor: current?.cursor ?? journey.exploration.cursor,
+  };
+}
+
+/**
+ * 为并发保护生成不包含 BattleState 的稳定 cursor key。
+ *
+ * @param current 当前真实 edge 序列。
+ * @returns 可用于比较请求前后 cursor 是否仍一致的 JSON 字符串。
+ */
+function cursorKey(current: BattleGraphExplorationResult | null): string {
+  return JSON.stringify(current?.cursor.steps ?? []);
+}
+
+/**
+ * 提交当前受控场景，并在成功后立即加载根节点与空 cursor 战报。
  */
 async function runInference(): Promise<void> {
-  loading.value = true;
+  const generation = requestGeneration + 1;
+  requestGeneration = generation;
+  result.value = null;
+  exploration.value = null;
+  expandedGroups.value = {};
   errorMessage.value = '';
+  explorationError.value = '';
+  showExplorer.value = true;
+  loading.value = true;
+
   try {
-    result.value = await inferDragoniteVsWeavile({
+    const journey = await inferDragoniteVsWeavile({
       dragonite_ability: dragoniteAbility.value,
       weavile_plan: weavilePlan.value,
       dragonite_stat_preset: 'max_atk_plus',
       weavile_stat_preset: 'max_atk_plus',
     });
+    if (generation !== requestGeneration) {
+      return;
+    }
+    result.value = journey;
+
+    const context = graphContext(journey, null);
+    if (context === null) {
+      return;
+    }
+    explorationLoading.value = true;
+    try {
+      const root = await exploreBattleGraph(context);
+      if (generation === requestGeneration) {
+        exploration.value = root;
+      }
+    } catch (error) {
+      if (generation === requestGeneration) {
+        explorationError.value =
+          error instanceof Error ? error.message : '根节点探索请求失败';
+      }
+    } finally {
+      if (generation === requestGeneration) {
+        explorationLoading.value = false;
+      }
+    }
   } catch (error) {
-    result.value = null;
-    errorMessage.value = error instanceof Error ? error.message : '推演请求失败';
+    if (generation === requestGeneration) {
+      result.value = null;
+      errorMessage.value =
+        error instanceof Error ? error.message : '推演请求失败';
+    }
   } finally {
-    loading.value = false;
+    if (generation === requestGeneration) {
+      loading.value = false;
+    }
+  }
+}
+
+/**
+ * 按需加载当前节点一个 group 的正式 outcomes。
+ *
+ * @param groupId 当前 exploration 返回的稳定分支组 ID。
+ */
+async function expandTransitionGroup(groupId: string): Promise<void> {
+  const context = graphContext(result.value, exploration.value);
+  if (context === null || expandedGroups.value[groupId] !== undefined) {
+    return;
+  }
+
+  const beforeCursor = cursorKey(exploration.value);
+  explorationLoading.value = true;
+  explorationError.value = '';
+  try {
+    const response = await loadTransitionGroupOutcomes(context, groupId);
+    // 当前 cursor 已被其他操作替换时丢弃旧 group 响应，避免跨节点污染。
+    if (beforeCursor !== cursorKey(exploration.value)) {
+      return;
+    }
+    expandedGroups.value = {
+      ...expandedGroups.value,
+      [groupId]: response.transition_group,
+    };
+  } catch (error) {
+    explorationError.value =
+      error instanceof Error ? error.message : '分支展开失败';
+  } finally {
+    explorationLoading.value = false;
+  }
+}
+
+/**
+ * 沿用户选择的正式 edge 前进，并整体替换 cursor、节点、groups 和 battle report。
+ *
+ * @param edgeId 当前 group outcome 返回的正式 edge ID。
+ */
+async function advancePath(edgeId: number): Promise<void> {
+  const context = graphContext(result.value, exploration.value);
+  if (context === null) {
+    return;
+  }
+
+  explorationLoading.value = true;
+  explorationError.value = '';
+  try {
+    exploration.value = await advanceBattleExploration(context, edgeId);
+    expandedGroups.value = {};
+  } catch (error) {
+    explorationError.value =
+      error instanceof Error ? error.message : '路径前进失败';
+  } finally {
+    explorationLoading.value = false;
+  }
+}
+
+/**
+ * 返回上一级，或截断到 breadcrumb 指定的祖先深度。
+ *
+ * @param depth 目标祖先深度；省略时返回上一级。
+ */
+async function backtrackPath(depth?: number): Promise<void> {
+  const context = graphContext(result.value, exploration.value);
+  if (context === null) {
+    return;
+  }
+
+  explorationLoading.value = true;
+  explorationError.value = '';
+  try {
+    exploration.value = await backtrackBattleExploration(context, depth);
+    expandedGroups.value = {};
+  } catch (error) {
+    explorationError.value =
+      error instanceof Error ? error.message : '路径回退失败';
+  } finally {
+    explorationLoading.value = false;
   }
 }
 
@@ -62,6 +254,7 @@ function formatPercent(value: number): string {
  * @returns 用户可读的中文优先标签。
  */
 function displayIdentifier(identifier: string): string {
+  const normalized = identifier.replaceAll('-', '_');
   const labels: Record<string, string> = {
     multiscale: '多重鳞片',
     inner_focus: '精神力',
@@ -71,7 +264,7 @@ function displayIdentifier(identifier: string): string {
     ice_punch: '冰冻拳',
     fake_out: '击掌奇袭',
   };
-  return labels[identifier] ?? identifier.replaceAll('_', ' ');
+  return labels[normalized] ?? normalized.replaceAll('_', ' ');
 }
 
 /**
@@ -89,6 +282,14 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
   }
   return '平局路径';
 }
+
+watch([dragoniteAbility, weavilePlan], () => {
+  if (result.value !== null || loading.value) {
+    clearSolvedState();
+    loading.value = false;
+    explorationLoading.value = false;
+  }
+});
 </script>
 
 <template>
@@ -253,6 +454,56 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
         </article>
       </section>
 
+      <section class="battle-exploration-section">
+        <div class="result-heading result-heading--compact">
+          <div>
+            <p class="eyebrow">LIVE EXPLORATION</p>
+            <h2>沿概率路径查看真实战报</h2>
+          </div>
+          <button
+            v-if="exploration"
+            class="battle-explorer-visibility"
+            type="button"
+            data-toggle-explorer
+            @click="showExplorer = !showExplorer"
+          >
+            {{ showExplorer ? '隐藏路径面板' : '显示路径面板' }}
+          </button>
+        </div>
+
+        <p v-if="explorationLoading && !exploration" class="battle-exploration-loading">
+          正在加载根节点与空 cursor…
+        </p>
+        <p v-if="explorationError && !exploration" class="battle-exploration-error">
+          {{ explorationError }}
+        </p>
+
+        <div
+          v-if="exploration && presenterContext"
+          class="battle-exploration-grid"
+          :class="{ 'battle-exploration-grid--report-only': !showExplorer }"
+        >
+          <BattlePathExplorer
+            v-if="showExplorer"
+            :exploration="exploration"
+            :expanded-groups="expandedGroups"
+            :loading="explorationLoading"
+            :error="explorationError"
+            :move-names="moveNames"
+            @expand-group="expandTransitionGroup"
+            @advance="advancePath"
+            @backtrack="backtrackPath()"
+            @truncate="backtrackPath"
+          />
+          <BattleReportPanel
+            :report="exploration.battle_report"
+            :context="presenterContext"
+            :loading="explorationLoading"
+            :error="explorationError"
+          />
+        </div>
+      </section>
+
       <section class="path-section">
         <div class="result-heading result-heading--compact">
           <div>
@@ -303,3 +554,5 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
     </template>
   </main>
 </template>
+
+<style src="../battle-report.css"></style>
