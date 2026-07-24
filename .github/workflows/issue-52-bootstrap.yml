@@ -1,0 +1,1054 @@
+name: Implement issue 52
+
+on:
+  push:
+    branches:
+      - agent/issue-52-summary-exploration-contract
+    paths:
+      - .github/workflows/issue-52-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-52-summary-exploration-contract
+
+      - name: Patch summary and exploration contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          from pathlib import Path
+
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              """在目标文件中执行一次精确替换，避免静默修改错误版本。"""
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one replacement target, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+          app_path = Path("pokeop/application/use_cases/infer_one_on_one_battle.py")
+          app_text = app_path.read_text(encoding="utf-8")
+          import_marker = (
+              "from pokeop.domain.battle.transitions import WeightedTransition, "
+              "merge_equivalent_transitions\n\n\nclass BattleInferenceExecutionError"
+          )
+          import_replacement = (
+              "from pokeop.domain.battle.transitions import WeightedTransition, "
+              "merge_equivalent_transitions\n\n\n"
+              "# 修改该值表示顶层计算语义或可探索图 artifact 合同发生不兼容变化。\n"
+              "BATTLE_INFERENCE_CALCULATION_REVISION = "
+              "\"battle-inference.summary-exploration.v1\"\n\n\n"
+              "class BattleInferenceExecutionError"
+          )
+          if app_text.count(import_marker) != 1:
+              raise RuntimeError("application calculation revision insertion point changed")
+          app_text = app_text.replace(import_marker, import_replacement, 1)
+
+          old_result_contract = '''@dataclass(frozen=True, slots=True)
+          class FixedOneOnOneBattleResult:
+              """保存固定配置的概率、图统计、配置和代表路径。"""
+
+              configuration: BattleConfigurationSummary
+              inference: BattleInferenceResult
+              graph: GraphInferenceSummary
+              representative_paths: tuple[RepresentativeBattlePath, ...]
+              solver_status: str
+              solver_diagnostics: tuple[str, ...]
+          '''
+          new_result_contract = '''@dataclass(frozen=True, slots=True)
+          class BattleInferenceCompleteness:
+              """记录全局 summary 的图构建与求解完整性。
+
+              Args:
+                  graph_complete: 完整状态图是否未触发节点、边或回合运行保护。
+                  solver_status: 精确图求解器返回的稳定状态标识。
+                  truncation_reasons: 图构建器报告的稳定截断原因。
+                  diagnostics: 求解器提供的补充诊断；空元组表示没有额外诊断。
+              """
+
+              graph_complete: bool
+              solver_status: str
+              truncation_reasons: tuple[str, ...]
+              diagnostics: tuple[str, ...]
+
+
+          @dataclass(frozen=True, slots=True)
+          class BattleInferenceSummary:
+              """保存覆盖完整概率空间且不依赖当前浏览路径的全局结论。
+
+              Args:
+                  configuration: 本次固定双方配置的展示摘要。
+                  inference: 基于完整状态图求解得到的概率、期望回合和机制覆盖。
+                  graph_statistics: 完整状态图的规模、循环与截断统计。
+                  representative_paths: 每种终局的一条示例路径，不代表当前 exploration 位置。
+                  completeness: 图构建和求解过程的完整性信息。
+              """
+
+              configuration: BattleConfigurationSummary
+              inference: BattleInferenceResult
+              graph_statistics: GraphInferenceSummary
+              representative_paths: tuple[RepresentativeBattlePath, ...]
+              completeness: BattleInferenceCompleteness
+
+
+          @dataclass(frozen=True, slots=True)
+          class BattleExplorationEntry:
+              """保存渐进探索入口及 application 内部的完整图 artifact。
+
+              Args:
+                  root_node_id: 用户开始探索时对应的图根节点 ID。
+                  calculation_revision: 标识节点与边计算语义的稳定版本。
+                  expandable: 当前结果是否允许后续按节点继续展开。
+                  graph_artifact: 尚未接入 graph store 时由 application 保留的完整状态图。
+                  graph_handle: graph store 接入后可替代或补充 artifact 的稳定句柄。
+              """
+
+              root_node_id: int
+              calculation_revision: str
+              expandable: bool
+              graph_artifact: StateGraphBuildResult | None
+              graph_handle: str | None = None
+
+              def __post_init__(self) -> None:
+                  """校验探索入口始终能够定位同一份完整图。
+
+                  Raises:
+                      BattleInferenceExecutionError: 根节点、版本或 artifact/handle 组合无效时抛出。
+                  """
+                  if isinstance(self.root_node_id, bool) or self.root_node_id < 0:
+                      raise BattleInferenceExecutionError(
+                          "exploration root_node_id must be a non-negative integer"
+                      )
+                  if (
+                      not self.calculation_revision
+                      or self.calculation_revision != self.calculation_revision.strip()
+                  ):
+                      raise BattleInferenceExecutionError(
+                          "calculation_revision must be non-empty and normalized"
+                      )
+                  if self.graph_handle is not None and (
+                      not self.graph_handle or self.graph_handle != self.graph_handle.strip()
+                  ):
+                      raise BattleInferenceExecutionError(
+                          "graph_handle must be non-empty and normalized when provided"
+                      )
+                  if self.graph_artifact is None and self.graph_handle is None:
+                      raise BattleInferenceExecutionError(
+                          "exploration must retain a graph artifact or graph handle"
+                      )
+                  if (
+                      self.graph_artifact is not None
+                      and int(self.graph_artifact.root_node_id) != self.root_node_id
+                  ):
+                      raise BattleInferenceExecutionError(
+                          "exploration root_node_id must match the graph artifact root"
+                      )
+
+
+          @dataclass(frozen=True, slots=True)
+          class FixedOneOnOneBattleResult:
+              """冻结固定配置推演的全局 summary 与渐进 exploration 顶层合同。
+
+              Args:
+                  summary: 与用户当前浏览路径无关的完整概率空间结论。
+                  exploration: 持有完整图 artifact 或稳定 handle 的探索入口。
+              """
+
+              summary: BattleInferenceSummary
+              exploration: BattleExplorationEntry
+          '''
+          if app_text.count(old_result_contract) != 1:
+              raise RuntimeError("application result contract changed")
+          app_text = app_text.replace(old_result_contract, new_result_contract, 1)
+
+          old_return_description = (
+              "            包含固定配置、精确概率、状态图统计和代表路径的结果。"
+          )
+          new_return_description = (
+              "            明确区分完整概率空间 summary 与可渐进浏览 exploration 的结果。"
+          )
+          if app_text.count(old_return_description) != 1:
+              raise RuntimeError("execute_fixed return documentation changed")
+          app_text = app_text.replace(old_return_description, new_return_description, 1)
+
+          inference_access_count = app_text.count("pair.result.inference")
+          if inference_access_count != 6:
+              raise RuntimeError(
+                  f"expected six configuration aggregation accesses, found {inference_access_count}"
+              )
+          app_text = app_text.replace(
+              "pair.result.inference", "pair.result.summary.inference"
+          )
+
+          old_solve_return = '''        paths = _representative_paths(graph)
+                  return FixedOneOnOneBattleResult(
+                      configuration=self._configuration_summary(configuration),
+                      inference=inference,
+                      graph=_graph_summary(graph),
+                      representative_paths=paths,
+                      solver_status=solved.status.value,
+                      solver_diagnostics=solved.diagnostics,
+                  )
+          '''
+          new_solve_return = '''        paths = _representative_paths(graph)
+                  graph_statistics = _graph_summary(graph)
+                  return FixedOneOnOneBattleResult(
+                      summary=BattleInferenceSummary(
+                          configuration=self._configuration_summary(configuration),
+                          inference=inference,
+                          graph_statistics=graph_statistics,
+                          representative_paths=paths,
+                          completeness=BattleInferenceCompleteness(
+                              graph_complete=graph.is_complete,
+                              solver_status=solved.status.value,
+                              truncation_reasons=graph_statistics.truncation_reasons,
+                              diagnostics=solved.diagnostics,
+                          ),
+                      ),
+                      exploration=BattleExplorationEntry(
+                          root_node_id=int(graph.root_node_id),
+                          calculation_revision=BATTLE_INFERENCE_CALCULATION_REVISION,
+                          expandable=True,
+                          graph_artifact=graph,
+                          graph_handle=None,
+                      ),
+                  )
+          '''
+          if app_text.count(old_solve_return) != 1:
+              raise RuntimeError("configuration solve return block changed")
+          app_text = app_text.replace(old_solve_return, new_solve_return, 1)
+
+          old_exports = '''__all__ = [
+              "BattleActionPolicyKind",
+              "BattleConfigurationSummary",
+              "BattleInferenceExecutionError",
+          '''
+          new_exports = '''__all__ = [
+              "BATTLE_INFERENCE_CALCULATION_REVISION",
+              "BattleActionPolicyKind",
+              "BattleConfigurationSummary",
+              "BattleExplorationEntry",
+              "BattleInferenceCompleteness",
+              "BattleInferenceExecutionError",
+              "BattleInferenceSummary",
+          '''
+          if app_text.count(old_exports) != 1:
+              raise RuntimeError("application exports changed")
+          app_text = app_text.replace(old_exports, new_exports, 1)
+          app_path.write_text(app_text, encoding="utf-8")
+
+          schema_path = Path("pokeop/api/schemas/inference.py")
+          schema_path.write_text(
+              '''"""定义 1v1 战斗推演用户旅程的 HTTP 请求与响应模型。"""
+
+          from __future__ import annotations
+
+          from fractions import Fraction
+
+          from pydantic import BaseModel, Field
+
+          from pokeop.application.use_cases.infer_one_on_one_battle import (
+              FixedOneOnOneBattleResult,
+              PokemonConfigurationSummary,
+              RepresentativeBattlePath,
+          )
+
+
+          class DragoniteWeavileJourneyRequest(BaseModel):
+              """快龙 vs 玛纽拉受控用户旅程的输入。"""
+
+              dragonite_ability: str = Field(
+                  default="multiscale",
+                  pattern="^(multiscale|inner-focus)$",
+                  description="快龙特性：多重鳞片或精神力。",
+              )
+              weavile_plan: str = Field(
+                  default="ice-punch",
+                  pattern="^(ice-punch|fake-out-pressure)$",
+                  description="玛纽拉行动方案：冰冻拳直攻，或击掌奇袭与冰冻拳等概率施压。",
+              )
+              dragonite_stat_preset: str = Field(
+                  default="max_atk_plus",
+                  description="快龙能力预设 key。",
+              )
+              weavile_stat_preset: str = Field(
+                  default="max_atk_plus",
+                  description="玛纽拉能力预设 key。",
+              )
+
+
+          class ProbabilityResponse(BaseModel):
+              """同时暴露精确分数和便于展示的小数概率。"""
+
+              numerator: int
+              denominator: int
+              decimal: float
+              percent: float
+
+
+          class ExpectedTurnsResponse(BaseModel):
+              """表示有限期望回合数或不可有限表示的结果。"""
+
+              available: bool
+              numerator: int | None = None
+              denominator: int | None = None
+              decimal: float | None = None
+
+
+          class PokemonConfigurationResponse(BaseModel):
+              """返回一侧完整固定配置的展示字段。"""
+
+              pokemon_id: int
+              name: str
+              level: int
+              ability_identifier: str
+              item_identifier: str
+              move_ids: list[int]
+              move_names: list[str]
+              stats: dict[str, int]
+              dimension_labels: dict[str, str]
+
+
+          class GraphSummaryResponse(BaseModel):
+              """返回完整状态图的规模、循环和截断诊断。"""
+
+              unique_state_count: int
+              edge_count: int
+              max_turn_number: int
+              closed_cycle_count: int
+              terminal_reachable_cycle_count: int
+              is_complete: bool
+              truncation_reasons: list[str]
+
+
+          class RepresentativePathStepResponse(BaseModel):
+              """返回代表路径中的一项状态节点快照。"""
+
+              node_id: int
+              turn_number: int
+              phase: str
+              attacker_hp: int
+              defender_hp: int
+              outcome: str
+              events: list[str]
+
+
+          class RepresentativePathResponse(BaseModel):
+              """返回一种终局语义的一条代表性路径。"""
+
+              reference: str
+              outcome: str
+              steps: list[RepresentativePathStepResponse]
+
+
+          class BattleInferenceCompletenessResponse(BaseModel):
+              """返回完整状态图构建和精确求解的可信度信息。"""
+
+              graph_complete: bool
+              solver_status: str
+              truncation_reasons: list[str]
+              diagnostics: list[str]
+              warnings: list[str]
+
+
+          class BattleInferenceSummaryResponse(BaseModel):
+              """返回与当前浏览路径无关的完整概率空间结论。"""
+
+              ruleset_id: str
+              version_group_id: int
+              observer: str
+              attacker: PokemonConfigurationResponse
+              defender: PokemonConfigurationResponse
+              win_probability: ProbabilityResponse
+              loss_probability: ProbabilityResponse
+              draw_probability: ProbabilityResponse
+              expected_turns: ExpectedTurnsResponse
+              attacker_policy: str
+              defender_policy: str
+              graph: GraphSummaryResponse
+              representative_paths: list[RepresentativePathResponse]
+              included_mechanisms: list[str]
+              excluded_mechanisms: list[str]
+              configuration_coverage_percent: float
+              completeness: BattleInferenceCompletenessResponse
+
+
+          class BattleExplorationResponse(BaseModel):
+              """返回后续节点探索所需的稳定入口，不序列化 application 图对象。"""
+
+              root_node_id: int
+              graph_id: str | None
+              calculation_revision: str
+              expandable: bool
+
+
+          class BattleInferenceJourneyResponse(BaseModel):
+              """冻结 summary 与 exploration 两个职责不同的顶层响应。"""
+
+              summary: BattleInferenceSummaryResponse
+              exploration: BattleExplorationResponse
+
+
+          def _probability(value: Fraction) -> ProbabilityResponse:
+              """把精确 Fraction 转换为 API 概率 DTO。
+
+              Args:
+                  value: 闭区间 [0, 1] 内的精确概率。
+
+              Returns:
+                  同时包含分子、分母、小数和百分比的响应对象。
+              """
+              decimal = float(value)
+              return ProbabilityResponse(
+                  numerator=value.numerator,
+                  denominator=value.denominator,
+                  decimal=decimal,
+                  percent=decimal * 100,
+              )
+
+
+          def _pokemon(
+              summary: PokemonConfigurationSummary,
+          ) -> PokemonConfigurationResponse:
+              """把 application 配置摘要转换为 HTTP 响应。
+
+              Args:
+                  summary: 一侧固定配置的稳定 application DTO。
+
+              Returns:
+                  不暴露 domain 对象的 JSON 友好响应。
+              """
+              return PokemonConfigurationResponse(
+                  pokemon_id=summary.pokemon_id,
+                  name=summary.name,
+                  level=summary.level,
+                  ability_identifier=summary.ability_identifier,
+                  item_identifier=summary.item_identifier,
+                  move_ids=list(summary.move_ids),
+                  move_names=list(summary.move_names),
+                  stats={
+                      "hp": summary.hp,
+                      "attack": summary.attack,
+                      "defense": summary.defense,
+                      "special_attack": summary.special_attack,
+                      "special_defense": summary.special_defense,
+                      "speed": summary.speed,
+                  },
+                  dimension_labels=dict(summary.dimension_labels),
+              )
+
+
+          def _path(path: RepresentativeBattlePath) -> RepresentativePathResponse:
+              """把一条 application 代表路径转换为轻量 HTTP 路径。
+
+              Args:
+                  path: 已通过图前驱索引重建的代表路径。
+
+              Returns:
+                  包含节点 HP、回合、终局和事件摘要的响应。
+              """
+              return RepresentativePathResponse(
+                  reference=path.reference,
+                  outcome=path.outcome.value,
+                  steps=[
+                      RepresentativePathStepResponse(
+                          node_id=step.node_id,
+                          turn_number=step.turn_number,
+                          phase=step.phase,
+                          attacker_hp=step.attacker_hp,
+                          defender_hp=step.defender_hp,
+                          outcome=step.outcome,
+                          events=list(step.events),
+                      )
+                      for step in path.steps
+                  ],
+              )
+
+
+          def battle_inference_journey_response(
+              result: FixedOneOnOneBattleResult,
+          ) -> BattleInferenceJourneyResponse:
+              """把 application 顶层合同投影为 summary 与 exploration HTTP DTO。
+
+              Args:
+                  result: 同时保留完整图 artifact 和全局推演结论的 application 结果。
+
+              Returns:
+                  不泄漏 domain/solver 图对象，且代表路径与探索入口明确分离的响应。
+              """
+              summary = result.summary
+              inference = summary.inference
+              expected = inference.expected_turns
+              warnings = [
+                  f"未纳入机制：{identifier}"
+                  for identifier in inference.mechanism_coverage.excluded
+              ]
+              warnings.extend(summary.completeness.diagnostics)
+              graph_statistics = summary.graph_statistics
+              completeness = summary.completeness
+              return BattleInferenceJourneyResponse(
+                  summary=BattleInferenceSummaryResponse(
+                      ruleset_id=inference.rules.ruleset_id,
+                      version_group_id=inference.rules.version_group_id,
+                      observer=inference.observer.value,
+                      attacker=_pokemon(summary.configuration.attacker),
+                      defender=_pokemon(summary.configuration.defender),
+                      win_probability=_probability(inference.win_probability.value),
+                      loss_probability=_probability(inference.loss_probability.value),
+                      draw_probability=_probability(inference.draw_probability.value),
+                      expected_turns=ExpectedTurnsResponse(
+                          available=expected is not None,
+                          numerator=expected.numerator if expected is not None else None,
+                          denominator=expected.denominator if expected is not None else None,
+                          decimal=float(expected) if expected is not None else None,
+                      ),
+                      attacker_policy=inference.attacker_policy.policy_id,
+                      defender_policy=inference.defender_policy.policy_id,
+                      graph=GraphSummaryResponse(
+                          unique_state_count=graph_statistics.unique_state_count,
+                          edge_count=graph_statistics.edge_count,
+                          max_turn_number=graph_statistics.max_turn_number,
+                          closed_cycle_count=graph_statistics.closed_cycle_count,
+                          terminal_reachable_cycle_count=(
+                              graph_statistics.terminal_reachable_cycle_count
+                          ),
+                          is_complete=graph_statistics.is_complete,
+                          truncation_reasons=list(graph_statistics.truncation_reasons),
+                      ),
+                      representative_paths=[
+                          _path(path) for path in summary.representative_paths
+                      ],
+                      included_mechanisms=list(
+                          inference.mechanism_coverage.included
+                      ),
+                      excluded_mechanisms=list(
+                          inference.mechanism_coverage.excluded
+                      ),
+                      configuration_coverage_percent=(
+                          float(inference.configuration_coverage.coverage_ratio) * 100
+                      ),
+                      completeness=BattleInferenceCompletenessResponse(
+                          graph_complete=completeness.graph_complete,
+                          solver_status=completeness.solver_status,
+                          truncation_reasons=list(completeness.truncation_reasons),
+                          diagnostics=list(completeness.diagnostics),
+                          warnings=warnings,
+                      ),
+                  ),
+                  exploration=BattleExplorationResponse(
+                      root_node_id=result.exploration.root_node_id,
+                      graph_id=result.exploration.graph_handle,
+                      calculation_revision=result.exploration.calculation_revision,
+                      expandable=result.exploration.expandable,
+                  ),
+              )
+
+
+          __all__ = [
+              "BattleExplorationResponse",
+              "BattleInferenceJourneyResponse",
+              "BattleInferenceSummaryResponse",
+              "DragoniteWeavileJourneyRequest",
+              "battle_inference_journey_response",
+          ]
+          ''',
+              encoding="utf-8",
+          )
+
+          application_test_path = Path(
+              "tests/application/use_cases/test_infer_one_on_one_battle.py"
+          )
+          application_test_text = application_test_path.read_text(encoding="utf-8")
+          import_anchor = '''from pokeop.application.use_cases.infer_one_on_one_battle import (
+              BattleActionPolicyKind,
+          '''
+          import_replacement = '''from pokeop.application.use_cases.infer_one_on_one_battle import (
+              BATTLE_INFERENCE_CALCULATION_REVISION,
+              BattleActionPolicyKind,
+          '''
+          if application_test_text.count(import_anchor) != 1:
+              raise RuntimeError("application test import block changed")
+          application_test_text = application_test_text.replace(
+              import_anchor, import_replacement, 1
+          )
+          for old, new in (
+              ("result.inference", "result.summary.inference"),
+              ("result.graph", "result.summary.graph_statistics"),
+              ("result.configuration", "result.summary.configuration"),
+              ("result.representative_paths", "result.summary.representative_paths"),
+          ):
+              application_test_text = application_test_text.replace(old, new)
+          exploration_anchor = "    assert result.summary.representative_paths\n"
+          exploration_assertions = '''    assert result.summary.representative_paths
+              graph_artifact = result.exploration.graph_artifact
+              assert graph_artifact is not None
+              assert result.exploration.root_node_id == int(graph_artifact.root_node_id) == 0
+              assert result.exploration.graph_handle is None
+              assert result.exploration.expandable
+              assert (
+                  result.exploration.calculation_revision
+                  == BATTLE_INFERENCE_CALCULATION_REVISION
+              )
+              assert graph_artifact.statistics.unique_state_count == (
+                  result.summary.graph_statistics.unique_state_count
+              )
+          '''
+          if application_test_text.count(exploration_anchor) != 1:
+              raise RuntimeError("application exploration assertion anchor changed")
+          application_test_text = application_test_text.replace(
+              exploration_anchor, exploration_assertions, 1
+          )
+          application_test_path.write_text(application_test_text, encoding="utf-8")
+
+          api_test_path = Path("tests/api/test_inference_schema.py")
+          api_test_path.write_text(
+              '''"""验证推演 HTTP 顶层合同不会混淆全局结论与当前探索路径。"""
+
+          from fractions import Fraction
+
+          from pokeop.api.schemas.inference import battle_inference_journey_response
+          from pokeop.application.solver.models import (
+              GraphNodeId,
+              StateGraphBuildResult,
+              StateGraphStatistics,
+              StateGraphTerminalCounts,
+          )
+          from pokeop.application.use_cases.infer_battle import (
+              BattleInferenceResult,
+              BattleProbability,
+              ConfigurationCoverage,
+              ConfigurationWeighting,
+              ConfigurationWeightSource,
+              MechanismCoverage,
+              OutcomeCounts,
+              PolicyDescriptor,
+              RepresentativePathReference,
+          )
+          from pokeop.application.use_cases.infer_one_on_one_battle import (
+              BATTLE_INFERENCE_CALCULATION_REVISION,
+              BattleConfigurationSummary,
+              BattleExplorationEntry,
+              BattleInferenceCompleteness,
+              BattleInferenceSummary,
+              FixedOneOnOneBattleResult,
+              GraphInferenceSummary,
+              PokemonConfigurationSummary,
+              RepresentativeBattlePath,
+              RepresentativePathStep,
+          )
+          from pokeop.domain.battle.inference_outcome import BattleSide, TerminalOutcome
+          from pokeop.domain.battle.inference_rules import BattleInferenceRules
+
+
+          def _pokemon_summary(pokemon_id: int, name: str) -> PokemonConfigurationSummary:
+              """创建 API 合同测试需要的一侧最小配置摘要。
+
+              Args:
+                  pokemon_id: PokeAPI Pokémon 稳定整数 ID。
+                  name: 测试展示名称。
+
+              Returns:
+                  具备完整能力值和单招式字段的 application 配置 DTO。
+              """
+              return PokemonConfigurationSummary(
+                  pokemon_id=pokemon_id,
+                  name=name,
+                  level=50,
+                  ability_identifier="test-ability",
+                  item_identifier="none",
+                  move_ids=(1,),
+                  move_names=("test-move",),
+                  hp=150,
+                  attack=120,
+                  defense=100,
+                  special_attack=90,
+                  special_defense=100,
+                  speed=110,
+                  dimension_labels=(("moves", "test-move"),),
+              )
+
+
+          def _result() -> FixedOneOnOneBattleResult:
+              """构造同时持有全局 summary 与完整图 artifact 的稳定 application 结果。
+
+              Returns:
+                  可直接交给 HTTP schema 转换器的固定 1v1 推演结果。
+              """
+              rules = BattleInferenceRules(version_group_id=25)
+              representative_path = RepresentativeBattlePath(
+                  reference="path:attacker-win:node-1",
+                  outcome=TerminalOutcome.ATTACKER_WIN,
+                  steps=(
+                      RepresentativePathStep(
+                          node_id=0,
+                          turn_number=1,
+                          phase="action-selection",
+                          attacker_hp=150,
+                          defender_hp=150,
+                          outcome="non-terminal",
+                          events=(),
+                      ),
+                  ),
+              )
+              inference = BattleInferenceResult(
+                  rules=rules,
+                  observer=BattleSide.ATTACKER,
+                  win_probability=BattleProbability(Fraction(3, 4)),
+                  loss_probability=BattleProbability(Fraction(1, 4)),
+                  draw_probability=BattleProbability(Fraction(0)),
+                  expected_turns=Fraction(5, 2),
+                  attacker_policy=PolicyDescriptor(
+                      policy_id="first-legal-action",
+                      description="测试攻击策略",
+                  ),
+                  defender_policy=PolicyDescriptor(
+                      policy_id="uniform-random",
+                      description="测试防守策略",
+                  ),
+                  configuration_coverage=ConfigurationCoverage(1, 1),
+                  configuration_weighting=ConfigurationWeighting(
+                      source=ConfigurationWeightSource.FIXED_CONFIGURATION,
+                      description="固定测试配置",
+                  ),
+                  mechanism_coverage=MechanismCoverage(
+                      included=("move:test-move",),
+                      excluded=("ability:test-ability:real-behavior",),
+                  ),
+                  representative_paths=(
+                      RepresentativePathReference(
+                          outcome=TerminalOutcome.ATTACKER_WIN,
+                          reference=representative_path.reference,
+                      ),
+                  ),
+                  outcome_counts=OutcomeCounts(
+                      attacker_wins=1,
+                      defender_wins=1,
+                      draws=0,
+                  ),
+              )
+              graph_artifact = StateGraphBuildResult(
+                  root_node_id=GraphNodeId(0),
+                  nodes=(),
+                  edges=(),
+                  components=(),
+                  statistics=StateGraphStatistics(
+                      unique_state_count=2,
+                      edge_count=1,
+                      max_turn_number=2,
+                      terminal_counts=StateGraphTerminalCounts(
+                          attacker_wins=1,
+                          defender_wins=1,
+                          draws=0,
+                          non_terminal=0,
+                          unknown=0,
+                      ),
+                      closed_cycle_count=0,
+                      terminal_reachable_cycle_count=0,
+                  ),
+              )
+              return FixedOneOnOneBattleResult(
+                  summary=BattleInferenceSummary(
+                      configuration=BattleConfigurationSummary(
+                          attacker=_pokemon_summary(149, "dragonite"),
+                          defender=_pokemon_summary(461, "weavile"),
+                      ),
+                      inference=inference,
+                      graph_statistics=GraphInferenceSummary(
+                          unique_state_count=2,
+                          edge_count=1,
+                          max_turn_number=2,
+                          closed_cycle_count=0,
+                          terminal_reachable_cycle_count=0,
+                          is_complete=True,
+                          truncation_reasons=(),
+                      ),
+                      representative_paths=(representative_path,),
+                      completeness=BattleInferenceCompleteness(
+                          graph_complete=True,
+                          solver_status="solved",
+                          truncation_reasons=(),
+                          diagnostics=(),
+                      ),
+                  ),
+                  exploration=BattleExplorationEntry(
+                      root_node_id=0,
+                      calculation_revision=BATTLE_INFERENCE_CALCULATION_REVISION,
+                      expandable=True,
+                      graph_artifact=graph_artifact,
+                      graph_handle=None,
+                  ),
+              )
+
+
+          def test_response_separates_global_summary_from_exploration_entry() -> None:
+              """验证代表路径只属于 summary，完整图 artifact 不会泄漏到 HTTP JSON。
+
+              顶层必须只有 ``summary`` 与 ``exploration``。胜负概率、图统计和代表路径来自
+              完整求解结果；exploration 只暴露根节点、可选 graph ID、计算版本与可展开状态，
+              因而代表路径不能被误当成用户当前选择路径或后续节点查询入口。
+              """
+              payload = battle_inference_journey_response(_result()).model_dump()
+
+              assert set(payload) == {"summary", "exploration"}
+              assert payload["summary"]["win_probability"]["numerator"] == 3
+              assert payload["summary"]["loss_probability"]["numerator"] == 1
+              assert payload["summary"]["graph"]["unique_state_count"] == 2
+              assert payload["summary"]["representative_paths"][0]["reference"] == (
+                  "path:attacker-win:node-1"
+              )
+              assert "representative_paths" not in payload["exploration"]
+              assert "graph_artifact" not in payload["exploration"]
+              assert payload["exploration"] == {
+                  "root_node_id": 0,
+                  "graph_id": None,
+                  "calculation_revision": BATTLE_INFERENCE_CALCULATION_REVISION,
+                  "expandable": True,
+              }
+          ''',
+              encoding="utf-8",
+          )
+
+          frontend_api_path = Path("web/src/api/inference.ts")
+          frontend_api_path.write_text(
+              '''const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+
+          export type DragoniteAbility = 'multiscale' | 'inner-focus';
+          export type WeavilePlan = 'ice-punch' | 'fake-out-pressure';
+
+          export interface BattleJourneyRequest {
+            dragonite_ability: DragoniteAbility;
+            weavile_plan: WeavilePlan;
+            dragonite_stat_preset: string;
+            weavile_stat_preset: string;
+          }
+
+          export interface ProbabilityResult {
+            numerator: number;
+            denominator: number;
+            decimal: number;
+            percent: number;
+          }
+
+          export interface ExpectedTurnsResult {
+            available: boolean;
+            numerator: number | null;
+            denominator: number | null;
+            decimal: number | null;
+          }
+
+          export interface PokemonConfigurationResult {
+            pokemon_id: number;
+            name: string;
+            level: number;
+            ability_identifier: string;
+            item_identifier: string;
+            move_ids: number[];
+            move_names: string[];
+            stats: Record<string, number>;
+            dimension_labels: Record<string, string>;
+          }
+
+          export interface GraphSummaryResult {
+            unique_state_count: number;
+            edge_count: number;
+            max_turn_number: number;
+            closed_cycle_count: number;
+            terminal_reachable_cycle_count: number;
+            is_complete: boolean;
+            truncation_reasons: string[];
+          }
+
+          export interface RepresentativePathStepResult {
+            node_id: number;
+            turn_number: number;
+            phase: string;
+            attacker_hp: number;
+            defender_hp: number;
+            outcome: string;
+            events: string[];
+          }
+
+          export interface RepresentativePathResult {
+            reference: string;
+            outcome: string;
+            steps: RepresentativePathStepResult[];
+          }
+
+          export interface BattleInferenceCompletenessResult {
+            graph_complete: boolean;
+            solver_status: string;
+            truncation_reasons: string[];
+            diagnostics: string[];
+            warnings: string[];
+          }
+
+          export interface BattleInferenceSummaryResult {
+            ruleset_id: string;
+            version_group_id: number;
+            observer: string;
+            attacker: PokemonConfigurationResult;
+            defender: PokemonConfigurationResult;
+            win_probability: ProbabilityResult;
+            loss_probability: ProbabilityResult;
+            draw_probability: ProbabilityResult;
+            expected_turns: ExpectedTurnsResult;
+            attacker_policy: string;
+            defender_policy: string;
+            graph: GraphSummaryResult;
+            representative_paths: RepresentativePathResult[];
+            included_mechanisms: string[];
+            excluded_mechanisms: string[];
+            configuration_coverage_percent: number;
+            completeness: BattleInferenceCompletenessResult;
+          }
+
+          export interface BattleExplorationResult {
+            root_node_id: number;
+            graph_id: string | null;
+            calculation_revision: string;
+            expandable: boolean;
+          }
+
+          export interface BattleJourneyResult {
+            summary: BattleInferenceSummaryResult;
+            exploration: BattleExplorationResult;
+          }
+
+          /**
+           * 读取 FastAPI JSON 响应，并把 detail 错误转换为用户可读异常。
+           *
+           * @param path 相对于 `/api/v1` 的接口路径。
+           * @param init fetch 请求参数。
+           * @returns 通过泛型声明的 JSON 响应。
+           */
+          async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
+            const response = await fetch(`${API_BASE_URL}${path}`, init);
+            const payload = (await response.json()) as T & { detail?: string };
+            if (!response.ok) {
+              throw new Error(payload.detail ?? `请求失败：HTTP ${response.status}`);
+            }
+            return payload;
+          }
+
+          /**
+           * 执行快龙 vs 玛纽拉的受控多回合推演。
+           *
+           * @param request 页面选择的快龙特性、玛纽拉方案和能力预设。
+           * @returns 分离全局 summary 与渐进 exploration 入口的顶层结果。
+           */
+          export async function inferDragoniteVsWeavile(
+            request: BattleJourneyRequest,
+          ): Promise<BattleJourneyResult> {
+            return requestJson<BattleJourneyResult>('/inference/dragonite-vs-weavile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(request),
+            });
+          }
+          ''',
+              encoding="utf-8",
+          )
+
+          view_path = Path("web/src/views/BattleInferenceView.vue")
+          view_text = view_path.read_text(encoding="utf-8")
+          result_anchor = "const result = ref<BattleJourneyResult | null>(null);\n"
+          result_replacement = (
+              "const result = ref<BattleJourneyResult | null>(null);\n"
+              "const summary = computed(() => result.value?.summary ?? null);\n"
+          )
+          if view_text.count(result_anchor) != 1:
+              raise RuntimeError("battle inference view result state changed")
+          view_text = view_text.replace(result_anchor, result_replacement, 1)
+          script, template = view_text.split("<template>", 1)
+          template = template.replace('<template v-if="result">', '<template v-if="summary">')
+          template = template.replace("result.", "summary.")
+          template = template.replace(
+              "summary.solver_status", "summary.completeness.solver_status"
+          )
+          template = template.replace(
+              "summary.warnings", "summary.completeness.warnings"
+          )
+          view_path.write_text(script + "<template>" + template, encoding="utf-8")
+
+          view_test_path = Path("web/src/views/BattleInferenceView.test.ts")
+          view_test_text = view_test_path.read_text(encoding="utf-8")
+          object_start = "const RESULT: BattleJourneyResult = {\n"
+          old_tail = '''  configuration_coverage_percent: 100,
+            solver_status: 'solved',
+            warnings: ['未纳入机制：ability:pressure:real_ability_behavior'],
+          };'''
+          if view_test_text.count(object_start) != 1 or view_test_text.count(old_tail) != 1:
+              raise RuntimeError("battle inference view fixture changed")
+          prefix, remainder = view_test_text.split(object_start, 1)
+          body, suffix = remainder.split(old_tail, 1)
+          indented_body = "".join(
+              f"  {line}" if line.strip() else line
+              for line in body.splitlines(keepends=True)
+          )
+          new_fixture = (
+              object_start
+              + "  summary: {\n"
+              + indented_body
+              + "    configuration_coverage_percent: 100,\n"
+              + "    completeness: {\n"
+              + "      graph_complete: true,\n"
+              + "      solver_status: 'solved',\n"
+              + "      truncation_reasons: [],\n"
+              + "      diagnostics: [],\n"
+              + "      warnings: ['未纳入机制：ability:pressure:real_ability_behavior'],\n"
+              + "    },\n"
+              + "  },\n"
+              + "  exploration: {\n"
+              + "    root_node_id: 0,\n"
+              + "    graph_id: null,\n"
+              + "    calculation_revision: 'battle-inference.summary-exploration.v1',\n"
+              + "    expandable: true,\n"
+              + "  },\n"
+              + "};"
+          )
+          view_test_path.write_text(prefix + new_fixture + suffix, encoding="utf-8")
+          PY
+
+      - name: Validate Python contract
+        shell: bash
+        run: |
+          python3 -m compileall -q \
+            pokeop/application/use_cases/infer_one_on_one_battle.py \
+            pokeop/api/schemas/inference.py \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_schema.py
+          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          pytest -q \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_schema.py
+
+      - name: Validate frontend contract
+        shell: bash
+        working-directory: web
+        run: |
+          npm ci
+          npm run type-check
+          npm test -- BattleInferenceView.test.ts
+
+      - name: Commit implementation and remove bootstrap workflow
+        shell: bash
+        run: |
+          rm .github/workflows/issue-52-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Freeze summary and exploration response contract"
+          git push origin HEAD:agent/issue-52-summary-exploration-contract
