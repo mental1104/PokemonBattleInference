@@ -1,0 +1,65 @@
+"""暴露随机战斗事件条件概率、配置汇总与反事实分析接口。"""
+
+from .analyzer import BattleEventAnalyzer
+from .configuration import (
+    ConfigurationEventAnalysisGroup,
+    ConfigurationEventAnalysisSummary,
+    ConfigurationEventCoverage,
+    WeightedConfigurationEventMetrics,
+    aggregate_configuration_event_analyses,
+)
+from .counterfactual import (
+    BattleRuleOverride,
+    CounterfactualBattleEventAnalyzer,
+    CounterfactualBattleEventRequest,
+    CounterfactualBattleEventResult,
+    CounterfactualComputationCost,
+    CounterfactualInferenceRequest,
+    CounterfactualInferenceRunner,
+)
+from .models import (
+    BattleEventAnalysisArtifact,
+    BattleEventAnalysisComputationCost,
+    BattleEventAnalysisError,
+    BattleEventAnalysisResult,
+    BattleEventPredicate,
+    BattleEventQuery,
+    ConditionalProbability,
+    ConditionalProbabilityStatus,
+    EventOccurrenceMode,
+    EventPathGroupCoverage,
+    EventSideRole,
+    EventTurnRange,
+    KeyEventSummary,
+    ProbabilityDistributionBucket,
+)
+
+__all__ = [
+    "BattleEventAnalysisArtifact",
+    "BattleEventAnalysisComputationCost",
+    "BattleEventAnalysisError",
+    "BattleEventAnalysisResult",
+    "BattleEventAnalyzer",
+    "BattleEventPredicate",
+    "BattleEventQuery",
+    "BattleRuleOverride",
+    "ConditionalProbability",
+    "ConditionalProbabilityStatus",
+    "ConfigurationEventAnalysisGroup",
+    "ConfigurationEventAnalysisSummary",
+    "ConfigurationEventCoverage",
+    "CounterfactualBattleEventAnalyzer",
+    "CounterfactualBattleEventRequest",
+    "CounterfactualBattleEventResult",
+    "CounterfactualComputationCost",
+    "CounterfactualInferenceRequest",
+    "CounterfactualInferenceRunner",
+    "EventOccurrenceMode",
+    "EventPathGroupCoverage",
+    "EventSideRole",
+    "EventTurnRange",
+    "KeyEventSummary",
+    "ProbabilityDistributionBucket",
+    "WeightedConfigurationEventMetrics",
+    "aggregate_configuration_event_analyses",
+]
