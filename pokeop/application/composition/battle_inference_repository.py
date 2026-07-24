@@ -134,7 +134,13 @@ class FactoryReconciledBattleInferenceRepository:
             and move.power is not None
             and coverage.status is EffectCoverageStatus.NO_EFFECT
         )
-        if coverage.status is EffectCoverageStatus.SUPPORTED or no_effect_is_complete:
+        has_executable_base_fields = (
+            move.category is MoveCategory.STATUS or move.power is not None
+        )
+        if has_executable_base_fields and (
+            coverage.status is EffectCoverageStatus.SUPPORTED
+            or no_effect_is_complete
+        ):
             return replace(
                 move,
                 capability=_supported_capability(move.capability, coverage),
