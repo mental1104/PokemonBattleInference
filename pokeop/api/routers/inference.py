@@ -42,6 +42,7 @@ from pokeop.application.state_graph_exploration import (
 from pokeop.application.use_cases.battle_exploration import (
     AdvanceBattleExplorationUseCase,
     BacktrackBattleExplorationUseCase,
+    BattleExplorationUseCaseError,
     BattleNodeNotFoundError,
     BuildBattleReportUseCase,
     EdgeNotInCurrentNodeError,
@@ -82,13 +83,6 @@ _ICE_PUNCH_ID = 8
 _FAKE_OUT_ID = 252
 
 
-InferenceExecutorDependency = Annotated[
-    FixedOneOnOneBattleExecutor,
-    Depends(lambda: _inference_executor()),
-]
-GraphStoreDependency = Annotated[BattleGraphStore, Depends(lambda request: _graph_store(request))]
-
-
 def _use_case() -> InferOneOnOneBattleUseCase:
     """创建 HTTP 边界使用的完整推演 composition root。
 
@@ -120,7 +114,7 @@ def _graph_store(request: Request) -> BattleGraphStore:
     """从 FastAPI application state 读取进程生命周期共享 graph store。
 
     Args:
-        request: 当前 HTTP 请求，用于访问创建应用时注册的共享依赖容器。
+        request: 当前 HTTP 请求，用于访问创建应用时注册的共享依赖。
 
     Returns:
         同一 backend 进程内全部推演与探索请求共享的 graph store。
@@ -138,6 +132,13 @@ def _graph_store(request: Request) -> BattleGraphStore:
             },
         )
     return graph_store
+
+
+InferenceExecutorDependency = Annotated[
+    FixedOneOnOneBattleExecutor,
+    Depends(_inference_executor),
+]
+GraphStoreDependency = Annotated[BattleGraphStore, Depends(_graph_store)]
 
 
 def _command(
@@ -180,13 +181,12 @@ def _command(
 
 
 def _application_cursor(
-    *,
     graph_store: BattleGraphStore,
     graph_id: str,
     calculation_revision: str,
     cursor: ExplorationCursorRequest,
 ) -> ExplorationCursor:
-    """使用服务端根节点重建并初步校验 HTTP cursor。
+    """使用服务端根节点重建 HTTP cursor。
 
     Args:
         graph_store: 应用生命周期共享的完整图存储端口。
@@ -195,7 +195,7 @@ def _application_cursor(
         cursor: 只包含真实 edge steps 的 HTTP 游标。
 
     Returns:
-        绑定 store 中真实根节点的 application cursor；完整边合法性由后续 use case 校验。
+        绑定 store 中真实根节点的 application cursor；完整边合法性由 use case 校验。
     """
     root = LoadBattleNodeUseCase(graph_store).load_root(
         graph_id,
@@ -208,7 +208,6 @@ def _application_cursor(
 
 
 def _exploration_response(
-    *,
     graph_store: BattleGraphStore,
     graph_id: str,
     calculation_revision: str,
@@ -239,7 +238,7 @@ def _exploration_response(
 
 
 def _raise_exploration_http_error(error: Exception) -> NoReturn:
-    """把 graph store 与 exploration application 异常映射为稳定 HTTP 语义。
+    """把 store 与 exploration application 异常映射为稳定 HTTP 语义。
 
     Args:
         error: router 调用 application use case 时捕获的稳定异常。
@@ -248,14 +247,12 @@ def _raise_exploration_http_error(error: Exception) -> NoReturn:
         HTTPException: 根据不存在、过期、冲突或服务容量问题返回对应状态码。
     """
     if isinstance(error, BattleGraphExpired):
-        status_code = 410
-        code = "battle_graph_expired"
+        status_code, code = 410, "battle_graph_expired"
     elif isinstance(
         error,
         (BattleGraphNotFound, BattleNodeNotFoundError, TransitionGroupNotFoundError),
     ):
-        status_code = 404
-        code = "battle_graph_resource_not_found"
+        status_code, code = 404, "battle_graph_resource_not_found"
     elif isinstance(
         error,
         (
@@ -264,23 +261,44 @@ def _raise_exploration_http_error(error: Exception) -> NoReturn:
             InvalidExplorationCursorError,
             TerminalBattleNodeAdvanceError,
             ExplorationCursorError,
+            ValueError,
         ),
     ):
-        status_code = 409
-        code = "battle_exploration_conflict"
+        status_code, code = 409, "battle_exploration_conflict"
     elif isinstance(
         error,
         (BattleGraphCapacityExceeded, BattleGraphIdentifierCollision, BattleGraphStoreError),
     ):
-        status_code = 503
-        code = "battle_graph_store_error"
+        status_code, code = 503, "battle_graph_store_error"
     else:
-        status_code = 500
-        code = "battle_exploration_internal_error"
+        status_code, code = 500, "battle_exploration_internal_error"
     raise HTTPException(
         status_code=status_code,
         detail={"code": code, "message": str(error)},
     ) from error
+
+
+def _cursor_from_request(
+    graph_store: BattleGraphStore,
+    graph_id: str,
+    request: ExploreBattleGraphRequest,
+) -> ExplorationCursor:
+    """从通用探索请求重建当前图的 application cursor。
+
+    Args:
+        graph_store: 应用生命周期共享的完整图存储端口。
+        graph_id: URL 中指定的稳定图标识。
+        request: 携带计算版本和 edge steps 的 HTTP 请求。
+
+    Returns:
+        绑定真实根节点的 application cursor。
+    """
+    return _application_cursor(
+        graph_store,
+        graph_id,
+        request.calculation_revision,
+        request.cursor,
+    )
 
 
 @router.post(
@@ -297,15 +315,11 @@ async def dragonite_vs_weavile(
 
     Args:
         request: 页面允许调整的受控场景参数。
-        inference_executor: 负责构建和精确求解完整状态图的 application 执行器。
+        inference_executor: 构建和精确求解完整状态图的 application 执行器。
         graph_store: 应用生命周期共享的有界完整图存储端口。
 
     Returns:
         完整概率空间 summary，以及 graph ID、根 cursor 和过期时间。
-
-    Raises:
-        HTTPException: 规则轴或 Pokémon 资料不存在时返回 404；输入不能收敛时返回 422；
-            graph store 容量或生命周期操作失败时返回稳定 503。
     """
     try:
         stored = StoreBackedInferOneOnOneBattleUseCase(
@@ -331,30 +345,16 @@ async def explore_battle_graph(
     request: ExploreBattleGraphRequest,
     graph_store: GraphStoreDependency,
 ) -> BattleGraphExplorationResponse:
-    """读取根节点或 cursor 当前节点，不提前展开任何 group outcomes。
-
-    Args:
-        graph_id: 首次推演返回的稳定图标识。
-        request: 计算版本和真实 edge 序列 cursor。
-        graph_store: 应用生命周期共享的完整图存储端口。
-
-    Returns:
-        当前节点、折叠 groups、累计概率、breadcrumbs、结构化战报和终局标记。
-    """
+    """读取根节点或 cursor 当前节点，不提前展开任何 group outcomes。"""
     try:
-        cursor = _application_cursor(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=request.cursor,
-        )
+        cursor = _cursor_from_request(graph_store, graph_id, request)
         return _exploration_response(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=cursor,
+            graph_store,
+            graph_id,
+            request.calculation_revision,
+            cursor,
         )
-    except Exception as error:
+    except (BattleGraphStoreError, BattleExplorationUseCaseError, ExplorationCursorError, ValueError) as error:
         _raise_exploration_http_error(error)
 
 
@@ -369,24 +369,9 @@ async def load_transition_group_outcomes(
     request: ExploreBattleGraphRequest,
     graph_store: GraphStoreDependency,
 ) -> BattleTransitionGroupOutcomesResponse:
-    """只加载指定 group 的归并 outcomes，不重复返回其他 groups 或完整图。
-
-    Args:
-        graph_id: 首次推演返回的稳定图标识。
-        group_id: 当前节点折叠 group 列表返回的稳定组标识。
-        request: 计算版本和决定当前 source node 的真实 cursor。
-        graph_store: 应用生命周期共享的完整图存储端口。
-
-    Returns:
-        当前节点位置和唯一目标 group 的展开 outcomes。
-    """
+    """只加载指定 group 的 outcomes，不重复返回其他 groups 或完整图。"""
     try:
-        cursor = _application_cursor(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=request.cursor,
-        )
+        cursor = _cursor_from_request(graph_store, graph_id, request)
         result = LoadTransitionGroupOutcomesUseCase(graph_store).execute(
             graph_id,
             request.calculation_revision,
@@ -394,7 +379,7 @@ async def load_transition_group_outcomes(
             group_id,
         )
         return battle_transition_group_outcomes_response(result)
-    except Exception as error:
+    except (BattleGraphStoreError, BattleExplorationUseCaseError, ExplorationCursorError, ValueError) as error:
         _raise_exploration_http_error(error)
 
 
@@ -408,23 +393,9 @@ async def advance_battle_exploration(
     request: AdvanceBattleExplorationRequest,
     graph_store: GraphStoreDependency,
 ) -> BattleGraphExplorationResponse:
-    """通过 application 校验 edge 后返回前进一步的完整探索视图。
-
-    Args:
-        graph_id: 首次推演返回的稳定图标识。
-        request: 计算版本、当前 cursor 和待选择正式 edge ID。
-        graph_store: 应用生命周期共享的完整图存储端口。
-
-    Returns:
-        追加该 edge 后的新 cursor、目标节点、折叠 groups 和同步战报。
-    """
+    """通过 application 校验 edge 后返回前进一步的完整探索视图。"""
     try:
-        cursor = _application_cursor(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=request.cursor,
-        )
+        cursor = _cursor_from_request(graph_store, graph_id, request)
         position = AdvanceBattleExplorationUseCase(graph_store).execute(
             graph_id,
             request.calculation_revision,
@@ -432,12 +403,12 @@ async def advance_battle_exploration(
             GraphEdgeId(request.edge_id),
         )
         return _exploration_response(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=position.cursor,
+            graph_store,
+            graph_id,
+            request.calculation_revision,
+            position.cursor,
         )
-    except Exception as error:
+    except (BattleGraphStoreError, BattleExplorationUseCaseError, ExplorationCursorError, ValueError) as error:
         _raise_exploration_http_error(error)
 
 
@@ -451,30 +422,12 @@ async def backtrack_battle_exploration(
     request: BacktrackBattleExplorationRequest,
     graph_store: GraphStoreDependency,
 ) -> BattleGraphExplorationResponse:
-    """截断真实 edge prefix，并返回祖先节点同步后的完整探索视图。
-
-    Args:
-        graph_id: 首次推演返回的稳定图标识。
-        request: 计算版本、当前 cursor 和可选目标深度；省略深度表示退一级。
-        graph_store: 应用生命周期共享的完整图存储端口。
-
-    Returns:
-        回退后的 cursor、祖先节点、折叠 groups 和同步战报。
-    """
+    """截断真实 edge prefix，并返回祖先节点同步后的完整探索视图。"""
     try:
-        cursor = _application_cursor(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=request.cursor,
-        )
+        cursor = _cursor_from_request(graph_store, graph_id, request)
         use_case = BacktrackBattleExplorationUseCase(graph_store)
         position = (
-            use_case.back(
-                graph_id,
-                request.calculation_revision,
-                cursor,
-            )
+            use_case.back(graph_id, request.calculation_revision, cursor)
             if request.depth is None
             else use_case.truncate(
                 graph_id,
@@ -484,12 +437,12 @@ async def backtrack_battle_exploration(
             )
         )
         return _exploration_response(
-            graph_store=graph_store,
-            graph_id=graph_id,
-            calculation_revision=request.calculation_revision,
-            cursor=position.cursor,
+            graph_store,
+            graph_id,
+            request.calculation_revision,
+            position.cursor,
         )
-    except Exception as error:
+    except (BattleGraphStoreError, BattleExplorationUseCaseError, ExplorationCursorError, ValueError) as error:
         _raise_exploration_http_error(error)
 
 
