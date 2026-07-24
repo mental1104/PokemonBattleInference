@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
@@ -11,6 +12,8 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from pokeop.application.battle_graph_store import BattleGraphStore
+from pokeop.infrastructure.battle_graph_store import InMemoryBattleGraphStore
 from pokeop.infrastructure.logging import configure_logging
 from pokeop.persistence.bootstrap import register_postgres_runtime
 
@@ -20,16 +23,30 @@ ROUTER_DIR = BASE_DIR / "api" / "routers"
 ROUTER_PACKAGE = "pokeop.api.routers"
 COMMON_PREFIX = "/v1"
 
+BattleGraphStoreFactory = Callable[[], BattleGraphStore]
 
-def create_app() -> FastAPI:
-    """创建 FastAPI 应用并注册静态资源、路由、文档和异常处理器。
+
+def create_app(
+    graph_store_factory: BattleGraphStoreFactory = InMemoryBattleGraphStore,
+) -> FastAPI:
+    """创建 FastAPI 应用并注册运行时依赖、路由、文档和异常处理器。
 
     数据库 schema、CSV 资产和物化视图由独立的一次性初始化命令准备；HTTP 服务
-    生命周期不得修改数据库结构，以便未来安全运行多个 worker 或容器副本。
+    生命周期不得修改数据库结构。完整战斗图 store 由工厂在 lifespan 中创建一次，
+    同一 backend 进程内的首次推演和后续探索请求共享该实例。
+
+    Args:
+        graph_store_factory: 创建 application 生命周期 graph store 的无参工厂；测试可注入
+            fake clock 或固定容量实现，生产默认使用进程内有界 TTL store。
 
     Returns:
-        已完成路由和异常处理器注册的 FastAPI 应用。
+        已完成运行时依赖、路由和异常处理器注册的 FastAPI 应用。
+
+    Raises:
+        ValueError: graph store 工厂不可调用时抛出。
     """
+    if not callable(graph_store_factory):
+        raise ValueError("graph_store_factory must be callable")
     application = FastAPI(
         docs_url=None,
         redoc_url=None,
@@ -38,6 +55,7 @@ def create_app() -> FastAPI:
         description="Blue Espeon's little httpserver",
         version="0.0.1",
     )
+    application.state.battle_graph_store_factory = graph_store_factory
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     register_routes(ROUTER_DIR, ROUTER_PACKAGE, COMMON_PREFIX, application)
     register_documentation(application)
@@ -47,21 +65,39 @@ def create_app() -> FastAPI:
 
 @asynccontextmanager
 async def application_lifespan(application: FastAPI) -> AsyncIterator[None]:
-    """管理 HTTP 服务生命周期中的只读运行时依赖。
+    """管理 HTTP 服务生命周期中的数据库运行时和共享 graph store。
 
-    数据库内容仍由 `db-init` 一次性命令准备；这里仅把 PostgreSQL 连接写入当前
-    backend 进程的 shared common registry，让后续 request-scoped repository 能进入
-    `tx_scope(DBKind.POSTGRES)`。
+    数据库内容仍由 `db-init` 一次性命令准备；这里把 PostgreSQL 连接写入当前 backend
+    进程的 shared common registry，并创建一次有界 graph store。store 不按请求重建，
+    因而首次推演返回的 graph ID 可被后续探索请求读取。
 
     Args:
-        application: 正在启动的 FastAPI 应用；当前不读取应用状态，保留参数以满足
-            FastAPI lifespan 协议。
+        application: 正在启动的 FastAPI 应用，包含 ``battle_graph_store_factory``。
 
     Yields:
-        应用运行控制权；退出阶段目前没有额外资源需要释放。
+        应用运行控制权；退出阶段移除 application state 对完整图 store 的强引用。
+
+    Raises:
+        RuntimeError: 工厂缺失，或返回对象没有实现 ``BattleGraphStore`` port 时抛出。
     """
     register_postgres_runtime()
-    yield
+    graph_store_factory = getattr(
+        application.state,
+        "battle_graph_store_factory",
+        None,
+    )
+    if not callable(graph_store_factory):
+        raise RuntimeError("battle graph store factory is not configured")
+    graph_store = graph_store_factory()
+    if not isinstance(graph_store, BattleGraphStore):
+        raise RuntimeError("battle graph store factory returned an invalid store")
+
+    application.state.battle_graph_store = graph_store
+    try:
+        yield
+    finally:
+        # 进程退出时释放 store 及其持有的完整图；不启动额外后台清理线程。
+        delattr(application.state, "battle_graph_store")
 
 
 def include_router(application: FastAPI, module, prefix: str) -> None:
@@ -160,10 +196,14 @@ async def healthz() -> dict[str, str]:
 
 
 def main() -> None:
-    """本地命令行启动入口，监听 41104 端口。"""
+    """本地命令行启动入口，以单进程模式监听 41104 端口。
+
+    进程内 graph store 无法跨 worker 共享；在引入 Redis 等外部 store 前必须保持单 worker，
+    否则首次推演和后续探索可能落到不同进程并把有效 graph ID 误报为不存在。
+    """
     configure_logging("INFO")
     uvicorn.run(
-        "pokeop.main:app", host="0.0.0.0", port=41104, workers=2
+        "pokeop.main:app", host="0.0.0.0", port=41104, workers=1
     )
 
 

@@ -37,10 +37,10 @@ class DragoniteWeavileJourneyRequest(BaseModel):
 
 
 class ProbabilityResponse(BaseModel):
-    """同时暴露精确分数和便于展示的小数概率。"""
+    """同时暴露 JavaScript 安全的精确分数和便于展示的小数概率。"""
 
-    numerator: int
-    denominator: int
+    numerator: str
+    denominator: str
     decimal: float
     percent: float
 
@@ -155,12 +155,12 @@ def _probability(value: Fraction) -> ProbabilityResponse:
         value: 闭区间 [0, 1] 内的精确概率。
 
     Returns:
-        同时包含分子、分母、小数和百分比的响应对象。
+        分子分母使用字符串，同时包含小数和百分比近似值的响应对象。
     """
     decimal = float(value)
     return ProbabilityResponse(
-        numerator=value.numerator,
-        denominator=value.denominator,
+        numerator=str(value.numerator),
+        denominator=str(value.denominator),
         decimal=decimal,
         percent=decimal * 100,
     )

@@ -186,8 +186,8 @@ def test_response_separates_global_summary_from_exploration_entry() -> None:
     payload = battle_inference_journey_response(_result()).model_dump()
 
     assert set(payload) == {"summary", "exploration"}
-    assert payload["summary"]["win_probability"]["numerator"] == 3
-    assert payload["summary"]["loss_probability"]["numerator"] == 1
+    assert payload["summary"]["win_probability"]["numerator"] == "3"
+    assert payload["summary"]["loss_probability"]["numerator"] == "1"
     assert payload["summary"]["graph"]["unique_state_count"] == 2
     assert payload["summary"]["representative_paths"][0]["reference"] == (
         "path:attacker-win:node-1"

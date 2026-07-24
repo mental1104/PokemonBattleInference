@@ -60,20 +60,20 @@ const RESULT: BattleJourneyResult = {
       },
     },
     win_probability: {
-      numerator: 3,
-      denominator: 4,
+      numerator: '3',
+      denominator: '4',
       decimal: 0.75,
       percent: 75,
     },
     loss_probability: {
-      numerator: 1,
-      denominator: 4,
+      numerator: '1',
+      denominator: '4',
       decimal: 0.25,
       percent: 25,
     },
     draw_probability: {
-      numerator: 0,
-      denominator: 1,
+      numerator: '0',
+      denominator: '1',
       decimal: 0,
       percent: 0,
     },
@@ -138,8 +138,10 @@ const RESULT: BattleJourneyResult = {
   },
   exploration: {
     root_node_id: 0,
-    graph_id: null,
+    graph_id: 'stored-graph',
     calculation_revision: 'battle-inference.summary-exploration.v1',
+    expires_at: '2026-07-24T10:30:00Z',
+    cursor: { steps: [] },
     expandable: true,
   },
 };
