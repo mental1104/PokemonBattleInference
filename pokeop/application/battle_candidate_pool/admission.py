@@ -22,6 +22,7 @@ from pokeop.application.repositories.battle_inference import (
 from pokeop.application.use_cases.infer_one_on_one_battle import (
     BATTLE_INFERENCE_CALCULATION_REVISION,
 )
+from pokeop.domain.battle.effects.factories import BattleEffectAbstractFactory
 from pokeop.domain.battle.effects.protocols import EffectSourceKind
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
 
@@ -224,23 +225,27 @@ class ValidateFixedMechanismSelectionUseCase:
     特性和道具，收集全部失败后统一拒绝，避免任务启动后逐配置失败或静默丢失分母。
 
     Args:
-        repository: 返回 version-aware 合法候选和最终 capability 状态的 repository。
+        repository: 返回 version-aware 合法候选的 repository。
+        effect_factory: 提供当前 calculation revision 结构化 coverage 的显式工厂。
         calculation_revision: 当前固定选择必须匹配的精确推演计算语义版本。
     """
 
     def __init__(
         self,
         repository: BattleInferenceRepository,
+        effect_factory: BattleEffectAbstractFactory,
         calculation_revision: str = BATTLE_INFERENCE_CALCULATION_REVISION,
     ) -> None:
         """创建复用同一 repository 和 calculation revision 的候选池用例。
 
         Args:
-            repository: application repository 端口，通常为 factory 对账后的装饰器。
+            repository: application repository 端口，可为原始或已对账装饰器。
+            effect_factory: 当前推演实际使用的类型化 effect factory。
             calculation_revision: 用于缓存失效和机制准入追踪的稳定版本。
         """
         self._candidate_pool_use_case = ListBattleCandidatePoolUseCase(
             repository,
+            effect_factory,
             calculation_revision,
         )
 
