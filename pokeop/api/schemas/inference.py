@@ -69,7 +69,7 @@ class PokemonConfigurationResponse(BaseModel):
 
 
 class GraphSummaryResponse(BaseModel):
-    """返回状态图规模、循环和完整性诊断。"""
+    """返回完整状态图的规模、循环和截断诊断。"""
 
     unique_state_count: int
     edge_count: int
@@ -100,8 +100,18 @@ class RepresentativePathResponse(BaseModel):
     steps: list[RepresentativePathStepResponse]
 
 
-class BattleInferenceJourneyResponse(BaseModel):
-    """返回固定旅程的配置、概率、图统计和机制覆盖。"""
+class BattleInferenceCompletenessResponse(BaseModel):
+    """返回完整状态图构建和精确求解的可信度信息。"""
+
+    graph_complete: bool
+    solver_status: str
+    truncation_reasons: list[str]
+    diagnostics: list[str]
+    warnings: list[str]
+
+
+class BattleInferenceSummaryResponse(BaseModel):
+    """返回与当前浏览路径无关的完整概率空间结论。"""
 
     ruleset_id: str
     version_group_id: int
@@ -119,8 +129,23 @@ class BattleInferenceJourneyResponse(BaseModel):
     included_mechanisms: list[str]
     excluded_mechanisms: list[str]
     configuration_coverage_percent: float
-    solver_status: str
-    warnings: list[str]
+    completeness: BattleInferenceCompletenessResponse
+
+
+class BattleExplorationResponse(BaseModel):
+    """返回后续节点探索所需的稳定入口，不序列化 application 图对象。"""
+
+    root_node_id: int
+    graph_id: str | None
+    calculation_revision: str
+    expandable: bool
+
+
+class BattleInferenceJourneyResponse(BaseModel):
+    """冻结 summary 与 exploration 两个职责不同的顶层响应。"""
+
+    summary: BattleInferenceSummaryResponse
+    exploration: BattleExplorationResponse
 
 
 def _probability(value: Fraction) -> ProbabilityResponse:
@@ -202,62 +227,86 @@ def _path(path: RepresentativeBattlePath) -> RepresentativePathResponse:
 def battle_inference_journey_response(
     result: FixedOneOnOneBattleResult,
 ) -> BattleInferenceJourneyResponse:
-    """把固定配置推演结果转换为前端用户旅程响应。
+    """把 application 顶层合同投影为 summary 与 exploration HTTP DTO。
 
     Args:
-        result: 顶层 application 用例返回的完整固定配置结果。
+        result: 同时保留完整图 artifact 和全局推演结论的 application 结果。
 
     Returns:
-        同时保留概率精度、机制缺口和图诊断的 HTTP DTO。
+        不泄漏 domain/solver 图对象，且代表路径与探索入口明确分离的响应。
     """
-    inference = result.inference
+    summary = result.summary
+    inference = summary.inference
     expected = inference.expected_turns
     warnings = [
         f"未纳入机制：{identifier}"
         for identifier in inference.mechanism_coverage.excluded
     ]
-    warnings.extend(result.solver_diagnostics)
+    warnings.extend(summary.completeness.diagnostics)
+    graph_statistics = summary.graph_statistics
+    completeness = summary.completeness
     return BattleInferenceJourneyResponse(
-        ruleset_id=inference.rules.ruleset_id,
-        version_group_id=inference.rules.version_group_id,
-        observer=inference.observer.value,
-        attacker=_pokemon(result.configuration.attacker),
-        defender=_pokemon(result.configuration.defender),
-        win_probability=_probability(inference.win_probability.value),
-        loss_probability=_probability(inference.loss_probability.value),
-        draw_probability=_probability(inference.draw_probability.value),
-        expected_turns=ExpectedTurnsResponse(
-            available=expected is not None,
-            numerator=expected.numerator if expected is not None else None,
-            denominator=expected.denominator if expected is not None else None,
-            decimal=float(expected) if expected is not None else None,
-        ),
-        attacker_policy=inference.attacker_policy.policy_id,
-        defender_policy=inference.defender_policy.policy_id,
-        graph=GraphSummaryResponse(
-            unique_state_count=result.graph.unique_state_count,
-            edge_count=result.graph.edge_count,
-            max_turn_number=result.graph.max_turn_number,
-            closed_cycle_count=result.graph.closed_cycle_count,
-            terminal_reachable_cycle_count=(
-                result.graph.terminal_reachable_cycle_count
+        summary=BattleInferenceSummaryResponse(
+            ruleset_id=inference.rules.ruleset_id,
+            version_group_id=inference.rules.version_group_id,
+            observer=inference.observer.value,
+            attacker=_pokemon(summary.configuration.attacker),
+            defender=_pokemon(summary.configuration.defender),
+            win_probability=_probability(inference.win_probability.value),
+            loss_probability=_probability(inference.loss_probability.value),
+            draw_probability=_probability(inference.draw_probability.value),
+            expected_turns=ExpectedTurnsResponse(
+                available=expected is not None,
+                numerator=expected.numerator if expected is not None else None,
+                denominator=expected.denominator if expected is not None else None,
+                decimal=float(expected) if expected is not None else None,
             ),
-            is_complete=result.graph.is_complete,
-            truncation_reasons=list(result.graph.truncation_reasons),
+            attacker_policy=inference.attacker_policy.policy_id,
+            defender_policy=inference.defender_policy.policy_id,
+            graph=GraphSummaryResponse(
+                unique_state_count=graph_statistics.unique_state_count,
+                edge_count=graph_statistics.edge_count,
+                max_turn_number=graph_statistics.max_turn_number,
+                closed_cycle_count=graph_statistics.closed_cycle_count,
+                terminal_reachable_cycle_count=(
+                    graph_statistics.terminal_reachable_cycle_count
+                ),
+                is_complete=graph_statistics.is_complete,
+                truncation_reasons=list(graph_statistics.truncation_reasons),
+            ),
+            representative_paths=[
+                _path(path) for path in summary.representative_paths
+            ],
+            included_mechanisms=list(
+                inference.mechanism_coverage.included
+            ),
+            excluded_mechanisms=list(
+                inference.mechanism_coverage.excluded
+            ),
+            configuration_coverage_percent=(
+                float(inference.configuration_coverage.coverage_ratio) * 100
+            ),
+            completeness=BattleInferenceCompletenessResponse(
+                graph_complete=completeness.graph_complete,
+                solver_status=completeness.solver_status,
+                truncation_reasons=list(completeness.truncation_reasons),
+                diagnostics=list(completeness.diagnostics),
+                warnings=warnings,
+            ),
         ),
-        representative_paths=[_path(path) for path in result.representative_paths],
-        included_mechanisms=list(inference.mechanism_coverage.included),
-        excluded_mechanisms=list(inference.mechanism_coverage.excluded),
-        configuration_coverage_percent=(
-            float(inference.configuration_coverage.coverage_ratio) * 100
+        exploration=BattleExplorationResponse(
+            root_node_id=result.exploration.root_node_id,
+            graph_id=result.exploration.graph_handle,
+            calculation_revision=result.exploration.calculation_revision,
+            expandable=result.exploration.expandable,
         ),
-        solver_status=result.solver_status,
-        warnings=warnings,
     )
 
 
 __all__ = [
+    "BattleExplorationResponse",
     "BattleInferenceJourneyResponse",
+    "BattleInferenceSummaryResponse",
     "DragoniteWeavileJourneyRequest",
     "battle_inference_journey_response",
 ]
