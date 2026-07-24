@@ -138,8 +138,10 @@ const RESULT: BattleJourneyResult = {
   },
   exploration: {
     root_node_id: 0,
-    graph_id: null,
+    graph_id: 'stored-graph',
     calculation_revision: 'battle-inference.summary-exploration.v1',
+    expires_at: '2026-07-24T10:30:00Z',
+    cursor: { steps: [] },
     expandable: true,
   },
 };
