@@ -98,14 +98,25 @@ function toggleDetails(pathKey: string): void {
  *
  * @param group 用户选择定位的归并胜利路径组。
  */
-async function locateInGraph(group: WinningPathGroupResult): Promise<void> {
+async function locateInGraph(
+  group: WinningPathGroupResult,
+  stepIndex?: number,
+): Promise<void> {
+  const representativePath =
+    stepIndex === undefined
+      ? group.representative_path
+      : group.representative_path.slice(0, stepIndex + 1);
+  if (representativePath.length === 0) {
+    error.value = '当前路径组没有可定位的状态图步骤';
+    return;
+  }
   locating.value = true;
   error.value = '';
   try {
     const exploration = await exploreBattleGraph(
       props.handle.graph_id,
       props.handle.calculation_revision,
-      { steps: group.representative_path.map((step) => ({ ...step })) },
+      { steps: representativePath.map((step) => ({ ...step })) },
     );
     locatedNode.value = exploration.node;
     await nextTick();
@@ -215,12 +226,22 @@ watch(
               </small>
             </div>
             <ol class="winning-path-actions">
-              <li v-for="action in group.actions" :key="`${group.path_key}:${action.turn_number}`">
-                <span>T{{ action.turn_number }}</span>
-                <strong>{{ moveLabel(action.attacker_move_id) }}</strong>
-                <i>×</i>
-                <strong>{{ moveLabel(action.defender_move_id) }}</strong>
-                <em v-if="action.ambiguous">多候选</em>
+              <li
+                v-for="(action, actionIndex) in group.actions"
+                :key="`${group.path_key}:${action.turn_number}:${actionIndex}`"
+              >
+                <button
+                  type="button"
+                  :disabled="locating"
+                  :title="`定位到第 ${action.turn_number} 回合联合行动后的状态节点`"
+                  @click="locateInGraph(group, actionIndex)"
+                >
+                  <span>T{{ action.turn_number }}</span>
+                  <strong>{{ moveLabel(action.attacker_move_id) }}</strong>
+                  <i>×</i>
+                  <strong>{{ moveLabel(action.defender_move_id) }}</strong>
+                  <em v-if="action.ambiguous">多候选</em>
+                </button>
               </li>
             </ol>
             <div class="winning-path-row__buttons">
@@ -228,7 +249,7 @@ watch(
                 {{ expandedPathKey === group.path_key ? '收起随机细节' : '展开随机细节' }}
               </button>
               <button type="button" :disabled="locating" @click="locateInGraph(group)">
-                定位状态图
+                定位终局
               </button>
             </div>
             <div v-if="expandedPathKey === group.path_key" class="winning-path-details">
@@ -482,13 +503,24 @@ watch(
 }
 
 .winning-path-actions li {
+  display: contents;
+}
+
+.winning-path-actions button {
   display: flex;
   align-items: center;
   gap: 5px;
+  border: 0;
   border-radius: 999px;
   padding: 5px 9px;
   background: #eef5f1;
+  font: inherit;
   font-size: 11px;
+  cursor: pointer;
+}
+
+.winning-path-actions button:hover {
+  background: #dfeee6;
 }
 
 .winning-path-actions span,
