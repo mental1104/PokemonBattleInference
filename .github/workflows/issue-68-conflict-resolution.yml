@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/issue-68-battle-report-panel
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
