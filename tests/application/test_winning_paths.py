@@ -83,8 +83,9 @@ def _action_path(
     defender_move_id: int,
     damage: int,
     source_identifier: str,
+    fainted: bool = True,
 ) -> tuple[TransitionEvent, ...]:
-    """构造包含双方选招、伤害和终局事实的结构化事件路径。
+    """构造包含双方选招、伤害和可选终局事实的结构化事件路径。
 
     Args:
         turn_number: 事件所属回合。
@@ -92,11 +93,12 @@ def _action_path(
         defender_move_id: 防守方选择的招式 ID。
         damage: 当前替代历史的离散伤害值。
         source_identifier: 区分测试随机历史但不进入行动主键的来源。
+        fainted: 是否追加防守方濒死事件；非终局边必须为 False。
 
     Returns:
         可由胜利路径投影读取的完整事件路径。
     """
-    return (
+    events: list[TransitionEvent] = [
         BattleEvent(
             kind=BattleEventKind.MOVE_SELECTED,
             turn_number=turn_number,
@@ -120,13 +122,17 @@ def _action_path(
             source_identifier=source_identifier,
             value=damage,
         ),
-        BattleEvent(
-            kind=BattleEventKind.FAINTED,
-            turn_number=turn_number,
-            actor=BattleSide.DEFENDER,
-            source_identifier=source_identifier,
-        ),
-    )
+    ]
+    if fainted:
+        events.append(
+            BattleEvent(
+                kind=BattleEventKind.FAINTED,
+                turn_number=turn_number,
+                actor=BattleSide.DEFENDER,
+                source_identifier=source_identifier,
+            )
+        )
+    return tuple(events)
 
 
 def _acyclic_graph(
@@ -229,6 +235,7 @@ def _acyclic_graph(
                     defender_move_id=8,
                     damage=5,
                     source_identifier="setup",
+                    fainted=False,
                 ),
             ),
         ),
@@ -303,6 +310,7 @@ def _cyclic_graph() -> StateGraphBuildResult:
                     defender_move_id=8,
                     damage=5,
                     source_identifier="enter",
+                    fainted=False,
                 ),
             ),
         ),
@@ -318,6 +326,7 @@ def _cyclic_graph() -> StateGraphBuildResult:
                     defender_move_id=8,
                     damage=0,
                     source_identifier="repeat",
+                    fainted=False,
                 ),
             ),
         ),
