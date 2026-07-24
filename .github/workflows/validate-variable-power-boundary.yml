@@ -1,0 +1,80 @@
+name: Validate Variable Power Boundary
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-variable-power-boundary.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/inference-variable-power-candidates
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Tighten reconciliation boundary and add regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file_path = Path(path)
+              content = file_path.read_text()
+              count = content.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one match, found {count}")
+              file_path.write_text(content.replace(old, new, 1))
+
+          composition = 'pokeop/application/composition/battle_inference_repository.py'
+          replace_once(
+              composition,
+              '''        if coverage.status is EffectCoverageStatus.SUPPORTED or no_effect_is_complete:\n            return replace(''',
+              '''        has_executable_base_fields = (\n            move.category is MoveCategory.STATUS or move.power is not None\n        )\n        if has_executable_base_fields and (\n            coverage.status is EffectCoverageStatus.SUPPORTED\n            or no_effect_is_complete\n        ):\n            return replace(''',
+          )
+
+          test_path = 'tests/application/composition/test_battle_inference_repository.py'
+          replace_once(
+              test_path,
+              'from pokeop.domain.battle.effects.protocols import EffectSourceKind\n',
+              '''from pokeop.domain.battle.effects.protocols import (\n    EffectCoverage,\n    EffectCoverageStatus,\n    EffectSourceKind,\n)\n''',
+          )
+          replace_once(
+              test_path,
+              '''def _capability(\n''',
+              '''@dataclass(frozen=True, slots=True)\nclass _SupportedMoveEffect:\n    \"\"\"提供只声明招式附加 effect 已支持的测试产品。\"\"\"\n\n    coverage: EffectCoverage\n\n\nclass _SupportedVariablePowerFactory(TransparentPokemonChampionEffectFactory):\n    \"\"\"故意把报恩附加 effect 标记为 supported，验证基础威力边界仍生效。\"\"\"\n\n    def create_move_effect(self, identifier: str | None):\n        \"\"\"为 return 返回 supported coverage，其余招式继续委托真实工厂。\"\"\"\n        if identifier == \"return\":\n            return _SupportedMoveEffect(\n                EffectCoverage(\n                    ruleset_id=self.ruleset_id,\n                    source_kind=EffectSourceKind.MOVE,\n                    identifier=\"return\",\n                    status=EffectCoverageStatus.SUPPORTED,\n                    reason=\"测试 factory 已实现附加 effect，但没有动态威力解析器。\",\n                )\n            )\n        return super().create_move_effect(identifier)\n\n\ndef _capability(\n''',
+          )
+          replace_once(
+              test_path,
+              '                effect_identifier=None,\n                capability=_capability(\n                    EffectSourceKind.MOVE,\n                    "return",',
+              '                effect_identifier="return",\n                capability=_capability(\n                    EffectSourceKind.MOVE,\n                    "return",',
+          )
+          append = '''\n\ndef test_supported_effect_does_not_promote_variable_power_move_without_resolver() -> None:\n    \"\"\"\n    factory 即使明确实现了报恩的附加 effect，也不能替代基础威力解析器。repository 返回的\n    ``power=None`` 表示当前 version-aware projection 无法提供固定威力，composition 必须继续\n    保持 unsupported，避免 application 后续构造非法 ``BattleMove`` 或用任意常量伪造伤害。\n    \"\"\"\n    repository = FactoryReconciledBattleInferenceRepository(\n        repository=_Repository(),\n        effect_factory=_SupportedVariablePowerFactory(),\n    )\n\n    profile = repository.get_pokemon_profile(\n        ruleset_id=\"pokemon-champion\",\n        version_group_id=25,\n        pokemon_id=461,\n    )\n\n    assert profile is not None\n    variable_power_move = next(move for move in profile.moves if move.move_id == 216)\n    assert variable_power_move.power is None\n    assert (\n        variable_power_move.capability.status\n        is MechanismSupportStatus.UNSUPPORTED\n    )\n'''
+          path = Path(test_path)
+          path.write_text(path.read_text() + append)
+          PY
+      - name: Compile changed Python sources
+        run: python -m compileall -q pokeop/application tests/application
+      - name: Run targeted regression tests
+        run: |
+          python -m pytest -q \
+            tests/application/configuration_space/test_candidate_filtering.py \
+            tests/application/composition/test_battle_inference_repository.py \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_router.py
+      - name: Commit validated boundary
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add pokeop/application/composition/battle_inference_repository.py \
+                  tests/application/composition/test_battle_inference_repository.py
+          git commit -m 'test: 锁定变化威力招式执行边界'
+          git push origin HEAD:fix/inference-variable-power-candidates
