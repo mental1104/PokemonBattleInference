@@ -2,19 +2,33 @@
 import { computed, ref } from 'vue';
 import {
   inferDragoniteVsWeavile,
+  type BattleGraphExplorationResult,
   type BattleJourneyResult,
   type DragoniteAbility,
   type RepresentativePathResult,
   type WeavilePlan,
 } from '../api/inference';
 import BattleGraphExplorer from '../components/inference/BattleGraphExplorer.vue';
+import BattleReportPanel from '../components/inference/BattleReportPanel.vue';
+import {
+  createBattleReportPresenterContext,
+  type BattleReportPresenterContext,
+} from '../presenters/battleEventPresenter';
 
 const dragoniteAbility = ref<DragoniteAbility>('multiscale');
 const weavilePlan = ref<WeavilePlan>('ice-punch');
 const loading = ref(false);
 const errorMessage = ref('');
 const result = ref<BattleJourneyResult | null>(null);
+const activeExploration = ref<BattleGraphExplorationResult | null>(null);
+const showGraphExplorer = ref(true);
+
 const summary = computed(() => result.value?.summary ?? null);
+const presenterContext = computed<BattleReportPresenterContext | null>(() =>
+  summary.value === null
+    ? null
+    : createBattleReportPresenterContext(summary.value),
+);
 
 const scenarioSummary = computed(() => {
   const ability = dragoniteAbility.value === 'multiscale' ? '多重鳞片' : '精神力';
@@ -28,13 +42,14 @@ const scenarioSummary = computed(() => {
 /**
  * 提交当前受控场景，并用新的结果替换上一次推演。
  *
- * 旧结果在请求开始前清空，使旧 graph explorer 立即卸载并释放窗口 cache，避免新旧 graph
- * 生命周期在同一页面同时驻留。
+ * 请求开始前同时清空旧 graph 和父页面保存的战报 DTO，避免不同推演生命周期串线。
  */
 async function runInference(): Promise<void> {
   loading.value = true;
   errorMessage.value = '';
   result.value = null;
+  activeExploration.value = null;
+  showGraphExplorer.value = true;
   try {
     result.value = await inferDragoniteVsWeavile({
       dragonite_ability: dragoniteAbility.value,
@@ -47,6 +62,17 @@ async function runInference(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+
+/**
+ * 保存 GraphExplorer 上报的服务端 exploration DTO。
+ *
+ * @param exploration 当前 cursor 对应的完整探索响应；根节点尚未加载时为 null。
+ */
+function updateActiveExploration(
+  exploration: BattleGraphExplorationResult | null,
+): void {
+  activeExploration.value = exploration;
 }
 
 /**
@@ -257,12 +283,41 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
         </article>
       </section>
 
-      <BattleGraphExplorer
-        v-if="result?.exploration.expandable"
-        :key="result.exploration.graph_id"
-        :handle="result.exploration"
-        @rerun="runInference"
-      />
+      <section
+        v-if="result?.exploration.expandable && presenterContext"
+        class="battle-exploration-layout"
+      >
+        <div class="battle-exploration-layout__toolbar">
+          <div>
+            <p class="eyebrow">LIVE EXPLORATION</p>
+            <h2>状态图与当前路径战报</h2>
+          </div>
+          <button
+            type="button"
+            class="battle-exploration-layout__toggle"
+            data-toggle-graph-explorer
+            @click="showGraphExplorer = !showGraphExplorer"
+          >
+            {{ showGraphExplorer ? '隐藏状态图' : '显示状态图' }}
+          </button>
+        </div>
+        <div
+          class="battle-exploration-layout__grid"
+          :class="{ 'battle-exploration-layout__grid--report-only': !showGraphExplorer }"
+        >
+          <BattleGraphExplorer
+            v-if="showGraphExplorer"
+            :key="result.exploration.graph_id"
+            :handle="result.exploration"
+            @exploration-change="updateActiveExploration"
+            @rerun="runInference"
+          />
+          <BattleReportPanel
+            :report="activeExploration?.battle_report ?? null"
+            :context="presenterContext"
+          />
+        </div>
+      </section>
 
       <section class="path-section">
         <div class="result-heading result-heading--compact">
@@ -314,3 +369,61 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
     </template>
   </main>
 </template>
+
+<style scoped>
+.battle-exploration-layout {
+  margin-top: 42px;
+}
+
+.battle-exploration-layout__toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.battle-exploration-layout__toolbar h2 {
+  margin: 6px 0 0;
+  color: #173d31;
+  font-size: 27px;
+}
+
+.battle-exploration-layout__toggle {
+  min-height: 38px;
+  border: 1px solid #9bb8a9;
+  border-radius: 10px;
+  padding: 0 13px;
+  background: #fff;
+  color: #286b52;
+  font-weight: 800;
+}
+
+.battle-exploration-layout__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.battle-exploration-layout__grid--report-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.battle-exploration-layout :deep(.battle-graph-explorer) {
+  margin-top: 0;
+}
+
+@media (max-width: 1080px) {
+  .battle-exploration-layout__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .battle-exploration-layout__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>
