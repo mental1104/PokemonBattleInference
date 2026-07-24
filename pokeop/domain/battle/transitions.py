@@ -70,6 +70,12 @@ class TransitionEvent:
     ``event_id`` 标识随机事件来源，例如某次命中判定或伤害档位；``outcome_id``
     标识该来源下的稳定分支结果。``numeric_value`` 只保存解释该结果所需的整数，
     例如实际伤害，不引用完整战斗对象。
+
+    Args:
+        event_type: 随机事件的稳定类型。
+        event_id: 随机事件来源的稳定标识。
+        outcome_id: 当前分支结果的稳定标识。
+        numeric_value: 解释结果所需的可选整数值。
     """
 
     event_type: TransitionEventType
@@ -89,79 +95,185 @@ class TransitionEvent:
 class TransitionEventSummary:
     """保存一个后继状态对应的一条或多条随机事件路径。
 
-    等价状态归并后可能由多个随机结果到达同一节点，例如不同伤害档都把目标 HP
-    压到 0。这里保留轻量的事件路径摘要，既不丢失解释信息，也不复制战斗状态对象。
+    等价状态归并后可能由多个随机结果到达同一节点。``paths`` 保留每条轻量事件
+    历史，``path_probabilities`` 保存这些路径在当前 ``WeightedTransition`` 条件下的
+    精确概率。调用方因此可以在不拆散基础 ``StateKey`` 的前提下继续计算事件条件概率。
+
+    Args:
+        paths: 到达同一后继状态的不可变事件路径。
+        path_probabilities: 与 ``paths`` 一一对应且严格归一化的条件概率。省略时单路径
+            默认为 1；多路径为兼容旧调用按等概率解释。
     """
 
     paths: tuple[tuple[TransitionEvent, ...], ...] = ((),)
+    path_probabilities: tuple[Fraction, ...] | None = None
 
     def __post_init__(self) -> None:
-        """校验摘要至少包含一条路径，并按首次出现顺序去除重复路径。"""
+        """校验路径和条件概率，并合并完全相同的重复路径。
+
+        Raises:
+            InvalidTransitionEventError: 路径、概率数量、精度或归一化语义非法。
+        """
         if not self.paths:
             raise InvalidTransitionEventError(
                 "transition event summary must contain at least one path"
             )
 
-        unique_paths: list[tuple[TransitionEvent, ...]] = []
-        for path in self.paths:
+        materialized_paths = tuple(self.paths)
+        for path in materialized_paths:
             if not isinstance(path, tuple):
                 raise InvalidTransitionEventError(
                     "transition event paths must use immutable tuples"
                 )
-            if path not in unique_paths:
+            if any(not isinstance(event, TransitionEvent) for event in path):
+                raise InvalidTransitionEventError(
+                    "transition event paths can only contain TransitionEvent values"
+                )
+
+        probabilities = self.path_probabilities
+        if probabilities is None:
+            probability = Fraction(1, len(materialized_paths))
+            materialized_probabilities = tuple(
+                probability for _ in materialized_paths
+            )
+        else:
+            materialized_probabilities = tuple(probabilities)
+            if len(materialized_probabilities) != len(materialized_paths):
+                raise InvalidTransitionEventError(
+                    "transition path probabilities must align with paths"
+                )
+            if any(
+                not isinstance(probability, Fraction)
+                or probability <= 0
+                or probability > 1
+                for probability in materialized_probabilities
+            ):
+                raise InvalidTransitionEventError(
+                    "transition path probabilities must use positive Fractions"
+                )
+            if sum(materialized_probabilities, start=Fraction(0)) != Fraction(1):
+                raise InvalidTransitionEventError(
+                    "transition path probabilities must sum exactly to 1"
+                )
+
+        unique_paths: list[tuple[TransitionEvent, ...]] = []
+        probability_by_path: dict[tuple[TransitionEvent, ...], Fraction] = {}
+        for path, probability in zip(
+            materialized_paths,
+            materialized_probabilities,
+            strict=True,
+        ):
+            if path not in probability_by_path:
                 unique_paths.append(path)
+                probability_by_path[path] = Fraction(0)
+            probability_by_path[path] += probability
+
+        normalized_probabilities = tuple(
+            probability_by_path[path] for path in unique_paths
+        )
+        if sum(normalized_probabilities, start=Fraction(0)) != Fraction(1):
+            raise InvalidTransitionEventError(
+                "deduplicated transition path probabilities must sum exactly to 1"
+            )
         object.__setattr__(self, "paths", tuple(unique_paths))
+        object.__setattr__(self, "path_probabilities", normalized_probabilities)
 
     @classmethod
     def empty(cls) -> TransitionEventSummary:
         """创建不附带随机事件的确定性路径摘要。"""
-        return cls(((),))
+        return cls(((),), (Fraction(1),))
 
     @classmethod
     def single(cls, event: TransitionEvent) -> TransitionEventSummary:
-        """为单个类型化事件创建一条路径摘要。
+        """为单个类型化事件创建一条确定条件路径。
 
         Args:
             event: 当前随机分支对应的事件结果。
 
         Returns:
-            只包含该事件的一条不可变路径摘要。
+            只包含该事件且条件概率为 1 的不可变摘要。
         """
-        return cls(((event,),))
+        return cls(((event,),), (Fraction(1),))
+
+    @property
+    def weighted_paths(
+        self,
+    ) -> tuple[tuple[Fraction, tuple[TransitionEvent, ...]], ...]:
+        """返回按路径顺序排列的精确条件概率与事件路径。
+
+        Returns:
+            每项依次包含条件概率和对应事件路径；全部概率严格相加为 1。
+        """
+        probabilities = self.path_probabilities
+        if probabilities is None:  # pragma: no cover - ``__post_init__`` 已规范化。
+            raise InvalidTransitionEventError(
+                "transition path probabilities were not normalized"
+            )
+        return tuple(zip(probabilities, self.paths, strict=True))
 
     def concatenate(
         self,
         following: TransitionEventSummary,
     ) -> TransitionEventSummary:
-        """按执行顺序连接两组路径，用于多级概率组合。
+        """按执行顺序连接两组路径，并精确相乘条件概率。
 
         Args:
             following: 后续随机事件的路径摘要。
 
         Returns:
-            当前路径与后续路径做笛卡尔积后得到的新摘要。
+            当前路径与后续路径做笛卡尔积后的新摘要。
         """
+        combined_paths: list[tuple[TransitionEvent, ...]] = []
+        combined_probabilities: list[Fraction] = []
+        for current_probability, current_path in self.weighted_paths:
+            for following_probability, following_path in following.weighted_paths:
+                combined_paths.append(current_path + following_path)
+                combined_probabilities.append(
+                    current_probability * following_probability
+                )
         return TransitionEventSummary(
-            tuple(
-                current_path + following_path
-                for current_path in self.paths
-                for following_path in following.paths
-            )
+            tuple(combined_paths),
+            tuple(combined_probabilities),
         )
 
     def merge_alternatives(
         self,
         other: TransitionEventSummary,
+        *,
+        self_probability: Fraction = Fraction(1, 2),
+        other_probability: Fraction = Fraction(1, 2),
     ) -> TransitionEventSummary:
-        """合并到达同一状态的替代事件路径。
+        """按两组父分支概率合并到达同一状态的替代事件路径。
 
         Args:
             other: 另一组等价后继状态的路径摘要。
+            self_probability: 当前摘要所属父分支的绝对正概率或正权重。
+            other_probability: 另一摘要所属父分支的绝对正概率或正权重。
 
         Returns:
-            保留首次出现顺序并去重后的替代路径集合。
+            将父分支权重换算为条件概率并精确合并后的路径摘要。
+
+        Raises:
+            InvalidTransitionEventError: 父分支权重不是正 ``Fraction``。
         """
-        return TransitionEventSummary(self.paths + other.paths)
+        for field_name, probability in (
+            ("self_probability", self_probability),
+            ("other_probability", other_probability),
+        ):
+            if not isinstance(probability, Fraction) or probability <= 0:
+                raise InvalidTransitionEventError(
+                    f"{field_name} must be a positive Fraction"
+                )
+        total = self_probability + other_probability
+        paths: list[tuple[TransitionEvent, ...]] = []
+        probabilities: list[Fraction] = []
+        for probability, path in self.weighted_paths:
+            paths.append(path)
+            probabilities.append(self_probability / total * probability)
+        for probability, path in other.weighted_paths:
+            paths.append(path)
+            probabilities.append(other_probability / total * probability)
+        return TransitionEventSummary(tuple(paths), tuple(probabilities))
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +282,12 @@ class WeightedTransition(Generic[StateT]):
 
     该类型只表达命中、伤害档位、同速和追加效果等战斗随机概率，不表达玩家行动
     策略的选择权重。``state`` 必须提供稳定 ``state_key``，供图求解器按语义归并。
+
+    Args:
+        probability: 当前后继状态在完整随机分布中的精确概率。
+        state: 不可变后继状态。
+        event_summary: 当前后继状态内部替代事件路径及其条件概率。
+        source_key: 可选稳定解释来源键。
     """
 
     probability: Fraction
@@ -178,12 +296,12 @@ class WeightedTransition(Generic[StateT]):
     source_key: str | None = None
 
     def __post_init__(self) -> None:
-        """校验概率精度、取值范围和后继状态键。
+        """校验概率精度、取值范围、后继状态键和来源键。
 
         Raises:
             InvalidTransitionProbabilityError: 概率不是 ``Fraction`` 或不在 ``(0, 1]``。
             InvalidStateKeyError: 状态没有提供可哈希的稳定键。
-            InvalidTransitionEventError: ``source_key`` 是空白字符串。
+            InvalidTransitionEventError: 事件摘要类型错误或 ``source_key`` 为空白。
         """
         if not isinstance(self.probability, Fraction):
             raise InvalidTransitionProbabilityError(
@@ -200,6 +318,10 @@ class WeightedTransition(Generic[StateT]):
             raise InvalidStateKeyError(
                 "transition state must expose a hashable state_key"
             ) from exc
+        if not isinstance(self.event_summary, TransitionEventSummary):
+            raise InvalidTransitionEventError(
+                "transition event_summary must be a TransitionEventSummary"
+            )
         if self.source_key is not None and not self.source_key.strip():
             raise InvalidTransitionEventError(
                 "transition source_key cannot be blank"
@@ -208,7 +330,7 @@ class WeightedTransition(Generic[StateT]):
 
 @dataclass(slots=True)
 class _TransitionAccumulator(Generic[StateT]):
-    """在等价状态归并期间暂存概率和轻量事件摘要。"""
+    """在等价状态归并期间暂存概率和带条件权重的轻量事件摘要。"""
 
     state: StateT
     probability: Fraction
@@ -253,7 +375,7 @@ def total_transition_probability(
     materialized = _materialize_transitions(transitions)
     return sum(
         (transition.probability for transition in materialized),
-        start=Fraction(0, 1),
+        start=Fraction(0),
     )
 
 
@@ -275,9 +397,9 @@ def validate_transition_distribution(
     materialized = _materialize_transitions(transitions)
     total = sum(
         (transition.probability for transition in materialized),
-        start=Fraction(0, 1),
+        start=Fraction(0),
     )
-    if total != Fraction(1, 1):
+    if total != Fraction(1):
         raise UnnormalizedTransitionSetError(
             f"transition probabilities must sum exactly to 1, got {total}"
         )
@@ -301,7 +423,7 @@ def normalize_transition_weights(
     materialized = _materialize_transitions(transitions)
     total = sum(
         (transition.probability for transition in materialized),
-        start=Fraction(0, 1),
+        start=Fraction(0),
     )
     normalized = tuple(
         WeightedTransition(
@@ -324,7 +446,8 @@ def merge_equivalent_transitions(
         transitions: 已经严格归一化的完整随机分支集合。
 
     Returns:
-        按首次出现的状态键稳定排序、概率精确相加后的转移元组。
+        按首次出现的状态键稳定排序、概率精确相加后的转移元组。事件路径条件概率
+        会按各父分支绝对概率重新加权，不会把不等概率路径误当成等概率。
 
     Raises:
         EmptyTransitionSetError: 输入没有任何分支。
@@ -345,10 +468,12 @@ def merge_equivalent_transitions(
             )
             continue
 
-        existing.probability += transition.probability
         existing.event_summary = existing.event_summary.merge_alternatives(
-            transition.event_summary
+            transition.event_summary,
+            self_probability=existing.probability,
+            other_probability=transition.probability,
         )
+        existing.probability += transition.probability
         if existing.source_key != transition.source_key:
             # 多个来源到达同一状态时，详细来源仍保留在事件路径中；顶层单值键不再误导。
             existing.source_key = None
@@ -381,7 +506,7 @@ def combine_independent_transitions(
         source_key: 可选的组合来源键；省略时由事件路径承担解释责任。
 
     Returns:
-        概率按乘法组合、事件路径按执行顺序连接并按 ``state_key`` 归并的分布。
+        概率按乘法组合、事件路径及条件概率按执行顺序连接并按 ``state_key`` 归并的分布。
     """
     left_transitions = validate_transition_distribution(left)
     right_transitions = validate_transition_distribution(right)
