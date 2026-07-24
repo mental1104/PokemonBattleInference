@@ -1,0 +1,290 @@
+{
+  "contract_version": "one-on-one-move-pool.v1",
+  "enum_values": {
+    "dimension_mode": [
+      "fixed",
+      "candidate_pool",
+      "disabled"
+    ],
+    "configuration_weight_assumption": [
+      "uniform_configuration_pair"
+    ],
+    "action_policy": [
+      "first-legal-action",
+      "uniform-random"
+    ],
+    "mechanism_admission_policy": [
+      "supported_only"
+    ],
+    "configuration_execution_status": [
+      "success",
+      "failed",
+      "truncated"
+    ],
+    "configuration_task_status": [
+      "pending",
+      "running",
+      "completed",
+      "failed",
+      "cancelled"
+    ]
+  },
+  "move_set_cases": [
+    {
+      "candidate_count": 1,
+      "expected_move_set_count": 1
+    },
+    {
+      "candidate_count": 3,
+      "expected_move_set_count": 1
+    },
+    {
+      "candidate_count": 4,
+      "expected_move_set_count": 1
+    },
+    {
+      "candidate_count": 10,
+      "expected_move_set_count": 210
+    }
+  ],
+  "max_budget_case": {
+    "attacker_candidate_count": 10,
+    "defender_candidate_count": 10,
+    "expected_configuration_pair_count": 44100
+  },
+  "command": {
+    "contract_version": "one-on-one-move-pool.v1",
+    "ruleset_id": "pokemon-champion",
+    "version_group_id": 31,
+    "calculation_revision": "battle-inference.summary-exploration.v1",
+    "dimensions": {
+      "pokemon": "fixed",
+      "form": "fixed",
+      "level": "fixed",
+      "stats": "fixed",
+      "ability": "fixed",
+      "item": "fixed",
+      "moves": "candidate_pool",
+      "special_mechanics": "disabled"
+    },
+    "weight_assumption": "uniform_configuration_pair",
+    "attacker_policy": "uniform-random",
+    "defender_policy": "uniform-random",
+    "mechanism_admission": "supported_only",
+    "attacker": {
+      "fixed": {
+        "pokemon_id": 149,
+        "form_id": null,
+        "level": 50,
+        "stat_profile_id": "max_atk_plus",
+        "ability_identifier": "multiscale",
+        "item_identifier": null
+      },
+      "candidate_move_ids": [
+        355,
+        245,
+        280
+      ]
+    },
+    "defender": {
+      "fixed": {
+        "pokemon_id": 461,
+        "form_id": null,
+        "level": 50,
+        "stat_profile_id": "max_atk_plus",
+        "ability_identifier": "pressure",
+        "item_identifier": "choice-band"
+      },
+      "candidate_move_ids": [
+        420,
+        252,
+        269,
+        400
+      ]
+    }
+  },
+  "expected": {
+    "attacker_move_set_count": 1,
+    "defender_move_set_count": 1,
+    "configuration_pair_count": 1,
+    "normalized_attacker_move_ids": [
+      245,
+      280,
+      355
+    ],
+    "normalized_defender_move_ids": [
+      252,
+      269,
+      400,
+      420
+    ],
+    "configuration_id": "one-on-one-configuration:[\"one-on-one-move-pool.v1\",\"pokemon-champion\",31,\"battle-inference.summary-exploration.v1\",[149,null,50,\"max_atk_plus\",\"multiscale\",null,[245,280,355]],[461,null,50,\"max_atk_plus\",\"pressure\",\"choice-band\",[252,269,400,420]]]"
+  },
+  "batch_summary": {
+    "task_id": "fixture-task-82",
+    "contract_version": "one-on-one-move-pool.v1",
+    "calculation_revision": "battle-inference.summary-exploration.v1",
+    "weight_assumption": "uniform_configuration_pair",
+    "attacker_policy": "uniform-random",
+    "defender_policy": "uniform-random",
+    "coverage": {
+      "total_configuration_count": 4,
+      "success_count": 2,
+      "failed_count": 1,
+      "truncated_count": 1,
+      "success_weight": {
+        "numerator": 1,
+        "denominator": 2
+      },
+      "failed_weight": {
+        "numerator": 1,
+        "denominator": 4
+      },
+      "truncated_weight": {
+        "numerator": 1,
+        "denominator": 4
+      }
+    },
+    "probabilities": {
+      "win_probability": {
+        "numerator": 3,
+        "denominator": 8
+      },
+      "loss_probability": {
+        "numerator": 1,
+        "denominator": 8
+      },
+      "draw_probability": {
+        "numerator": 0,
+        "denominator": 1
+      },
+      "unresolved_configuration_weight": {
+        "numerator": 1,
+        "denominator": 2
+      }
+    },
+    "mechanism_coverage": {
+      "included": [
+        "move:245",
+        "move:252"
+      ],
+      "excluded_partial": [
+        "move:355"
+      ],
+      "excluded_unsupported": [
+        "move:9999"
+      ]
+    },
+    "top_configurations": [
+      {
+        "configuration": {
+          "configuration_id": "one-on-one-configuration:[\"one-on-one-move-pool.v1\",\"pokemon-champion\",31,\"battle-inference.summary-exploration.v1\",[149,null,50,\"max_atk_plus\",\"multiscale\",null,[245,280,355]],[461,null,50,\"max_atk_plus\",\"pressure\",\"choice-band\",[252,269,400,420]]]",
+          "attacker_move_ids": [
+            245,
+            280,
+            355
+          ],
+          "defender_move_ids": [
+            252,
+            269,
+            400,
+            420
+          ]
+        },
+        "configuration_weight": {
+          "numerator": 1,
+          "denominator": 4
+        },
+        "win_probability": {
+          "numerator": 3,
+          "denominator": 4
+        },
+        "loss_probability": {
+          "numerator": 1,
+          "denominator": 4
+        },
+        "draw_probability": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "graph_statistics": {
+          "node_count": 128,
+          "edge_count": 512,
+          "max_turn_number": 7
+        },
+        "status": "success"
+      }
+    ],
+    "ruleset_id": "pokemon-champion",
+    "version_group_id": 31
+  },
+  "issue_page": {
+    "task_id": "fixture-task-82",
+    "offset": 0,
+    "limit": 10,
+    "total": 2,
+    "items": [
+      {
+        "configuration": {
+          "configuration_id": "one-on-one-configuration:[\"one-on-one-move-pool.v1\",\"pokemon-champion\",31,\"battle-inference.summary-exploration.v1\",[149,null,50,\"max_atk_plus\",\"multiscale\",null,[245]],[461,null,50,\"max_atk_plus\",\"pressure\",\"choice-band\",[252]]]",
+          "attacker_move_ids": [
+            245
+          ],
+          "defender_move_ids": [
+            252
+          ]
+        },
+        "configuration_weight": {
+          "numerator": 1,
+          "denominator": 4
+        },
+        "reason_code": "solver_failure",
+        "message": "The exact solver did not return a complete result.",
+        "graph_statistics": null,
+        "status": "failed"
+      },
+      {
+        "configuration": {
+          "configuration_id": "one-on-one-configuration:[\"one-on-one-move-pool.v1\",\"pokemon-champion\",31,\"battle-inference.summary-exploration.v1\",[149,null,50,\"max_atk_plus\",\"multiscale\",null,[280]],[461,null,50,\"max_atk_plus\",\"pressure\",\"choice-band\",[269]]]",
+          "attacker_move_ids": [
+            280
+          ],
+          "defender_move_ids": [
+            269
+          ]
+        },
+        "configuration_weight": {
+          "numerator": 1,
+          "denominator": 4
+        },
+        "reason_codes": [
+          "max_nodes"
+        ],
+        "graph_statistics": {
+          "node_count": 20000,
+          "edge_count": 79992,
+          "max_turn_number": 18
+        },
+        "status": "truncated"
+      }
+    ]
+  },
+  "task_progress": {
+    "task_id": "fixture-task-82",
+    "status": "running",
+    "total_configuration_count": 4,
+    "processed_count": 3,
+    "success_count": 1,
+    "failed_count": 1,
+    "truncated_count": 1,
+    "cancellation_requested": false
+  },
+  "on_demand_graph_request": {
+    "task_id": "fixture-task-82",
+    "configuration_id": "one-on-one-configuration:[\"one-on-one-move-pool.v1\",\"pokemon-champion\",31,\"battle-inference.summary-exploration.v1\",[149,null,50,\"max_atk_plus\",\"multiscale\",null,[245,280,355]],[461,null,50,\"max_atk_plus\",\"pressure\",\"choice-band\",[252,269,400,420]]]",
+    "calculation_revision": "battle-inference.summary-exploration.v1",
+    "max_nodes": 20000,
+    "max_edges": 80000,
+    "max_turns": 200
+  }
+}
