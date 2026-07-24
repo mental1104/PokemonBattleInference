@@ -21,9 +21,38 @@ from pokeop.application.repositories.battle_inference import (
     MechanismSupportStatus,
 )
 from pokeop.domain.battle.context import MoveCategory
-from pokeop.domain.battle.effects.protocols import EffectSourceKind
+from pokeop.domain.battle.effects.protocols import (
+    EffectCoverage,
+    EffectCoverageStatus,
+    EffectSourceKind,
+)
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
+
+
+@dataclass(frozen=True, slots=True)
+class _SupportedMoveEffect:
+    """提供只声明招式附加 effect 已支持的测试产品。"""
+
+    coverage: EffectCoverage
+
+
+class _SupportedVariablePowerFactory(TransparentPokemonChampionEffectFactory):
+    """故意把报恩附加 effect 标记为 supported，验证基础威力边界仍生效。"""
+
+    def create_move_effect(self, identifier: str | None):
+        """为 return 返回 supported coverage，其余招式继续委托真实工厂。"""
+        if identifier == "return":
+            return _SupportedMoveEffect(
+                EffectCoverage(
+                    ruleset_id=self.ruleset_id,
+                    source_kind=EffectSourceKind.MOVE,
+                    identifier="return",
+                    status=EffectCoverageStatus.SUPPORTED,
+                    reason="测试 factory 已实现附加 effect，但没有动态威力解析器。",
+                )
+            )
+        return super().create_move_effect(identifier)
 
 
 def _capability(
@@ -102,6 +131,27 @@ def _profile() -> BattleInferencePokemonProfile:
                     MechanismSupportStatus.PARTIAL,
                 ),
             ),
+            BattleInferenceMoveProfile(
+                move_id=216,
+                identifier="return",
+                display_name="报恩",
+                type=_type(),
+                category=MoveCategory.PHYSICAL,
+                power=None,
+                pp=20,
+                accuracy=100,
+                priority=0,
+                target_id=10,
+                target_identifier="selected-pokemon",
+                effect_id=1,
+                effect_chance=None,
+                effect_identifier="return",
+                capability=_capability(
+                    EffectSourceKind.MOVE,
+                    "return",
+                    MechanismSupportStatus.UNSUPPORTED,
+                ),
+            ),
         ),
     )
 
@@ -174,11 +224,40 @@ def test_reconciliation_promotes_executable_candidates_without_changing_legality
 
     assert profile is not None
     assert profile.pokemon_id == 461
-    assert len(profile.moves) == 1
+    assert len(profile.moves) == 2
     assert profile.moves[0].move_id == 8
     assert profile.moves[0].capability.status is MechanismSupportStatus.SUPPORTED
+    assert profile.moves[1].move_id == 216
+    assert profile.moves[1].power is None
+    assert profile.moves[1].capability.status is MechanismSupportStatus.UNSUPPORTED
     assert len(profile.abilities) == 1
     assert profile.abilities[0].slot == 1
     assert profile.abilities[0].capability.status is MechanismSupportStatus.SUPPORTED
     assert "Factory reconciliation" in profile.moves[0].capability.reason
     assert "Factory reconciliation" in profile.abilities[0].capability.reason
+
+
+def test_supported_effect_does_not_promote_variable_power_move_without_resolver() -> None:
+    """
+    factory 即使明确实现了报恩的附加 effect，也不能替代基础威力解析器。repository 返回的
+    ``power=None`` 表示当前 version-aware projection 无法提供固定威力，composition 必须继续
+    保持 unsupported，避免 application 后续构造非法 ``BattleMove`` 或用任意常量伪造伤害。
+    """
+    repository = FactoryReconciledBattleInferenceRepository(
+        repository=_Repository(),
+        effect_factory=_SupportedVariablePowerFactory(),
+    )
+
+    profile = repository.get_pokemon_profile(
+        ruleset_id="pokemon-champion",
+        version_group_id=25,
+        pokemon_id=461,
+    )
+
+    assert profile is not None
+    variable_power_move = next(move for move in profile.moves if move.move_id == 216)
+    assert variable_power_move.power is None
+    assert (
+        variable_power_move.capability.status
+        is MechanismSupportStatus.UNSUPPORTED
+    )

@@ -34,18 +34,25 @@ class MoveSetDimensionProvider:
     def expand(self, context: ConfigurationGenerationContext) -> DimensionExpansion:
         """生成满足命令候选池、槽位数量和 effect 覆盖要求的招式组合。
 
+        合法但当前不可执行的候选仍进入覆盖报告；只有 repository 与 factory 均确认支持，
+        且携带完整 ``MoveSpec`` 的候选才会进入组合枚举。
+
         Args:
             context: 当前 Pokémon profile、单边 command、规则集 factory 和阵营。
 
         Returns:
             去除重复行为候选后的招式组合及所有合法招式的覆盖记录。
+
+        Raises:
+            ConfigurationSpaceError: repository 将缺少 ``MoveSpec`` 的候选错误标记为
+                supported，或组合数量超过运行保护时抛出。
         """
         requested_ids = set(context.command.moves.candidate_move_ids)
         coverage_records: list[MechanismCoverageRecord] = []
         grouped_options: dict[tuple[MoveSpecKey, str], _MoveOption] = {}
 
         for candidate in context.profile.moves:
-            move_id = candidate.move_spec.move_id
+            move_id = candidate.move_id
             if requested_ids and move_id not in requested_ids:
                 coverage_records.append(
                     MechanismCoverageRecord(
@@ -71,13 +78,19 @@ class MoveSetDimensionProvider:
                 )
                 continue
 
+            move_spec = candidate.move_spec
+            if move_spec is None:
+                # supported 候选必须已经具有完整 domain 输入；否则继续执行会绕过威力等不变量。
+                raise ConfigurationSpaceError(
+                    "supported move candidate is missing an executable MoveSpec"
+                )
             effect = context.effect_factory.create_move_effect(
                 candidate.effect_identifier
             )
             factory_status = effect.coverage.status
             no_effect_is_complete = (
                 candidate.effect_identifier is None
-                and candidate.move_spec.move.category is not MoveCategory.STATUS
+                and move_spec.move.category is not MoveCategory.STATUS
                 and factory_status is EffectCoverageStatus.NO_EFFECT
             )
             included = (
@@ -94,7 +107,7 @@ class MoveSetDimensionProvider:
                 if included
                 else (
                     "A status move requires an explicit supported effect implementation."
-                    if candidate.move_spec.move.category is MoveCategory.STATUS
+                    if move_spec.move.category is MoveCategory.STATUS
                     and factory_status is EffectCoverageStatus.NO_EFFECT
                     else effect.coverage.reason
                 )
@@ -119,7 +132,7 @@ class MoveSetDimensionProvider:
                 else effect.coverage.identifier
             )
             configured_move = ConfiguredMove(
-                move_spec=candidate.move_spec,
+                move_spec=move_spec,
                 effect_identifier=normalized_effect,
             )
             signature = configured_move.behavior_signature

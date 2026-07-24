@@ -113,7 +113,11 @@ class FactoryReconciledBattleInferenceRepository:
         )
 
     def _move(self, move: BattleInferenceMoveProfile) -> BattleInferenceMoveProfile:
-        """在具体招式产品可执行时提升 repository 的保守覆盖结论。
+        """在具体招式产品与基础战斗字段均可执行时提升覆盖结论。
+
+        factory 的 ``NO_EFFECT`` 只表示不需要附加 effect，不能证明变化威力攻击招式已经
+        拥有可执行的基础伤害输入。此类招式必须继续保留 repository 的 unsupported 状态，
+        直到 application/domain 提供明确的动态威力解析器。
 
         Args:
             move: 当前 version group 合法的招式 projection。
@@ -127,9 +131,16 @@ class FactoryReconciledBattleInferenceRepository:
         no_effect_is_complete = (
             move.effect_identifier is None
             and move.category is not MoveCategory.STATUS
+            and move.power is not None
             and coverage.status is EffectCoverageStatus.NO_EFFECT
         )
-        if coverage.status is EffectCoverageStatus.SUPPORTED or no_effect_is_complete:
+        has_executable_base_fields = (
+            move.category is MoveCategory.STATUS or move.power is not None
+        )
+        if has_executable_base_fields and (
+            coverage.status is EffectCoverageStatus.SUPPORTED
+            or no_effect_is_complete
+        ):
             return replace(
                 move,
                 capability=_supported_capability(move.capability, coverage),

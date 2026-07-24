@@ -66,10 +66,11 @@ def _move(
     move_id: int,
     identifier: str,
     move_type: BattleInferenceTypeProfile,
-    power: int,
+    power: int | None,
     *,
     priority: int = 0,
     effect_identifier: str | None = None,
+    support_status: MechanismSupportStatus = MechanismSupportStatus.PARTIAL,
 ) -> BattleInferenceMoveProfile:
     """创建完整回合推进可直接消费的 version-aware 招式 projection。"""
     return BattleInferenceMoveProfile(
@@ -90,7 +91,7 @@ def _move(
         capability=_capability(
             EffectSourceKind.MOVE,
             effect_identifier or identifier,
-            MechanismSupportStatus.PARTIAL,
+            support_status,
         ),
     )
 
@@ -142,6 +143,13 @@ def _dragonite() -> BattleInferencePokemonProfile:
                 _type(2, "fighting", Type.FIGHTING),
                 75,
                 effect_identifier="brick-break",
+            ),
+            _move(
+                216,
+                "return",
+                _type(1, "normal", Type.NORMAL),
+                None,
+                support_status=MechanismSupportStatus.UNSUPPORTED,
             ),
         ),
     )
