@@ -126,7 +126,10 @@ class StreamConfigurationPairsUseCase:
             return _failed_result(work_item, exc)
 
         try:
-            return _summarize_artifact(work_item, artifact)
+            try:
+                return _summarize_artifact(work_item, artifact)
+            except Exception as exc:  # noqa: BLE001 - 摘要失败仍属于单配置失败。
+                return _failed_artifact_result(work_item, artifact, exc)
         finally:
             # 显式切断局部引用，使 CPython 可立即回收大图。
             del artifact
@@ -288,6 +291,43 @@ def _summarize_artifact(
     )
 
 
+def _failed_artifact_result(
+    work_item: ConfigurationPairWorkItem,
+    artifact: ConfigurationPairGraphArtifact,
+    exc: Exception,
+) -> ConfigurationPairExecutionResult:
+    """把图构建后的摘要异常转换为保留资源规模的失败结果。
+
+    Args:
+        work_item: 异常对应的稳定配置对。
+        artifact: 已成功构建但未能完成轻量摘要的图 artifact。
+        exc: 摘要提取或结果校验异常。
+
+    Returns:
+        不暴露部分概率，但保留已消耗节点、边、SCC 和回合规模的失败结果。
+    """
+    graph = artifact.graph
+    return ConfigurationPairExecutionResult(
+        pair_id=work_item.pair_id,
+        attacker_configuration_id=work_item.attacker_configuration_id,
+        defender_configuration_id=work_item.defender_configuration_id,
+        attacker_move_ids=_move_ids(work_item.configuration.attacker),
+        defender_move_ids=_move_ids(work_item.configuration.defender),
+        configuration_weight=work_item.configuration_weight,
+        status=ConfigurationPairExecutionStatus.FAILED,
+        win_probability=None,
+        loss_probability=None,
+        draw_probability=None,
+        expected_turns=None,
+        expected_turns_status=ExpectedTurnsStatus.UNAVAILABLE,
+        node_count=graph.statistics.unique_state_count,
+        edge_count=graph.statistics.edge_count,
+        scc_count=len(graph.components),
+        max_turn_number=graph.statistics.max_turn_number,
+        diagnostics=(_diagnostic(exc),),
+    )
+
+
 def _failed_result(
     work_item: ConfigurationPairWorkItem,
     exc: Exception,
@@ -301,8 +341,6 @@ def _failed_result(
     Returns:
         概率为空、图规模为零且带异常类型诊断的失败结果。
     """
-    message = str(exc).strip()
-    diagnostic = type(exc).__name__ + (f": {message}" if message else "")
     return ConfigurationPairExecutionResult(
         pair_id=work_item.pair_id,
         attacker_configuration_id=work_item.attacker_configuration_id,
@@ -320,8 +358,21 @@ def _failed_result(
         edge_count=0,
         scc_count=0,
         max_turn_number=0,
-        diagnostics=(diagnostic,),
+        diagnostics=(_diagnostic(exc),),
     )
+
+
+def _diagnostic(exc: Exception) -> str:
+    """把异常类型和可选消息压缩成稳定单行诊断。
+
+    Args:
+        exc: 单配置图执行或摘要提取异常。
+
+    Returns:
+        始终包含异常类型，消息非空时追加消息的诊断字符串。
+    """
+    message = str(exc).strip()
+    return type(exc).__name__ + (f": {message}" if message else "")
 
 
 def _move_ids(configuration: PokemonBattleConfiguration) -> tuple[int, ...]:
