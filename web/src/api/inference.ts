@@ -90,10 +90,22 @@ export interface BattleInferenceSummaryResult {
   completeness: BattleInferenceCompletenessResult;
 }
 
+export interface ExplorationPathStepResult {
+  source_node_id: number;
+  edge_id: number;
+  target_node_id: number;
+}
+
+export interface ExplorationCursorResult {
+  steps: ExplorationPathStepResult[];
+}
+
 export interface BattleExplorationResult {
   root_node_id: number;
-  graph_id: string | null;
+  graph_id: string;
   calculation_revision: string;
+  expires_at: string;
+  cursor: ExplorationCursorResult;
   expandable: boolean;
 }
 
