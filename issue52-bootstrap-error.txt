@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/tmp/issue-52-patch.py", line 30, in <module>
-    raise RuntimeError("application calculation revision insertion point changed")
-RuntimeError: application calculation revision insertion point changed
-patch_status=1
