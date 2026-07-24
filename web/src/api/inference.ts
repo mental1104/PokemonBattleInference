@@ -62,7 +62,15 @@ export interface RepresentativePathResult {
   steps: RepresentativePathStepResult[];
 }
 
-export interface BattleJourneyResult {
+export interface BattleInferenceCompletenessResult {
+  graph_complete: boolean;
+  solver_status: string;
+  truncation_reasons: string[];
+  diagnostics: string[];
+  warnings: string[];
+}
+
+export interface BattleInferenceSummaryResult {
   ruleset_id: string;
   version_group_id: number;
   observer: string;
@@ -79,8 +87,19 @@ export interface BattleJourneyResult {
   included_mechanisms: string[];
   excluded_mechanisms: string[];
   configuration_coverage_percent: number;
-  solver_status: string;
-  warnings: string[];
+  completeness: BattleInferenceCompletenessResult;
+}
+
+export interface BattleExplorationResult {
+  root_node_id: number;
+  graph_id: string | null;
+  calculation_revision: string;
+  expandable: boolean;
+}
+
+export interface BattleJourneyResult {
+  summary: BattleInferenceSummaryResult;
+  exploration: BattleExplorationResult;
 }
 
 /**
@@ -103,7 +122,7 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
  * 执行快龙 vs 玛纽拉的受控多回合推演。
  *
  * @param request 页面选择的快龙特性、玛纽拉方案和能力预设。
- * @returns 后端 application 用例生成的概率、状态图和代表路径结果。
+ * @returns 分离全局 summary 与渐进 exploration 入口的顶层结果。
  */
 export async function inferDragoniteVsWeavile(
   request: BattleJourneyRequest,

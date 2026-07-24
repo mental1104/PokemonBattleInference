@@ -13,6 +13,7 @@ const weavilePlan = ref<WeavilePlan>('ice-punch');
 const loading = ref(false);
 const errorMessage = ref('');
 const result = ref<BattleJourneyResult | null>(null);
+const summary = computed(() => result.value?.summary ?? null);
 
 const scenarioSummary = computed(() => {
   const ability = dragoniteAbility.value === 'multiscale' ? '多重鳞片' : '精神力';
@@ -170,45 +171,45 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
       </article>
     </section>
 
-    <template v-if="result">
+    <template v-if="summary">
       <section class="result-heading">
         <div>
           <p class="eyebrow">SOLVED RESULT</p>
           <h2>固定配置概率结果</h2>
         </div>
-        <span class="solver-chip" :class="{ 'solver-chip--complete': result.graph.is_complete }">
-          {{ result.solver_status }} · 覆盖 {{ formatPercent(result.configuration_coverage_percent) }}
+        <span class="solver-chip" :class="{ 'solver-chip--complete': summary.graph.is_complete }">
+          {{ summary.completeness.solver_status }} · 覆盖 {{ formatPercent(summary.configuration_coverage_percent) }}
         </span>
       </section>
 
       <section class="probability-grid">
         <article class="probability-card probability-card--win">
           <span>快龙胜率</span>
-          <strong>{{ formatPercent(result.win_probability.percent) }}</strong>
-          <small>{{ result.win_probability.numerator }} / {{ result.win_probability.denominator }}</small>
+          <strong>{{ formatPercent(summary.win_probability.percent) }}</strong>
+          <small>{{ summary.win_probability.numerator }} / {{ summary.win_probability.denominator }}</small>
           <div class="probability-track">
-            <i :style="{ width: `${result.win_probability.percent}%` }" />
+            <i :style="{ width: `${summary.win_probability.percent}%` }" />
           </div>
         </article>
         <article class="probability-card probability-card--loss">
           <span>玛纽拉胜率</span>
-          <strong>{{ formatPercent(result.loss_probability.percent) }}</strong>
-          <small>{{ result.loss_probability.numerator }} / {{ result.loss_probability.denominator }}</small>
+          <strong>{{ formatPercent(summary.loss_probability.percent) }}</strong>
+          <small>{{ summary.loss_probability.numerator }} / {{ summary.loss_probability.denominator }}</small>
           <div class="probability-track">
-            <i :style="{ width: `${result.loss_probability.percent}%` }" />
+            <i :style="{ width: `${summary.loss_probability.percent}%` }" />
           </div>
         </article>
         <article class="probability-card">
           <span>平局概率</span>
-          <strong>{{ formatPercent(result.draw_probability.percent) }}</strong>
-          <small>{{ result.draw_probability.numerator }} / {{ result.draw_probability.denominator }}</small>
+          <strong>{{ formatPercent(summary.draw_probability.percent) }}</strong>
+          <small>{{ summary.draw_probability.numerator }} / {{ summary.draw_probability.denominator }}</small>
           <div class="probability-track">
-            <i :style="{ width: `${result.draw_probability.percent}%` }" />
+            <i :style="{ width: `${summary.draw_probability.percent}%` }" />
           </div>
         </article>
         <article class="probability-card">
           <span>期望回合</span>
-          <strong>{{ result.expected_turns.decimal?.toFixed(2) ?? '∞ / 不可用' }}</strong>
+          <strong>{{ summary.expected_turns.decimal?.toFixed(2) ?? '∞ / 不可用' }}</strong>
           <small>策略与战斗随机共同决定</small>
         </article>
       </section>
@@ -217,37 +218,37 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
         <article class="configuration-panel">
           <div class="panel-title">
             <span>快龙</span>
-            <small>观察方 · {{ result.attacker_policy }}</small>
+            <small>观察方 · {{ summary.attacker_policy }}</small>
           </div>
           <dl>
-            <div><dt>特性</dt><dd>{{ displayIdentifier(result.attacker.ability_identifier) }}</dd></div>
-            <div><dt>道具</dt><dd>{{ displayIdentifier(result.attacker.item_identifier) }}</dd></div>
-            <div><dt>招式</dt><dd>{{ result.attacker.move_names.join(' / ') }}</dd></div>
-            <div><dt>HP / 攻击 / 速度</dt><dd>{{ result.attacker.stats.hp }} / {{ result.attacker.stats.attack }} / {{ result.attacker.stats.speed }}</dd></div>
+            <div><dt>特性</dt><dd>{{ displayIdentifier(summary.attacker.ability_identifier) }}</dd></div>
+            <div><dt>道具</dt><dd>{{ displayIdentifier(summary.attacker.item_identifier) }}</dd></div>
+            <div><dt>招式</dt><dd>{{ summary.attacker.move_names.join(' / ') }}</dd></div>
+            <div><dt>HP / 攻击 / 速度</dt><dd>{{ summary.attacker.stats.hp }} / {{ summary.attacker.stats.attack }} / {{ summary.attacker.stats.speed }}</dd></div>
           </dl>
         </article>
         <article class="configuration-panel">
           <div class="panel-title">
             <span>玛纽拉</span>
-            <small>{{ result.defender_policy }}</small>
+            <small>{{ summary.defender_policy }}</small>
           </div>
           <dl>
-            <div><dt>特性</dt><dd>{{ displayIdentifier(result.defender.ability_identifier) }}</dd></div>
-            <div><dt>道具</dt><dd>{{ displayIdentifier(result.defender.item_identifier) }}</dd></div>
-            <div><dt>招式</dt><dd>{{ result.defender.move_names.join(' / ') }}</dd></div>
-            <div><dt>HP / 攻击 / 速度</dt><dd>{{ result.defender.stats.hp }} / {{ result.defender.stats.attack }} / {{ result.defender.stats.speed }}</dd></div>
+            <div><dt>特性</dt><dd>{{ displayIdentifier(summary.defender.ability_identifier) }}</dd></div>
+            <div><dt>道具</dt><dd>{{ displayIdentifier(summary.defender.item_identifier) }}</dd></div>
+            <div><dt>招式</dt><dd>{{ summary.defender.move_names.join(' / ') }}</dd></div>
+            <div><dt>HP / 攻击 / 速度</dt><dd>{{ summary.defender.stats.hp }} / {{ summary.defender.stats.attack }} / {{ summary.defender.stats.speed }}</dd></div>
           </dl>
         </article>
         <article class="graph-panel">
           <div class="panel-title">
             <span>状态图</span>
-            <small>{{ result.graph.is_complete ? '完整' : '已截断' }}</small>
+            <small>{{ summary.graph.is_complete ? '完整' : '已截断' }}</small>
           </div>
           <div class="graph-metrics">
-            <div><strong>{{ result.graph.unique_state_count }}</strong><span>唯一状态</span></div>
-            <div><strong>{{ result.graph.edge_count }}</strong><span>概率边</span></div>
-            <div><strong>{{ result.graph.max_turn_number }}</strong><span>最大回合</span></div>
-            <div><strong>{{ result.graph.terminal_reachable_cycle_count }}</strong><span>可出循环</span></div>
+            <div><strong>{{ summary.graph.unique_state_count }}</strong><span>唯一状态</span></div>
+            <div><strong>{{ summary.graph.edge_count }}</strong><span>概率边</span></div>
+            <div><strong>{{ summary.graph.max_turn_number }}</strong><span>最大回合</span></div>
+            <div><strong>{{ summary.graph.terminal_reachable_cycle_count }}</strong><span>可出循环</span></div>
           </div>
         </article>
       </section>
@@ -260,7 +261,7 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
           </div>
         </div>
         <div class="path-grid">
-          <article v-for="path in result.representative_paths" :key="path.reference" class="path-card">
+          <article v-for="path in summary.representative_paths" :key="path.reference" class="path-card">
             <div class="panel-title">
               <span>{{ pathOutcomeLabel(path) }}</span>
               <small>{{ path.steps.length }} 个状态节点</small>
@@ -287,16 +288,16 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
         <div class="coverage-columns">
           <div>
             <strong>已纳入</strong>
-            <span v-for="item in result.included_mechanisms" :key="item">{{ item }}</span>
+            <span v-for="item in summary.included_mechanisms" :key="item">{{ item }}</span>
           </div>
           <div>
             <strong>未纳入</strong>
-            <span v-for="item in result.excluded_mechanisms" :key="item">{{ item }}</span>
-            <span v-if="result.excluded_mechanisms.length === 0">无</span>
+            <span v-for="item in summary.excluded_mechanisms" :key="item">{{ item }}</span>
+            <span v-if="summary.excluded_mechanisms.length === 0">无</span>
           </div>
         </div>
-        <ul v-if="result.warnings.length" class="warning-list">
-          <li v-for="warning in result.warnings" :key="warning">{{ warning }}</li>
+        <ul v-if="summary.completeness.warnings.length" class="warning-list">
+          <li v-for="warning in summary.completeness.warnings" :key="warning">{{ warning }}</li>
         </ul>
       </section>
     </template>

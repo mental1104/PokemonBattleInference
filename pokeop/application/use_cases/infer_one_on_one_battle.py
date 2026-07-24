@@ -89,6 +89,10 @@ from pokeop.domain.battle.state import BattleState, BattlerState
 from pokeop.domain.battle.transitions import WeightedTransition, merge_equivalent_transitions
 
 
+# 修改该值表示顶层计算语义或可探索图 artifact 合同发生不兼容变化。
+BATTLE_INFERENCE_CALCULATION_REVISION = "battle-inference.summary-exploration.v1"
+
+
 class BattleInferenceExecutionError(ValueError):
     """表示顶层推演无法产生完整且可信的结果。"""
 
@@ -271,15 +275,106 @@ class RepresentativeBattlePath:
 
 
 @dataclass(frozen=True, slots=True)
-class FixedOneOnOneBattleResult:
-    """保存固定配置的概率、图统计、配置和代表路径。"""
+class BattleInferenceCompleteness:
+    """记录全局 summary 的图构建与求解完整性。
+
+    Args:
+        graph_complete: 完整状态图是否未触发节点、边或回合运行保护。
+        solver_status: 精确图求解器返回的稳定状态标识。
+        truncation_reasons: 图构建器报告的稳定截断原因。
+        diagnostics: 求解器提供的补充诊断；空元组表示没有额外诊断。
+    """
+
+    graph_complete: bool
+    solver_status: str
+    truncation_reasons: tuple[str, ...]
+    diagnostics: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BattleInferenceSummary:
+    """保存覆盖完整概率空间且不依赖当前浏览路径的全局结论。
+
+    Args:
+        configuration: 本次固定双方配置的展示摘要。
+        inference: 基于完整状态图求解得到的概率、期望回合和机制覆盖。
+        graph_statistics: 完整状态图的规模、循环与截断统计。
+        representative_paths: 每种终局的一条示例路径，不代表当前 exploration 位置。
+        completeness: 图构建和求解过程的完整性信息。
+    """
 
     configuration: BattleConfigurationSummary
     inference: BattleInferenceResult
-    graph: GraphInferenceSummary
+    graph_statistics: GraphInferenceSummary
     representative_paths: tuple[RepresentativeBattlePath, ...]
-    solver_status: str
-    solver_diagnostics: tuple[str, ...]
+    completeness: BattleInferenceCompleteness
+
+
+@dataclass(frozen=True, slots=True)
+class BattleExplorationEntry:
+    """保存渐进探索入口及 application 内部的完整图 artifact。
+
+    Args:
+        root_node_id: 用户开始探索时对应的图根节点 ID。
+        calculation_revision: 标识节点与边计算语义的稳定版本。
+        expandable: 当前结果是否允许后续按节点继续展开。
+        graph_artifact: 尚未接入 graph store 时由 application 保留的完整状态图。
+        graph_handle: graph store 接入后可替代或补充 artifact 的稳定句柄。
+    """
+
+    root_node_id: int
+    calculation_revision: str
+    expandable: bool
+    graph_artifact: StateGraphBuildResult | None
+    graph_handle: str | None = None
+
+    def __post_init__(self) -> None:
+        """校验探索入口始终能够定位同一份完整图。
+
+        Raises:
+            BattleInferenceExecutionError: 根节点、版本或 artifact/handle 组合无效时抛出。
+        """
+        if isinstance(self.root_node_id, bool) or self.root_node_id < 0:
+            raise BattleInferenceExecutionError(
+                "exploration root_node_id must be a non-negative integer"
+            )
+        if (
+            not self.calculation_revision
+            or self.calculation_revision != self.calculation_revision.strip()
+        ):
+            raise BattleInferenceExecutionError(
+                "calculation_revision must be non-empty and normalized"
+            )
+        if self.graph_handle is not None and (
+            not self.graph_handle or self.graph_handle != self.graph_handle.strip()
+        ):
+            raise BattleInferenceExecutionError(
+                "graph_handle must be non-empty and normalized when provided"
+            )
+        if self.graph_artifact is None and self.graph_handle is None:
+            raise BattleInferenceExecutionError(
+                "exploration must retain a graph artifact or graph handle"
+            )
+        if (
+            self.graph_artifact is not None
+            and int(self.graph_artifact.root_node_id) != self.root_node_id
+        ):
+            raise BattleInferenceExecutionError(
+                "exploration root_node_id must match the graph artifact root"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class FixedOneOnOneBattleResult:
+    """冻结固定配置推演的全局 summary 与渐进 exploration 顶层合同。
+
+    Args:
+        summary: 与用户当前浏览路径无关的完整概率空间结论。
+        exploration: 持有完整图 artifact 或稳定 handle 的探索入口。
+    """
+
+    summary: BattleInferenceSummary
+    exploration: BattleExplorationEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -387,7 +482,7 @@ class InferOneOnOneBattleUseCase:
             command: 规则、双方固定候选、策略与图限制。
 
         Returns:
-            包含固定配置、精确概率、状态图统计和代表路径的结果。
+            明确区分完整概率空间 summary 与可渐进浏览 exploration 的结果。
 
         Raises:
             BattleInferenceExecutionError: 配置没有收敛为唯一结果或图无法完整求解时抛出。
@@ -482,7 +577,7 @@ class InferOneOnOneBattleUseCase:
         )
         weighted_win = sum(
             (
-                pair.coverage_weight * pair.result.inference.win_probability.value
+                pair.coverage_weight * pair.result.summary.inference.win_probability.value
                 for pair in completed
                 if pair.result is not None
             ),
@@ -490,7 +585,7 @@ class InferOneOnOneBattleUseCase:
         )
         weighted_loss = sum(
             (
-                pair.coverage_weight * pair.result.inference.loss_probability.value
+                pair.coverage_weight * pair.result.summary.inference.loss_probability.value
                 for pair in completed
                 if pair.result is not None
             ),
@@ -498,7 +593,7 @@ class InferOneOnOneBattleUseCase:
         )
         weighted_draw = sum(
             (
-                pair.coverage_weight * pair.result.inference.draw_probability.value
+                pair.coverage_weight * pair.result.summary.inference.draw_probability.value
                 for pair in completed
                 if pair.result is not None
             ),
@@ -506,14 +601,14 @@ class InferOneOnOneBattleUseCase:
         )
         best = max(
             completed,
-            key=lambda pair: pair.result.inference.win_probability.value
+            key=lambda pair: pair.result.summary.inference.win_probability.value
             if pair.result is not None
             else Fraction(-1),
             default=None,
         )
         worst = min(
             completed,
-            key=lambda pair: pair.result.inference.win_probability.value
+            key=lambda pair: pair.result.summary.inference.win_probability.value
             if pair.result is not None
             else Fraction(2),
             default=None,
@@ -537,7 +632,7 @@ class InferOneOnOneBattleUseCase:
                 and bool(completed)
                 and all(
                     pair.result is not None
-                    and pair.result.inference.win_probability.value == Fraction(1)
+                    and pair.result.summary.inference.win_probability.value == Fraction(1)
                     for pair in completed
                 )
             ),
@@ -726,13 +821,27 @@ class InferOneOnOneBattleUseCase:
             fixed_weighting=fixed_weighting,
         )
         paths = _representative_paths(graph)
+        graph_statistics = _graph_summary(graph)
         return FixedOneOnOneBattleResult(
-            configuration=self._configuration_summary(configuration),
-            inference=inference,
-            graph=_graph_summary(graph),
-            representative_paths=paths,
-            solver_status=solved.status.value,
-            solver_diagnostics=solved.diagnostics,
+            summary=BattleInferenceSummary(
+                configuration=self._configuration_summary(configuration),
+                inference=inference,
+                graph_statistics=graph_statistics,
+                representative_paths=paths,
+                completeness=BattleInferenceCompleteness(
+                    graph_complete=graph.is_complete,
+                    solver_status=solved.status.value,
+                    truncation_reasons=graph_statistics.truncation_reasons,
+                    diagnostics=solved.diagnostics,
+                ),
+            ),
+            exploration=BattleExplorationEntry(
+                root_node_id=int(graph.root_node_id),
+                calculation_revision=BATTLE_INFERENCE_CALCULATION_REVISION,
+                expandable=True,
+                graph_artifact=graph,
+                graph_handle=None,
+            ),
         )
 
     def _effects(self, configuration: BattleConfiguration) -> tuple[BattleEffect, ...]:
@@ -1161,9 +1270,13 @@ def _representative_paths(
 
 
 __all__ = [
+    "BATTLE_INFERENCE_CALCULATION_REVISION",
     "BattleActionPolicyKind",
     "BattleConfigurationSummary",
+    "BattleExplorationEntry",
+    "BattleInferenceCompleteness",
     "BattleInferenceExecutionError",
+    "BattleInferenceSummary",
     "ConfigurationPairInferenceResult",
     "ConfigurationSpaceBattleResult",
     "FixedOneOnOneBattleResult",

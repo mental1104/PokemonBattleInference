@@ -22,6 +22,7 @@ from pokeop.application.repositories.battle_inference import (
     MechanismSupportStatus,
 )
 from pokeop.application.use_cases.infer_one_on_one_battle import (
+    BATTLE_INFERENCE_CALCULATION_REVISION,
     BattleActionPolicyKind,
     InferFixedOneOnOneBattleCommand,
     InferOneOnOneBattleUseCase,
@@ -302,19 +303,31 @@ def test_fixed_ice_punch_journey_returns_complete_probability_result() -> None:
     )
 
     total = (
-        result.inference.win_probability.value
-        + result.inference.loss_probability.value
-        + result.inference.draw_probability.value
+        result.summary.inference.win_probability.value
+        + result.summary.inference.loss_probability.value
+        + result.summary.inference.draw_probability.value
     )
     assert total == Fraction(1)
-    assert result.graph.is_complete
-    assert result.configuration.attacker.move_ids == (280,)
-    assert result.configuration.defender.move_ids == (8,)
-    assert result.inference.attacker_policy.policy_id == "first-legal-action"
+    assert result.summary.graph_statistics.is_complete
+    assert result.summary.configuration.attacker.move_ids == (280,)
+    assert result.summary.configuration.defender.move_ids == (8,)
+    assert result.summary.inference.attacker_policy.policy_id == "first-legal-action"
     assert "ability:pressure:real_ability_behavior" in (
-        result.inference.mechanism_coverage.excluded
+        result.summary.inference.mechanism_coverage.excluded
     )
-    assert result.representative_paths
+    assert result.summary.representative_paths
+    graph_artifact = result.exploration.graph_artifact
+    assert graph_artifact is not None
+    assert result.exploration.root_node_id == int(graph_artifact.root_node_id) == 0
+    assert result.exploration.graph_handle is None
+    assert result.exploration.expandable
+    assert (
+        result.exploration.calculation_revision
+        == BATTLE_INFERENCE_CALCULATION_REVISION
+    )
+    assert graph_artifact.statistics.unique_state_count == (
+        result.summary.graph_statistics.unique_state_count
+    )
 
 
 def test_fake_out_pressure_journey_keeps_both_terminal_branches_without_cycles() -> None:
@@ -338,16 +351,16 @@ def test_fake_out_pressure_journey_keeps_both_terminal_branches_without_cycles()
         )
     )
 
-    assert result.inference.defender_policy.policy_id == "uniform-random"
-    assert result.graph.is_complete
-    assert result.graph.max_turn_number == 2
-    assert result.graph.closed_cycle_count == 0
-    assert result.graph.terminal_reachable_cycle_count == 0
-    assert result.inference.win_probability.value > 0
-    assert result.inference.loss_probability.value > 0
-    assert result.inference.draw_probability.value == 0
-    assert result.inference.probability_total == Fraction(1)
-    assert {path.outcome for path in result.representative_paths} == {
+    assert result.summary.inference.defender_policy.policy_id == "uniform-random"
+    assert result.summary.graph_statistics.is_complete
+    assert result.summary.graph_statistics.max_turn_number == 2
+    assert result.summary.graph_statistics.closed_cycle_count == 0
+    assert result.summary.graph_statistics.terminal_reachable_cycle_count == 0
+    assert result.summary.inference.win_probability.value > 0
+    assert result.summary.inference.loss_probability.value > 0
+    assert result.summary.inference.draw_probability.value == 0
+    assert result.summary.inference.probability_total == Fraction(1)
+    assert {path.outcome for path in result.summary.representative_paths} == {
         TerminalOutcome.ATTACKER_WIN,
         TerminalOutcome.DEFENDER_WIN,
     }
