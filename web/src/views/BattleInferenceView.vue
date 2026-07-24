@@ -8,8 +8,10 @@ import {
   type RepresentativePathResult,
   type WeavilePlan,
 } from '../api/inference';
+import type { WinningPathWinner } from '../api/winningPaths';
 import BattleGraphExplorer from '../components/inference/BattleGraphExplorer.vue';
 import BattleReportPanel from '../components/inference/BattleReportPanel.vue';
+import WinningPathGroupsPanel from '../components/inference/WinningPathGroupsPanel.vue';
 import {
   createBattleReportPresenterContext,
   type BattleReportPresenterContext,
@@ -22,6 +24,7 @@ const errorMessage = ref('');
 const result = ref<BattleJourneyResult | null>(null);
 const activeExploration = ref<BattleGraphExplorationResult | null>(null);
 const showGraphExplorer = ref(true);
+const selectedWinningPathSide = ref<WinningPathWinner | null>(null);
 
 const summary = computed(() => result.value?.summary ?? null);
 const presenterContext = computed<BattleReportPresenterContext | null>(() =>
@@ -29,6 +32,20 @@ const presenterContext = computed<BattleReportPresenterContext | null>(() =>
     ? null
     : createBattleReportPresenterContext(summary.value),
 );
+const moveNames = computed<Record<number, string>>(() => {
+  const current = summary.value;
+  const names: Record<number, string> = {};
+  if (current === null) {
+    return names;
+  }
+  current.attacker.move_ids.forEach((moveId, index) => {
+    names[moveId] = current.attacker.move_names[index] ?? `招式 #${moveId}`;
+  });
+  current.defender.move_ids.forEach((moveId, index) => {
+    names[moveId] = current.defender.move_names[index] ?? `招式 #${moveId}`;
+  });
+  return names;
+});
 
 const scenarioSummary = computed(() => {
   const ability = dragoniteAbility.value === 'multiscale' ? '多重鳞片' : '精神力';
@@ -42,7 +59,7 @@ const scenarioSummary = computed(() => {
 /**
  * 提交当前受控场景，并用新的结果替换上一次推演。
  *
- * 请求开始前同时清空旧 graph 和父页面保存的战报 DTO，避免不同推演生命周期串线。
+ * 请求开始前同时清空旧 graph、胜利路径选择和父页面保存的战报 DTO，避免不同推演生命周期串线。
  */
 async function runInference(): Promise<void> {
   loading.value = true;
@@ -50,6 +67,7 @@ async function runInference(): Promise<void> {
   result.value = null;
   activeExploration.value = null;
   showGraphExplorer.value = true;
+  selectedWinningPathSide.value = null;
   try {
     result.value = await inferDragoniteVsWeavile({
       dragonite_ability: dragoniteAbility.value,
@@ -73,6 +91,16 @@ function updateActiveExploration(
   exploration: BattleGraphExplorationResult | null,
 ): void {
   activeExploration.value = exploration;
+}
+
+/**
+ * 打开或切换指定胜者的 Top-K 行动路径查询面板。
+ *
+ * @param winner 用户点击胜率卡片对应的绝对获胜侧。
+ */
+function selectWinningPathSide(winner: WinningPathWinner): void {
+  selectedWinningPathSide.value =
+    selectedWinningPathSide.value === winner ? null : winner;
 }
 
 /**
@@ -213,22 +241,34 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
       </section>
 
       <section class="probability-grid">
-        <article class="probability-card probability-card--win">
+        <button
+          type="button"
+          class="probability-card probability-card--win winning-path-trigger"
+          :class="{ 'winning-path-trigger--active': selectedWinningPathSide === 'attacker' }"
+          @click="selectWinningPathSide('attacker')"
+        >
           <span>快龙胜率</span>
           <strong>{{ formatPercent(summary.win_probability.percent) }}</strong>
           <small>{{ summary.win_probability.numerator }} / {{ summary.win_probability.denominator }}</small>
           <div class="probability-track">
             <i :style="{ width: `${summary.win_probability.percent}%` }" />
           </div>
-        </article>
-        <article class="probability-card probability-card--loss">
+          <em>查看胜利路径 Top-K</em>
+        </button>
+        <button
+          type="button"
+          class="probability-card probability-card--loss winning-path-trigger"
+          :class="{ 'winning-path-trigger--active': selectedWinningPathSide === 'defender' }"
+          @click="selectWinningPathSide('defender')"
+        >
           <span>玛纽拉胜率</span>
           <strong>{{ formatPercent(summary.loss_probability.percent) }}</strong>
           <small>{{ summary.loss_probability.numerator }} / {{ summary.loss_probability.denominator }}</small>
           <div class="probability-track">
             <i :style="{ width: `${summary.loss_probability.percent}%` }" />
           </div>
-        </article>
+          <em>查看胜利路径 Top-K</em>
+        </button>
         <article class="probability-card">
           <span>平局概率</span>
           <strong>{{ formatPercent(summary.draw_probability.percent) }}</strong>
@@ -243,6 +283,14 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
           <small>策略与战斗随机共同决定</small>
         </article>
       </section>
+
+      <WinningPathGroupsPanel
+        v-if="selectedWinningPathSide && result?.exploration"
+        :key="`${result.exploration.graph_id}:${selectedWinningPathSide}`"
+        :handle="result.exploration"
+        :winner="selectedWinningPathSide"
+        :move-names="moveNames"
+      />
 
       <section class="inference-detail-grid">
         <article class="configuration-panel">
@@ -371,6 +419,25 @@ function pathOutcomeLabel(path: RepresentativePathResult): string {
 </template>
 
 <style scoped>
+.winning-path-trigger {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.winning-path-trigger em {
+  color: #748078;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.winning-path-trigger--active {
+  outline: 3px solid rgba(157, 48, 57, 0.16);
+}
+
 .battle-exploration-layout {
   margin-top: 42px;
 }
