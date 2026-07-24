@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch, type CSSProperties } from 'vue';
 import {
   listPokemonMoves,
   type ListPokemonMovesRequest,
@@ -17,6 +17,27 @@ const CATEGORY_OPTIONS: readonly (readonly [MoveFilterCategory, string])[] = [
   ['physical', '物理'],
   ['special', '特殊'],
 ];
+const TYPE_COLORS: Readonly<Record<string, string>> = {
+  normal: '#919aa2',
+  fighting: '#ce416b',
+  flying: '#89aae3',
+  poison: '#b567ce',
+  ground: '#d97845',
+  rock: '#c5b78c',
+  bug: '#91c12f',
+  ghost: '#5269ad',
+  steel: '#5a8ea2',
+  fire: '#ff9d55',
+  water: '#5090d6',
+  grass: '#63bc5a',
+  electric: '#f4d23c',
+  psychic: '#fa7179',
+  ice: '#73cec0',
+  dragon: '#0b6dc3',
+  dark: '#5a5465',
+  fairy: '#ec8fe6',
+};
+const FALLBACK_TYPE_COLOR = '#7b8b82';
 
 const props = defineProps<{
   pokemonId: number | null;
@@ -32,7 +53,7 @@ const emit = defineEmits<{
 
 const query = ref('');
 const category = ref<MoveFilterCategory>('all');
-const selectedTypes = ref<string[]>([]);
+const selectedType = ref<string | null>(null);
 const page = ref<MoveSearchPage | null>(null);
 const typeOptions = ref<MoveTypeOption[]>([]);
 const loading = ref(false);
@@ -59,13 +80,13 @@ const canOpenModal = computed(
  *
  * @param limit 本次分页上限，页面内使用 10，弹窗使用 50。
  * @param offset 稳定排序结果中的起始偏移。
- * @returns 可直接传给 API client 的显式查询对象。
+ * @returns 可直接传给 API client 的显式查询对象；属性数组最多包含一个 identifier。
  */
 function buildRequest(limit: number, offset: number): ListPokemonMovesRequest {
   return {
     query: query.value.trim(),
     category: category.value,
-    typeIdentifiers: selectedTypes.value,
+    typeIdentifiers: selectedType.value === null ? [] : [selectedType.value],
     limit,
     offset,
   };
@@ -75,11 +96,11 @@ function buildRequest(limit: number, offset: number): ListPokemonMovesRequest {
  * 判断当前已选招式是否仍符合前端可直接判断的筛选条件。
  *
  * @param move 当前 calculator 已选招式。
- * @returns 类别、属性和文本条件均匹配时返回 true。
+ * @returns 类别、单一属性和文本条件均匹配时返回 true。
  */
 function matchesCurrentFilters(move: MoveSearchItem): boolean {
   if (category.value !== 'all' && move.category !== category.value) return false;
-  if (selectedTypes.value.length > 0 && !selectedTypes.value.includes(move.type)) return false;
+  if (selectedType.value !== null && move.type !== selectedType.value) return false;
 
   const normalizedQuery = query.value.trim().toLocaleLowerCase();
   if (normalizedQuery === '') return true;
@@ -158,24 +179,48 @@ function setCategory(nextCategory: MoveFilterCategory): void {
 }
 
 /**
- * 切换一个属性筛选项；多个已选属性之间由服务端按 OR 处理。
+ * 切换唯一属性筛选项。
+ *
+ * 点击不同属性时直接替换当前选择；再次点击已选属性时恢复全部属性。这样物理/特殊
+ * 与属性始终形成 ``category AND zero-or-one-type`` 的稳定查询合同。
  *
  * @param typeIdentifier 当前规则集属性元数据中的稳定 identifier。
  */
 function toggleType(typeIdentifier: string): void {
-  if (selectedTypes.value.includes(typeIdentifier)) {
-    selectedTypes.value = selectedTypes.value.filter((item) => item !== typeIdentifier);
-  } else {
-    selectedTypes.value = [...selectedTypes.value, typeIdentifier];
-  }
+  selectedType.value = selectedType.value === typeIdentifier ? null : typeIdentifier;
   reloadForFilterChange();
 }
 
-/** 清空全部属性筛选并重新加载第一页。 */
-function clearTypeFilters(): void {
-  if (selectedTypes.value.length === 0) return;
-  selectedTypes.value = [];
-  reloadForFilterChange();
+/**
+ * 构造 PostgreSQL 资产 API 的属性图片 URL。
+ *
+ * @param typeIdentifier PokeAPI 稳定属性 identifier。
+ * @returns 浏览器可加载的项目内 URL；后端负责从 BYTEA 返回固定 Sword/Shield 图片。
+ */
+function typeSpriteUrl(typeIdentifier: string): string {
+  return `/api/v1/assets/types/${encodeURIComponent(typeIdentifier)}/sprite`;
+}
+
+/**
+ * 返回招式卡片使用的属性主题 CSS 变量。
+ *
+ * @param typeIdentifier 招式属性 identifier。
+ * @returns 只包含受控颜色变量的 Vue style 对象；未知属性使用中性回退色。
+ */
+function moveTypeStyle(typeIdentifier: string): CSSProperties {
+  return {
+    '--move-type-color': TYPE_COLORS[typeIdentifier] ?? FALLBACK_TYPE_COLOR,
+  } as CSSProperties;
+}
+
+/**
+ * 把后端伤害分类转换成紧凑英文视觉标签。
+ *
+ * @param moveCategory 后端保证为 physical 或 special 的可计算类别。
+ * @returns 卡片徽章中展示的固定大写标签。
+ */
+function moveCategoryLabel(moveCategory: MoveSearchItem['category']): string {
+  return moveCategory === 'physical' ? 'PHYSICAL' : 'SPECIAL';
 }
 
 /**
@@ -275,7 +320,7 @@ watch(
 
     // 属性 identifier 属于规则集元数据；规则集变化时清空旧选项与旧选择，避免提交非法筛选。
     if (previousContext && nextContext[1] !== previousContext[1]) {
-      selectedTypes.value = [];
+      selectedType.value = null;
       typeOptions.value = [];
     }
     void loadEmbeddedPage();
@@ -310,26 +355,25 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div v-if="availableTypes.length > 0" class="move-type-filter" aria-label="招式属性">
+    <div v-if="availableTypes.length > 0" class="move-type-filter" role="group" aria-label="招式属性">
       <button
         v-for="typeOption in availableTypes"
         :key="typeOption.identifier"
-        class="type-chip filter-chip"
-        :class="{ active: selectedTypes.includes(typeOption.identifier) }"
+        class="type-image-button"
+        :class="{ active: selectedType === typeOption.identifier }"
         type="button"
         :disabled="disabled"
-        :aria-pressed="selectedTypes.includes(typeOption.identifier)"
+        :aria-label="`${typeOption.identifier} 属性`"
+        :aria-pressed="selectedType === typeOption.identifier"
+        :title="typeOption.identifier"
         @click="toggleType(typeOption.identifier)"
       >
-        {{ typeOption.display_name }}
-      </button>
-      <button
-        v-if="selectedTypes.length > 0"
-        class="text-button"
-        type="button"
-        @click="clearTypeFilters"
-      >
-        清空属性
+        <img
+          class="type-filter-image"
+          :src="typeSpriteUrl(typeOption.identifier)"
+          :alt="typeOption.identifier"
+          loading="lazy"
+        />
       </button>
     </div>
 
@@ -342,9 +386,30 @@ onBeforeUnmount(() => {
       :disabled="disabled"
     />
 
-    <div v-if="selected" class="selected-line">
-      <span>{{ selected.display_name }}</span>
-      <span class="muted">{{ selected.type_name }} · {{ selected.category }} · {{ selected.power }}</span>
+    <div
+      v-if="selected"
+      class="selected-move-card move-card"
+      data-testid="selected-move-card"
+      :style="moveTypeStyle(selected.type)"
+    >
+      <div class="move-card-identity">
+        <img
+          class="move-type-image"
+          :src="typeSpriteUrl(selected.type)"
+          :alt="selected.type"
+          loading="lazy"
+        />
+        <div class="move-card-copy">
+          <strong>{{ selected.display_name }}</strong>
+          <small>{{ selected.identifier }}</small>
+        </div>
+      </div>
+      <div class="move-card-meta">
+        <span class="move-category-badge" :data-category="selected.category">
+          {{ moveCategoryLabel(selected.category) }}
+        </span>
+        <span class="move-power-badge"><small>POWER</small>{{ selected.power }}</span>
+      </div>
     </div>
 
     <div v-if="disabled" class="muted row-message">先选择攻击方</div>
@@ -358,12 +423,29 @@ onBeforeUnmount(() => {
       <button
         v-for="moveItem in moves"
         :key="moveItem.move_id"
-        class="list-option"
+        class="list-option move-option-card move-card"
         type="button"
+        :style="moveTypeStyle(moveItem.type)"
         @click="selectMove(moveItem)"
       >
-        <span class="option-main">{{ moveItem.display_name }}</span>
-        <span class="option-sub">{{ moveItem.type_name }} · {{ moveItem.category }} · {{ moveItem.power }}</span>
+        <span class="move-card-identity">
+          <img
+            class="move-type-image"
+            :src="typeSpriteUrl(moveItem.type)"
+            :alt="moveItem.type"
+            loading="lazy"
+          />
+          <span class="move-card-copy">
+            <strong>{{ moveItem.display_name }}</strong>
+            <small>{{ moveItem.identifier }}</small>
+          </span>
+        </span>
+        <span class="move-card-meta">
+          <span class="move-category-badge" :data-category="moveItem.category">
+            {{ moveCategoryLabel(moveItem.category) }}
+          </span>
+          <span class="move-power-badge"><small>POWER</small>{{ moveItem.power }}</span>
+        </span>
       </button>
     </div>
 
@@ -401,12 +483,29 @@ onBeforeUnmount(() => {
           <button
             v-for="moveItem in modalItems"
             :key="moveItem.move_id"
-            class="list-option"
+            class="list-option move-option-card move-card"
             type="button"
+            :style="moveTypeStyle(moveItem.type)"
             @click="selectMove(moveItem)"
           >
-            <span class="option-main">{{ moveItem.display_name }}</span>
-            <span class="option-sub">{{ moveItem.type_name }} · {{ moveItem.category }} · {{ moveItem.power }}</span>
+            <span class="move-card-identity">
+              <img
+                class="move-type-image"
+                :src="typeSpriteUrl(moveItem.type)"
+                :alt="moveItem.type"
+                loading="lazy"
+              />
+              <span class="move-card-copy">
+                <strong>{{ moveItem.display_name }}</strong>
+                <small>{{ moveItem.identifier }}</small>
+              </span>
+            </span>
+            <span class="move-card-meta">
+              <span class="move-category-badge" :data-category="moveItem.category">
+                {{ moveCategoryLabel(moveItem.category) }}
+              </span>
+              <span class="move-power-badge"><small>POWER</small>{{ moveItem.power }}</span>
+            </span>
           </button>
         </div>
 
