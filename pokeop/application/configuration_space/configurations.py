@@ -59,7 +59,7 @@ class PokemonBattleConfiguration:
         types: 当前 version group 下的一到两个属性。
         stats: 已计算完成的最终六项能力值。
         stat_profile: 当前等价类保留的代表 EV、IV 和性格来源。
-        moves: 一到四个已验证机制覆盖的招式配置。
+        moves: 一到四个已验证机制覆盖的招式配置；顺序不承担策略语义。
         ability_identifier: factory 返回的规范化特性标识。
         item_identifier: factory 返回的规范化道具标识，``none`` 表示无道具。
         can_evolve: 是否仍可进化，供后续道具规则使用。
@@ -110,15 +110,22 @@ class PokemonBattleConfiguration:
             not isinstance(value, Type) for value in self.types
         ):
             raise ConfigurationSpaceError("types must contain one or two Type values")
-        if not 1 <= len(self.moves) <= 4 or any(
-            not isinstance(value, ConfiguredMove) for value in self.moves
+
+        normalized_moves = tuple(self.moves)
+        if not 1 <= len(normalized_moves) <= 4 or any(
+            not isinstance(value, ConfiguredMove) for value in normalized_moves
         ):
             raise ConfigurationSpaceError(
                 "moves must contain between one and four ConfiguredMove values"
             )
-        move_ids = tuple(move.move_spec.move_id for move in self.moves)
+        normalized_moves = tuple(
+            sorted(normalized_moves, key=lambda move: move.move_spec.move_id)
+        )
+        move_ids = tuple(move.move_spec.move_id for move in normalized_moves)
         if len(move_ids) != len(set(move_ids)):
             raise ConfigurationSpaceError("configured move ids must be unique")
+        object.__setattr__(self, "moves", normalized_moves)
+
         if (
             not isinstance(self.ability_identifier, str)
             or not self.ability_identifier.strip()
@@ -196,8 +203,6 @@ class BattleConfiguration:
             isinstance(other, BattleConfiguration)
             and self.behavior_signature == other.behavior_signature
         )
-
-
 
 
 __all__ = [

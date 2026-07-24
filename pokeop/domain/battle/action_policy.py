@@ -1,3 +1,5 @@
+"""定义行动选择策略的精确概率合同。"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -116,8 +118,12 @@ class ActionPolicy(Protocol[ActionT]):
         """为当前合法行动返回归一化选择概率，不执行任何战斗效果。"""
 
 
+# 保留旧名称兼容既有调用方，同时把公开边界明确命名为行动选择策略。
+ActionSelectionPolicy = ActionPolicy
+
+
 class UniformRandomPolicy(Generic[ActionT]):
-    """对所有合法行动赋予相同玩家选择概率。"""
+    """对当前每个具体合法行动赋予相同玩家选择概率。"""
 
     @property
     def policy_id(self) -> str:
@@ -125,7 +131,7 @@ class UniformRandomPolicy(Generic[ActionT]):
 
     @property
     def description(self) -> str:
-        return "从当前全部合法行动中等概率选择"
+        return "从当前全部合法具体行动中等概率选择"
 
     def distribution_for(
         self,
@@ -147,7 +153,7 @@ class UniformRandomPolicy(Generic[ActionT]):
 
 
 class FirstLegalActionPolicy(Generic[ActionT]):
-    """始终选择调用方稳定排序后的第一个合法行动。"""
+    """测试或调试时选择调用方稳定排序后的第一个合法行动。"""
 
     @property
     def policy_id(self) -> str:
@@ -155,7 +161,7 @@ class FirstLegalActionPolicy(Generic[ActionT]):
 
     @property
     def description(self) -> str:
-        return "始终选择合法行动列表中的第一项"
+        return "仅用于测试或调试：始终选择合法行动列表中的第一项"
 
     def distribution_for(
         self,
