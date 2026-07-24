@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - agent/issue-58-transition-projection
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+      - reopened
+      - ready_for_review
 
 jobs:
   pytest:
