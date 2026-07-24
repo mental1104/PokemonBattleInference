@@ -19,23 +19,75 @@ from pokeop.domain.models.types import Type
 class MoveConfigurationCandidate:
     """表示 repository 提供的一条合法且 version-aware 的招式候选。
 
+    合法候选不等于当前 engine 已经可以执行。固定威力攻击招式和可建模变化招式携带
+    ``MoveSpec``；变化威力等尚未实现的攻击招式可以只保留稳定 ID 与覆盖结论，从而进入
+    coverage report，但不会为了通过 domain 不变量而伪造基础威力。
+
     Args:
-        move_spec: 已解析为 domain ``MoveSpec`` 的稳定战斗字段。
+        move_spec: 已解析为 domain ``MoveSpec`` 的稳定战斗字段；当前机制不可执行时允许为
+            None，但此时 ``support_status`` 不能是 supported。
         effect_identifier: 交给规则集 effect factory 的招式机制标识；None 表示该招式
             只依赖基础伤害、命中、优先级和 PP 等已有通用行为。
         support_status: repository 对该候选当前机制覆盖程度的声明。
         support_reason: 对 partial/unsupported 或特殊 supported 映射的解释。
+        candidate_move_id: ``move_spec`` 缺失时必须显式提供的合法招式 ID；存在
+            ``move_spec`` 时允许省略并自动从中读取。
+        candidate_identifier: coverage report 使用的稳定标识；省略时回退为招式 ID 字符串。
     """
 
-    move_spec: MoveSpec
+    move_spec: MoveSpec | None
     effect_identifier: str | None = None
     support_status: MechanismSupportStatus = MechanismSupportStatus.SUPPORTED
     support_reason: str = "Repository projection marks this move candidate as supported."
+    candidate_move_id: int | None = None
+    candidate_identifier: str | None = None
 
     def __post_init__(self) -> None:
-        """校验候选并兼容 effect 标识位于 projection 或 MoveSpec 的两种形状。"""
-        if not isinstance(self.move_spec, MoveSpec):
-            raise ConfigurationSpaceError("move_spec must be a MoveSpec")
+        """校验候选身份、可执行边界和 effect 标识的一致性。
+
+        Raises:
+            ConfigurationSpaceError: 候选缺少稳定 ID、supported 候选没有 ``MoveSpec``、
+                projection 与 ``MoveSpec`` 身份冲突，或覆盖字段不合法时抛出。
+        """
+        if not isinstance(self.support_status, MechanismSupportStatus):
+            raise ConfigurationSpaceError(
+                "support_status must be a MechanismSupportStatus"
+            )
+        if not isinstance(self.support_reason, str) or not self.support_reason.strip():
+            raise ConfigurationSpaceError(
+                "support_reason must be a non-blank string"
+            )
+
+        move_spec = self.move_spec
+        if move_spec is not None and not isinstance(move_spec, MoveSpec):
+            raise ConfigurationSpaceError("move_spec must be a MoveSpec or None")
+        if move_spec is None and self.support_status is MechanismSupportStatus.SUPPORTED:
+            raise ConfigurationSpaceError(
+                "supported move candidates must provide an executable MoveSpec"
+            )
+
+        resolved_move_id = self.candidate_move_id
+        if move_spec is not None:
+            if resolved_move_id is not None and resolved_move_id != move_spec.move_id:
+                raise ConfigurationSpaceError(
+                    "candidate_move_id must match MoveSpec move_id"
+                )
+            resolved_move_id = move_spec.move_id
+        if not _is_positive_integer(resolved_move_id):
+            raise ConfigurationSpaceError(
+                "candidate_move_id must be a positive integer"
+            )
+
+        resolved_identifier = self.candidate_identifier or str(resolved_move_id)
+        if (
+            not isinstance(resolved_identifier, str)
+            or not resolved_identifier.strip()
+            or resolved_identifier != resolved_identifier.strip()
+        ):
+            raise ConfigurationSpaceError(
+                "candidate_identifier must be a normalized non-blank string"
+            )
+
         if self.effect_identifier is not None and not isinstance(
             self.effect_identifier,
             str,
@@ -43,12 +95,16 @@ class MoveConfigurationCandidate:
             raise ConfigurationSpaceError(
                 "effect_identifier must be a string or None"
             )
-        candidate_identifier = (
+        candidate_effect_identifier = (
             normalize_effect_identifier(self.effect_identifier)
             if self.effect_identifier is not None
             else ""
         )
-        move_spec_identifier = getattr(self.move_spec, "effect_identifier", None)
+        move_spec_identifier = (
+            getattr(move_spec, "effect_identifier", None)
+            if move_spec is not None
+            else None
+        )
         if move_spec_identifier is not None and not isinstance(move_spec_identifier, str):
             raise ConfigurationSpaceError(
                 "MoveSpec effect_identifier must be a string or None"
@@ -59,31 +115,37 @@ class MoveConfigurationCandidate:
             else ""
         )
         if (
-            candidate_identifier
+            candidate_effect_identifier
             and normalized_move_spec_identifier
-            and candidate_identifier != normalized_move_spec_identifier
+            and candidate_effect_identifier != normalized_move_spec_identifier
         ):
             raise ConfigurationSpaceError(
                 "candidate and MoveSpec effect identifiers must describe the same behavior"
             )
+
+        object.__setattr__(self, "candidate_move_id", resolved_move_id)
+        object.__setattr__(self, "candidate_identifier", resolved_identifier)
         object.__setattr__(
             self,
             "effect_identifier",
-            candidate_identifier or normalized_move_spec_identifier or None,
+            candidate_effect_identifier or normalized_move_spec_identifier or None,
         )
-        if not isinstance(self.support_status, MechanismSupportStatus):
-            raise ConfigurationSpaceError(
-                "support_status must be a MechanismSupportStatus"
-            )
-        if not isinstance(self.support_reason, str) or not self.support_reason.strip():
-            raise ConfigurationSpaceError(
-                "support_reason must be a non-blank string"
-            )
+
+    @property
+    def move_id(self) -> int:
+        """返回命令候选池匹配使用的稳定招式 ID。"""
+        move_id = self.candidate_move_id
+        if move_id is None:
+            raise AssertionError("validated move candidate is missing candidate_move_id")
+        return move_id
 
     @property
     def identifier(self) -> str:
         """返回覆盖报告使用的稳定招式标识。"""
-        return str(self.move_spec.move_id)
+        identifier = self.candidate_identifier
+        if identifier is None:
+            raise AssertionError("validated move candidate is missing candidate_identifier")
+        return identifier
 
 
 @dataclass(frozen=True, slots=True)
