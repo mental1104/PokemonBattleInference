@@ -22,13 +22,12 @@ class MoveSpaceCommand:
 
     Args:
         candidate_move_ids: 允许参与枚举的招式 ID；空元组表示使用 profile 中全部候选。
-        slot_counts: 显式枚举的招式槽数量。空元组使用产品规范模式：候选少于四招时
-            取全量，达到四招时只生成无序四招组合。
+        slot_counts: 需要生成的招式槽数量，每项必须位于 1 到 4。
         max_raw_combinations: 归并前允许生成的合法招式组合原始成员上限。
     """
 
     candidate_move_ids: tuple[int, ...] = ()
-    slot_counts: tuple[int, ...] = ()
+    slot_counts: tuple[int, ...] = (4,)
     max_raw_combinations: int = 10_000
 
     def __post_init__(self) -> None:
@@ -41,7 +40,7 @@ class MoveSpaceCommand:
             )
         if len(move_ids) != len(set(move_ids)):
             raise ConfigurationSpaceError("candidate_move_ids must be unique")
-        if any(
+        if not slot_counts or any(
             not _is_integer(value) or not 1 <= value <= 4
             for value in slot_counts
         ):
@@ -54,33 +53,6 @@ class MoveSpaceCommand:
             )
         object.__setattr__(self, "candidate_move_ids", tuple(sorted(move_ids)))
         object.__setattr__(self, "slot_counts", tuple(sorted(slot_counts)))
-
-    def resolved_slot_counts(self, candidate_count: int) -> tuple[int, ...]:
-        """根据可执行候选数量解析本次真正需要枚举的槽位数。
-
-        Args:
-            candidate_count: 完成合法性和机制覆盖过滤后的可执行招式数量。
-
-        Returns:
-            显式模式返回不超过候选数量的槽位数；产品规范模式在候选少于四招时
-            返回全部候选数量，否则只返回四。没有可执行候选时返回空元组。
-
-        Raises:
-            ConfigurationSpaceError: 候选数量不是非负整数时抛出。
-        """
-        if not _is_integer(candidate_count) or candidate_count < 0:
-            raise ConfigurationSpaceError(
-                "candidate_count must be a non-negative integer"
-            )
-        if self.slot_counts:
-            return tuple(
-                slot_count
-                for slot_count in self.slot_counts
-                if slot_count <= candidate_count
-            )
-        if candidate_count == 0:
-            return ()
-        return (min(candidate_count, 4),)
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,6 +257,8 @@ class GenerateConfigurationSpaceCommand:
             raise ConfigurationSpaceError(
                 "max_raw_configuration_pairs must be a positive integer"
             )
+
+
 
 
 __all__ = [

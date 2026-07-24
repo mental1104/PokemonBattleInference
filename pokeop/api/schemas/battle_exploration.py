@@ -255,6 +255,49 @@ class DamageRandomMetadataResponse(_AttributeResponseModel):
     actual_hp_loss: int
 
 
+class JointActionDetailResponse(_AttributeResponseModel):
+    """返回联合行动中一侧选择的行动类型和招式 ID。"""
+
+    side: str
+    action_type: str
+    move_id: int | None
+
+
+class ActionResolutionDetailResponse(_AttributeResponseModel):
+    """返回一侧行动的最终顺序、执行状态、命中与取消原因。"""
+
+    side: str
+    move_id: int | None
+    action_type: str
+    order_position: int | None
+    status: str
+    hit: bool | None
+    reason: str | None
+
+
+class StatusEffectSummaryResponse(_AttributeResponseModel):
+    """返回状态施加或阻止的紧凑结构化摘要。"""
+
+    result: str
+    source_side: str | None
+    target_side: str | None
+    source_identifier: str | None
+
+
+class CompactRandomResultResponse(_AttributeResponseModel):
+    """返回等价随机路径归并后的离散结果摘要。"""
+
+    target_node_id: int
+    action_resolutions: list[ActionResolutionDetailResponse]
+    order_reason: str
+    critical_hit: bool | None
+    raw_roll_values: list[int]
+    final_damage_values: list[int]
+    actual_hp_losses: list[int]
+    status_effects: list[StatusEffectSummaryResponse]
+    path_count: int
+
+
 class TransitionEventPathDetailResponse(_AttributeResponseModel):
     """返回同一正式边保留的一条原始事件替代路径。"""
 
@@ -279,11 +322,13 @@ class TransitionOutcomeResponse(_AttributeResponseModel):
     edge_id: int
     target_node_id: int
     probability: ExactProbabilityResponse
+    joint_probability: ExactProbabilityResponse
     cumulative_probability: ExactProbabilityResponse
     label_fields: TransitionLabelFieldsResponse
     raw_random_values: list[int]
     random_results: list[RandomResultDetailResponse]
     damage_rolls: list[DamageRandomMetadataResponse]
+    compact_results: list[CompactRandomResultResponse]
     battle_event_paths: list[list[BattleEventDetailResponse]]
     event_paths: list[TransitionEventPathDetailResponse]
 
@@ -304,6 +349,9 @@ class TransitionGroupResponse(_AttributeResponseModel):
     kind: str
     label_key: str
     probability: ExactProbabilityResponse
+    selection_probability: ExactProbabilityResponse
+    attacker_action: JointActionDetailResponse | None
+    defender_action: JointActionDetailResponse | None
     raw_result_count: int
     distinct_outcome_count: int
     summary: TransitionGroupSummaryResponse

@@ -13,23 +13,20 @@ class InvalidBattleAction(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class UseMoveAction:
-    """表示一方从稳定运行时槽位使用已配置招式的类型化行动。
+    """表示一方使用已配置招式的类型化行动。
 
     Args:
         side: 执行行动的稳定战斗侧。
         move_id: ``PokemonSpec`` 中配置的正整数招式 ID。
         priority: 当前规则集下的招式优先级；生成器从 ``MoveSpec`` 复制该值。
-        slot_id: 产生该行动的稳定运行时槽位 ID。零仅用于兼容旧构造调用，构造后
-            会规范化为 move_id。策略概率绑定完整行动身份而不是列表位置。
     """
 
     side: BattleSide
     move_id: int
     priority: int = 0
-    slot_id: int = 0
 
     def __post_init__(self) -> None:
-        """校验行动侧、招式 ID、优先级和运行时槽位身份。
+        """校验行动侧、招式 ID 和优先级类型。
 
         Raises:
             InvalidBattleAction: 任一字段不满足稳定行动合同时抛出。
@@ -40,10 +37,6 @@ class UseMoveAction:
             raise InvalidBattleAction("move_id must be greater than 0")
         if isinstance(self.priority, bool) or not isinstance(self.priority, int):
             raise InvalidBattleAction("move priority must be an integer")
-        if self.slot_id == 0:
-            object.__setattr__(self, "slot_id", self.move_id)
-        elif isinstance(self.slot_id, bool) or self.slot_id <= 0:
-            raise InvalidBattleAction("action slot_id must be greater than 0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,8 +91,8 @@ class LegalActionGenerator(Protocol):
             side: 需要生成行动的一方。
 
         Returns:
-            按运行时招式槽顺序排列的合法行动。已濒死时返回内部 ``PassAction``；
-            没有任何可用普通招式时只返回 ``StruggleAction``。
+            按招式槽顺序排列的合法行动。已濒死时返回内部 ``PassAction``；没有任何
+            可用普通招式时只返回 ``StruggleAction``。
         """
 
 
@@ -121,14 +114,8 @@ class StandardLegalActionGenerator:
         Returns:
             非空行动元组。讲究锁招存在时只保留被锁定且仍可使用的槽位；锁定槽位
             失效时回退到挣扎，而不是允许绕过锁招选择其他招式。
-
-        Raises:
-            InvalidBattleAction: 运行时状态包含重复 slot_id、无法形成唯一行动身份时抛出。
         """
         battler = state.battler(side)
-        slot_ids = tuple(slot.slot_id for slot in battler.move_slots)
-        if len(slot_ids) != len(set(slot_ids)):
-            raise InvalidBattleAction("runtime move slot ids must be unique")
         if battler.current_hp == 0:
             # 濒死方不会再进入普通行动选择，内部 Pass 让双方行动合同保持类型完整。
             return (PassAction(side=side),)
@@ -154,7 +141,6 @@ class StandardLegalActionGenerator:
                 side=side,
                 move_id=slot.move_id,
                 priority=battler.spec.move_spec(slot.move_id).priority,
-                slot_id=slot.slot_id,
             )
             for slot in usable_slots
         )

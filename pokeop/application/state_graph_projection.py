@@ -8,6 +8,12 @@ from fractions import Fraction
 from hashlib import sha256
 from typing import Iterable
 
+from pokeop.application.joint_action_metadata import (
+    JointActionProbabilityMetadata,
+    JointActionProbabilityMetadataError,
+    is_joint_action_probability_event,
+    joint_action_probability_from_path,
+)
 from pokeop.application.solver.models import (
     GraphNodeId,
     GraphNodeOutcome,
@@ -20,6 +26,7 @@ from pokeop.application.state_graph_exploration import (
     StateGraphExplorationUseCase,
 )
 from pokeop.domain.battle.battle_events import BattleEvent, BattleEventKind
+from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.side_conditions import SideConditions
 from pokeop.domain.battle.state import BattlerState, StatStages
 from pokeop.domain.battle.status.state import (
@@ -236,6 +243,73 @@ class DamageRandomMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class JointActionDetail:
+    """描述联合行动中一侧已选择的类型化行动。
+
+    Args:
+        side: ``attacker`` 或 ``defender`` 稳定侧别。
+        action_type: ``move``、``struggle`` 或 ``pass``。
+        move_id: 普通招式 ID；挣扎和 pass 为 None。
+    """
+
+    side: str
+    action_type: str
+    move_id: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ActionResolutionDetail:
+    """描述一侧行动在一条紧凑随机结果中的实际执行状态。
+
+    Args:
+        side: 行动所属稳定侧别。
+        move_id: 普通招式 ID；挣扎和 pass 为 None。
+        action_type: 行动来源类型。
+        order_position: 最终执行顺序；未产生排序事件时为 None。
+        status: ``executed``、``blocked``、``cancelled`` 或 ``passed``。
+        hit: 已执行攻击是否命中；不适用时为 None。
+        reason: 阻断或取消原因；正常执行时为 None。
+    """
+
+    side: str
+    move_id: int | None
+    action_type: str
+    order_position: int | None
+    status: str
+    hit: bool | None
+    reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class StatusEffectSummary:
+    """描述状态施加或阻止结果，供前端以紧凑标签展示。"""
+
+    result: str
+    source_side: str | None
+    target_side: str | None
+    source_identifier: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CompactRandomResult:
+    """把等价事件路径压缩为一项离散、结构化的随机结果摘要。
+
+    同一目标状态、行动执行结果、最终伤害和状态效果相同的路径会合并，并保留所有
+    原始伤害随机档值，避免把 16 档离散语义误写成连续区间。
+    """
+
+    target_node_id: int
+    action_resolutions: tuple[ActionResolutionDetail, ...]
+    order_reason: str
+    critical_hit: bool | None
+    raw_roll_values: tuple[int, ...]
+    final_damage_values: tuple[int, ...]
+    actual_hp_losses: tuple[int, ...]
+    status_effects: tuple[StatusEffectSummary, ...]
+    path_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class TransitionEventPathDetail:
     """保存到达同一后继状态的一条原始事件替代路径。"""
 
@@ -257,16 +331,18 @@ class TransitionLabelFields:
 
 @dataclass(frozen=True, slots=True)
 class TransitionOutcome:
-    """表示一个已经按后继状态归并的可选择结果。"""
+    """表示联合行动下一个已经按后继状态归并的可前进随机结果。"""
 
     edge_id: int
     target_node_id: int
     probability: ProbabilityProjection
+    joint_probability: ProbabilityProjection
     cumulative_probability: ProbabilityProjection
     label_fields: TransitionLabelFields
     raw_random_values: tuple[int, ...]
     random_results: tuple[RandomResultDetail, ...]
     damage_rolls: tuple[DamageRandomMetadata, ...]
+    compact_results: tuple[CompactRandomResult, ...]
     battle_event_paths: tuple[tuple[BattleEventDetail, ...], ...]
     event_paths: tuple[TransitionEventPathDetail, ...]
 
@@ -283,17 +359,20 @@ class TransitionGroupSummary:
 
 @dataclass(frozen=True, slots=True)
 class TransitionGroup:
-    """将同一首个分叉机制下的出边收敛为默认折叠的分支组。"""
+    """表示一个双方联合行动及其按需展开的紧凑随机结果。"""
 
     group_id: str
     kind: TransitionGroupKind
     label_key: str
     probability: ProbabilityProjection
+    selection_probability: ProbabilityProjection
+    attacker_action: JointActionDetail | None
+    defender_action: JointActionDetail | None
     raw_result_count: int
     distinct_outcome_count: int
     summary: TransitionGroupSummary
     expanded: bool
-    outcomes: tuple[TransitionOutcome, ...] = ()
+    outcomes: tuple[TransitionOutcome, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,18 +386,30 @@ class BattleNodeProjection:
 
 @dataclass(frozen=True, slots=True)
 class _TransitionGroupKey:
-    """保存 application 内部稳定分组使用的机制类别与来源判别键。"""
+    """保存稳定分组类别、来源判别键和可选联合行动。"""
 
     kind: TransitionGroupKind
     discriminator: str
+    attacker_action: JointActionDetail | None = None
+    defender_action: JointActionDetail | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _TransitionContribution:
+    """保存一个联合行动到一条正式状态边的精确概率与事件路径。"""
+
+    edge: StateGraphEdge
+    paths: tuple[tuple[TransitionEvent, ...], ...]
+    selection_probability: Fraction
+    random_probability: Fraction
 
 
 @dataclass(slots=True)
 class _TransitionGroupAccumulator:
-    """在构造公开 DTO 前暂存同组正式图边。"""
+    """在投影当前节点期间暂存同一联合行动的状态边贡献。"""
 
     key: _TransitionGroupKey
-    edges: list[StateGraphEdge]
+    contributions: list[_TransitionContribution]
 
 
 @dataclass(frozen=True, slots=True)
@@ -588,35 +679,18 @@ def _transition_groups(
     cumulative_probability: Fraction,
     expanded_group_ids: frozenset[str],
 ) -> tuple[TransitionGroup, ...]:
-    """按稳定首个分叉规则对当前节点全部正式出边分组。
+    """优先按双方联合行动分组，并在组内按目标状态保留随机结果。
 
     Args:
-        node: 当前 source node，用于读取规则集随机值和生成稳定 group ID。
-        outgoing_edges: 已按完整图顺序筛选出的全部出边。
-        cumulative_probability: 根到当前游标的精确概率。
-        expanded_group_ids: 本次需要附带 outcome 详情的组 ID。
+        node: 当前 source node，用于生成稳定 group ID 和伤害档元数据。
+        outgoing_edges: 当前节点全部正式状态图边。
+        cumulative_probability: 根到当前游标的精确累计概率。
+        expanded_group_ids: 本次明确请求展开的联合行动 group ID。
 
     Returns:
-        按机制类别和稳定判别键排序的默认折叠分支组。
+        按联合行动稳定排序的默认折叠分支组；旧图缺少完整选招事件时保留原机制分组。
     """
-    if not outgoing_edges:
-        return ()
-
-    selection_signatures = {
-        _selection_signature(path)
-        for edge in outgoing_edges
-        for path in edge.event_summary.paths
-    }
-    has_strategy_branch = len(selection_signatures) > 1
-    accumulators: dict[_TransitionGroupKey, _TransitionGroupAccumulator] = {}
-    for edge in outgoing_edges:
-        key = _group_key_for_edge(edge, has_strategy_branch=has_strategy_branch)
-        accumulator = accumulators.get(key)
-        if accumulator is None:
-            accumulator = _TransitionGroupAccumulator(key=key, edges=[])
-            accumulators[key] = accumulator
-        accumulator.edges.append(edge)
-
+    accumulators = _transition_group_accumulators(outgoing_edges)
     groups = tuple(
         _project_group(
             node=node,
@@ -624,8 +698,26 @@ def _transition_groups(
             cumulative_probability=cumulative_probability,
             expanded_group_ids=expanded_group_ids,
         )
-        for accumulator in accumulators.values()
+        for accumulator in accumulators
     )
+    joint_groups = tuple(
+        group for group in groups if group.attacker_action is not None
+    )
+    if joint_groups:
+        total_selection_probability = sum(
+            (
+                Fraction(
+                    int(group.selection_probability.numerator),
+                    int(group.selection_probability.denominator),
+                )
+                for group in joint_groups
+            ),
+            start=Fraction(0, 1),
+        )
+        if total_selection_probability != 1:
+            raise StateGraphProjectionError(
+                "joint action selection probabilities must sum exactly to 1"
+            )
     return tuple(
         sorted(
             groups,
@@ -637,20 +729,171 @@ def _transition_groups(
     )
 
 
+def _transition_group_accumulators(
+    outgoing_edges: tuple[StateGraphEdge, ...],
+) -> tuple[_TransitionGroupAccumulator, ...]:
+    """把正式图边拆分为联合行动贡献；旧事件路径使用兼容机制分组。"""
+    if not outgoing_edges:
+        return ()
+    all_paths = tuple(
+        path for edge in outgoing_edges for path in edge.event_summary.paths
+    )
+    has_complete_joint_action = any(
+        _joint_action_signature(path) is not None for path in all_paths
+    )
+    if not has_complete_joint_action:
+        return _legacy_group_accumulators(outgoing_edges)
+    if any(_joint_action_signature(path) is None for path in all_paths):
+        raise StateGraphProjectionError(
+            "joint action projection requires both MOVE_SELECTED events on every path"
+        )
+
+    accumulators: dict[_TransitionGroupKey, _TransitionGroupAccumulator] = {}
+    for edge in outgoing_edges:
+        paths_by_action: dict[
+            tuple[JointActionDetail, JointActionDetail],
+            list[tuple[TransitionEvent, ...]],
+        ] = {}
+        for path in edge.event_summary.paths:
+            signature = _joint_action_signature(path)
+            if signature is None:
+                raise StateGraphProjectionError(
+                    "complete joint action path unexpectedly became unresolved"
+                )
+            paths_by_action.setdefault(signature, []).append(path)
+
+        edge_joint_probability = Fraction(0, 1)
+        for (attacker_action, defender_action), paths in paths_by_action.items():
+            metadata = _consistent_joint_action_metadata(tuple(paths))
+            if metadata is None:
+                if len(paths_by_action) != 1:
+                    raise StateGraphProjectionError(
+                        "merged edge with multiple joint actions requires exact probability metadata"
+                    )
+                metadata = JointActionProbabilityMetadata(
+                    selection_probability=Fraction(1, 1),
+                    random_probability=edge.probability,
+                )
+            edge_joint_probability += (
+                metadata.selection_probability * metadata.random_probability
+            )
+            key = _TransitionGroupKey(
+                kind=TransitionGroupKind.ACTION_SELECTION,
+                discriminator=(
+                    f"{_action_discriminator(attacker_action)}|"
+                    f"{_action_discriminator(defender_action)}"
+                ),
+                attacker_action=attacker_action,
+                defender_action=defender_action,
+            )
+            accumulator = accumulators.get(key)
+            if accumulator is None:
+                accumulator = _TransitionGroupAccumulator(key=key, contributions=[])
+                accumulators[key] = accumulator
+            accumulator.contributions.append(
+                _TransitionContribution(
+                    edge=edge,
+                    paths=tuple(paths),
+                    selection_probability=metadata.selection_probability,
+                    random_probability=metadata.random_probability,
+                )
+            )
+        if edge_joint_probability != edge.probability:
+            raise StateGraphProjectionError(
+                "joint action probability metadata must reproduce the formal edge probability"
+            )
+    return tuple(accumulators.values())
+
+
+def _legacy_group_accumulators(
+    outgoing_edges: tuple[StateGraphEdge, ...],
+) -> tuple[_TransitionGroupAccumulator, ...]:
+    """为旧图和只关注随机机制的合成测试保留原首分叉分组。"""
+    selection_signatures = {
+        _selection_signature(path)
+        for edge in outgoing_edges
+        for path in edge.event_summary.paths
+    }
+    has_strategy_branch = len(selection_signatures) > 1
+    accumulators: dict[_TransitionGroupKey, _TransitionGroupAccumulator] = {}
+    for edge in outgoing_edges:
+        key = _group_key_for_edge(edge, has_strategy_branch=has_strategy_branch)
+        accumulator = accumulators.get(key)
+        if accumulator is None:
+            accumulator = _TransitionGroupAccumulator(key=key, contributions=[])
+            accumulators[key] = accumulator
+        accumulator.contributions.append(
+            _TransitionContribution(
+                edge=edge,
+                paths=edge.event_summary.paths,
+                selection_probability=Fraction(1, 1),
+                random_probability=edge.probability,
+            )
+        )
+    return tuple(accumulators.values())
+
+
+def _consistent_joint_action_metadata(
+    paths: tuple[tuple[TransitionEvent, ...], ...],
+) -> JointActionProbabilityMetadata | None:
+    """读取同一联合行动、同一正式边路径共享的精确概率元数据。"""
+    try:
+        values = _stable_unique(
+            joint_action_probability_from_path(path) for path in paths
+        )
+    except JointActionProbabilityMetadataError as error:
+        raise StateGraphProjectionError(str(error)) from error
+    non_null_values = tuple(value for value in values if value is not None)
+    if not non_null_values:
+        return None
+    if len(non_null_values) != 1 or len(values) != 1:
+        raise StateGraphProjectionError(
+            "joint action paths on one edge must share identical probability metadata"
+        )
+    return non_null_values[0]
+
+
+def _joint_action_signature(
+    path: tuple[TransitionEvent, ...],
+) -> tuple[JointActionDetail, JointActionDetail] | None:
+    """读取一条完整回合路径中双方各自唯一的行动选择。"""
+    selected: dict[str, JointActionDetail] = {}
+    for event in path:
+        if not isinstance(event, BattleEvent):
+            continue
+        if event.kind is not BattleEventKind.MOVE_SELECTED or event.actor is None:
+            continue
+        side = event.actor.value
+        action = JointActionDetail(
+            side=side,
+            action_type=event.source_identifier or "unknown",
+            move_id=event.move_id,
+        )
+        existing = selected.get(side)
+        if existing is not None and existing != action:
+            raise StateGraphProjectionError(
+                f"event path contains conflicting selected actions for {side}"
+            )
+        selected[side] = action
+    attacker = selected.get(BattleSide.ATTACKER.value)
+    defender = selected.get(BattleSide.DEFENDER.value)
+    if attacker is None or defender is None:
+        return None
+    return (attacker, defender)
+
+
+def _action_discriminator(action: JointActionDetail) -> str:
+    """把一侧行动转换为稳定 group ID 判别片段。"""
+    move_id = action.move_id if action.move_id is not None else "none"
+    return f"{action.side}:{action.action_type}:{move_id}"
+
+
 def _group_key_for_edge(
     edge: StateGraphEdge,
     *,
     has_strategy_branch: bool,
 ) -> _TransitionGroupKey:
-    """选择一条完整回合出边最先让用户产生选择的分叉机制。
-
-    Args:
-        edge: 当前 source node 的一条正式出边。
-        has_strategy_branch: 当前节点全部原始路径是否存在不同选招组合。
-
-    Returns:
-        行动策略优先；否则使用每条路径最早随机事件形成的稳定分组键。
-    """
+    """为没有完整联合行动事件的旧图选择首个真实分叉机制。"""
     if has_strategy_branch:
         return _TransitionGroupKey(
             kind=TransitionGroupKind.ACTION_SELECTION,
@@ -693,87 +936,123 @@ def _project_group(
     cumulative_probability: Fraction,
     expanded_group_ids: frozenset[str],
 ) -> TransitionGroup:
-    """把同组边转换为概率、摘要和按需 outcomes。
-
-    Args:
-        node: 当前 source node。
-        accumulator: 同一首个分叉机制下的正式图边集合。
-        cumulative_probability: 根到 source node 的精确累计概率。
-        expanded_group_ids: 本次明确请求展开的组 ID 集合。
-
-    Returns:
-        默认不携带 outcomes，只有 group ID 命中时才附带详情的公开 DTO。
-    """
-    edges = tuple(sorted(accumulator.edges, key=lambda edge: int(edge.edge_id)))
-    outcomes = tuple(
-        _project_outcome(
-            node=node,
-            edge=edge,
-            cumulative_probability=cumulative_probability,
+    """把一个联合行动或兼容机制组投影为摘要和按需随机 outcomes。"""
+    contributions = tuple(
+        sorted(
+            accumulator.contributions,
+            key=lambda contribution: int(contribution.edge.edge_id),
         )
-        for edge in edges
     )
     group_id = _group_id(node.node_id, accumulator.key)
+    is_joint_action = accumulator.key.attacker_action is not None
+    if is_joint_action:
+        selection_probabilities = _stable_unique(
+            contribution.selection_probability for contribution in contributions
+        )
+        if len(selection_probabilities) != 1:
+            raise StateGraphProjectionError(
+                "one joint action group must use one selection probability"
+            )
+        selection_probability = selection_probabilities[0]
+        random_total = sum(
+            (contribution.random_probability for contribution in contributions),
+            start=Fraction(0, 1),
+        )
+        if random_total != 1:
+            raise StateGraphProjectionError(
+                "conditional random outcomes of one joint action must sum exactly to 1"
+            )
+        outcome_probabilities = tuple(
+            contribution.random_probability for contribution in contributions
+        )
+    else:
+        selection_probability = sum(
+            (contribution.edge.probability for contribution in contributions),
+            start=Fraction(0, 1),
+        )
+        outcome_probabilities = tuple(
+            contribution.edge.probability / selection_probability
+            for contribution in contributions
+        )
+
     damage_rolls = tuple(
         damage
-        for outcome in outcomes
-        for damage in outcome.damage_rolls
-    )
-    group_probability = sum(
-        (edge.probability for edge in edges),
-        start=Fraction(0, 1),
+        for contribution in contributions
+        for path in contribution.paths
+        for damage in _damage_random_metadata(
+            node=node,
+            random_events=tuple(
+                event
+                for event in path
+                if not isinstance(event, BattleEvent)
+                and not is_joint_action_probability_event(event)
+            ),
+            battle_events=tuple(
+                event for event in path if isinstance(event, BattleEvent)
+            ),
+        )
     )
     expanded = group_id in expanded_group_ids
+    outcomes = (
+        tuple(
+            _project_outcome(
+                node=node,
+                contribution=contribution,
+                selection_probability=selection_probability,
+                random_probability=random_probability,
+                cumulative_probability=cumulative_probability,
+            )
+            for contribution, random_probability in zip(
+                contributions, outcome_probabilities, strict=True
+            )
+        )
+        if expanded
+        else ()
+    )
+    probability = ProbabilityProjection.from_fraction(selection_probability)
     return TransitionGroup(
         group_id=group_id,
         kind=accumulator.key.kind,
         label_key=_GROUP_LABEL_KEYS[accumulator.key.kind],
-        probability=ProbabilityProjection.from_fraction(group_probability),
-        raw_result_count=sum(len(edge.event_summary.paths) for edge in edges),
-        distinct_outcome_count=len(outcomes),
+        probability=probability,
+        selection_probability=probability,
+        attacker_action=accumulator.key.attacker_action,
+        defender_action=accumulator.key.defender_action,
+        raw_result_count=sum(len(contribution.paths) for contribution in contributions),
+        distinct_outcome_count=len(contributions),
         summary=_group_summary(damage_rolls),
         expanded=expanded,
-        outcomes=outcomes if expanded else (),
+        outcomes=outcomes,
     )
 
 
 def _project_outcome(
     *,
     node: StateGraphNode,
-    edge: StateGraphEdge,
+    contribution: _TransitionContribution,
+    selection_probability: Fraction,
+    random_probability: Fraction,
     cumulative_probability: Fraction,
 ) -> TransitionOutcome:
-    """把一条已经按后继状态归并的正式图边投影为 outcome。
-
-    Args:
-        node: 边的 source node，用于读取规则集明确的随机档位值。
-        edge: 完整图中的正式边；其事件摘要可能包含多条替代路径。
-        cumulative_probability: 根到 source node 的精确概率。
-
-    Returns:
-        保留全部原始随机结果、伤害元数据和结构化事件路径的 outcome。
-    """
+    """投影联合行动下一个按目标 StateKey 归并的条件随机 outcome。"""
     event_paths = tuple(
-        _event_path_detail(node=node, path=path)
-        for path in edge.event_summary.paths
+        _event_path_detail(node=node, path=path) for path in contribution.paths
     )
     random_results = _stable_unique(
-        result
-        for path in event_paths
-        for result in path.random_results
+        result for path in event_paths for result in path.random_results
     )
     damage_rolls = tuple(
-        damage
-        for path in event_paths
-        for damage in path.damage_rolls
+        damage for path in event_paths for damage in path.damage_rolls
     )
     battle_event_paths = tuple(path.battle_events for path in event_paths)
+    joint_probability = selection_probability * random_probability
     return TransitionOutcome(
-        edge_id=int(edge.edge_id),
-        target_node_id=int(edge.target_node_id),
-        probability=ProbabilityProjection.from_fraction(edge.probability),
+        edge_id=int(contribution.edge.edge_id),
+        target_node_id=int(contribution.edge.target_node_id),
+        probability=ProbabilityProjection.from_fraction(random_probability),
+        joint_probability=ProbabilityProjection.from_fraction(joint_probability),
         cumulative_probability=ProbabilityProjection.from_fraction(
-            cumulative_probability * edge.probability
+            cumulative_probability * joint_probability
         ),
         label_fields=_label_fields(event_paths),
         raw_random_values=_stable_unique(
@@ -781,6 +1060,11 @@ def _project_outcome(
         ),
         random_results=random_results,
         damage_rolls=damage_rolls,
+        compact_results=_compact_random_results(
+            node=node,
+            paths=contribution.paths,
+            target_node_id=int(contribution.edge.target_node_id),
+        ),
         battle_event_paths=battle_event_paths,
         event_paths=event_paths,
     )
@@ -804,6 +1088,7 @@ def _event_path_detail(
         event
         for event in path
         if not isinstance(event, BattleEvent)
+        and not is_joint_action_probability_event(event)
     )
     battle_events = tuple(
         event
@@ -818,6 +1103,217 @@ def _event_path_detail(
             battle_events=battle_events,
         ),
         battle_events=tuple(_battle_event_detail(event) for event in battle_events),
+    )
+
+
+def _compact_random_results(
+    *,
+    node: StateGraphNode,
+    paths: tuple[tuple[TransitionEvent, ...], ...],
+    target_node_id: int,
+) -> tuple[CompactRandomResult, ...]:
+    """按行动执行、离散伤害和状态效果归并事件路径。"""
+    accumulators: dict[
+        tuple[
+            tuple[ActionResolutionDetail, ...],
+            str,
+            bool | None,
+            tuple[int, ...],
+            tuple[int, ...],
+            tuple[StatusEffectSummary, ...],
+            int,
+        ],
+        tuple[list[int], int],
+    ] = {}
+    for path in paths:
+        random_events = tuple(
+            event
+            for event in path
+            if not isinstance(event, BattleEvent)
+            and not is_joint_action_probability_event(event)
+        )
+        battle_events = tuple(
+            event for event in path if isinstance(event, BattleEvent)
+        )
+        damage_rolls = _damage_random_metadata(
+            node=node,
+            random_events=random_events,
+            battle_events=battle_events,
+        )
+        action_resolutions = _action_resolution_details(
+            random_events=random_events,
+            battle_events=battle_events,
+        )
+        order_reason = (
+            "speed-tie-random"
+            if any(
+                event.event_type is TransitionEventType.SPEED_TIE
+                for event in random_events
+            )
+            else "priority-modifier-speed"
+        )
+        critical_hit = _critical_hit_result(random_events)
+        final_damage_values = tuple(
+            metadata.final_damage for metadata in damage_rolls
+        )
+        actual_hp_losses = tuple(
+            metadata.actual_hp_loss for metadata in damage_rolls
+        )
+        status_effects = _status_effect_summaries(battle_events)
+        key = (
+            action_resolutions,
+            order_reason,
+            critical_hit,
+            final_damage_values,
+            actual_hp_losses,
+            status_effects,
+            target_node_id,
+        )
+        raw_values = [metadata.raw_roll_value for metadata in damage_rolls]
+        existing = accumulators.get(key)
+        if existing is None:
+            accumulators[key] = (raw_values, 1)
+            continue
+        merged_raw_values, path_count = existing
+        for raw_value in raw_values:
+            if raw_value not in merged_raw_values:
+                merged_raw_values.append(raw_value)
+        accumulators[key] = (merged_raw_values, path_count + 1)
+
+    return tuple(
+        CompactRandomResult(
+            target_node_id=key[6],
+            action_resolutions=key[0],
+            order_reason=key[1],
+            critical_hit=key[2],
+            raw_roll_values=tuple(raw_values),
+            final_damage_values=key[3],
+            actual_hp_losses=key[4],
+            status_effects=key[5],
+            path_count=path_count,
+        )
+        for key, (raw_values, path_count) in accumulators.items()
+    )
+
+
+def _action_resolution_details(
+    *,
+    random_events: tuple[TransitionEvent, ...],
+    battle_events: tuple[BattleEvent, ...],
+) -> tuple[ActionResolutionDetail, ...]:
+    """从结构化事件推导双方最终顺序、命中、阻断和濒死取消结果。"""
+    selected = tuple(
+        event
+        for event in battle_events
+        if event.kind is BattleEventKind.MOVE_SELECTED and event.actor is not None
+    )
+    order_positions = {
+        event.actor.value: event.value
+        for event in battle_events
+        if event.kind is BattleEventKind.ACTION_ORDERED
+        and event.actor is not None
+        and event.value is not None
+    }
+    used_sides = {
+        event.actor.value
+        for event in battle_events
+        if event.kind is BattleEventKind.MOVE_USED and event.actor is not None
+    }
+    blocked_reasons = {
+        event.actor.value: event.source_identifier or "action-blocked"
+        for event in battle_events
+        if event.kind is BattleEventKind.ACTION_BLOCKED and event.actor is not None
+    }
+    hit_results: dict[str, bool] = {}
+    for event in battle_events:
+        if event.actor is None:
+            continue
+        if event.kind is BattleEventKind.HIT:
+            hit_results[event.actor.value] = True
+        elif event.kind is BattleEventKind.MISS:
+            hit_results[event.actor.value] = False
+    fainted_sides = {
+        event.actor.value
+        for event in battle_events
+        if event.kind is BattleEventKind.FAINTED and event.actor is not None
+    }
+
+    details: list[ActionResolutionDetail] = []
+    for event in selected:
+        side = event.actor.value if event.actor is not None else "unknown"
+        action_type = event.source_identifier or "unknown"
+        reason: str | None = None
+        if action_type == "pass":
+            status = "passed"
+        elif side in used_sides:
+            status = "executed"
+        elif side in blocked_reasons:
+            status = "blocked"
+            reason = blocked_reasons[side]
+        else:
+            status = "cancelled"
+            reason = (
+                "fainted-before-action"
+                if side in fainted_sides
+                else "battle-ended-before-action"
+                if fainted_sides
+                else "not-executed"
+            )
+        details.append(
+            ActionResolutionDetail(
+                side=side,
+                move_id=event.move_id,
+                action_type=action_type,
+                order_position=order_positions.get(side),
+                status=status,
+                hit=hit_results.get(side),
+                reason=reason,
+            )
+        )
+    return tuple(
+        sorted(
+            details,
+            key=lambda detail: (
+                detail.order_position is None,
+                detail.order_position or 0,
+                detail.side,
+            ),
+        )
+    )
+
+
+def _critical_hit_result(
+    random_events: tuple[TransitionEvent, ...],
+) -> bool | None:
+    """从已存在的随机结果标识读取暴击语义；尚未建模时保持 None。"""
+    tokens = tuple(
+        f"{event.event_id}:{event.outcome_id}".lower() for event in random_events
+    )
+    if any("non-critical" in token or "no-crit" in token for token in tokens):
+        return False
+    if any("critical" in token or ":crit" in token for token in tokens):
+        return True
+    return None
+
+
+def _status_effect_summaries(
+    battle_events: tuple[BattleEvent, ...],
+) -> tuple[StatusEffectSummary, ...]:
+    """收集状态施加与阻止事实，忽略与状态无关的战报事件。"""
+    return tuple(
+        StatusEffectSummary(
+            result=(
+                "applied"
+                if event.kind is BattleEventKind.STATUS_APPLIED
+                else "prevented"
+            ),
+            source_side=event.actor.value if event.actor is not None else None,
+            target_side=event.target.value if event.target is not None else None,
+            source_identifier=event.source_identifier,
+        )
+        for event in battle_events
+        if event.kind
+        in {BattleEventKind.STATUS_APPLIED, BattleEventKind.STATUS_PREVENTED}
     )
 
 
@@ -1088,11 +1584,14 @@ _GROUP_KIND_ORDER: dict[TransitionGroupKind, int] = {
 
 __all__ = [
     "BattleEventDetail",
+    "ActionResolutionDetail",
     "BattleFieldDetail",
     "BattleNodeDetail",
     "BattleNodeProjection",
     "BattlerDetail",
+    "CompactRandomResult",
     "DamageRandomMetadata",
+    "JointActionDetail",
     "MoveSlotDetail",
     "ProbabilityProjection",
     "RandomResultDetail",
@@ -1101,6 +1600,7 @@ __all__ = [
     "StateGraphProjectionUseCase",
     "StatStagesDetail",
     "StatusDetail",
+    "StatusEffectSummary",
     "TransitionEventPathDetail",
     "TransitionGroup",
     "TransitionGroupKind",

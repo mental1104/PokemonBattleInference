@@ -1,7 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
-const styles = readFileSync('src/components/PokemonSummaryCard.css', 'utf8');
+import styles from './PokemonSummaryCard.css?raw';
 
 describe('PokemonSummaryCard responsive styles', () => {
   it('uses one desktop size variable for the image and placeholder slot', () => {
