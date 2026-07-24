@@ -16,4 +16,15 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python -m compileall -q pokeop tests
       - run: pytest -q tests/domain/battle/test_battle_events.py
-      - run: pytest -q tests/domain/battle
+      - name: Run battle domain tests
+        id: battle-tests
+        continue-on-error: true
+        run: pytest -q tests/domain/battle > pytest-domain-battle.log 2>&1
+      - name: Upload battle domain test log
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-domain-battle-log
+          path: pytest-domain-battle.log
+      - name: Fail when battle domain tests failed
+        if: steps.battle-tests.outcome == 'failure'
+        run: exit 1
