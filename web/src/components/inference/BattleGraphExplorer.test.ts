@@ -129,7 +129,7 @@ function node(nodeId: number, turnNumber: number, terminal = false): BattleNodeD
 function group(depth: number): TransitionGroupResult {
   return {
     group_id: `damage-${depth}`,
-    kind: 'damage_roll',
+    kind: 'damage-distribution',
     label_key: 'damage-roll',
     probability: probability(),
     raw_result_count: 16,
@@ -291,23 +291,34 @@ describe('BattleGraphExplorer', () => {
     expect(wrapper.text()).toContain('原始随机值 85 / 86 / 87 / 88 / 89 / 90 / 91 / 92');
   });
 
-  it('advances through one outcome, unmounts old sibling outcomes, and restores a cached ancestor', async () => {
+  it('advances, unmounts old outcomes, backs one level, and jumps to any cached ancestor', async () => {
     const root = exploration(0);
-    const next = exploration(1);
+    const stepOne = exploration(1);
+    const stepTwo = exploration(2);
     exploreMock.mockResolvedValue(root);
-    outcomesMock.mockResolvedValue(outcomesResponse(root, [outcome(1, 1), outcome(2, 2)]));
-    advanceMock.mockResolvedValue(next);
+    outcomesMock.mockImplementation(async (_graphId, _revision, currentCursor) => {
+      const current = currentCursor.steps.length === 0 ? root : stepOne;
+      return outcomesResponse(current, [outcome(currentCursor.steps.length + 1, currentCursor.steps.length + 1)]);
+    });
+    advanceMock.mockResolvedValueOnce(stepOne).mockResolvedValueOnce(stepTwo);
 
     const wrapper = mount(BattleGraphExplorer, { props: { handle: handle() } });
     await flushPromises();
-    await wrapper.get('[data-group-id="damage-0"]').trigger('click');
-    await flushPromises();
-    await wrapper.get('[data-edge-id="1"]').trigger('click');
-    await flushPromises();
+    for (const depth of [0, 1]) {
+      await wrapper.get(`[data-group-id="damage-${depth}"]`).trigger('click');
+      await flushPromises();
+      await wrapper.get(`[data-edge-id="${depth + 1}"]`).trigger('click');
+      await flushPromises();
+    }
 
-    expect(advanceMock).toHaveBeenCalledWith('graph-1', expect.any(String), { steps: [] }, 1);
+    expect(advanceMock).toHaveBeenNthCalledWith(1, 'graph-1', expect.any(String), { steps: [] }, 1);
     expect(wrapper.findAll('[data-testid="battle-current-node"]')).toHaveLength(1);
     expect(wrapper.find('[data-testid="transition-outcome-list"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('当前节点 · #2');
+    expect(wrapper.findAll('.battle-graph-explorer__breadcrumb')).toHaveLength(3);
+
+    await wrapper.get('.battle-graph-explorer__back').trigger('click');
+    await flushPromises();
     expect(wrapper.text()).toContain('当前节点 · #1');
     expect(wrapper.findAll('.battle-graph-explorer__breadcrumb')).toHaveLength(2);
 
@@ -371,6 +382,18 @@ describe('BattleGraphExplorer', () => {
     expect(wrapper.findAll('[data-edge-id]')).toHaveLength(0);
     expect(wrapper.findAll('.battle-graph-explorer__breadcrumb').length).toBeLessThanOrEqual(7);
     expect(wrapper.find('[aria-label="查看更早祖先"]').exists()).toBe(true);
+  });
+
+  it('renders terminal nodes without fake transition groups', async () => {
+    exploreMock.mockResolvedValue(exploration(1, { nodeId: 9, terminal: true }));
+
+    const wrapper = mount(BattleGraphExplorer, { props: { handle: handle() } });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('快龙获胜');
+    expect(wrapper.findAll('.transition-group-card')).toHaveLength(0);
+    expect(wrapper.find('[data-testid="transition-outcome-list"]').exists()).toBe(false);
+    expect(outcomesMock).not.toHaveBeenCalled();
   });
 
   it('clears the old graph window when a new inference handle is supplied', async () => {
