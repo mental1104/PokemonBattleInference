@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from fractions import Fraction
 from typing import cast
 
@@ -36,6 +36,25 @@ from .query import (
     EventOccurrenceMode,
     EventTurnRange,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class _EventProductStateKey:
+    """组合原始状态键与有限事件历史，不修改 domain 的 ``StateKey``。
+
+    Args:
+        original_state_key: 原始战斗节点的稳定领域键。
+        occurrence_count_bucket: 已匹配事件次数或饱和次数桶。
+        first_occurrence_turn_bucket: 首次匹配回合或饱和回合桶。
+        matched_in_range: 是否已有任意匹配落入查询回合范围。
+        next_turn_bucket: 下一条完整回合边使用的回合号或饱和桶。
+    """
+
+    original_state_key: StateKey
+    occurrence_count_bucket: int
+    first_occurrence_turn_bucket: int | None
+    matched_in_range: bool
+    next_turn_bucket: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -243,17 +262,16 @@ def _product_node(
         复用原始 ``BattleState``、但使用独立分析键的产品节点。
     """
     original_node = original_graph.node(tracker.original_node_id)
-    analysis_key = cast(
-        StateKey,
-        (
-            "battle-event-analysis",
-            int(tracker.original_node_id),
-            tracker.occurrence_count_bucket,
-            tracker.first_occurrence_turn_bucket,
-            tracker.matched_in_range,
-            tracker.next_turn_bucket,
-        ),
+    product_state_key = _EventProductStateKey(
+        original_state_key=original_node.state_key,
+        occurrence_count_bucket=tracker.occurrence_count_bucket,
+        first_occurrence_turn_bucket=tracker.first_occurrence_turn_bucket,
+        matched_in_range=tracker.matched_in_range,
+        next_turn_bucket=tracker.next_turn_bucket,
     )
+    # 现有通用图模型把 ``state_key`` 注解为 domain ``StateKey``。产品图仍只
+    # 需要可哈希键；在 solver 模型泛型化前，仅在该适配边界做显式类型收口。
+    analysis_key = cast(StateKey, product_state_key)
     return StateGraphNode(
         node_id=product_node_id,
         state=original_node.state,
