@@ -24,7 +24,7 @@ from pokeop.domain.battle.specs import MoveSpecKey
 
 
 class MoveSetDimensionProvider:
-    """从合法可学习招式中筛选当前 engine 支持项并生成 1～4 招式组合。"""
+    """从合法可学习招式中筛选当前 engine 支持项并生成规范无序组合。"""
 
     @property
     def dimension_key(self) -> str:
@@ -159,7 +159,7 @@ class MoveSetDimensionProvider:
             MoveSetDimensionValue,
         ] = {}
         raw_combination_count = 0
-        for slot_count in context.command.moves.slot_counts:
+        for slot_count in context.command.moves.resolved_slot_counts(len(options)):
             for selected in combinations(options, slot_count):
                 move_ids = tuple(
                     option.configured_move.move_spec.move_id for option in selected
@@ -201,8 +201,6 @@ class MoveSetDimensionProvider:
             values=tuple(grouped_sets.values()),
             coverage_records=tuple(coverage_records),
         )
-
-
 
 
 __all__ = ["MoveSetDimensionProvider"]

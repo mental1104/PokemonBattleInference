@@ -15,6 +15,8 @@ class MoveSlotState:
         max_pp: 当前配置下的最大 PP，必须大于 0。
         is_disabled: 当前是否被禁用；禁用只影响合法行动，不改写 PP。
         is_locked: 当前是否为唯一锁定招式；首版仅用于讲究锁招一致性校验。
+        slot_id: 战斗开始时确定且战斗过程中保持不变的运行时槽位 ID。零仅用于
+            兼容旧构造调用，构造后会规范化为 move_id。
     """
 
     move_id: int
@@ -22,15 +24,20 @@ class MoveSlotState:
     max_pp: int
     is_disabled: bool = False
     is_locked: bool = False
+    slot_id: int = 0
 
     def __post_init__(self) -> None:
-        """校验招式槽 ID 和 PP 范围。
+        """校验招式、运行时槽位身份和 PP 范围。
 
         Raises:
             InvalidBattleState: ID、最大 PP 或当前 PP 不合法时抛出。
         """
         if isinstance(self.move_id, bool) or self.move_id <= 0:
             raise InvalidBattleState("move_id must be greater than 0")
+        if self.slot_id == 0:
+            object.__setattr__(self, "slot_id", self.move_id)
+        elif isinstance(self.slot_id, bool) or self.slot_id <= 0:
+            raise InvalidBattleState("slot_id must be greater than 0")
         if isinstance(self.max_pp, bool) or self.max_pp <= 0:
             raise InvalidBattleState("max_pp must be greater than 0")
         if isinstance(self.current_pp, bool) or not 0 <= self.current_pp <= self.max_pp:
