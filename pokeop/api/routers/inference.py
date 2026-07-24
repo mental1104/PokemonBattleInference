@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 
 from pokeop.api.schemas.inference import (
     BattleInferenceJourneyResponse,
@@ -31,6 +31,8 @@ from pokeop.persistence.battle_inference.repository import (
     MaterializedViewBattleInferenceRepository,
 )
 
+
+router = APIRouter()
 
 _DRAGONITE_ID = 149
 _WEAVILE_ID = 461
@@ -96,6 +98,11 @@ def _command(
     )
 
 
+@router.post(
+    "/dragonite-vs-weavile",
+    response_model=BattleInferenceJourneyResponse,
+    summary="推演快龙 vs 玛纽拉的多回合结果",
+)
 async def dragonite_vs_weavile(
     request: DragoniteWeavileJourneyRequest,
 ) -> BattleInferenceJourneyResponse:
@@ -120,12 +127,4 @@ async def dragonite_vs_weavile(
     return battle_inference_journey_response(result)
 
 
-urlpatterns = [
-    {
-        "path": "/dragonite-vs-weavile",
-        "endpoint": dragonite_vs_weavile,
-        "methods": ["POST"],
-        "response_model": BattleInferenceJourneyResponse,
-        "summary": "推演快龙 vs 玛纽拉的多回合结果",
-    },
-]
+__all__ = ["router"]
