@@ -130,7 +130,7 @@ function outcomeLabel(outcome: TransitionOutcomeResult): string {
   }
   const resultKey = outcome.label_fields.result_keys[0];
   if (resultKey) {
-    return resultKey.replaceAll('_', ' ');
+    return resultKey.replaceAll('-', ' ').replaceAll('_', ' ');
   }
   return `分支 ${outcome.edge_id}`;
 }
@@ -346,6 +346,9 @@ export function useBattleExploration(options: BattleExplorationOptions = {}) {
     }
     loading.value = true;
     error.value = null;
+    expandedGroupId.value = null;
+    outcomes.value = [];
+    outcomesLoading.value = false;
     const sourceCursor = cloneCursor(current.value.cursor);
     const requestVersion = lifecycleVersion;
     try {
@@ -393,6 +396,9 @@ export function useBattleExploration(options: BattleExplorationOptions = {}) {
     if (!ensureActive()) {
       return;
     }
+    expandedGroupId.value = null;
+    outcomes.value = [];
+    outcomesLoading.value = false;
 
     const targetCursor: ExplorationCursorResult = {
       steps: current.value.cursor.steps.slice(0, depth).map((step) => ({ ...step })),
