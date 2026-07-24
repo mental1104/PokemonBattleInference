@@ -22,6 +22,7 @@ onMounted(() => {
  * 记录攻击方选择并交给 calculator 加载详情。
  *
  * @param pokemon 用户在攻击方选择器中选中的 Pokémon。
+ * @returns 详情和可用招式加载完成后 resolve 的 Promise。
  */
 async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
   // 先更新页面内存，使防守方选择器无需等待详情请求即可看到最近记录。
@@ -33,6 +34,7 @@ async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
  * 记录防守方选择并交给 calculator 加载详情。
  *
  * @param pokemon 用户在防守方选择器中选中的 Pokémon。
+ * @returns 防守方详情加载完成后 resolve 的 Promise。
  */
 async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
   // 两侧共享同一个 store，但只更新当前被操作一侧的 calculator 选择。
@@ -52,7 +54,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
     </header>
 
     <section class="calculator-grid">
-      <div class="side-column">
+      <div class="side-column" data-testid="attacker-column">
         <PokemonSelector
           title="攻击方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
@@ -61,22 +63,15 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectAttacker"
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
-        <MoveSelector
-          :pokemon-id="calculator.attacker.value?.pokemon_id ?? null"
-          :ruleset-id="calculator.rulesetId.value"
-          :selected="calculator.move.value"
-          :disabled="!calculator.attacker.value"
-          @select="calculator.move.value = $event"
-          @clear-selection="calculator.move.value = null"
-        />
         <StatPresetSelector
           v-model="calculator.attackerPreset.value"
+          data-testid="attacker-config"
           title="攻击配置"
           :presets="calculator.attackerPresets.value"
         />
       </div>
 
-      <div class="side-column">
+      <div class="side-column" data-testid="defender-column">
         <PokemonSelector
           title="防守方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
@@ -87,10 +82,22 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
         <StatPresetSelector
           v-model="calculator.defenderPreset.value"
+          data-testid="defender-config"
           title="耐久配置"
           :presets="calculator.defenderPresets.value"
         />
       </div>
+    </section>
+
+    <section class="move-stage" data-testid="move-stage" aria-label="攻击方招式选择">
+      <MoveSelector
+        :pokemon-id="calculator.attacker.value?.pokemon_id ?? null"
+        :ruleset-id="calculator.rulesetId.value"
+        :selected="calculator.move.value"
+        :disabled="!calculator.attacker.value"
+        @select="calculator.move.value = $event"
+        @clear-selection="calculator.move.value = null"
+      />
     </section>
 
     <section class="action-band">
@@ -110,3 +117,10 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
     <CalculationScope :scope="calculator.result.value?.scope ?? null" />
   </main>
 </template>
+
+<style scoped>
+.move-stage {
+  width: min(800px, 100%);
+  margin: 20px auto 0;
+}
+</style>

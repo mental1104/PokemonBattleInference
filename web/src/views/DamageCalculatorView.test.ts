@@ -83,13 +83,11 @@ beforeEach(() => {
   listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
 });
 
-describe('DamageCalculatorView recent pokemon sharing', () => {
+describe('DamageCalculatorView', () => {
   it('shares a selection between both selectors without changing the other side selection', async () => {
     /**
-     * 攻击方和防守方必须共享页面级最近记录，但各自当前选择仍保持独立。测试挂载完整计算器页面，等待
-     * 两侧加载默认列表后在攻击方点击妙蛙种子；断言两个 PokemonSelector 都收到同一个最近列表，
-     * 防守方仍未被自动选中，并且防守方界面已经切换到 recent 模式。该场景验证共享状态放在页面层，
-     * 而不是两个组件各自维护或把一次选择错误同步成双方当前 Pokémon。
+     * 攻击方和防守方必须共享页面级最近记录，但各自当前选择仍保持独立。测试在攻击方点击妙蛙种子，
+     * 断言两个 PokemonSelector 都收到最近列表，防守方仍未被自动选中。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
@@ -115,5 +113,29 @@ describe('DamageCalculatorView recent pokemon sharing', () => {
       limit: 10,
       offset: 0,
     });
+  });
+
+  it('aligns both stat configurations and places the attacker-only move selector below them', async () => {
+    /**
+     * 双栏内部必须拥有相同的 Pokémon、摘要、配置顺序，MoveSelector 不再占据攻击方列高度。
+     * 测试检查两个配置组件分别属于左右列，并且唯一 MoveSelector 位于 calculator-grid 之后的居中区域。
+     */
+    const wrapper = mount(DamageCalculatorView);
+    await flushPromises();
+
+    const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
+    const defenderColumn = wrapper.get('[data-testid="defender-column"]');
+    expect(attackerColumn.find('[data-testid="attacker-config"]').exists()).toBe(true);
+    expect(defenderColumn.find('[data-testid="defender-config"]').exists()).toBe(true);
+    expect(attackerColumn.find('.move-selector').exists()).toBe(false);
+    expect(defenderColumn.find('.move-selector').exists()).toBe(false);
+
+    const moveStage = wrapper.get('[data-testid="move-stage"]');
+    expect(moveStage.findAll('.move-selector')).toHaveLength(1);
+    expect(moveStage.attributes('aria-label')).toBe('攻击方招式选择');
+
+    const grid = wrapper.get('.calculator-grid').element;
+    const stage = moveStage.element;
+    expect(grid.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
