@@ -30,7 +30,12 @@ from pokeop.application.use_cases.load_battle_inference_profile import (
     LoadBattleInferenceProfileCommand,
     LoadBattleInferenceProfileUseCase,
 )
-from pokeop.domain.battle.effects.protocols import EffectSourceKind
+from pokeop.domain.battle.effects.factories import BattleEffectAbstractFactory
+from pokeop.domain.battle.effects.protocols import (
+    EffectCoverage,
+    EffectCoverageStatus,
+    EffectSourceKind,
+)
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
 
 
@@ -69,24 +74,28 @@ class ListBattleCandidatePoolCommand:
 class ListBattleCandidatePoolUseCase:
     """编排 version-aware 资料读取并生成全量可展示候选池。
 
-    该用例不会访问 SQLAlchemy、raw row 或 PokeAPI 历史表。调用方应注入已经通过当前
-    ``BattleEffectAbstractFactory`` 对账的 repository；这样 capability 状态既保持
-    persistence 的保守合法性判断，也反映当前 calculation revision 的真实执行覆盖。
+    persistence repository 负责返回目标 version group 下的合法候选和历史字段；当前具体
+    effect factory 的 ``EffectCoverage`` descriptor 负责声明真实机制覆盖。用例会把二者
+    组合成严格准入结果，即使 factory 为了兼容旧旅程返回可执行的中性占位，只要 descriptor
+    仍含 unsupported 子能力，该候选也会降级为 ``PARTIAL`` 并禁止进入精确推演。
 
     Args:
-        repository: 返回合法候选及最终 capability 状态的 application repository 端口。
+        repository: 返回 version-aware 合法候选的 application repository 端口。
+        effect_factory: 当前 calculation revision 实际使用的显式 effect registry/factory。
         calculation_revision: 当前候选准入绑定的精确推演计算语义版本。
     """
 
     def __init__(
         self,
         repository: BattleInferenceRepository,
+        effect_factory: BattleEffectAbstractFactory,
         calculation_revision: str = BATTLE_INFERENCE_CALCULATION_REVISION,
     ) -> None:
-        """保存 repository 端口和稳定计算版本。
+        """保存读取端口、显式机制 descriptor 来源和稳定计算版本。
 
         Args:
             repository: 可由 PostgreSQL 实现、composition 装饰器或测试 fake 提供的读取端口。
+            effect_factory: 提供招式、特性和道具结构化 ``EffectCoverage`` 的当前工厂。
             calculation_revision: 非空且不含首尾空白的计算兼容版本。
 
         Raises:
@@ -101,6 +110,7 @@ class ListBattleCandidatePoolUseCase:
                 "calculation_revision must be a normalized non-empty string"
             )
         self._repository = repository
+        self._effect_factory = effect_factory
         self._calculation_revision = calculation_revision
 
     def execute(self, command: ListBattleCandidatePoolCommand) -> BattleCandidatePool:
@@ -118,8 +128,10 @@ class ListBattleCandidatePoolUseCase:
 
         Raises:
             BattleCandidatePoolNotFound: 规则轴、Pokémon 或受控道具边界不存在时抛出。
-            ValueError: repository 返回与请求不一致的规则轴或候选来源类型时抛出。
+            ValueError: repository/factory 返回与请求不一致的规则轴或来源类型时抛出。
         """
+        if self._effect_factory.ruleset_id != command.rules.ruleset_id:
+            raise ValueError("effect factory ruleset does not match candidate command")
         try:
             loaded = LoadBattleInferenceProfileUseCase(self._repository).execute(
                 LoadBattleInferenceProfileCommand(
@@ -183,38 +195,69 @@ class ListBattleCandidatePoolUseCase:
     def _admission(
         self,
         capability: MechanismCapability,
+        coverage: EffectCoverage,
         *,
         ruleset_id: str,
         version_group_id: int,
         expected_source_kind: EffectSourceKind,
+        base_executable: bool,
+        allow_no_effect: bool,
     ) -> MechanismAdmission:
-        """把 repository capability 绑定到完整规则轴和 calculation revision。
+        """组合 persistence 合法性判断与当前 factory 的显式机制 descriptor。
 
         Args:
-            capability: repository 与当前 factory 对账后的覆盖记录。
+            capability: repository 对候选基础字段和整体机制的保守判断。
+            coverage: 当前实际 effect 产品返回的结构化覆盖记录。
             ruleset_id: 当前候选池规则集标识。
             version_group_id: 当前候选池 version group。
             expected_source_kind: 调用方候选类型要求的机制来源。
+            base_executable: 不依赖附加 effect 的基础字段是否足以执行。
+            allow_no_effect: 当前候选是否明确允许 ``NO_EFFECT`` 作为完整语义。
 
         Returns:
             可直接用于页面禁用和任务提交校验的结构化准入记录。
 
         Raises:
-            ValueError: capability 来源类型与候选类型不一致时抛出。
+            ValueError: capability/coverage 的规则集或来源类型与候选不一致时抛出。
         """
         if capability.source_kind is not expected_source_kind:
             raise ValueError(
                 "capability source_kind does not match candidate projection"
             )
-        missing_identifiers = (
-            ()
-            if capability.status
-            in {
-                MechanismSupportStatus.SUPPORTED,
-                MechanismSupportStatus.NO_EFFECT,
-            }
-            else (capability.identifier,)
-        )
+        if coverage.ruleset_id != ruleset_id:
+            raise ValueError("effect coverage belongs to a different ruleset")
+        if coverage.source_kind is not expected_source_kind:
+            raise ValueError("effect coverage source_kind does not match candidate")
+
+        missing_identifiers = self._coverage_missing_identifiers(coverage)
+        status: MechanismSupportStatus
+        if not base_executable:
+            status = MechanismSupportStatus.UNSUPPORTED
+        elif missing_identifiers:
+            # overall SUPPORTED 但仍暴露 unsupported 子能力的中性占位也不能进入精确推演。
+            status = MechanismSupportStatus.PARTIAL
+        elif coverage.status is EffectCoverageStatus.SUPPORTED:
+            status = MechanismSupportStatus.SUPPORTED
+        elif coverage.status is EffectCoverageStatus.NO_EFFECT and allow_no_effect:
+            status = MechanismSupportStatus.NO_EFFECT
+        elif coverage.status is EffectCoverageStatus.PARTIAL:
+            status = MechanismSupportStatus.PARTIAL
+        else:
+            status = MechanismSupportStatus.UNSUPPORTED
+
+        if status in {
+            MechanismSupportStatus.SUPPORTED,
+            MechanismSupportStatus.NO_EFFECT,
+        }:
+            missing_identifiers = ()
+        elif not missing_identifiers:
+            fallback_identifier = (
+                coverage.identifier
+                if coverage.identifier != "none"
+                else capability.identifier
+            )
+            missing_identifiers = (fallback_identifier,)
+
         return MechanismAdmission(
             key=MechanismAdmissionKey(
                 ruleset_id=ruleset_id,
@@ -223,10 +266,29 @@ class ListBattleCandidatePoolUseCase:
                 mechanism_identifier=capability.identifier,
                 calculation_revision=self._calculation_revision,
             ),
-            status=capability.status,
-            reason=capability.reason,
+            status=status,
+            reason=(
+                f"{capability.reason} Current factory coverage: {coverage.reason}"
+            ),
             missing_mechanism_identifiers=missing_identifiers,
         )
+
+    @staticmethod
+    def _coverage_missing_identifiers(
+        coverage: EffectCoverage,
+    ) -> tuple[str, ...]:
+        """归并 factory descriptor 中未支持的 aspect 与子能力标识。
+
+        Args:
+            coverage: 当前具体 effect 产品返回的结构化覆盖记录。
+
+        Returns:
+            保持 descriptor 顺序并去重的缺失机制标识元组。
+        """
+        ordered = coverage.unsupported_aspects + tuple(
+            capability.identifier for capability in coverage.unsupported_capabilities
+        )
+        return tuple(dict.fromkeys(ordered))
 
     def _move_candidate(
         self,
@@ -247,6 +309,10 @@ class ListBattleCandidatePoolUseCase:
         Returns:
             保留全部战斗字段、合法性和禁用原因的稳定招式候选。
         """
+        coverage = self._effect_factory.create_move_effect(
+            move.effect_identifier
+        ).coverage
+        is_damaging = move.category.value != "status"
         return BattleMoveCandidate(
             move=move,
             legality=MoveLearningLegality(
@@ -262,9 +328,12 @@ class ListBattleCandidatePoolUseCase:
             ),
             admission=self._admission(
                 move.capability,
+                coverage,
                 ruleset_id=ruleset_id,
                 version_group_id=version_group_id,
                 expected_source_kind=EffectSourceKind.MOVE,
+                base_executable=not is_damaging or move.power is not None,
+                allow_no_effect=is_damaging and move.effect_identifier is None,
             ),
         )
 
@@ -275,23 +344,20 @@ class ListBattleCandidatePoolUseCase:
         ruleset_id: str,
         version_group_id: int,
     ) -> BattleAbilityCandidate:
-        """把 version-aware 合法特性转换为可展示准入候选。
-
-        Args:
-            ability: repository 已完成历史特性还原的 application projection。
-            ruleset_id: 当前规则集稳定标识。
-            version_group_id: 当前历史特性适用的 version group。
-
-        Returns:
-            保留槽位、隐藏标记和严格支持状态的特性候选。
-        """
+        """把 version-aware 合法特性转换为可展示准入候选。"""
+        coverage = self._effect_factory.create_ability_effect(
+            ability.effect_identifier
+        ).coverage
         return BattleAbilityCandidate(
             ability=ability,
             admission=self._admission(
                 ability.capability,
+                coverage,
                 ruleset_id=ruleset_id,
                 version_group_id=version_group_id,
                 expected_source_kind=EffectSourceKind.ABILITY,
+                base_executable=True,
+                allow_no_effect=False,
             ),
         )
 
@@ -302,23 +368,20 @@ class ListBattleCandidatePoolUseCase:
         ruleset_id: str,
         version_group_id: int,
     ) -> BattleItemCandidate:
-        """把受控道具或显式无道具 projection 转换为准入候选。
-
-        Args:
-            item: 当前 generation 已存在且在受控边界中的道具 projection。
-            ruleset_id: 当前规则集稳定标识。
-            version_group_id: 当前道具候选适用的 version group。
-
-        Returns:
-            可用于页面展示和固定任务提交校验的道具候选。
-        """
+        """把受控道具或显式无道具 projection 转换为准入候选。"""
+        coverage = self._effect_factory.create_item_effect(
+            item.effect_identifier
+        ).coverage
         return BattleItemCandidate(
             item=item,
             admission=self._admission(
                 item.capability,
+                coverage,
                 ruleset_id=ruleset_id,
                 version_group_id=version_group_id,
                 expected_source_kind=EffectSourceKind.ITEM,
+                base_executable=True,
+                allow_no_effect=item.effect_identifier is None,
             ),
         )
 
