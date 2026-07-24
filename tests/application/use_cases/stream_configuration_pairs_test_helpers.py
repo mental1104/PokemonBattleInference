@@ -70,7 +70,7 @@ class _GraphArtifact:
         max_turn_number: int,
         truncation_reasons: tuple[GraphTruncationReason, ...] = (),
     ) -> None:
-        """保存轻量测试字段和真实图相同的生命周期边界。
+        """保存轻量测试字段，同时保留类似真实图的大对象生命周期边界。
 
         Args:
             node_count: 唯一节点数量。
@@ -100,6 +100,21 @@ class _FakeExecutionKind(str, Enum):
     TRUNCATED = "truncated"
     RAISE_ERROR = "raise-error"
     SOLVER_FAILED = "solver-failed"
+    MALFORMED_SOLVE_RESULT = "malformed-solve-result"
+
+
+@dataclass(frozen=True, slots=True)
+class _MalformedSolveResult:
+    """模拟标记为 solved 但缺失精确概率的非法 solver 返回值。"""
+
+    status: BattleGraphSolveStatus = BattleGraphSolveStatus.SOLVED
+    win_probability: Fraction | None = None
+    loss_probability: Fraction | None = None
+    draw_probability: Fraction | None = None
+    expected_turns: ExpectedTurns = ExpectedTurns(
+        ExpectedTurnsStatus.UNAVAILABLE
+    )
+    diagnostics: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,11 +150,11 @@ class _FakeGraphExecutor:
         observer: BattleSide,
         graph_limits: StateGraphLimits,
     ) -> ConfigurationPairGraphArtifact:
-        """为当前配置对创建短生命周期 fake 图和精确 solver 结果。
+        """为当前配置对创建一个短生命周期 fake 图和精确 solver 结果。
 
         Args:
             work_item: 当前配置对及其稳定双方 ID。
-            rules: 批次共享规则。
+            rules: 批次共享规则；fake 只验证调用方确实传入相同对象。
             attacker_policy: 本测试不解释的攻击方策略枚举。
             defender_policy: 本测试不解释的防守方策略枚举。
             observer: solver 结果使用的观察方。
@@ -161,10 +176,9 @@ class _FakeGraphExecutor:
         if execution.kind is _FakeExecutionKind.RAISE_ERROR:
             raise RuntimeError(f"fake failure for {work_item.pair_id}")
 
+        # 进入下一配置时，前一配置完整图必须已经离开用例调用栈。
         gc.collect()
-        live_before_create = sum(
-            reference() is not None for reference in self.graph_references
-        )
+        live_before_create = sum(reference() is not None for reference in self.graph_references)
         graph = _GraphArtifact(
             node_count=execution.node_count,
             edge_count=execution.edge_count,
@@ -177,10 +191,7 @@ class _FakeGraphExecutor:
             ),
         )
         self.graph_references.append(ref(graph))
-        self.max_live_graph_count = max(
-            self.max_live_graph_count,
-            live_before_create + 1,
-        )
+        self.max_live_graph_count = max(self.max_live_graph_count, live_before_create + 1)
 
         if execution.kind is _FakeExecutionKind.TRUNCATED:
             solved = BattleGraphSolveResult.unavailable(
@@ -194,6 +205,8 @@ class _FakeGraphExecutor:
                 observer=observer,
                 diagnostics=("fake solver resource limit",),
             )
+        elif execution.kind is _FakeExecutionKind.MALFORMED_SOLVE_RESULT:
+            solved = cast(BattleGraphSolveResult, _MalformedSolveResult())
         else:
             solved = BattleGraphSolveResult(
                 status=BattleGraphSolveStatus.SOLVED,
@@ -257,11 +270,11 @@ def _pokemon_configuration(
     pokemon_id: int,
     move_ids: tuple[int, ...],
 ) -> PokemonBattleConfiguration:
-    """创建 application 流式合同测试使用的合成单边配置。
+    """创建仅用于 application 流式合同测试的合成单边配置。
 
     Args:
         pokemon_id: 配置中的稳定 Pokémon ID。
-        move_ids: 一到四个互不重复的招式 ID。
+        move_ids: 一到四个互不重复的招式 ID；输入顺序故意可与规范顺序不同。
 
     Returns:
         规则轴与 ``_RULES`` 一致的不可变配置。
