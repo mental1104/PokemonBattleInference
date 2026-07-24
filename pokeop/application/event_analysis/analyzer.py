@@ -13,23 +13,24 @@ from pokeop.application.solver.graph_solver import (
 from pokeop.application.solver.models import GraphNodeOutcome
 from pokeop.domain.battle.inference_outcome import BattleSide
 
-from .models import (
+from .query import BattleEventAnalysisError, BattleEventQuery
+from .results import (
     BattleEventAnalysisArtifact,
     BattleEventAnalysisComputationCost,
-    BattleEventAnalysisError,
     BattleEventAnalysisResult,
-    BattleEventQuery,
     ConditionalProbability,
     ConditionalProbabilityStatus,
 )
 from .product_graph import (
     _build_event_product_graph,
-    _event_metadata_coverage,
-    _first_occurrence_distribution,
-    _occurrence_count_distribution,
     _query_satisfied,
     _require_solved,
     _required_probability,
+)
+from .product_metrics import (
+    _event_metadata_coverage,
+    _first_occurrence_distribution,
+    _occurrence_count_distribution,
     _solve_product_property,
 )
 
