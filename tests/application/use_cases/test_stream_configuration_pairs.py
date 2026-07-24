@@ -48,7 +48,7 @@ def test_lazily_generates_44100_configuration_pairs() -> None:
 
 
 def test_streams_all_statuses_and_releases_each_complete_graph() -> None:
-    """sink 应逐项看到成功、失败、截断，完整图同时存活数量上界为 1。"""
+    """fake sink 应逐项看到成功、失败、截断，完整图同时存活数量上界为 1。"""
     command = _command()
     executions = {
         ("attacker-a", "defender-a"): _FakeExecution(
@@ -90,9 +90,7 @@ def test_streams_all_statuses_and_releases_each_complete_graph() -> None:
     assert aggregate.weighted_draw_probability == Fraction(1, 16)
     assert aggregate.stop_reason is ConfigurationPairStopReason.COMPLETED
     assert len(progress_sink.progress) == 4
-    assert progress_sink.progress[-1].cumulative_node_count == (
-        aggregate.cumulative_node_count
-    )
+    assert progress_sink.progress[-1].cumulative_node_count == aggregate.cumulative_node_count
     assert result_sink.final == aggregate
     assert all(not hasattr(result, "graph") for result in result_sink.results)
     assert result_sink.results[0].attacker_move_ids == (245, 280)
@@ -133,7 +131,7 @@ def test_typed_solver_failure_keeps_graph_resource_summary() -> None:
 
 
 def test_cumulative_node_budget_stops_before_claiming_another_pair() -> None:
-    """累计节点达到预算后应保留摘要，不领取下一配置且不重新归一化。"""
+    """累计节点达到预算后应保留已完成摘要，不领取下一配置且不重新归一化。"""
     command = _command(
         attacker_ids=("attacker-a",),
         defender_ids=("defender-a", "defender-b", "defender-c", "defender-d"),
@@ -198,24 +196,15 @@ def test_streaming_fraction_aggregate_and_top_k_match_eager_reference() -> None:
 
     aggregate, _, result_sink, _ = _execute(command, executions)
     eager_win = sum(
-        (
-            Fraction(1, 4) * execution.win_probability
-            for execution in executions.values()
-        ),
+        (Fraction(1, 4) * execution.win_probability for execution in executions.values()),
         start=Fraction(0),
     )
     eager_loss = sum(
-        (
-            Fraction(1, 4) * execution.loss_probability
-            for execution in executions.values()
-        ),
+        (Fraction(1, 4) * execution.loss_probability for execution in executions.values()),
         start=Fraction(0),
     )
     eager_draw = sum(
-        (
-            Fraction(1, 4) * execution.draw_probability
-            for execution in executions.values()
-        ),
+        (Fraction(1, 4) * execution.draw_probability for execution in executions.values()),
         start=Fraction(0),
     )
 
@@ -239,9 +228,7 @@ def test_streaming_fraction_aggregate_and_top_k_match_eager_reference() -> None:
             ),
         )[:2]
     ]
-    assert [entry.pair_id for entry in aggregate.top_win_probability] == (
-        expected_win_order
-    )
+    assert [entry.pair_id for entry in aggregate.top_win_probability] == expected_win_order
     assert len(aggregate.top_expected_turns) == 2
     assert aggregate.top_expected_turns[0].expected_turns == Fraction(9, 2)
     assert len(aggregate.top_node_count) == 2
@@ -293,7 +280,7 @@ def test_reordering_candidate_inputs_keeps_pair_set_and_aggregate() -> None:
 
 
 def test_cancellation_and_max_failure_budget_stop_only_before_new_pairs() -> None:
-    """取消与最大失败预算都应在写出当前结果后停止领取新配置。"""
+    """取消与最大失败预算都应在已写出当前轻量结果后停止领取新配置。"""
     command = _command(
         attacker_ids=("attacker-a",),
         defender_ids=("defender-a", "defender-b", "defender-c"),
@@ -324,3 +311,42 @@ def test_cancellation_and_max_failure_budget_stop_only_before_new_pairs() -> Non
     assert failed.processed_pair_count == 1
     assert failed.failed_count == 1
     assert len(failed_sink.results) == 1
+
+
+def test_summary_failure_is_typed_and_does_not_abort_later_pairs() -> None:
+    """图构建后的摘要异常应保留资源规模，并继续执行后续配置对。"""
+    command = _command(
+        attacker_ids=("attacker-a",),
+        defender_ids=("defender-a", "defender-b"),
+    )
+    aggregate, executor, result_sink, _ = _execute(
+        command,
+        {
+            ("attacker-a", "defender-a"): _FakeExecution(
+                kind=_FakeExecutionKind.MALFORMED_SOLVE_RESULT,
+                node_count=12,
+                edge_count=17,
+                scc_count=5,
+                max_turn_number=4,
+            )
+        },
+    )
+    gc.collect()
+
+    first, second = result_sink.results
+    assert first.status is ConfigurationPairExecutionStatus.FAILED
+    assert first.node_count == 12
+    assert first.edge_count == 17
+    assert first.scc_count == 5
+    assert first.max_turn_number == 4
+    assert first.diagnostics == (
+        "ConfigurationPairStreamError: "
+        "solved configuration pair is missing exact probabilities",
+    )
+    assert second.status is ConfigurationPairExecutionStatus.SUCCEEDED
+    assert aggregate.processed_pair_count == 2
+    assert aggregate.failed_count == 1
+    assert aggregate.succeeded_count == 1
+    assert aggregate.stop_reason is ConfigurationPairStopReason.COMPLETED
+    assert executor.max_live_graph_count == 1
+    assert all(reference() is None for reference in executor.graph_references)
