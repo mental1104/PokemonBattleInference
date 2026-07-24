@@ -8,9 +8,7 @@ import {
   type PokemonDetail,
   type PokemonSearchItem,
 } from '../api/calculator';
-import MoveSelector from '../components/MoveSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
-import StatPresetSelector from '../components/StatPresetSelector.vue';
 import DamageCalculatorView from './DamageCalculatorView.vue';
 
 vi.mock('../api/calculator', () => ({
@@ -127,13 +125,13 @@ describe('DamageCalculatorView', () => {
 
     const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
     const defenderColumn = wrapper.get('[data-testid="defender-column"]');
-    expect(attackerColumn.findAllComponents(StatPresetSelector)).toHaveLength(1);
-    expect(defenderColumn.findAllComponents(StatPresetSelector)).toHaveLength(1);
-    expect(attackerColumn.findComponent(MoveSelector).exists()).toBe(false);
-    expect(defenderColumn.findComponent(MoveSelector).exists()).toBe(false);
+    expect(attackerColumn.find('[data-testid="attacker-config"]').exists()).toBe(true);
+    expect(defenderColumn.find('[data-testid="defender-config"]').exists()).toBe(true);
+    expect(attackerColumn.find('.move-selector').exists()).toBe(false);
+    expect(defenderColumn.find('.move-selector').exists()).toBe(false);
 
     const moveStage = wrapper.get('[data-testid="move-stage"]');
-    expect(moveStage.findAllComponents(MoveSelector)).toHaveLength(1);
+    expect(moveStage.findAll('.move-selector')).toHaveLength(1);
     expect(moveStage.attributes('aria-label')).toBe('攻击方招式选择');
 
     const grid = wrapper.get('.calculator-grid').element;
