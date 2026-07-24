@@ -262,8 +262,8 @@ describe('WinningPathGroupsPanel', () => {
     expect(wrapper.text()).toContain('fainted');
   });
 
-  it('locates the representative cursor back to a real graph node', async () => {
-    /** 定位按钮把后端代表 edge 序列提交给既有 explore API。 */
+  it('locates an action prefix back to its real graph node', async () => {
+    /** 行动胶囊把截至该回合的代表 edge 前缀提交给既有 explore API。 */
     const wrapper = mount(WinningPathGroupsPanel, {
       props: {
         handle: HANDLE,
@@ -273,7 +273,7 @@ describe('WinningPathGroupsPanel', () => {
     });
     await flushPromises();
 
-    await wrapper.findAll('.winning-path-row__buttons button')[1]?.trigger('click');
+    await wrapper.get('.winning-path-actions button').trigger('click');
     await flushPromises();
 
     expect(exploreBattleGraph).toHaveBeenCalledWith(
