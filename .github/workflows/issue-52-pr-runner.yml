@@ -29,11 +29,23 @@ jobs:
             cat issue52-bootstrap-error.log
             exit 1
           fi
-          awk '
-            /python3 - <<'"'"'PY'"'"'/ { capture = 1; next }
-            capture && /^          PY$/ { capture = 0; exit }
-            capture { sub(/^          /, ""); print }
-          ' .github/workflows/issue-52-bootstrap.yml > /tmp/issue-52-patch.py
+          python3 - <<'EXTRACT'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/issue-52-bootstrap.yml').read_text(
+              encoding='utf-8'
+          )
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index(end_marker, start)
+          source = workflow[start:end]
+          source = ''.join(
+              line[10:] if line.startswith('          ') else line
+              for line in source.splitlines(keepends=True)
+          )
+          Path('/tmp/issue-52-patch.py').write_text(source, encoding='utf-8')
+          EXTRACT
           set +e
           python3 /tmp/issue-52-patch.py > /tmp/issue-52-patch.log 2>&1
           status=$?
