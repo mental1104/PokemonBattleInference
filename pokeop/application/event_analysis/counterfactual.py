@@ -9,12 +9,8 @@ from typing import Protocol, runtime_checkable
 from pokeop.domain.battle.inference_outcome import BattleSide
 
 from .analyzer import BattleEventAnalyzer
-from .models import (
-    BattleEventAnalysisArtifact,
-    BattleEventAnalysisError,
-    BattleEventAnalysisResult,
-    BattleEventQuery,
-)
+from .query import BattleEventAnalysisError, BattleEventQuery
+from .results import BattleEventAnalysisArtifact, BattleEventAnalysisResult
 
 
 @dataclass(frozen=True, slots=True)
