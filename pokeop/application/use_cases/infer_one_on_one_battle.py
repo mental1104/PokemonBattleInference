@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
 
+from pokeop.application.joint_action_metadata import (
+    with_joint_action_probability,
+)
 from pokeop.application.configuration_space import (
     AbilityConfigurationCandidate,
     AbilitySpaceCommand,
@@ -451,7 +454,11 @@ class _PolicyDrivenBattleStateExpander:
                         WeightedTransition(
                             probability=policy_probability * transition.probability,
                             state=transition.state,
-                            event_summary=transition.event_summary,
+                            event_summary=with_joint_action_probability(
+                                transition.event_summary,
+                                selection_probability=policy_probability,
+                                random_probability=transition.probability,
+                            ),
                             source_key=transition.source_key or "battle.policy-and-turn",
                         )
                     )

@@ -1,85 +1,117 @@
 <script setup lang="ts">
-import type { TransitionOutcomeResult } from '../../api/inference';
+import type {
+  ActionResolutionDetailResult,
+  CompactRandomResultResult,
+  TransitionOutcomeResult,
+} from '../../api/inference';
 
-interface Props {
-  groupId: string;
+const props = defineProps<{
   outcomes: TransitionOutcomeResult[];
-  disabled: boolean;
-}
-
-defineProps<Props>();
+}>();
 
 const emit = defineEmits<{
   select: [outcome: TransitionOutcomeResult];
 }>();
 
-/**
- * 汇总 outcome 保留的原始伤害档和实际 HP 损失。
- *
- * @param outcome 已按目标状态归并的正式 edge。
- * @returns 主标签展示实际 HP 损失；无伤害数据时回退到结构化结果 key。
- */
-function outcomeTitle(outcome: TransitionOutcomeResult): string {
-  if (outcome.damage_rolls.length > 0) {
-    const losses = outcome.damage_rolls.map((roll) => roll.actual_hp_loss);
-    const minimum = Math.min(...losses);
-    const maximum = Math.max(...losses);
-    return minimum === maximum ? `造成 ${minimum} HP 损失` : `造成 ${minimum}～${maximum} HP 损失`;
-  }
-  const resultKey = outcome.label_fields.result_keys[0];
-  return resultKey
-    ? resultKey.replaceAll('-', ' ').replaceAll('_', ' ')
-    : `进入节点 #${outcome.target_node_id}`;
+/** 返回行动侧别的简短中文标签。 */
+function sideLabel(side: string): string {
+  return side === 'attacker' ? '攻' : side === 'defender' ? '守' : side;
 }
 
-/**
- * 生成原始随机档次级说明，避免把 16 个 raw roll 平铺成 16 个组件。
- *
- * @param outcome 已归并 outcome。
- * @returns 去重排序后的原始随机值，过多时压缩为数量说明。
- */
-function rawValuesLabel(outcome: TransitionOutcomeResult): string {
-  const values = [...new Set(outcome.raw_random_values)].sort((left, right) => left - right);
-  if (values.length === 0) {
-    return `${outcome.event_paths.length} 条原始事件路径`;
+/** 将一侧行动执行状态转换为紧凑可读标签。 */
+function resolutionLabel(resolution: ActionResolutionDetailResult): string {
+  const move = resolution.move_id === null ? resolution.action_type : `#${resolution.move_id}`;
+  const order = resolution.order_position === null ? '' : `${resolution.order_position}.`;
+  if (resolution.status === 'cancelled') {
+    return `${order}${sideLabel(resolution.side)} ${move} 取消：${resolution.reason ?? '未执行'}`;
   }
-  if (values.length > 8) {
-    return `原始随机值 ${values[0]}～${values[values.length - 1]} · ${values.length} 档`;
+  if (resolution.status === 'blocked') {
+    return `${order}${sideLabel(resolution.side)} ${move} 阻断：${resolution.reason ?? '未知原因'}`;
   }
-  return `原始随机值 ${values.join(' / ')}`;
+  if (resolution.status === 'passed') {
+    return `${order}${sideLabel(resolution.side)} 跳过`;
+  }
+  const hit = resolution.hit === null ? '' : resolution.hit ? ' 命中' : ' 未命中';
+  return `${order}${sideLabel(resolution.side)} ${move}${hit}`;
 }
 
-/**
- * 把正式 outcome 交给父组件执行 advance。
- *
- * @param outcome 用户选择的目标状态 edge。
- */
+/** 保留离散值逐项展示，不把 16 档误写成连续范围。 */
+function discreteValues(values: number[], suffix = ''): string {
+  return [...new Set(values)].sort((left, right) => left - right).map((value) => `${value}${suffix}`).join(' / ');
+}
+
+/** 为一项紧凑随机结果生成不依赖自由文本事件解析的状态标签。 */
+function statusLabels(result: CompactRandomResultResult): string[] {
+  return result.status_effects.map((effect) => {
+    const target = effect.target_side === null ? '' : `${sideLabel(effect.target_side)} `;
+    const source = effect.source_identifier ?? '状态';
+    return `${target}${source}${effect.result === 'applied' ? '生效' : '被阻止'}`;
+  });
+}
+
+/** 沿正式状态图 edge 前进。 */
 function selectOutcome(outcome: TransitionOutcomeResult): void {
   emit('select', outcome);
 }
 </script>
 
 <template>
-  <div :id="`outcomes-${groupId}`" class="transition-outcome-list" data-testid="transition-outcome-list">
-    <p v-if="outcomes.length === 0" class="transition-outcome-list__empty">该分支没有可选择的目标状态。</p>
+  <div class="transition-outcome-list" data-testid="transition-outcome-list">
     <button
-      v-for="outcome in outcomes"
+      v-for="outcome in props.outcomes"
       :key="outcome.edge_id"
-      type="button"
       class="transition-outcome-list__item"
-      :disabled="disabled"
+      type="button"
       :data-edge-id="outcome.edge_id"
       @click="selectOutcome(outcome)"
     >
-      <span>
-        <strong>{{ outcomeTitle(outcome) }}</strong>
-        <small>{{ rawValuesLabel(outcome) }}</small>
+      <span class="transition-outcome-list__topline">
+        <strong>进入节点 #{{ outcome.target_node_id }}</strong>
+        <span>{{ outcome.probability.percent.toFixed(2) }}% 条件概率</span>
       </span>
-      <span class="transition-outcome-list__probability">
-        <strong>{{ outcome.probability.percent.toFixed(2) }}%</strong>
-        <small>累计 {{ outcome.cumulative_probability.percent.toFixed(2) }}%</small>
+      <span class="transition-outcome-list__joint">
+        联合概率 {{ outcome.joint_probability.percent.toFixed(2) }}% ·
+        路径累计 {{ outcome.cumulative_probability.percent.toFixed(2) }}%
       </span>
-      <i aria-hidden="true">→</i>
+      <span
+        v-for="(result, resultIndex) in outcome.compact_results"
+        :key="`${outcome.edge_id}-${resultIndex}`"
+        class="transition-outcome-list__result"
+      >
+        <span class="transition-outcome-list__chips">
+          <span
+            v-for="resolution in result.action_resolutions"
+            :key="`${resolution.side}-${resolution.order_position}-${resolution.move_id}`"
+            class="transition-outcome-list__chip"
+            :class="{
+              'transition-outcome-list__chip--warning':
+                resolution.status === 'cancelled' || resolution.status === 'blocked',
+            }"
+          >
+            {{ resolutionLabel(resolution) }}
+          </span>
+          <span class="transition-outcome-list__chip">顺序依据 {{ result.order_reason }}</span>
+          <span v-if="result.critical_hit !== null" class="transition-outcome-list__chip">
+            {{ result.critical_hit ? '暴击' : '未暴击' }}
+          </span>
+          <span
+            v-for="label in statusLabels(result)"
+            :key="label"
+            class="transition-outcome-list__chip"
+          >
+            {{ label }}
+          </span>
+        </span>
+        <span v-if="result.raw_roll_values.length > 0" class="transition-outcome-list__values">
+          原始 roll：{{ discreteValues(result.raw_roll_values) }}
+        </span>
+        <span v-if="result.final_damage_values.length > 0" class="transition-outcome-list__values">
+          最终伤害：{{ discreteValues(result.final_damage_values) }}
+        </span>
+        <span v-if="result.actual_hp_losses.length > 0" class="transition-outcome-list__values">
+          实际 HP 损失：{{ discreteValues(result.actual_hp_losses) }}
+        </span>
+      </span>
     </button>
   </div>
 </template>
@@ -88,64 +120,68 @@ function selectOutcome(outcome: TransitionOutcomeResult): void {
 .transition-outcome-list {
   display: grid;
   gap: 8px;
-  max-height: 360px;
-  overflow-y: auto;
-  border-left: 2px solid #99b7a8;
-  padding: 8px 0 8px 14px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 0 12px 12px;
 }
 
 .transition-outcome-list__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  border: 1px solid #dde5df;
-  border-radius: 11px;
-  padding: 12px;
-  background: #fff;
-  color: inherit;
+  gap: 6px;
+  padding: 11px 12px;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #263548;
   text-align: left;
+  cursor: pointer;
 }
 
-.transition-outcome-list__item:hover:not(:disabled) {
-  border-color: #8aaf9c;
-  transform: translateX(2px);
+.transition-outcome-list__item:hover {
+  border-color: #8da9cf;
+  background: #f1f6fc;
 }
 
-.transition-outcome-list__item:disabled {
-  opacity: 0.58;
+.transition-outcome-list__topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.transition-outcome-list__item > span {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.transition-outcome-list__item strong {
-  color: #263e33;
+.transition-outcome-list__topline span,
+.transition-outcome-list__joint,
+.transition-outcome-list__values {
+  color: #607086;
   font-size: 12px;
 }
 
-.transition-outcome-list__item small,
-.transition-outcome-list__empty {
-  color: #7a867f;
-  font-size: 10px;
+.transition-outcome-list__result {
+  display: grid;
+  gap: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed #d8e1ed;
 }
 
-.transition-outcome-list__probability {
-  justify-items: end;
+.transition-outcome-list__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
-.transition-outcome-list__item i {
-  color: #327357;
-  font-style: normal;
-  font-weight: 900;
+.transition-outcome-list__chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e7eff9;
+  color: #34577f;
+  font-size: 11px;
 }
 
-.transition-outcome-list__empty {
-  margin: 0;
-  padding: 12px;
+.transition-outcome-list__chip--warning {
+  background: #fff0d8;
+  color: #8b5813;
+}
+
+.transition-outcome-list__values {
+  overflow-wrap: anywhere;
 }
 </style>

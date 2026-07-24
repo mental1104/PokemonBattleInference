@@ -223,15 +223,52 @@ export interface TransitionLabelFieldsResult {
   source_identifiers: string[];
 }
 
+export interface JointActionDetailResult {
+  side: string;
+  action_type: string;
+  move_id: number | null;
+}
+
+export interface ActionResolutionDetailResult {
+  side: string;
+  move_id: number | null;
+  action_type: string;
+  order_position: number | null;
+  status: string;
+  hit: boolean | null;
+  reason: string | null;
+}
+
+export interface StatusEffectSummaryResult {
+  result: string;
+  source_side: string | null;
+  target_side: string | null;
+  source_identifier: string | null;
+}
+
+export interface CompactRandomResultResult {
+  target_node_id: number;
+  action_resolutions: ActionResolutionDetailResult[];
+  order_reason: string;
+  critical_hit: boolean | null;
+  raw_roll_values: number[];
+  final_damage_values: number[];
+  actual_hp_losses: number[];
+  status_effects: StatusEffectSummaryResult[];
+  path_count: number;
+}
+
 export interface TransitionOutcomeResult {
   edge_id: number;
   target_node_id: number;
   probability: ProbabilityResult;
+  joint_probability: ProbabilityResult;
   cumulative_probability: ProbabilityResult;
   label_fields: TransitionLabelFieldsResult;
   raw_random_values: number[];
   random_results: RandomResultDetailResult[];
   damage_rolls: DamageRandomMetadataResult[];
+  compact_results: CompactRandomResultResult[];
   battle_event_paths: BattleEventDetailResult[][];
   event_paths: TransitionEventPathDetailResult[];
 }
@@ -248,6 +285,9 @@ export interface TransitionGroupResult {
   kind: string;
   label_key: string;
   probability: ProbabilityResult;
+  selection_probability: ProbabilityResult;
+  attacker_action: JointActionDetailResult | null;
+  defender_action: JointActionDetailResult | null;
   raw_result_count: number;
   distinct_outcome_count: number;
   summary: TransitionGroupSummaryResult;
