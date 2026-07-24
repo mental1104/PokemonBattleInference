@@ -54,6 +54,25 @@ services:
     networks:
       - default
 
+  worker:
+    image: *backend-image
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *postgres-client-environment
+      PGAPPNAME: pokemon-battle-inference-worker
+      POKEOP_WORKER_LEASE_SECONDS: "120"
+      POKEOP_WORKER_HEARTBEAT_SECONDS: "20"
+      POKEOP_WORKER_CANCELLATION_GRACE_SECONDS: "5"
+    command: ["python3", "-m", "pokeop.workers.battle_inference"]
+    networks:
+      - default
+
   db-init:
     image: *backend-image
     profiles: ["ops"]
