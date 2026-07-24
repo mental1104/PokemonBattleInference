@@ -26,12 +26,19 @@ jobs:
         shell: bash
         run: |
           set +e
+          git fetch --no-tags --depth=1 origin 401f48b8b53c0e2e89a58c6dd658bbee4c6f8503
+          git show FETCH_HEAD:.github/workflows/issue-52-bootstrap.yml > /tmp/issue-52-bootstrap.yml
+          fetch_status=$?
+          if [[ $fetch_status -ne 0 ]]; then
+            echo "failed to recover bootstrap workflow from source commit" > issue52-bootstrap-error.txt
+            echo "fetch_status=$fetch_status" >> issue52-bootstrap-error.txt
+            echo "$fetch_status" > /tmp/issue-52-status
+            exit 0
+          fi
           python3 - <<'EXTRACT' > /tmp/issue-52-extract.log 2>&1
           from pathlib import Path
 
-          workflow = Path('.github/workflows/issue-52-bootstrap.yml').read_text(
-              encoding='utf-8'
-          )
+          workflow = Path('/tmp/issue-52-bootstrap.yml').read_text(encoding='utf-8')
           start_marker = "          python3 - <<'PY'\n"
           end_marker = "\n          PY\n"
           start = workflow.index(start_marker) + len(start_marker)
@@ -99,7 +106,6 @@ jobs:
       - name: Commit implementation and remove temporary files
         shell: bash
         run: |
-          rm .github/workflows/issue-52-bootstrap.yml
           rm .github/workflows/issue-52-pr-runner.yml
           rm -f issue52-bootstrap-error.txt
           git config user.name "github-actions[bot]"
