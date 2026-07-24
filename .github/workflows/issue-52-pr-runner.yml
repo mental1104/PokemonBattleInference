@@ -1,0 +1,65 @@
+name: Run issue 52 implementation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Execute guarded repository patch
+        shell: bash
+        run: |
+          awk '
+            /python3 - <<'"'"'PY'"'"'/ { capture = 1; next }
+            capture && /^          PY$/ { capture = 0; exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/issue-52-bootstrap.yml > /tmp/issue-52-patch.py
+          python3 /tmp/issue-52-patch.py
+
+      - name: Validate Python contract
+        shell: bash
+        run: |
+          python3 -m compileall -q \
+            pokeop/application/use_cases/infer_one_on_one_battle.py \
+            pokeop/api/schemas/inference.py \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_schema.py
+          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          pytest -q \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/api/test_inference_schema.py
+
+      - name: Validate frontend contract
+        shell: bash
+        working-directory: web
+        run: |
+          npm ci
+          npm run type-check
+          npm test -- BattleInferenceView.test.ts
+
+      - name: Commit implementation and remove temporary workflows
+        shell: bash
+        run: |
+          rm .github/workflows/issue-52-bootstrap.yml
+          rm .github/workflows/issue-52-pr-runner.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Freeze summary and exploration response contract"
+          git push origin HEAD:${{ github.head_ref }}
