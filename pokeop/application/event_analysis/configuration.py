@@ -6,7 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from fractions import Fraction
 
-from .models import BattleEventAnalysisError, BattleEventAnalysisResult
+from .query import BattleEventAnalysisError
+from .results import BattleEventAnalysisResult
 
 
 @dataclass(frozen=True, slots=True)
