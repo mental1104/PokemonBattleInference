@@ -1,4 +1,4 @@
-name: Run issue 52 implementation
+name: Validate issue 52 implementation
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  implement:
+  validate:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
@@ -21,66 +21,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-
-      - name: Execute guarded repository patch
-        shell: bash
-        run: |
-          set +e
-          git fetch --no-tags --depth=1 origin 401f48b8b53c0e2e89a58c6dd658bbee4c6f8503
-          git show FETCH_HEAD:.github/workflows/issue-52-bootstrap.yml > /tmp/issue-52-bootstrap.yml
-          fetch_status=$?
-          if [[ $fetch_status -ne 0 ]]; then
-            echo "failed to recover bootstrap workflow from source commit" > issue52-bootstrap-error.txt
-            echo "fetch_status=$fetch_status" >> issue52-bootstrap-error.txt
-            echo "$fetch_status" > /tmp/issue-52-status
-            exit 0
-          fi
-          python3 - <<'EXTRACT' > /tmp/issue-52-extract.log 2>&1
-          from pathlib import Path
-
-          workflow = Path('/tmp/issue-52-bootstrap.yml').read_text(encoding='utf-8')
-          start_marker = "          python3 - <<'PY'\n"
-          end_marker = "\n          PY\n"
-          start = workflow.index(start_marker) + len(start_marker)
-          end = workflow.index(end_marker, start)
-          source = workflow[start:end]
-          source = ''.join(
-              line[10:] if line.startswith('          ') else line
-              for line in source.splitlines(keepends=True)
-          )
-          Path('/tmp/issue-52-patch.py').write_text(source, encoding='utf-8')
-          EXTRACT
-          extract_status=$?
-          if [[ $extract_status -ne 0 ]]; then
-            cp /tmp/issue-52-extract.log issue52-bootstrap-error.txt
-            echo "extract_status=$extract_status" >> issue52-bootstrap-error.txt
-            echo "$extract_status" > /tmp/issue-52-status
-            exit 0
-          fi
-          python3 /tmp/issue-52-patch.py > /tmp/issue-52-patch.log 2>&1
-          patch_status=$?
-          if [[ $patch_status -ne 0 ]]; then
-            cp /tmp/issue-52-patch.log issue52-bootstrap-error.txt
-            echo "patch_status=$patch_status" >> issue52-bootstrap-error.txt
-          fi
-          echo "$patch_status" > /tmp/issue-52-status
-          exit 0
-
-      - name: Persist bootstrap failure
-        if: always()
-        shell: bash
-        run: |
-          status=$(cat /tmp/issue-52-status 2>/dev/null || echo 1)
-          if [[ "$status" == "0" ]]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add issue52-bootstrap-error.txt
-          git commit -m "Record issue 52 bootstrap failure"
-          git push origin HEAD:${{ github.head_ref }}
-          cat issue52-bootstrap-error.txt
-          exit "$status"
 
       - name: Validate Python contract
         shell: bash
@@ -103,7 +43,7 @@ jobs:
           npm run type-check
           npm test -- BattleInferenceView.test.ts
 
-      - name: Commit implementation and remove temporary files
+      - name: Remove temporary validation files
         shell: bash
         run: |
           rm .github/workflows/issue-52-pr-runner.yml
@@ -111,5 +51,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Freeze summary and exploration response contract"
+          git commit -m "Remove issue 52 validation bootstrap"
           git push origin HEAD:${{ github.head_ref }}
