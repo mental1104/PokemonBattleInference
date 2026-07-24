@@ -24,6 +24,10 @@ jobs:
             > submodules/pokeapi/data/v2/csv/version_groups.csv
       - run: python -m compileall -q pokeop tests
       - run: pytest -q tests/domain/battle/test_battle_events.py
+      - run: |
+          pytest -q \
+            tests/application/use_cases/test_infer_one_on_one_battle.py \
+            tests/application/use_cases/test_infer_one_on_one_battle_events.py
       - name: Run battle domain tests
         id: battle-tests
         continue-on-error: true
