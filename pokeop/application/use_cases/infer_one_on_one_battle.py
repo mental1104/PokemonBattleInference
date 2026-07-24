@@ -27,6 +27,7 @@ from pokeop.application.configuration_space import (
     StatSpaceCommand,
 )
 from pokeop.application.repositories.battle_inference import (
+    BattleInferenceMoveProfile,
     BattleInferencePokemonProfile,
     BattleInferenceRepository,
     MechanismSupportStatus as RepositoryMechanismSupportStatus,
@@ -66,7 +67,7 @@ from pokeop.domain.battle.action_policy import (
     UniformRandomPolicy,
 )
 from pokeop.domain.battle.actions import BattleAction
-from pokeop.domain.battle.context import BattleMove
+from pokeop.domain.battle.context import BattleMove, MoveCategory
 from pokeop.domain.battle.effects.factories import (
     BattleEffectAbstractFactory,
     PokemonChampionEffectFactory,
@@ -628,26 +629,7 @@ class InferOneOnOneBattleUseCase:
             types=tuple(item.domain_type for item in profile.types),
             base_stats=profile.base_stats,
             moves=tuple(
-                MoveConfigurationCandidate(
-                    move_spec=MoveSpec(
-                        move_id=move.move_id,
-                        move=BattleMove(
-                            move.display_name,
-                            move.type.domain_type,
-                            move.category,
-                            move.power or 0,
-                        ),
-                        max_pp=move.pp,
-                        priority=move.priority,
-                        accuracy=move.accuracy,
-                        effect_identifier=move.effect_identifier,
-                    ),
-                    effect_identifier=move.effect_identifier,
-                    support_status=_configuration_support_status(
-                        move.capability.status
-                    ),
-                    support_reason=move.capability.reason,
-                )
+                _configuration_move_candidate(move)
                 for move in profile.moves
             ),
             abilities=tuple(
@@ -801,6 +783,55 @@ class InferOneOnOneBattleUseCase:
             attacker=_pokemon_summary(configuration.attacker),
             defender=_pokemon_summary(configuration.defender),
         )
+
+
+def _configuration_move_candidate(
+    move: BattleInferenceMoveProfile,
+) -> MoveConfigurationCandidate:
+    """把合法招式 projection 转换为可执行或仅报告用途的配置候选。
+
+    固定威力攻击招式和变化招式可以安全构造 domain ``MoveSpec``。变化威力攻击招式在
+    当前没有动态威力解析器时只保留稳定 ID 与 unsupported 覆盖状态，避免用 ``0`` 或任意
+    正数伪造基础威力并破坏 domain 不变量。
+
+    Args:
+        move: persistence 已按 version group 还原的合法招式 projection。
+
+    Returns:
+        可由 move provider 记录覆盖并在支持时参与配置枚举的候选。
+
+    Raises:
+        BattleInferenceExecutionError: 上游错误地把缺少基础威力的攻击招式标记为 supported
+            时抛出，防止不完整机制进入战斗执行。
+    """
+    support_status = _configuration_support_status(move.capability.status)
+    move_spec: MoveSpec | None = None
+    if move.category is MoveCategory.STATUS or move.power is not None:
+        move_spec = MoveSpec(
+            move_id=move.move_id,
+            move=BattleMove(
+                move.display_name,
+                move.type.domain_type,
+                move.category,
+                move.power or 0,
+            ),
+            max_pp=move.pp,
+            priority=move.priority,
+            accuracy=move.accuracy,
+            effect_identifier=move.effect_identifier,
+        )
+    elif support_status is ConfigurationMechanismSupportStatus.SUPPORTED:
+        raise BattleInferenceExecutionError(
+            f"damaging move {move.identifier!r} is marked supported without positive power"
+        )
+
+    return MoveConfigurationCandidate(
+        move_spec=move_spec,
+        effect_identifier=move.effect_identifier,
+        support_status=support_status,
+        support_reason=move.capability.reason,
+        candidate_move_id=move.move_id,
+    )
 
 
 def _configuration_support_status(

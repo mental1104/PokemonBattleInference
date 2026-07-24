@@ -18,6 +18,7 @@ from pokeop.application.configuration_space import (
     GenerateConfigurationSpaceUseCase,
     ItemSpaceCommand,
     MechanismSupportStatus,
+    MoveConfigurationCandidate,
     MoveSpaceCommand,
     OpaqueDimensionValue,
     PokemonConfigurationProfile,
@@ -59,6 +60,12 @@ def test_move_combinations_have_unique_slots_and_filter_unsupported_status_move(
             _move(2, "move-b", Type.NORMAL, 50),
             _move(3, "move-c", Type.NORMAL, 60),
             _move(4, "status-noop", Type.NORMAL, 0, category=MoveCategory.STATUS),
+            MoveConfigurationCandidate(
+                move_spec=None,
+                support_status=MechanismSupportStatus.UNSUPPORTED,
+                support_reason="Variable power is not executable yet.",
+                candidate_move_id=5,
+            ),
         ),
         abilities=(AbilityConfigurationCandidate("pressure"),),
     )
@@ -87,12 +94,18 @@ def test_move_combinations_have_unique_slots_and_filter_unsupported_status_move(
         assert len(move_ids) == len(set(move_ids)) == 2
         assert 4 not in move_ids
     assert any(
-        record.identifier == "4"
+        record.identifier in {"4", "5"}
         and record.support_status is MechanismSupportStatus.UNSUPPORTED
         and not record.included
         for record in result.coverage_records
     )
-    assert result.statistics.unsupported_mechanism_count == 1
+    assert {
+        record.identifier
+        for record in result.coverage_records
+        if record.support_status is MechanismSupportStatus.UNSUPPORTED
+        and not record.included
+    } >= {"4", "5"}
+    assert result.statistics.unsupported_mechanism_count == 2
 
 
 def test_unsupported_ability_and_item_candidates_are_never_silent_noops() -> None:

@@ -102,6 +102,27 @@ def _profile() -> BattleInferencePokemonProfile:
                     MechanismSupportStatus.PARTIAL,
                 ),
             ),
+            BattleInferenceMoveProfile(
+                move_id=216,
+                identifier="return",
+                display_name="报恩",
+                type=_type(),
+                category=MoveCategory.PHYSICAL,
+                power=None,
+                pp=20,
+                accuracy=100,
+                priority=0,
+                target_id=10,
+                target_identifier="selected-pokemon",
+                effect_id=1,
+                effect_chance=None,
+                effect_identifier=None,
+                capability=_capability(
+                    EffectSourceKind.MOVE,
+                    "return",
+                    MechanismSupportStatus.UNSUPPORTED,
+                ),
+            ),
         ),
     )
 
@@ -174,9 +195,12 @@ def test_reconciliation_promotes_executable_candidates_without_changing_legality
 
     assert profile is not None
     assert profile.pokemon_id == 461
-    assert len(profile.moves) == 1
+    assert len(profile.moves) == 2
     assert profile.moves[0].move_id == 8
     assert profile.moves[0].capability.status is MechanismSupportStatus.SUPPORTED
+    assert profile.moves[1].move_id == 216
+    assert profile.moves[1].power is None
+    assert profile.moves[1].capability.status is MechanismSupportStatus.UNSUPPORTED
     assert len(profile.abilities) == 1
     assert profile.abilities[0].slot == 1
     assert profile.abilities[0].capability.status is MechanismSupportStatus.SUPPORTED
