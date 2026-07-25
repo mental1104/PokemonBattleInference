@@ -6,9 +6,12 @@ import cProfile
 import hashlib
 import time
 from collections.abc import Iterable, Sequence
-from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from itertools import islice
 
+from pokeop.application.use_cases._battle_inference_worker.pool import (
+    TerminableProcessPool,
+)
 from pokeop.benchmarks.aggregation import (
     _RunAccumulator,
     _budget_stop_reason,
@@ -22,12 +25,17 @@ from pokeop.benchmarks.aggregation import (
     _recommendation,
     _rss_slope,
 )
-from pokeop.benchmarks.execution import _execute_case, _failed_benchmark_sample, _peak_rss_bytes
+from pokeop.benchmarks.execution import (
+    _execute_case,
+    _failed_benchmark_sample,
+    _peak_rss_bytes,
+)
 from pokeop.benchmarks.fixtures import iter_benchmark_cases
 from pokeop.benchmarks.models import (
     FIXTURE_VERSION,
     BenchmarkCaseInput,
     BenchmarkLimits,
+    BenchmarkPairSample,
     BenchmarkReport,
     BenchmarkRunSummary,
     BenchmarkWorkloadSpec,
@@ -108,9 +116,13 @@ def _run_one(
     Returns:
         包含覆盖率、时间、资源、概率摘要和预算建议的轻量 run 结果。
     """
-    available = workload.pair_count - sum(
-        pair_id.startswith(f"bench-{workload.workload_id}-")
-        for pair_id in resume_pair_ids
+    available = max(
+        0,
+        workload.pair_count
+        - sum(
+            pair_id.startswith(f"bench-{workload.workload_id}-")
+            for pair_id in resume_pair_ids
+        ),
     )
     requested = min(available, limits.max_pairs) if limits.max_pairs else available
     started_wall = time.perf_counter()
@@ -203,7 +215,7 @@ def _run_one(
         p95_pair_seconds=_percentile(accumulator.latencies, 0.95),
         peak_rss_bytes=max(accumulator.peak_rss_bytes, _peak_rss_bytes()),
         rss_slope_bytes_per_pair=_rss_slope(accumulator.progress_curve),
-        process_count=max(1, len(accumulator.process_ids)),
+        process_count=len(accumulator.process_ids),
         cumulative_node_count=accumulator.cumulative_node_count,
         cumulative_edge_count=accumulator.cumulative_edge_count,
         raw_transition_count=raw,
@@ -248,21 +260,21 @@ def _run_parallel(
 
     Args:
         cases: 惰性配置对输入流，不会一次性保存全部 case。
-        worker_count: ProcessPoolExecutor 的最大工作进程数。
+        worker_count: 固定大小的子进程数量。
         accumulator: 父进程唯一轻量聚合器。
-        limits: 达到累计预算后停止提交新 case。
+        limits: 达到累计预算后停止提交并终止尚未完成的 case。
 
     Returns:
         completed 或具体累计预算停止原因。
 
     Side Effects:
-        创建并关闭进程池；预算触发后取消尚未开始的 Future。
+        创建可终止进程池；预算或取消触发时保留已完成摘要并终止剩余 worker。
     """
     iterator = iter(cases)
-    in_flight: dict[Future[BenchmarkPairSample], BenchmarkCaseInput] = {}
+    in_flight: dict[Future[object], BenchmarkCaseInput] = {}
     queue_depth = max(worker_count * 2, worker_count)
-    stop_reason = "completed"
-    with ProcessPoolExecutor(max_workers=worker_count) as executor:
+    executor = TerminableProcessPool(worker_count)
+    try:
         exhausted = False
         while in_flight or not exhausted:
             while not exhausted and len(in_flight) < queue_depth:
@@ -274,23 +286,29 @@ def _run_parallel(
                 in_flight[executor.submit(_execute_case, case)] = case
             if not in_flight:
                 break
+
             completed, _ = wait(in_flight, return_when=FIRST_COMPLETED)
             for future in completed:
                 case = in_flight.pop(future)
                 try:
-                    sample = future.result()
+                    value = future.result()
+                    if not isinstance(value, BenchmarkPairSample):
+                        raise TypeError("benchmark worker returned an unexpected result")
+                    sample = value
                 except Exception as error:  # noqa: BLE001 - 子进程失败必须保留部分报告。
                     sample = _failed_benchmark_sample(case, error)
                 accumulator.add(sample)
-                reason = _budget_stop_reason(accumulator, limits)
-                if reason is not None:
-                    stop_reason = reason
-                    exhausted = True
-                    for pending in in_flight:
-                        pending.cancel()
-                    in_flight.clear()
-                    break
-    return stop_reason
+
+            reason = _budget_stop_reason(accumulator, limits)
+            if reason is not None:
+                executor.terminate()
+                return reason
+        return "completed"
+    except KeyboardInterrupt:
+        executor.terminate()
+        raise
+    finally:
+        executor.shutdown()
 
 
 __all__ = ["run_benchmark_suite"]
