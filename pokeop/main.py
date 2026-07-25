@@ -105,14 +105,18 @@ def include_router(application: FastAPI, module, prefix: str) -> None:
 
     Args:
         application: 接收路由注册的 FastAPI 应用。
-        module: 动态导入的 router 模块；没有 `router` 属性时忽略。
-        prefix: 由目录路径推导出的 HTTP 前缀。
+        module: 动态导入的 router 模块；没有 `router` 属性时忽略。模块可通过
+            ``ROUTE_PREFIX_OVERRIDE`` 显式复用既有资源前缀。
+        prefix: 由目录路径推导出的默认 HTTP 前缀。
     """
     if hasattr(module, "router"):
+        route_prefix = getattr(module, "ROUTE_PREFIX_OVERRIDE", prefix)
+        if not isinstance(route_prefix, str) or not route_prefix.startswith("/"):
+            raise ValueError("ROUTE_PREFIX_OVERRIDE must be an absolute HTTP path")
         application.include_router(
             module.router,
-            prefix=prefix,
-            tags=[prefix.split("/")[-1]],
+            prefix=route_prefix,
+            tags=[route_prefix.split("/")[-1]],
         )
 
 
@@ -130,7 +134,7 @@ def register_routes(
     if not directory.exists():
         return
     for entry in sorted(directory.iterdir()):
-        if entry.name.startswith("__"):
+        if entry.name.startswith("_"):
             continue
         if entry.is_dir():
             register_routes(

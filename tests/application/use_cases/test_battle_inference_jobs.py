@@ -1,0 +1,274 @@
+"""验证后台任务创建、预算冻结和 canonical 配置恢复。"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+
+import pytest
+
+from pokeop.application.configuration_space.one_on_one import (
+    FixedPokemonConfiguration,
+    OneOnOneMovePoolCommand,
+    PokemonMovePoolSelection,
+)
+from pokeop.application.repositories.battle_inference_jobs import (
+    BattleInferenceJobAlreadyExists,
+    BattleInferenceJobProgress,
+    BattleInferenceJobSnapshot,
+    BattleInferenceJobStatus,
+    CreateBattleInferenceJob,
+)
+from pokeop.application.use_cases.battle_inference_jobs import (
+    BattleInferenceExecutionSpec,
+    BattleInferenceRuntimeSnapshot,
+    CreateBattleInferenceJobUseCase,
+    SubmitBattleInferenceJobCommand,
+    decode_one_on_one_configuration_id,
+)
+from pokeop.application.use_cases.infer_one_on_one_battle import (
+    BATTLE_INFERENCE_CALCULATION_REVISION,
+)
+
+
+@dataclass(slots=True)
+class _AcceptAllAdmission:
+    """记录准入调用并接受测试命令。"""
+
+    calls: list[OneOnOneMovePoolCommand] = field(default_factory=list)
+
+    def validate(self, command: OneOnOneMovePoolCommand) -> None:
+        """记录已完成结构校验的公开命令。"""
+        self.calls.append(command)
+
+
+@dataclass(slots=True)
+class _CapturingStore:
+    """捕获任务和执行规格，不依赖 PostgreSQL。"""
+
+    command: CreateBattleInferenceJob | None = None
+    execution_spec: BattleInferenceExecutionSpec | None = None
+
+    def create_job_with_execution_spec(
+        self,
+        command: CreateBattleInferenceJob,
+        execution_spec: BattleInferenceExecutionSpec,
+        *,
+        created_at: datetime,
+    ) -> object:
+        """保存创建参数并返回本测试不使用的占位对象。"""
+        assert created_at.tzinfo is not None
+        self.command = command
+        self.execution_spec = execution_spec
+        return object()
+
+
+@dataclass(slots=True)
+class _IdempotentStore:
+    """模拟唯一约束并允许相同幂等提交读取既有任务。"""
+
+    created: BattleInferenceRuntimeSnapshot | None = None
+    create_calls: int = 0
+
+    def create_job_with_execution_spec(
+        self,
+        command: CreateBattleInferenceJob,
+        execution_spec: BattleInferenceExecutionSpec,
+        *,
+        created_at: datetime,
+    ) -> BattleInferenceRuntimeSnapshot:
+        """首次创建快照，后续相同 job ID 模拟数据库唯一冲突。"""
+        self.create_calls += 1
+        if self.created is not None:
+            raise BattleInferenceJobAlreadyExists(command.job_id)
+        job = BattleInferenceJobSnapshot(
+            job_id=command.job_id,
+            ruleset_id=command.ruleset_id,
+            version_group_id=command.version_group_id,
+            calculation_revision=command.calculation_revision,
+            status=BattleInferenceJobStatus.PENDING,
+            attempt_count=0,
+            progress=BattleInferenceJobProgress(
+                total_count=len(command.cases),
+                pending_count=len(command.cases),
+                running_count=0,
+                succeeded_count=0,
+                failed_count=0,
+                truncated_count=0,
+                cancelled_count=0,
+                cumulative_node_count=0,
+                cumulative_edge_count=0,
+                budget_consumed=0,
+            ),
+            lease=None,
+            last_failure_code=None,
+            last_failure_diagnostic=None,
+            created_at=created_at,
+            updated_at=created_at,
+            started_at=None,
+            completed_at=None,
+            cancel_requested_at=None,
+        )
+        self.created = BattleInferenceRuntimeSnapshot(
+            job=job,
+            execution_spec=execution_spec,
+        )
+        return self.created
+
+    def get_job(
+        self,
+        job_id: str,
+        *,
+        calculation_revision: str | None = None,
+    ) -> BattleInferenceJobSnapshot:
+        """返回首次创建的任务快照。"""
+        assert self.created is not None
+        assert self.created.job.job_id == job_id
+        assert calculation_revision in {None, self.created.job.calculation_revision}
+        return self.created.job
+
+    def get_execution_spec(self, job_id: str) -> BattleInferenceExecutionSpec:
+        """返回首次创建的冻结执行规格。"""
+        assert self.created is not None
+        assert self.created.job.job_id == job_id
+        return self.created.execution_spec
+
+
+def _fixed(pokemon_id: int) -> FixedPokemonConfiguration:
+    """创建能够参与 v1 canonical 身份计算的固定配置。"""
+    return FixedPokemonConfiguration(
+        pokemon_id=pokemon_id,
+        form_id=None,
+        level=50,
+        stat_profile_id="max_atk_plus",
+        ability_identifier="none",
+        item_identifier=None,
+    )
+
+
+def _move_pool_command() -> OneOnOneMovePoolCommand:
+    """创建 5 × 5 候选池，对应 25 个四招配置对。"""
+    return OneOnOneMovePoolCommand(
+        ruleset_id="pokemon-champion",
+        version_group_id=31,
+        calculation_revision=BATTLE_INFERENCE_CALCULATION_REVISION,
+        attacker=PokemonMovePoolSelection(
+            fixed=_fixed(149),
+            candidate_move_ids=(5, 4, 3, 2, 1),
+        ),
+        defender=PokemonMovePoolSelection(
+            fixed=_fixed(461),
+            candidate_move_ids=(15, 14, 13, 12, 11),
+        ),
+    )
+
+
+def test_create_job_freezes_budget_and_enumerates_canonical_cases() -> None:
+    """创建任务应立即持久化全部轻量身份，不执行任何状态图。"""
+    store = _CapturingStore()
+    admission = _AcceptAllAdmission()
+    move_pool = _move_pool_command()
+    execution_spec = BattleInferenceExecutionSpec.from_command(
+        move_pool,
+        process_count=2,
+        queue_depth=3,
+        max_nodes_per_pair=123,
+        max_edges_per_pair=456,
+        max_turns=9,
+    )
+    created_at = datetime(2026, 7, 25, tzinfo=timezone.utc)
+
+    submitted = CreateBattleInferenceJobUseCase(
+        store=store,  # type: ignore[arg-type]
+        admission_validator=admission,
+    ).execute(
+        SubmitBattleInferenceJobCommand(
+            move_pool=move_pool,
+            execution_spec=execution_spec,
+            job_id="job-87",
+        ),
+        created_at=created_at,
+    )
+
+    assert submitted.job_id == "job-87"
+    assert submitted.submitted_configuration_pairs == 25
+    assert admission.calls == [move_pool]
+    assert store.execution_spec == execution_spec
+    assert store.command is not None
+    assert len(store.command.cases) == 25
+    assert len({case.configuration_pair_id for case in store.command.cases}) == 25
+
+    first = store.command.cases[0]
+    decoded = decode_one_on_one_configuration_id(first.configuration_pair_id)
+    assert decoded.attacker.pokemon_id == 149
+    assert decoded.defender.pokemon_id == 461
+    assert decoded.attacker_move_ids == first.attacker_move_ids
+    assert decoded.defender_move_ids == first.defender_move_ids
+
+
+def test_execution_spec_rejects_queue_smaller_than_process_count() -> None:
+    """队列深度不得小于子进程数，避免配置看似并发但无法填满进程池。"""
+    with pytest.raises(ValueError, match="queue_depth"):
+        BattleInferenceExecutionSpec.from_command(
+            _move_pool_command(),
+            process_count=4,
+            queue_depth=2,
+        )
+
+
+def test_decode_rejects_noncanonical_configuration_id() -> None:
+    """worker 不得接受调用方伪造的非 v1 配置身份。"""
+    with pytest.raises(ValueError, match="canonical prefix"):
+        decode_one_on_one_configuration_id("not-a-configuration")
+
+
+def test_idempotency_key_reuses_the_same_persisted_job() -> None:
+    """相同幂等键和完整输入重复提交时不得创建第二组配置结果。"""
+    store = _IdempotentStore()
+    move_pool = _move_pool_command()
+    use_case = CreateBattleInferenceJobUseCase(
+        store=store,  # type: ignore[arg-type]
+        admission_validator=_AcceptAllAdmission(),
+    )
+    command = SubmitBattleInferenceJobCommand(
+        move_pool=move_pool,
+        execution_spec=BattleInferenceExecutionSpec.from_command(move_pool),
+        idempotency_key="request-87",
+    )
+    created_at = datetime(2026, 7, 25, tzinfo=timezone.utc)
+
+    first = use_case.execute(command, created_at=created_at)
+    second = use_case.execute(command, created_at=created_at)
+
+    assert first == second
+    assert first.job_id.startswith("battle-inference-idempotent-")
+    assert store.create_calls == 2
+    assert store.created is not None
+    assert store.created.job.progress.total_count == 25
+
+
+def test_submit_rejects_explicit_form_before_worker_execution() -> None:
+    """当前 worker 未支持 form_id 时必须在创建阶段明确拒绝整批任务。"""
+    move_pool = _move_pool_command()
+    attacker = PokemonMovePoolSelection(
+        fixed=FixedPokemonConfiguration(
+            pokemon_id=149,
+            form_id=10001,
+            level=50,
+            stat_profile_id="max_atk_plus",
+            ability_identifier="none",
+            item_identifier=None,
+        ),
+        candidate_move_ids=move_pool.attacker.candidate_move_ids,
+    )
+    with pytest.raises(ValueError, match="form_id"):
+        SubmitBattleInferenceJobCommand(
+            move_pool=OneOnOneMovePoolCommand(
+                ruleset_id=move_pool.ruleset_id,
+                version_group_id=move_pool.version_group_id,
+                calculation_revision=move_pool.calculation_revision,
+                attacker=attacker,
+                defender=move_pool.defender,
+            ),
+            execution_spec=BattleInferenceExecutionSpec.from_command(move_pool),
+        )
