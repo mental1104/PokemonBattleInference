@@ -1,57 +1,20 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { CONFIGURATION_JOB_CREATED_EVENT } from './api/configurationSpaceHttp';
-import {
-  DEFAULT_CONFIGURATION_SPACE_FIXTURE_JOB_ID,
-} from './api/configurationSpaceJobs';
+import { ref } from 'vue';
 import DamageCalculatorView from './views/DamageCalculatorView.vue';
 import BattleInferenceView from './views/BattleInferenceView.vue';
-import BattleInferenceJobView from './views/BattleInferenceJobView.vue';
 
-type HomeTab = 'calculator' | 'inference' | 'configuration-job';
+type HomeTab = 'calculator' | 'inference';
 
-const initialJobId = readJobId();
-const activeTab = ref<HomeTab>(initialJobId === null ? 'calculator' : 'configuration-job');
-const activeJobId = ref(initialJobId ?? DEFAULT_CONFIGURATION_SPACE_FIXTURE_JOB_ID);
+const activeTab = ref<HomeTab>('calculator');
 
-/** 从当前 URL 恢复配置空间任务 ID。 */
-function readJobId(): string | null {
-  const value = new URL(window.location.href).searchParams.get('job_id')?.trim();
-  return value ? value : null;
-}
-
-/** 把当前配置空间任务 ID 写入浏览器地址，支持刷新恢复。 */
-function persistJobId(jobId: string): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set('job_id', jobId);
-  window.history.replaceState(window.history.state, '', url);
-}
-
-/** 切换首页功能页签。 */
+/**
+ * 切换首页主要产品能力。
+ *
+ * @param tab 单次伤害计算或固定配置多回合精确推演。
+ */
 function selectTab(tab: HomeTab): void {
   activeTab.value = tab;
-  if (tab === 'configuration-job') {
-    persistJobId(activeJobId.value);
-  }
 }
-
-/** 接收真实任务创建事件并立即进入结果页轮询。 */
-function openCreatedJob(event: Event): void {
-  if (!(event instanceof CustomEvent)) return;
-  const jobId = (event.detail as { jobId?: unknown } | null)?.jobId;
-  if (typeof jobId !== 'string' || !jobId.trim()) return;
-  activeJobId.value = jobId;
-  persistJobId(jobId);
-  activeTab.value = 'configuration-job';
-}
-
-onMounted(() => {
-  window.addEventListener(CONFIGURATION_JOB_CREATED_EVENT, openCreatedJob);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener(CONFIGURATION_JOB_CREATED_EVENT, openCreatedJob);
-});
 </script>
 
 <template>
@@ -74,22 +37,14 @@ onBeforeUnmount(() => {
           :class="{ 'home-tab--active': activeTab === 'inference' }"
           @click="selectTab('inference')"
         >
-          多回合战斗推演
-        </button>
-        <button
-          type="button"
-          :class="{ 'home-tab--active': activeTab === 'configuration-job' }"
-          @click="selectTab('configuration-job')"
-        >
-          配置空间任务
+          固定配置精确推演
         </button>
       </div>
     </nav>
 
     <KeepAlive>
       <DamageCalculatorView v-if="activeTab === 'calculator'" />
-      <BattleInferenceView v-else-if="activeTab === 'inference'" />
-      <BattleInferenceJobView v-else :job-id="activeJobId" />
+      <BattleInferenceView v-else />
     </KeepAlive>
   </div>
 </template>
