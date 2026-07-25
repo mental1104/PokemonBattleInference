@@ -13,6 +13,9 @@ from pokeop.application.battle_inference_effect_factory import (
 from pokeop.application.battle_candidate_pool.admission import (
     ValidateFixedMechanismSelectionUseCase,
 )
+from pokeop.application.battle_candidate_pool.listing import (
+    ListBattleCandidatePoolUseCase,
+)
 from pokeop.application.composition.battle_inference_repository import (
     FactoryReconciledBattleInferenceRepository,
 )
@@ -69,6 +72,21 @@ def inference_use_case() -> InferOneOnOneBattleUseCase:
         repository=repository,
         effect_factory=effect_factory,
     )
+
+
+def candidate_pool_use_case() -> ListBattleCandidatePoolUseCase:
+    """创建与任务准入共享 repository 和 effect factory 的候选池用例。"""
+    inference = inference_use_case()
+    return ListBattleCandidatePoolUseCase(
+        repository=inference.repository,
+        effect_factory=inference.effect_factory,
+    )
+
+
+CandidatePoolDependency = Annotated[
+    ListBattleCandidatePoolUseCase,
+    Depends(candidate_pool_use_case),
+]
 
 
 def create_use_case(
