@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  BattleConfigurationSpaceApiError,
   CONFIGURATION_JOB_CREATED_EVENT,
   HttpBattleConfigurationSpaceAdapter,
 } from './configurationSpaceHttp';
@@ -133,11 +132,9 @@ describe('HttpBattleConfigurationSpaceAdapter', () => {
 
     await expect(
       new HttpBattleConfigurationSpaceAdapter().createJob(command),
-    ).rejects.toEqual(
-      expect.objectContaining<Partial<BattleConfigurationSpaceApiError>>({
-        code: 'strict_mechanism_admission_rejected',
-        message: expect.stringContaining('thunderbolt'),
-      }),
-    );
+    ).rejects.toMatchObject({
+      code: 'strict_mechanism_admission_rejected',
+      message: expect.stringContaining('thunderbolt'),
+    });
   });
 });
