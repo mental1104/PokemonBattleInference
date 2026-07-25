@@ -60,15 +60,12 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
   throw new BattleConfigurationSpaceApiError(response.status, code, message);
 }
 
-/** 对规范化请求生成稳定的提交幂等键。 */
-function idempotencyKey(request: CreateBattleConfigurationJobRequest): string {
-  const serialized = JSON.stringify(request);
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < serialized.length; index += 1) {
-    hash ^= serialized.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
+/** 为一次用户提交生成重试边界内稳定、跨提交不同的幂等键。 */
+function idempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return `configuration-space-${crypto.randomUUID()}`;
   }
-  return `configuration-space-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return `configuration-space-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 /** 配置页默认使用的真实 HTTP adapter。 */
@@ -97,7 +94,7 @@ export class HttpBattleConfigurationSpaceAdapter
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey(request),
+          'Idempotency-Key': idempotencyKey(),
         },
         body: JSON.stringify(request),
       },
