@@ -1,6 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import candidateStyles from '../components/inference/CandidateMovePoolSelector.css?raw';
-import viewStyles from './BattleInferenceView.css?raw';
+
+// Vitest 会把普通 CSS 模块转换为空导出；合同测试直接读取源码，避免把转换器行为误判为样式缺失。
+const candidateStyles = readFileSync(
+  'src/components/inference/CandidateMovePoolSelector.css',
+  'utf8',
+);
+const viewStyles = readFileSync('src/views/BattleInferenceView.css', 'utf8');
 
 describe('BattleInferenceView responsive styles', () => {
   it('collapses symmetric columns and bounded cards before a 320px viewport can overflow', () => {
