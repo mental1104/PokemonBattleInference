@@ -16,7 +16,6 @@ from pokeop.api.schemas.fixed_battle import (
 from pokeop.api.schemas.inference import BattleInferenceSummaryResponse
 from pokeop.application.battle_candidate_pool.admission import (
     StrictMechanismAdmissionRejected,
-    ValidateFixedMechanismSelectionCommand,
     ValidateFixedMechanismSelectionUseCase,
 )
 from pokeop.application.battle_candidate_pool.listing import (
@@ -30,6 +29,9 @@ from pokeop.application.composition.battle_inference_repository import (
     FactoryReconciledBattleInferenceRepository,
 )
 from pokeop.application.solver.models import StateGraphLimits
+from pokeop.application.use_cases.admitted_fixed_battle import (
+    RunAdmittedFixedBattleSummaryUseCase,
+)
 from pokeop.application.use_cases.fixed_battle_workflow import (
     EnumerateMoveSetCombinationsCommand,
     EnumerateMoveSetCombinationsUseCase,
@@ -83,13 +85,20 @@ def combination_use_case() -> EnumerateMoveSetCombinationsUseCase:
     )
 
 
-def summary_use_case() -> InferFixedBattleSummaryUseCase:
-    """创建不保留完整探索图的固定配置精确摘要用例。
+def summary_use_case() -> RunAdmittedFixedBattleSummaryUseCase:
+    """创建包含严格准入和轻量精确求解的 application 用例。
 
     Returns:
-        复用现有精确 solver，但使用轻量状态图构建路径的 application 用例。
+        API 无需理解候选池机制判断的固定配置业务编排对象。
     """
-    return InferFixedBattleSummaryUseCase(inference_use_case())
+    inference = inference_use_case()
+    return RunAdmittedFixedBattleSummaryUseCase(
+        admission_use_case=ValidateFixedMechanismSelectionUseCase(
+            inference.repository,
+            inference.effect_factory,
+        ),
+        summary_use_case=InferFixedBattleSummaryUseCase(inference),
+    )
 
 
 CombinationUseCaseDependency = Annotated[
@@ -97,7 +106,7 @@ CombinationUseCaseDependency = Annotated[
     Depends(combination_use_case),
 ]
 SummaryUseCaseDependency = Annotated[
-    InferFixedBattleSummaryUseCase,
+    RunAdmittedFixedBattleSummaryUseCase,
     Depends(summary_use_case),
 ]
 
@@ -246,7 +255,7 @@ def infer_fixed_one_on_one(
 
     Args:
         request: 双方固定配置、已选技能组、行动策略和单配置图预算。
-        use_case: 不保存完整探索图的固定配置精确摘要用例。
+        use_case: 负责严格准入和轻量精确求解的 application 用例。
 
     Returns:
         明确绑定行动策略假设的精确概率摘要；不包含 graph ID 和代表路径。
@@ -263,22 +272,6 @@ def infer_fixed_one_on_one(
             level=request.attacker.level,
             max_turns=request.limits.max_turns,
         )
-        # 固定配置在构图前再次做严格准入，禁止 PARTIAL/UNSUPPORTED 机制烧 CPU 后失败。
-        inference = use_case.inference_use_case
-        admission = ValidateFixedMechanismSelectionUseCase(
-            inference.repository,
-            inference.effect_factory,
-        )
-        for side in (request.attacker, request.defender):
-            admission.execute(
-                ValidateFixedMechanismSelectionCommand(
-                    rules=rules,
-                    pokemon_id=side.pokemon_id,
-                    move_ids=tuple(side.move_ids),
-                    ability_identifier=side.ability_identifier,
-                    item_identifier=side.item_identifier,
-                )
-            )
         command = build_fixed_inference_command(
             rules=rules,
             attacker=request.attacker.to_application(),
