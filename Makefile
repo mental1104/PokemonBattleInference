@@ -116,7 +116,7 @@ compose-up:
 	$(COMPOSE) build frontend backend
 	$(COMPOSE) up -d postgres
 	$(COMPOSE) run --rm db-init
-	$(COMPOSE) up -d backend frontend --remove-orphans
+	$(COMPOSE) up -d backend worker frontend --remove-orphans
 
 compose-down:
 	$(COMPOSE) down --remove-orphans
@@ -125,7 +125,7 @@ compose-rebuild:
 	$(COMPOSE) build --no-cache frontend backend
 	$(COMPOSE) up -d postgres
 	$(COMPOSE) run --rm db-init
-	$(COMPOSE) up -d --force-recreate backend frontend --remove-orphans
+	$(COMPOSE) up -d --force-recreate backend worker frontend --remove-orphans
 
 compose-assets-rebuild:
 	$(COMPOSE) build backend
