@@ -22,6 +22,9 @@ from pokeop.application.use_cases.fixed_battle_workflow import (
     MoveSetOption,
     MoveSetSideResult,
 )
+from pokeop.application.use_cases.infer_one_on_one_battle import (
+    PokemonConfigurationSummary,
+)
 
 
 class FixedBattleSideRequest(BaseModel):
@@ -118,11 +121,20 @@ class FixedBattleSummaryRequest(BaseModel):
     defender: FixedBattleChosenSideRequest
     attacker_policy: Literal["uniform-random", "first-legal"] = "uniform-random"
     defender_policy: Literal["uniform-random", "first-legal"] = "uniform-random"
-    limits: FixedBattleGraphLimitsRequest = FixedBattleGraphLimitsRequest()
+    limits: FixedBattleGraphLimitsRequest = Field(
+        default_factory=FixedBattleGraphLimitsRequest
+    )
 
 
 def _move_set_option_response(option: MoveSetOption) -> MoveSetOptionResponse:
-    """把 application 技能组投影为 JSON 友好响应。"""
+    """把 application 技能组投影为 JSON 友好响应。
+
+    Args:
+        option: 已规范化且包含展示名称的技能组。
+
+    Returns:
+        使用可变 JSON 数组表达 ID 与名称的响应对象。
+    """
     return MoveSetOptionResponse(
         move_set_id=option.move_set_id,
         move_ids=list(option.move_ids),
@@ -131,7 +143,14 @@ def _move_set_option_response(option: MoveSetOption) -> MoveSetOptionResponse:
 
 
 def _side_response(result: MoveSetSideResult) -> MoveSetSideResponse:
-    """把一侧组合结果投影为 HTTP 响应。"""
+    """把一侧组合结果投影为 HTTP 响应。
+
+    Args:
+        result: 一侧完整候选计数和技能组列表。
+
+    Returns:
+        不包含对手或配置对执行记录的一侧响应。
+    """
     return MoveSetSideResponse(
         pokemon_id=result.pokemon_id,
         pokemon_name=result.pokemon_name,
@@ -163,7 +182,14 @@ def move_set_combinations_response(
 
 
 def _probability(value: Fraction) -> ProbabilityResponse:
-    """把精确概率转换为 JavaScript 安全的字符串分数。"""
+    """把精确概率转换为 JavaScript 安全的字符串分数。
+
+    Args:
+        value: 闭区间 [0, 1] 内的精确概率。
+
+    Returns:
+        同时包含字符串分数与展示近似值的响应对象。
+    """
     decimal = float(value)
     return ProbabilityResponse(
         numerator=str(value.numerator),
@@ -173,8 +199,17 @@ def _probability(value: Fraction) -> ProbabilityResponse:
     )
 
 
-def _pokemon(summary) -> PokemonConfigurationResponse:
-    """把 application 一侧固定配置转换为展示 DTO。"""
+def _pokemon(
+    summary: PokemonConfigurationSummary,
+) -> PokemonConfigurationResponse:
+    """把 application 一侧固定配置转换为展示 DTO。
+
+    Args:
+        summary: 已经由固定配置生成器还原能力值和技能名称的摘要。
+
+    Returns:
+        不暴露 domain 或 persistence 对象的 HTTP 响应。
+    """
     return PokemonConfigurationResponse(
         pokemon_id=summary.pokemon_id,
         name=summary.name,
