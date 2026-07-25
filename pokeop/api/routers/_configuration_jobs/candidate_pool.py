@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Path, Query
 
 from pokeop.api.routers._configuration_jobs.dependencies import CandidatePoolDependency
 from pokeop.api.schemas.battle_candidate_pool import (
@@ -25,7 +27,7 @@ router = APIRouter()
     summary="读取指定 version group 的真实战斗候选招式池",
 )
 def list_battle_candidate_pool(
-    pokemon_id: int,
+    pokemon_id: Annotated[int, Path(gt=0)],
     use_case: CandidatePoolDependency,
     ruleset_id: str = Query(min_length=1),
     version_group_id: int = Query(gt=0),
