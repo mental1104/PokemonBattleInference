@@ -69,7 +69,11 @@ def inference_use_case() -> InferOneOnOneBattleUseCase:
 
 
 def combination_use_case() -> EnumerateMoveSetCombinationsUseCase:
-    """创建只枚举技能组合的 application 查询用例。"""
+    """创建只枚举技能组合的 application 查询用例。
+
+    Returns:
+        复用正式候选池 repository 和 effect factory 的无状态组合用例。
+    """
     inference = inference_use_case()
     return EnumerateMoveSetCombinationsUseCase(
         ListBattleCandidatePoolUseCase(
@@ -80,7 +84,11 @@ def combination_use_case() -> EnumerateMoveSetCombinationsUseCase:
 
 
 def summary_use_case() -> InferFixedBattleSummaryUseCase:
-    """创建不保留完整探索图的固定配置精确摘要用例。"""
+    """创建不保留完整探索图的固定配置精确摘要用例。
+
+    Returns:
+        复用现有精确 solver，但使用轻量状态图构建路径的 application 用例。
+    """
     return InferFixedBattleSummaryUseCase(inference_use_case())
 
 
@@ -101,7 +109,17 @@ def _rules(
     level: int,
     max_turns: int,
 ) -> BattleInferenceRules:
-    """构造双方共享的首版 1v1 规则对象。"""
+    """构造双方共享的首版 1v1 规则对象。
+
+    Args:
+        ruleset_id: 当前固定推演规则集稳定标识。
+        version_group_id: 招式学习和历史机制使用的 PokeAPI version group。
+        level: 双方共享的战斗等级。
+        max_turns: 本次固定配置允许完整执行的最大回合号。
+
+    Returns:
+        禁止换人和特殊形态变化的正式领域规则对象。
+    """
     return BattleInferenceRules(
         ruleset_id=ruleset_id,
         version_group_id=version_group_id,
@@ -111,7 +129,17 @@ def _rules(
 
 
 def _policy(value: str) -> BattleActionPolicyKind:
-    """把 HTTP 稳定字符串映射为 application 行动策略枚举。"""
+    """把 HTTP 稳定字符串映射为 application 行动策略枚举。
+
+    Args:
+        value: ``uniform-random`` 或仅供开发调试的 ``first-legal``。
+
+    Returns:
+        固定推演命令使用的显式策略枚举。
+
+    Raises:
+        ValueError: value 不是当前固定推演支持的策略时抛出。
+    """
     if value == "uniform-random":
         return BattleActionPolicyKind.UNIFORM_RANDOM
     if value == "first-legal":
@@ -137,12 +165,9 @@ def _raise_http_error(error: Exception) -> NoReturn:
     elif isinstance(error, BattleInferenceExecutionError):
         status_code = 422
         code = "fixed_battle_not_completely_solved"
-    elif isinstance(error, ValueError):
+    else:
         status_code = 422
         code = "fixed_battle_invalid_request"
-    else:
-        status_code = 500
-        code = "fixed_battle_internal_error"
     detail: dict[str, object] = {"code": code, "message": str(error)}
     if isinstance(error, StrictMechanismAdmissionRejected):
         detail["failures"] = [
@@ -176,6 +201,9 @@ def enumerate_move_set_combinations(
 
     Returns:
         每侧最多 210 个技能组以及理论配置对数量。
+
+    Raises:
+        HTTPException: 候选池不存在或输入没有通过严格组合校验时抛出。
     """
     try:
         if request.attacker.level != request.defender.level:
@@ -201,7 +229,7 @@ def enumerate_move_set_combinations(
             )
         )
         return move_set_combinations_response(result)
-    except Exception as error:
+    except (BattleCandidatePoolNotFound, ValueError) as error:
         _raise_http_error(error)
 
 
@@ -222,6 +250,9 @@ def infer_fixed_one_on_one(
 
     Returns:
         明确绑定行动策略假设的精确概率摘要；不包含 graph ID 和代表路径。
+
+    Raises:
+        HTTPException: 机制未通过准入、图被截断或输入不符合首版边界时抛出。
     """
     try:
         if request.attacker.level != request.defender.level:
@@ -263,7 +294,12 @@ def infer_fixed_one_on_one(
             ),
         )
         return fixed_battle_summary_response(use_case.execute(command))
-    except Exception as error:
+    except (
+        BattleCandidatePoolNotFound,
+        StrictMechanismAdmissionRejected,
+        BattleInferenceExecutionError,
+        ValueError,
+    ) as error:
         _raise_http_error(error)
 
 
