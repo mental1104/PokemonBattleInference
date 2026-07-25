@@ -1,0 +1,49 @@
+name: PR 110 Validation
+
+on:
+  push:
+    branches:
+      - agent/fixed-battle-combination-workflow
+  workflow_dispatch:
+
+jobs:
+  changed-python-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile changed Python files
+        run: |
+          python -m py_compile \
+            pokeop/api/routers/fixed_battle.py \
+            pokeop/api/schemas/fixed_battle.py \
+            pokeop/application/solver/summary_state_graph.py \
+            pokeop/application/use_cases/admitted_fixed_battle.py \
+            pokeop/application/use_cases/fixed_battle_workflow.py \
+            tests/api/test_fixed_battle_api.py \
+            tests/application/solver/test_summary_state_graph.py \
+            tests/application/use_cases/test_fixed_battle_workflow.py
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Run targeted tests
+        run: >-
+          npx vitest run
+          src/api/fixedBattle.test.ts
+          src/views/BattleInferenceView.test.ts
+          src/App.test.ts
+      - run: npm run type-check
+      - run: npm run build
