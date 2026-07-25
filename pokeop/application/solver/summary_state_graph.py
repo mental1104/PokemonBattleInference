@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from fractions import Fraction
 from typing import Hashable, Iterable
 
+from pokeop.domain.battle.inference_outcome import TerminationReason
 from pokeop.domain.battle.state import BattleState, StateKey
 from pokeop.domain.battle.transitions import (
     TransitionEventSummary,
@@ -166,7 +167,17 @@ class SummaryStateGraphBuilder:
                 )
                 continue
 
-            transitions = merge_summary_transitions(self.expander.expand(node.state))
+            raw_transitions = tuple(self.expander.expand(node.state))
+            if not raw_transitions:
+                # 与正式构图器保持一致：整体没有后继代表异常无合法行动平局，
+                # 不能把领域允许的空分布误报为概率合同异常。
+                nodes[int(node_id)] = replace(
+                    node,
+                    outcome=GraphNodeOutcome.DRAW,
+                    termination_reason=TerminationReason.NO_LEGAL_ACTION,
+                )
+                continue
+            transitions = merge_summary_transitions(raw_transitions)
             new_keys = tuple(
                 transition.state.state_key
                 for transition in transitions
