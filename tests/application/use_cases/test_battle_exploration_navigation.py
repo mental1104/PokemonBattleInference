@@ -99,12 +99,21 @@ def test_expand_only_requested_group_and_reject_unknown_group(monkeypatch) -> No
     original_project_outcome = _support.projection._project_outcome
     projected_edge_ids: list[int] = []
 
-    def record_projected_edge(*, node, edge, cumulative_probability):
-        """记录真正被展开的正式边，再调用 #58 原始 outcome projector。"""
-        projected_edge_ids.append(int(edge.edge_id))
+    def record_projected_edge(
+        *,
+        node,
+        contribution,
+        selection_probability,
+        random_probability,
+        cumulative_probability,
+    ):
+        """记录真正被展开的正式边，再调用联合行动 outcome projector。"""
+        projected_edge_ids.append(int(contribution.edge.edge_id))
         return original_project_outcome(
             node=node,
-            edge=edge,
+            contribution=contribution,
+            selection_probability=selection_probability,
+            random_probability=random_probability,
             cumulative_probability=cumulative_probability,
         )
 

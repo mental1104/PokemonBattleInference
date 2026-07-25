@@ -132,6 +132,9 @@ function group(depth: number): TransitionGroupResult {
     kind: 'damage-distribution',
     label_key: 'damage-roll',
     probability: probability(),
+    selection_probability: probability(),
+    attacker_action: { side: 'attacker', action_type: 'move', move_id: 337 },
+    defender_action: { side: 'defender', action_type: 'move', move_id: 8 },
     raw_result_count: 16,
     distinct_outcome_count: 2,
     summary: {
@@ -162,6 +165,7 @@ function outcome(
     edge_id: edgeId,
     target_node_id: targetNodeId,
     probability: probability(1, 2),
+    joint_probability: probability(1, 2),
     cumulative_probability: probability(1, 2),
     label_fields: {
       selected_move_ids: [8],
@@ -178,6 +182,38 @@ function outcome(
       final_damage: 70 + index,
       actual_hp_loss: 70 + index,
     })),
+    compact_results: [
+      {
+        target_node_id: targetNodeId,
+        action_resolutions: [
+          {
+            side: 'defender',
+            move_id: 8,
+            action_type: 'move',
+            order_position: 1,
+            status: 'executed',
+            hit: true,
+            reason: null,
+          },
+          {
+            side: 'attacker',
+            move_id: 337,
+            action_type: 'move',
+            order_position: 2,
+            status: 'cancelled',
+            hit: null,
+            reason: 'fainted-before-action',
+          },
+        ],
+        order_reason: 'priority-modifier-speed',
+        critical_hit: null,
+        raw_roll_values: rawValues,
+        final_damage_values: rawValues.map((_rawValue, index) => 70 + index),
+        actual_hp_losses: rawValues.map((_rawValue, index) => 70 + index),
+        status_effects: [],
+        path_count: rawValues.length,
+      },
+    ],
     battle_event_paths: [],
     event_paths: [],
   };
@@ -279,16 +315,17 @@ describe('BattleGraphExplorer', () => {
     await flushPromises();
 
     expect(outcomesMock).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('16 条原始路径');
+    expect(wrapper.text()).toContain('16 条离散随机路径');
     expect(wrapper.text()).toContain('2 个目标状态');
     expect(wrapper.find('[data-testid="transition-outcome-list"]').exists()).toBe(false);
 
-    await wrapper.get('[data-group-id="damage-0"]').trigger('click');
+    await wrapper.get('[data-group-id="damage-0"] .transition-group-card__toggle').trigger('click');
     await flushPromises();
 
     expect(outcomesMock).toHaveBeenCalledTimes(1);
     expect(wrapper.findAll('[data-edge-id]')).toHaveLength(2);
-    expect(wrapper.text()).toContain('原始随机值 85 / 86 / 87 / 88 / 89 / 90 / 91 / 92');
+    expect(wrapper.text()).toContain('原始 roll：85 / 86 / 87 / 88 / 89 / 90 / 91 / 92');
+    expect(wrapper.text()).toContain('取消：fainted-before-action');
   });
 
   it('advances, unmounts old outcomes, backs one level, and jumps to any cached ancestor', async () => {
@@ -305,7 +342,7 @@ describe('BattleGraphExplorer', () => {
     const wrapper = mount(BattleGraphExplorer, { props: { handle: handle() } });
     await flushPromises();
     for (const depth of [0, 1]) {
-      await wrapper.get(`[data-group-id="damage-${depth}"]`).trigger('click');
+      await wrapper.get(`[data-group-id="damage-${depth}"] .transition-group-card__toggle`).trigger('click');
       await flushPromises();
       await wrapper.get(`[data-edge-id="${depth + 1}"]`).trigger('click');
       await flushPromises();
@@ -345,7 +382,7 @@ describe('BattleGraphExplorer', () => {
     const wrapper = mount(BattleGraphExplorer, { props: { handle: handle() } });
     await flushPromises();
     for (const depth of [0, 1]) {
-      await wrapper.get(`[data-group-id="damage-${depth}"]`).trigger('click');
+      await wrapper.get(`[data-group-id="damage-${depth}"] .transition-group-card__toggle`).trigger('click');
       await flushPromises();
       await wrapper.get(`[data-edge-id="${depth + 1}"]`).trigger('click');
       await flushPromises();
@@ -370,7 +407,7 @@ describe('BattleGraphExplorer', () => {
     const wrapper = mount(BattleGraphExplorer, { props: { handle: handle() } });
     await flushPromises();
     for (let depth = 0; depth < 12; depth += 1) {
-      await wrapper.get(`[data-group-id="damage-${depth}"]`).trigger('click');
+      await wrapper.get(`[data-group-id="damage-${depth}"] .transition-group-card__toggle`).trigger('click');
       await flushPromises();
       await wrapper.get(`[data-edge-id="${depth + 1}"]`).trigger('click');
       await flushPromises();
@@ -404,7 +441,7 @@ describe('BattleGraphExplorer', () => {
 
     const wrapper = mount(BattleGraphExplorer, { props: { handle: handle('graph-1') } });
     await flushPromises();
-    await wrapper.get('[data-group-id="damage-0"]').trigger('click');
+    await wrapper.get('[data-group-id="damage-0"] .transition-group-card__toggle').trigger('click');
     await flushPromises();
     expect(wrapper.find('[data-testid="transition-outcome-list"]').exists()).toBe(true);
 
