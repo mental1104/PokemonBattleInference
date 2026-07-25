@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { CONFIGURATION_JOB_CREATED_EVENT } from './api/configurationSpaceHttp';
 import {
   DEFAULT_CONFIGURATION_SPACE_FIXTURE_JOB_ID,
 } from './api/configurationSpaceJobs';
@@ -13,38 +14,44 @@ const initialJobId = readJobId();
 const activeTab = ref<HomeTab>(initialJobId === null ? 'calculator' : 'configuration-job');
 const activeJobId = ref(initialJobId ?? DEFAULT_CONFIGURATION_SPACE_FIXTURE_JOB_ID);
 
-/**
- * 从当前 URL 恢复配置空间任务 ID。
- *
- * @returns 非空 job_id；参数缺失或仅包含空白时返回 null。
- */
+/** 从当前 URL 恢复配置空间任务 ID。 */
 function readJobId(): string | null {
   const value = new URL(window.location.href).searchParams.get('job_id')?.trim();
   return value ? value : null;
 }
 
-/**
- * 把当前配置空间任务 ID 写入浏览器地址，支持刷新和离开页面后恢复。
- *
- * @param jobId 需要持久化到查询参数的稳定任务标识。
- */
+/** 把当前配置空间任务 ID 写入浏览器地址，支持刷新恢复。 */
 function persistJobId(jobId: string): void {
   const url = new URL(window.location.href);
   url.searchParams.set('job_id', jobId);
   window.history.replaceState(window.history.state, '', url);
 }
 
-/**
- * 切换首页功能页签；首次进入任务结果页时创建有界 fixture 入口。
- *
- * @param tab 用户选择的功能页签。
- */
+/** 切换首页功能页签。 */
 function selectTab(tab: HomeTab): void {
   activeTab.value = tab;
   if (tab === 'configuration-job') {
     persistJobId(activeJobId.value);
   }
 }
+
+/** 接收真实任务创建事件并立即进入结果页轮询。 */
+function openCreatedJob(event: Event): void {
+  if (!(event instanceof CustomEvent)) return;
+  const jobId = (event.detail as { jobId?: unknown } | null)?.jobId;
+  if (typeof jobId !== 'string' || !jobId.trim()) return;
+  activeJobId.value = jobId;
+  persistJobId(jobId);
+  activeTab.value = 'configuration-job';
+}
+
+onMounted(() => {
+  window.addEventListener(CONFIGURATION_JOB_CREATED_EVENT, openCreatedJob);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener(CONFIGURATION_JOB_CREATED_EVENT, openCreatedJob);
+});
 </script>
 
 <template>
