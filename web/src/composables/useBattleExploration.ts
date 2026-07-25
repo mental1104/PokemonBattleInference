@@ -122,18 +122,25 @@ function cloneCursor(cursor: ExplorationCursorResult): ExplorationCursorResult {
  * @returns 优先展示实际 HP 损失区间，其次展示结果 key 的短标签。
  */
 function outcomeLabel(outcome: TransitionOutcomeResult): string {
-  if (outcome.damage_rolls.length > 0) {
-    const hpLosses = outcome.damage_rolls.map((roll) => roll.actual_hp_loss);
-    const minimum = Math.min(...hpLosses);
-    const maximum = Math.max(...hpLosses);
-    return minimum === maximum ? `伤害 -${minimum}` : `伤害 -${minimum}～-${maximum}`;
+  const hpLosses = [
+    ...new Set(
+      outcome.compact_results.flatMap((result) => result.actual_hp_losses),
+    ),
+  ].sort((left, right) => left - right);
+  if (hpLosses.length > 0) {
+    return `HP -${hpLosses.join(' / -')}`;
   }
-  const resultKey = outcome.label_fields.result_keys[0];
-  if (resultKey) {
-    return resultKey.replaceAll('-', ' ').replaceAll('_', ' ');
+  const cancellation = outcome.compact_results
+    .flatMap((result) => result.action_resolutions)
+    .find((resolution) => resolution.status === 'cancelled');
+  if (cancellation !== undefined) {
+    return `${cancellation.side} 行动取消`;
   }
-  return `分支 ${outcome.edge_id}`;
+  return `进入节点 #${outcome.target_node_id}`;
 }
+
+/**
+ * 管理路径聚焦式状态图窗口}
 
 /**
  * 管理路径聚焦式状态图窗口、按需 outcomes、轻量 breadcrumb 与有界 cache。

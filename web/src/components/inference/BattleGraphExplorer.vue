@@ -193,7 +193,7 @@ watch(
 
         <section v-if="!current.terminal" class="battle-graph-explorer__groups">
           <header>
-            <strong>下一步概率分支</strong>
+            <strong>双方联合行动</strong>
             <small>{{ current.transition_groups.length }} 组 · 点击后才加载 outcomes</small>
           </header>
           <template v-for="group in current.transition_groups" :key="group.group_id">

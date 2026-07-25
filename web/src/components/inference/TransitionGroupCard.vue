@@ -1,149 +1,145 @@
 <script setup lang="ts">
-import type { TransitionGroupResult } from '../../api/inference';
+import { computed } from 'vue';
+import type { JointActionDetailResult, TransitionGroupResult } from '../../api/inference';
 
-interface Props {
+const props = defineProps<{
   group: TransitionGroupResult;
   expanded: boolean;
   loading: boolean;
-}
-
-const props = defineProps<Props>();
+}>();
 
 const emit = defineEmits<{
   toggle: [groupId: string];
 }>();
 
 /**
- * 把 group kind identifier 转成界面标题。
+ * 将一侧类型化行动转换为联合行动标题片段。
  *
- * @param kind 服务端投影的显式分支机制类型。
- * @returns 中文优先的分支组名称。
+ * @param action 服务端投影的一侧行动；旧图没有完整选招事件时为 null。
+ * @returns 普通招式、挣扎、pass 或兼容分组文案。
  */
-function groupKindLabel(kind: string): string {
+function actionLabel(action: JointActionDetailResult | null): string {
+  if (action === null) {
+    return '未解析行动';
+  }
+  if (action.action_type === 'move' && action.move_id !== null) {
+    return `招式 #${action.move_id}`;
+  }
+  if (action.action_type === 'struggle') {
+    return '挣扎';
+  }
+  if (action.action_type === 'pass') {
+    return '跳过行动';
+  }
+  return action.move_id === null ? action.action_type : `${action.action_type} #${action.move_id}`;
+}
+
+const title = computed(() => {
+  if (props.group.attacker_action !== null && props.group.defender_action !== null) {
+    return `攻击方 ${actionLabel(props.group.attacker_action)} × 防守方 ${actionLabel(props.group.defender_action)}`;
+  }
   const labels: Record<string, string> = {
     'action-selection': '行动选择',
     'action-order': '行动顺序',
     'hit-check': '命中判定',
-    'damage-distribution': '伤害乱数',
+    'damage-distribution': '伤害随机结果',
     'secondary-effect': '追加效果',
     composite: '组合结果',
   };
-  return labels[kind] ?? kind.replaceAll('-', ' ').replaceAll('_', ' ');
-}
+  return labels[props.group.kind] ?? props.group.kind;
+});
 
-/**
- * 生成收起状态下的伤害或 HP 损失范围说明。
- *
- * @param group 当前 TransitionGroup 摘要。
- * @returns 有范围时返回紧凑文本；无伤害数据时返回概率分支说明。
- */
-function summaryLabel(group: TransitionGroupResult): string {
-  const minimum = group.summary.minimum_hp_loss ?? group.summary.minimum_damage;
-  const maximum = group.summary.maximum_hp_loss ?? group.summary.maximum_damage;
-  if (minimum === null || maximum === null) {
-    return `${group.raw_result_count} 条原始路径`;
-  }
-  return minimum === maximum ? `HP -${minimum}` : `HP -${minimum}～-${maximum}`;
-}
-
-/**
- * 通知父组件展开或收起当前分支组。
- */
+/** 触发父组件按需加载或收起当前联合行动。 */
 function toggle(): void {
   emit('toggle', props.group.group_id);
 }
 </script>
 
 <template>
-  <article class="transition-group-card" :class="{ 'transition-group-card--expanded': expanded }">
-    <button
-      type="button"
-      :aria-expanded="expanded"
-      :aria-controls="`outcomes-${group.group_id}`"
-      :data-group-id="group.group_id"
-      @click="toggle"
-    >
-      <span class="transition-group-card__icon">{{ expanded ? '−' : '+' }}</span>
-      <span class="transition-group-card__copy">
-        <strong>{{ groupKindLabel(group.kind) }}</strong>
-        <small>{{ summaryLabel(group) }} · {{ group.raw_result_count }} 条原始路径</small>
+  <article
+    class="transition-group-card"
+    :class="{ 'transition-group-card--expanded': expanded }"
+    :data-group-id="group.group_id"
+  >
+    <button class="transition-group-card__toggle" type="button" @click="toggle">
+      <span class="transition-group-card__heading">
+        <strong>{{ title }}</strong>
+        <span>{{ group.selection_probability.percent.toFixed(2) }}% 选择概率</span>
       </span>
-      <span class="transition-group-card__metrics">
-        <strong>{{ group.probability.percent.toFixed(2) }}%</strong>
-        <small>{{ group.distinct_outcome_count }} 个目标状态</small>
+      <span class="transition-group-card__counts">
+        {{ group.raw_result_count }} 条离散随机路径 ·
+        {{ group.distinct_outcome_count }} 个目标状态
+      </span>
+      <span class="transition-group-card__chevron" aria-hidden="true">
+        {{ expanded ? '−' : '+' }}
       </span>
     </button>
-    <p v-if="loading && expanded" class="transition-group-card__loading">正在归并并加载该分支结果…</p>
+    <p v-if="loading" class="transition-group-card__loading">正在加载紧凑随机结果…</p>
+    <slot v-else-if="expanded" />
   </article>
 </template>
 
 <style scoped>
 .transition-group-card {
+  border: 1px solid #dce5f2;
+  border-radius: 14px;
+  background: #fff;
   overflow: hidden;
-  border: 1px solid #d7e0da;
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.94);
 }
 
 .transition-group-card--expanded {
-  border-color: #8eb3a1;
-  box-shadow: 0 9px 22px rgba(42, 91, 69, 0.08);
+  border-color: #9eb8dd;
+  box-shadow: 0 10px 24px rgb(38 74 124 / 10%);
 }
 
-.transition-group-card button {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+.transition-group-card__toggle {
   width: 100%;
-  border: 0;
-  padding: 13px 14px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-.transition-group-card button:hover {
-  background: #f5f8f6;
-}
-
-.transition-group-card__icon {
   display: grid;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  place-items: center;
-  background: #e7f0eb;
-  color: #286b52;
-  font-weight: 900;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: #1f2d3d;
+  text-align: left;
+  cursor: pointer;
 }
 
-.transition-group-card__copy,
-.transition-group-card__metrics {
+.transition-group-card__heading {
+  min-width: 0;
   display: grid;
   gap: 4px;
 }
 
-.transition-group-card__copy strong,
-.transition-group-card__metrics strong {
-  color: #253d32;
+.transition-group-card__heading strong {
+  overflow-wrap: anywhere;
+}
+
+.transition-group-card__heading span,
+.transition-group-card__counts,
+.transition-group-card__loading {
+  color: #607086;
   font-size: 13px;
 }
 
-.transition-group-card__copy small,
-.transition-group-card__metrics small,
-.transition-group-card__loading {
-  color: #78847d;
-  font-size: 10px;
-}
-
-.transition-group-card__metrics {
-  justify-items: end;
+.transition-group-card__chevron {
+  font-size: 22px;
+  color: #496b9b;
 }
 
 .transition-group-card__loading {
   margin: 0;
-  border-top: 1px solid #e4ebe6;
-  padding: 9px 14px;
+  padding: 0 16px 14px;
+}
+
+@media (max-width: 720px) {
+  .transition-group-card__toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .transition-group-card__counts {
+    grid-column: 1 / -1;
+  }
 }
 </style>

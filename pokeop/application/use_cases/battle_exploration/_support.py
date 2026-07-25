@@ -217,16 +217,12 @@ def list_group_summaries(
     node: StateGraphNode,
     edges: tuple[StateGraphEdge, ...],
 ) -> tuple[TransitionGroup, ...]:
-    """只构造折叠组统计，明确不调用完整 outcome projector。"""
-    groups = tuple(
-        _group_summary_projection(node, accumulator)
-        for accumulator in _group_accumulators(edges)
-    )
-    return tuple(
-        sorted(
-            groups,
-            key=lambda group: (_GROUP_KIND_ORDER[group.kind], group.group_id),
-        )
+    """复用联合行动投影，只构造默认折叠的 group 摘要。"""
+    return projection._transition_groups(
+        node=node,
+        outgoing_edges=edges,
+        cumulative_probability=Fraction(1, 1),
+        expanded_group_ids=frozenset(),
     )
 
 
@@ -238,43 +234,16 @@ def expand_group(
     cumulative_probability: Fraction,
     group_id: str,
 ) -> TransitionGroup:
-    """定位一个当前节点 group，并且只为该组正式边构造 outcomes。"""
-    for accumulator in _group_accumulators(edges):
-        current_group_id = _group_id(node.node_id, accumulator.key)
-        if current_group_id != group_id:
-            continue
-        grouped_edges = tuple(
-            sorted(accumulator.edges, key=lambda edge: int(edge.edge_id))
-        )
-        outcomes = tuple(
-            projection._project_outcome(
-                node=node,
-                edge=edge,
-                cumulative_probability=cumulative_probability,
-            )
-            for edge in grouped_edges
-        )
-        damage_rolls = tuple(
-            damage for outcome in outcomes for damage in outcome.damage_rolls
-        )
-        return TransitionGroup(
-            group_id=current_group_id,
-            kind=accumulator.key.kind,
-            label_key=_GROUP_LABEL_KEYS[accumulator.key.kind],
-            probability=ProbabilityProjection.from_fraction(
-                sum(
-                    (edge.probability for edge in grouped_edges),
-                    start=Fraction(0, 1),
-                )
-            ),
-            raw_result_count=sum(
-                len(edge.event_summary.paths) for edge in grouped_edges
-            ),
-            distinct_outcome_count=len(grouped_edges),
-            summary=_damage_summary(damage_rolls),
-            expanded=True,
-            outcomes=outcomes,
-        )
+    """按稳定 group ID 展开一个联合行动的紧凑随机 outcomes。"""
+    groups = projection._transition_groups(
+        node=node,
+        outgoing_edges=edges,
+        cumulative_probability=cumulative_probability,
+        expanded_group_ids=frozenset((group_id,)),
+    )
+    for group in groups:
+        if group.group_id == group_id:
+            return group
     raise TransitionGroupNotFoundError(graph_id, node.node_id, group_id)
 
 
