@@ -7,6 +7,7 @@ import type {
 } from '../types/battleConfigurationSpace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+export const CONFIGURATION_JOB_CREATED_EVENT = 'battle-configuration-job-created';
 
 interface ApiErrorDetail {
   code?: string;
@@ -37,10 +38,7 @@ export class BattleConfigurationSpaceApiError extends Error {
 }
 
 /** 读取 JSON，并把 FastAPI detail 转换为配置页可展示错误。 */
-async function requestJson<T>(
-  path: string,
-  init: RequestInit,
-): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
   const payload = (await response.json()) as T & ApiErrorPayload;
   if (response.ok) return payload;
@@ -62,7 +60,7 @@ async function requestJson<T>(
   throw new BattleConfigurationSpaceApiError(response.status, code, message);
 }
 
-/** 对规范化请求生成稳定的本次提交幂等键。 */
+/** 对规范化请求生成稳定的提交幂等键。 */
 function idempotencyKey(request: CreateBattleConfigurationJobRequest): string {
   const serialized = JSON.stringify(request);
   let hash = 0x811c9dc5;
@@ -93,7 +91,7 @@ export class HttpBattleConfigurationSpaceAdapter
   async createJob(
     request: CreateBattleConfigurationJobRequest,
   ): Promise<CreateBattleConfigurationJobResponse> {
-    return requestJson<CreateBattleConfigurationJobResponse>(
+    const created = await requestJson<CreateBattleConfigurationJobResponse>(
       '/inference/configuration-jobs',
       {
         method: 'POST',
@@ -104,6 +102,12 @@ export class HttpBattleConfigurationSpaceAdapter
         body: JSON.stringify(request),
       },
     );
+    window.dispatchEvent(
+      new CustomEvent(CONFIGURATION_JOB_CREATED_EVENT, {
+        detail: { jobId: created.job_id },
+      }),
+    );
+    return created;
   }
 }
 
