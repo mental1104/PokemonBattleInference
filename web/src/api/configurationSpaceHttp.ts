@@ -62,8 +62,9 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
 
 /** 为一次用户提交生成重试边界内稳定、跨提交不同的幂等键。 */
 function idempotencyKey(): string {
-  if (typeof crypto.randomUUID === 'function') {
-    return `configuration-space-${crypto.randomUUID()}`;
+  const browserCrypto = globalThis.crypto;
+  if (typeof browserCrypto?.randomUUID === 'function') {
+    return `configuration-space-${browserCrypto.randomUUID()}`;
   }
   return `configuration-space-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
