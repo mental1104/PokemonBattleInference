@@ -85,30 +85,32 @@ def test_smoke_run_reports_graph_fraction_process_and_progress_metrics(tmp_path)
 
     report = run_benchmark_suite(
         (workload,),
-        worker_counts=(1,),
-        limits=BenchmarkLimits(max_pairs=1, progress_every=1),
+        worker_counts=(1, 2),
+        limits=BenchmarkLimits(max_pairs=2, progress_every=1),
     )
-    run = report.runs[0]
+    serial_run, parallel_run = report.runs
 
     assert report.fixture_version == FIXTURE_VERSION
-    assert run.requested_pair_count == 1
-    assert run.processed_pair_count == 1
-    assert run.succeeded_count + run.truncated_count + run.failed_count == 1
-    assert run.raw_transition_count >= run.merged_transition_count
-    assert run.process_count == 1
-    assert run.progress_curve[-1].processed_pairs == 1
-    assert run.progress_update_seconds >= 0
-    assert run.postgres_write_seconds is None
-    assert len(run.completed_pair_ids) == 1
-    assert not hasattr(run, "graph")
+    assert report.consistency_checks[0].consistent
+    for run in (serial_run, parallel_run):
+        assert run.requested_pair_count == 2
+        assert run.processed_pair_count == 2
+        assert run.succeeded_count + run.truncated_count + run.failed_count == 2
+        assert run.raw_transition_count >= run.merged_transition_count
+        assert run.process_count >= 1
+        assert run.progress_curve[-1].processed_pairs == 2
+        assert run.progress_update_seconds >= 0
+        assert run.postgres_write_seconds is None
+        assert len(run.completed_pair_ids) == 2
+        assert not hasattr(run, "graph")
 
     json_path, markdown_path = write_report(report, tmp_path)
     payload = json.loads(json_path.read_text(encoding="utf-8"))
 
     assert payload["fixture_version"] == FIXTURE_VERSION
-    assert payload["runs"][0]["processed_pair_count"] == 1
+    assert payload["runs"][0]["processed_pair_count"] == 2
     assert "postgres_write_seconds" in payload["runs"][0]
     assert markdown_path.read_text(encoding="utf-8").startswith(
         f"# Configuration Space Benchmark ({FIXTURE_VERSION})"
     )
-    assert load_resume_pair_ids(json_path) == frozenset(run.completed_pair_ids)
+    assert load_resume_pair_ids(json_path) == frozenset(serial_run.completed_pair_ids)
