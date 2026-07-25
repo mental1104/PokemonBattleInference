@@ -1,10 +1,23 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
 import { SUPPORTED_VERSION_GROUPS } from '../api/configurationSpace';
+import {
+  enumerateMoveSetCombinations,
+  inferFixedBattleSummary,
+} from '../api/fixedBattle';
 import BattleSideConfigurationPanel from '../components/inference/BattleSideConfigurationPanel.vue';
-import { useBattleInferenceConfiguration } from '../composables/useBattleInferenceConfiguration';
+import {
+  useBattleInferenceConfiguration,
+  type BattleSideConfigurationState,
+} from '../composables/useBattleInferenceConfiguration';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
+import type {
+  FixedBattleSideInput,
+  FixedBattleSummaryResult,
+  MoveSetCombinationsResult,
+  MoveSetOptionResult,
+} from '../types/fixedBattle';
 import './BattleInferenceView.css';
 
 const configuration = useBattleInferenceConfiguration();
@@ -12,20 +25,11 @@ const {
   rulesetId,
   versionGroupId,
   calculationRevision,
-  dimensions,
-  weightAssumption,
-  attackerPolicy,
-  defenderPolicy,
-  mechanismAdmission,
   attacker,
   defender,
   attackerPresets,
   defenderPresets,
   selectionNotice,
-  error,
-  submitting,
-  frozenSubmission,
-  createdJob,
   budget,
   remainingGlobalSlots,
   validationMessages,
@@ -34,10 +38,17 @@ const {
   selectPokemon: selectConfigurationPokemon,
   updateSelectedMoveIds,
   applyDragoniteVsWeavilePreset,
-  submit,
 } = configuration;
 const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
 const countFormatter = new Intl.NumberFormat('zh-CN');
+
+const combinationLoading = ref(false);
+const inferenceLoading = ref(false);
+const workflowError = ref<string | null>(null);
+const combinations = ref<MoveSetCombinationsResult | null>(null);
+const selectedAttackerMoveSetId = ref<string | null>(null);
+const selectedDefenderMoveSetId = ref<string | null>(null);
+const summary = ref<FixedBattleSummaryResult | null>(null);
 
 /** 初始化能力值模板；候选池会在选择 Pokémon 后按侧加载。 */
 onMounted(() => {
@@ -59,7 +70,7 @@ async function selectPokemon(
 }
 
 /**
- * 格式化候选数、组合数和配置对数量。
+ * 格式化候选数、组合数和图规模。
  *
  * @param value 非负整数计数。
  * @returns 使用中文千分位分隔的展示文本。
@@ -67,42 +78,178 @@ async function selectPokemon(
 function formatCount(value: number): string {
   return countFormatter.format(value);
 }
+
+/**
+ * 将页面一侧响应式状态冻结为 API 输入。
+ *
+ * @param side 已完成页面必填校验的一侧配置。
+ * @returns 不引用响应式数组的固定配置 DTO。
+ */
+function fixedSideInput(side: BattleSideConfigurationState): FixedBattleSideInput {
+  if (side.pokemon === null) {
+    throw new Error('请选择双方 Pokémon 后再生成技能组合。');
+  }
+  return {
+    pokemon_id: side.pokemon.pokemon_id,
+    form_id: side.formId,
+    level: side.level,
+    stat_profile_id: side.statPreset,
+    ability_identifier: side.abilityIdentifier,
+    item_identifier: side.itemIdentifier === '' ? null : side.itemIdentifier,
+  };
+}
+
+/** 返回当前组合结果中指定的一组技能。 */
+function selectedMoveSet(
+  side: 'attacker' | 'defender',
+): MoveSetOptionResult | null {
+  const result = combinations.value;
+  if (result === null) return null;
+  const selectedId =
+    side === 'attacker'
+      ? selectedAttackerMoveSetId.value
+      : selectedDefenderMoveSetId.value;
+  return result[side].move_sets.find((item) => item.move_set_id === selectedId) ?? null;
+}
+
+/** 调用服务端严格准入并生成左右独立技能组列表。 */
+async function generateCombinations(): Promise<void> {
+  if (!canSubmit.value) return;
+  combinationLoading.value = true;
+  workflowError.value = null;
+  summary.value = null;
+  try {
+    const result = await enumerateMoveSetCombinations({
+      ruleset_id: rulesetId.value,
+      version_group_id: versionGroupId.value,
+      calculation_revision: calculationRevision.value,
+      attacker: {
+        ...fixedSideInput(attacker),
+        candidate_move_ids: [...attacker.selectedMoveIds],
+      },
+      defender: {
+        ...fixedSideInput(defender),
+        candidate_move_ids: [...defender.selectedMoveIds],
+      },
+    });
+    combinations.value = result;
+    selectedAttackerMoveSetId.value = result.attacker.move_sets[0]?.move_set_id ?? null;
+    selectedDefenderMoveSetId.value = result.defender.move_sets[0]?.move_set_id ?? null;
+  } catch (caught) {
+    combinations.value = null;
+    workflowError.value = caught instanceof Error ? caught.message : '技能组合生成失败';
+  } finally {
+    combinationLoading.value = false;
+  }
+}
+
+/** 对当前选中的唯一双方技能组执行精确概率摘要。 */
+async function runFixedInference(): Promise<void> {
+  const attackerMoveSet = selectedMoveSet('attacker');
+  const defenderMoveSet = selectedMoveSet('defender');
+  if (attackerMoveSet === null || defenderMoveSet === null) return;
+
+  inferenceLoading.value = true;
+  workflowError.value = null;
+  summary.value = null;
+  try {
+    summary.value = await inferFixedBattleSummary({
+      ruleset_id: rulesetId.value,
+      version_group_id: versionGroupId.value,
+      attacker: {
+        ...fixedSideInput(attacker),
+        move_ids: [...attackerMoveSet.move_ids],
+      },
+      defender: {
+        ...fixedSideInput(defender),
+        move_ids: [...defenderMoveSet.move_ids],
+      },
+      attacker_policy: 'uniform-random',
+      defender_policy: 'uniform-random',
+      limits: {
+        max_nodes: 50_000,
+        max_edges: 300_000,
+        max_turns: 20,
+      },
+    });
+  } catch (caught) {
+    workflowError.value = caught instanceof Error ? caught.message : '固定配置推演失败';
+  } finally {
+    inferenceLoading.value = false;
+  }
+}
+
+/** 把精确概率格式化为百分比，并保留分数作为 title。 */
+function probabilityLabel(value: { percent: number }): string {
+  return `${value.percent.toFixed(2)}%`;
+}
+
+const selectionFingerprint = computed(() =>
+  JSON.stringify({
+    ruleset_id: rulesetId.value,
+    version_group_id: versionGroupId.value,
+    calculation_revision: calculationRevision.value,
+    attacker: {
+      pokemon_id: attacker.pokemon?.pokemon_id ?? null,
+      form_id: attacker.formId,
+      level: attacker.level,
+      stat_profile_id: attacker.statPreset,
+      ability_identifier: attacker.abilityIdentifier,
+      item_identifier: attacker.itemIdentifier,
+      move_ids: attacker.selectedMoveIds,
+    },
+    defender: {
+      pokemon_id: defender.pokemon?.pokemon_id ?? null,
+      form_id: defender.formId,
+      level: defender.level,
+      stat_profile_id: defender.statPreset,
+      ability_identifier: defender.abilityIdentifier,
+      item_identifier: defender.itemIdentifier,
+      move_ids: defender.selectedMoveIds,
+    },
+  }),
+);
+
+watch(selectionFingerprint, () => {
+  // 任一固定字段或候选池变化后，旧组合和旧概率已不再对应当前快照，必须显式失效。
+  combinations.value = null;
+  selectedAttackerMoveSetId.value = null;
+  selectedDefenderMoveSetId.value = null;
+  summary.value = null;
+});
 </script>
 
 <template>
   <main class="app-shell battle-configuration-view">
     <header class="battle-configuration-hero">
       <div>
-        <p class="battle-configuration-eyebrow">GENERAL 1V1 CONFIGURATION SPACE</p>
-        <h1>战斗推演配置实验室</h1>
+        <p class="battle-configuration-eyebrow">FIXED 1V1 INFERENCE</p>
+        <h1>固定配置精确推演</h1>
         <p>
-          固定双方形态、等级、能力值、特性与道具，只枚举规范化后的候选技能组；提交后由后台任务逐个求解配置对。
+          先从候选池生成规范化四技能组合，再由你为双方各选择一组；系统只精确求解这一个固定配置快照。
         </p>
       </div>
       <div class="battle-configuration-hero__badge">
-        <span>首版硬预算</span>
-        <strong>20 招式 · 44,100 配置对</strong>
-        <small>客户端即时反馈，服务端准入仍为最终权威</small>
+        <span>当前主线</span>
+        <strong>组合枚举 · 单配置求解</strong>
+        <small>批量配置空间暂不作为默认产品入口</small>
       </div>
     </header>
 
     <section class="battle-context-panel" aria-label="推演规则上下文">
       <div class="battle-context-field">
         <span>ruleset_id</span>
-        <strong data-testid="ruleset-id">{{ rulesetId }}</strong>
+        <strong>{{ rulesetId }}</strong>
       </div>
       <label class="battle-context-field">
         <span>version_group_id</span>
-        <select
-          v-model.number="versionGroupId"
-          data-testid="version-group-id"
-        >
+        <select v-model.number="versionGroupId">
           <option
-            v-for="versionGroupId in SUPPORTED_VERSION_GROUPS"
-            :key="versionGroupId"
-            :value="versionGroupId"
+            v-for="supportedVersionGroupId in SUPPORTED_VERSION_GROUPS"
+            :key="supportedVersionGroupId"
+            :value="supportedVersionGroupId"
           >
-            {{ versionGroupId }}
+            {{ supportedVersionGroupId }}
           </option>
         </select>
       </label>
@@ -112,7 +259,6 @@ function formatCount(value: number): string {
       </div>
       <button
         class="battle-example-button"
-        data-testid="dragonite-weavile-preset"
         type="button"
         @click="applyDragoniteVsWeavilePreset"
       >
@@ -120,11 +266,7 @@ function formatCount(value: number): string {
       </button>
     </section>
 
-    <p
-      v-if="selectionNotice"
-      class="battle-configuration-notice"
-      role="status"
-    >
+    <p v-if="selectionNotice" class="battle-configuration-notice" role="status">
       {{ selectionNotice }}
     </p>
 
@@ -180,180 +322,327 @@ function formatCount(value: number): string {
       />
     </section>
 
-    <p v-if="attacker.error" class="error battle-side-error">
-      攻击方：{{ attacker.error }}
-    </p>
-    <p v-if="defender.error" class="error battle-side-error">
-      防守方：{{ defender.error }}
-    </p>
+    <p v-if="attacker.error" class="error">攻击方：{{ attacker.error }}</p>
+    <p v-if="defender.error" class="error">防守方：{{ defender.error }}</p>
 
-    <section class="battle-budget-panel" aria-label="配置空间预算">
+    <section class="battle-budget-panel" aria-label="候选技能组合预算">
       <div class="battle-budget-panel__heading">
         <div>
-          <p class="battle-configuration-eyebrow">CONFIGURATION BUDGET</p>
-          <h2>候选池与配置对预算</h2>
+          <p class="battle-configuration-eyebrow">MOVE SET COMBINATIONS</p>
+          <h2>先枚举，不自动执行</h2>
         </div>
-        <span
-          class="battle-budget-status"
-          :class="{
-            'battle-budget-status--blocked':
-              budget.exceeds_candidate_limit ||
-              budget.exceeds_configuration_pair_limit,
-          }"
-          data-testid="budget-status"
+        <button
+          class="primary-button"
+          type="button"
+          :disabled="!canSubmit || combinationLoading"
+          @click="generateCombinations"
         >
-          {{
-            budget.exceeds_candidate_limit ||
-            budget.exceeds_configuration_pair_limit
-              ? '超过硬上限'
-              : '预算内'
-          }}
-        </span>
+          {{ combinationLoading ? '正在校验并生成' : '生成技能组合' }}
+        </button>
       </div>
-
       <div class="battle-budget-grid">
         <article>
           <span>攻击方候选</span>
-          <strong data-testid="attacker-candidate-count">
-            {{ formatCount(budget.attacker_candidate_count) }}
-          </strong>
-          <small>
-            {{ formatCount(budget.attacker_move_set_count) }} 个实际技能组
-          </small>
+          <strong>{{ formatCount(budget.attacker_candidate_count) }}</strong>
+          <small>{{ formatCount(budget.attacker_move_set_count) }} 个技能组</small>
         </article>
         <article>
           <span>防守方候选</span>
-          <strong data-testid="defender-candidate-count">
-            {{ formatCount(budget.defender_candidate_count) }}
-          </strong>
-          <small>
-            {{ formatCount(budget.defender_move_set_count) }} 个实际技能组
-          </small>
-        </article>
-        <article>
-          <span>双方候选总数</span>
-          <strong data-testid="total-candidate-count">
-            {{ formatCount(budget.total_candidate_count) }} / 20
-          </strong>
-          <small>每侧至少 1 个，仅可执行候选计入</small>
+          <strong>{{ formatCount(budget.defender_candidate_count) }}</strong>
+          <small>{{ formatCount(budget.defender_move_set_count) }} 个技能组</small>
         </article>
         <article class="battle-budget-grid__primary">
-          <span>配置对数量</span>
-          <strong data-testid="configuration-pair-count">
-            {{ formatCount(budget.configuration_pair_count) }}
-          </strong>
-          <small>
-            攻击方技能组 × 防守方技能组，硬上限 {{ formatCount(44_100) }}
-          </small>
+          <span>理论配置对</span>
+          <strong>{{ formatCount(budget.configuration_pair_count) }}</strong>
+          <small>这里只计数，不会创建同等数量的 worker case</small>
         </article>
       </div>
-
-      <p class="battle-budget-formula">
-        组合规则：<code>n &lt; 4 → 1</code>；<code>n ≥ 4 → C(n, 4)</code>。同一组 move_id 的点击顺序不会产生新配置。
-      </p>
+      <ul v-if="validationMessages.length" class="battle-validation-list">
+        <li v-for="message in validationMessages" :key="message">{{ message }}</li>
+      </ul>
     </section>
 
-    <section class="battle-contract-panel" aria-label="冻结计算语义">
-      <div>
-        <span>配置权重</span>
-        <strong>{{ weightAssumption }}</strong>
-        <small>每个生成出的固定配置对等权。</small>
-      </div>
-      <div>
-        <span>默认行动策略</span>
-        <strong>{{ attackerPolicy }} / {{ defenderPolicy }}</strong>
-        <small>双方在行动选择边界等概率选择当前合法行动，技能槽排列不改变策略。</small>
-      </div>
-      <div>
-        <span>枚举维度</span>
-        <strong>{{ dimensions.moves }} · {{ mechanismAdmission }}</strong>
-        <small>form、level、stats、ability、item 固定；special_mechanics 禁用。</small>
-      </div>
-    </section>
-
-    <section class="battle-submit-panel">
-      <div>
-        <h2>提交后台推演任务</h2>
-        <p>提交前先冻结双方固定配置、规范化候选池、策略和预算；本页不在浏览器内执行 solver。</p>
-        <ul v-if="validationMessages.length" class="battle-validation-list">
-          <li v-for="message in validationMessages" :key="message">
-            {{ message }}
-          </li>
-        </ul>
-      </div>
-      <button
-        class="primary-button"
-        data-testid="submit-configuration-job"
-        type="button"
-        :disabled="!canSubmit"
-        @click="submit"
-      >
-        {{ submitting ? '正在创建任务' : '冻结输入并创建任务' }}
-      </button>
-      <p v-if="error" class="error" role="alert">
-        {{ error }}
-      </p>
-    </section>
-
-    <section
-      v-if="frozenSubmission"
-      class="battle-frozen-summary"
-      data-testid="frozen-submission-summary"
-    >
-      <div class="battle-frozen-summary__heading">
+    <section v-if="combinations" class="move-set-selection" aria-label="技能组合选择">
+      <div class="move-set-selection__heading">
         <div>
-          <p class="battle-configuration-eyebrow">FROZEN INPUT</p>
-          <h2>已冻结的任务输入摘要</h2>
+          <p class="battle-configuration-eyebrow">SELECT ONE SNAPSHOT</p>
+          <h2>双方各选择一个固定技能组</h2>
         </div>
-        <span v-if="createdJob" class="state-pill">
-          {{ createdJob.status }} · {{ createdJob.job_id }}
+        <span class="state-pill">
+          {{ combinations.attacker.move_set_count }} ×
+          {{ combinations.defender.move_set_count }} =
+          {{ combinations.configuration_pair_count }}
         </span>
       </div>
 
-      <div class="battle-frozen-summary__grid">
+      <div class="move-set-selection__grid">
+        <fieldset class="move-set-list">
+          <legend>攻击方 · {{ combinations.attacker.pokemon_name }}</legend>
+          <label
+            v-for="moveSet in combinations.attacker.move_sets"
+            :key="moveSet.move_set_id"
+            class="move-set-option"
+          >
+            <input
+              v-model="selectedAttackerMoveSetId"
+              type="radio"
+              name="attacker-move-set"
+              :value="moveSet.move_set_id"
+            />
+            <span>{{ moveSet.move_names.join(' / ') }}</span>
+            <small>{{ moveSet.move_ids.join(', ') }}</small>
+          </label>
+        </fieldset>
+
+        <fieldset class="move-set-list">
+          <legend>防守方 · {{ combinations.defender.pokemon_name }}</legend>
+          <label
+            v-for="moveSet in combinations.defender.move_sets"
+            :key="moveSet.move_set_id"
+            class="move-set-option"
+          >
+            <input
+              v-model="selectedDefenderMoveSetId"
+              type="radio"
+              name="defender-move-set"
+              :value="moveSet.move_set_id"
+            />
+            <span>{{ moveSet.move_names.join(' / ') }}</span>
+            <small>{{ moveSet.move_ids.join(', ') }}</small>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="fixed-inference-action">
+        <div>
+          <strong>行动策略：uniform-random / uniform-random</strong>
+          <small>胜率表示双方每回合在当前全部合法行动中等概率选择。</small>
+        </div>
+        <button
+          class="primary-button"
+          type="button"
+          :disabled="
+            selectedAttackerMoveSetId === null ||
+            selectedDefenderMoveSetId === null ||
+            inferenceLoading
+          "
+          @click="runFixedInference"
+        >
+          {{ inferenceLoading ? '正在精确求解' : '运行这个固定配置' }}
+        </button>
+      </div>
+    </section>
+
+    <p v-if="workflowError" class="error fixed-workflow-error" role="alert">
+      {{ workflowError }}
+    </p>
+
+    <section v-if="summary" class="fixed-summary" aria-label="固定配置精确结果">
+      <div class="fixed-summary__heading">
+        <div>
+          <p class="battle-configuration-eyebrow">EXACT SUMMARY</p>
+          <h2>{{ summary.attacker.name }} vs {{ summary.defender.name }}</h2>
+        </div>
+        <span class="state-pill">{{ summary.completeness.solver_status }}</span>
+      </div>
+
+      <div class="fixed-summary__probabilities">
         <article>
-          <span>攻击方</span>
-          <strong>{{ frozenSubmission.attacker_name }}</strong>
-          <small>{{ frozenSubmission.attacker_move_names.join(' / ') }}</small>
-        </article>
-        <article>
-          <span>防守方</span>
-          <strong>{{ frozenSubmission.defender_name }}</strong>
-          <small>{{ frozenSubmission.defender_move_names.join(' / ') }}</small>
-        </article>
-        <article>
-          <span>配置对</span>
-          <strong>{{ formatCount(frozenSubmission.configuration_pair_count) }}</strong>
+          <span>攻击方胜</span>
+          <strong>{{ probabilityLabel(summary.win_probability) }}</strong>
           <small>
-            候选预算 {{ frozenSubmission.max_candidate_moves }}，
-            配置对预算 {{ formatCount(frozenSubmission.max_configuration_pairs) }}
+            {{ summary.win_probability.numerator }} /
+            {{ summary.win_probability.denominator }}
           </small>
+        </article>
+        <article>
+          <span>防守方胜</span>
+          <strong>{{ probabilityLabel(summary.loss_probability) }}</strong>
+          <small>
+            {{ summary.loss_probability.numerator }} /
+            {{ summary.loss_probability.denominator }}
+          </small>
+        </article>
+        <article>
+          <span>平局</span>
+          <strong>{{ probabilityLabel(summary.draw_probability) }}</strong>
+          <small>
+            {{ summary.draw_probability.numerator }} /
+            {{ summary.draw_probability.denominator }}
+          </small>
+        </article>
+        <article>
+          <span>期望回合</span>
+          <strong>
+            {{ summary.expected_turns.decimal?.toFixed(2) ?? '不可用' }}
+          </strong>
+          <small>{{ summary.attacker_policy }} / {{ summary.defender_policy }}</small>
         </article>
       </div>
 
-      <dl class="battle-frozen-summary__metadata">
+      <dl class="fixed-summary__metadata">
         <div>
-          <dt>ruleset_id / version_group_id</dt>
+          <dt>图规模</dt>
           <dd>
-            {{ frozenSubmission.request.ruleset_id }} /
-            {{ frozenSubmission.request.version_group_id }}
+            {{ formatCount(summary.graph.unique_state_count) }} nodes ·
+            {{ formatCount(summary.graph.edge_count) }} edges
           </dd>
         </div>
         <div>
-          <dt>weight_assumption / mechanism_admission</dt>
+          <dt>双方技能</dt>
           <dd>
-            {{ frozenSubmission.request.weight_assumption }} /
-            {{ frozenSubmission.request.mechanism_admission }}
+            {{ summary.attacker.move_names.join(' / ') }}<br />
+            {{ summary.defender.move_names.join(' / ') }}
           </dd>
         </div>
         <div>
-          <dt>attacker_policy / defender_policy</dt>
+          <dt>完整性</dt>
           <dd>
-            {{ frozenSubmission.request.attacker_policy }} /
-            {{ frozenSubmission.request.defender_policy }}
+            {{ summary.completeness.graph_complete ? '完整精确解' : '未完成' }}
           </dd>
         </div>
       </dl>
     </section>
   </main>
 </template>
+
+<style scoped>
+.move-set-selection,
+.fixed-summary {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d9dee8);
+  border-radius: 18px;
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.move-set-selection__heading,
+.fixed-summary__heading,
+.fixed-inference-action {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.move-set-selection__grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.move-set-list {
+  border: 1px solid var(--border, #d9dee8);
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  min-width: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.move-set-list legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+
+.move-set-option {
+  align-items: start;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  display: grid;
+  gap: 3px 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 10px;
+}
+
+.move-set-option:has(input:checked) {
+  background: #eef5ff;
+  border-color: #6b9be8;
+}
+
+.move-set-option input {
+  grid-row: 1 / span 2;
+  margin-top: 3px;
+}
+
+.move-set-option small,
+.fixed-inference-action small {
+  color: #667085;
+}
+
+.fixed-inference-action {
+  border-top: 1px solid var(--border, #d9dee8);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.fixed-inference-action > div {
+  display: grid;
+  gap: 4px;
+}
+
+.fixed-workflow-error {
+  margin-top: 18px;
+}
+
+.fixed-summary__probabilities {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.fixed-summary__probabilities article {
+  border: 1px solid var(--border, #d9dee8);
+  border-radius: 12px;
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.fixed-summary__probabilities strong {
+  font-size: 1.6rem;
+}
+
+.fixed-summary__metadata {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0 0;
+}
+
+.fixed-summary__metadata div {
+  background: #f7f8fa;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.fixed-summary__metadata dt {
+  color: #667085;
+  font-size: 0.8rem;
+  margin-bottom: 5px;
+}
+
+.fixed-summary__metadata dd {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .move-set-selection__grid,
+  .fixed-summary__probabilities,
+  .fixed-summary__metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .move-set-selection__heading,
+  .fixed-summary__heading,
+  .fixed-inference-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>
