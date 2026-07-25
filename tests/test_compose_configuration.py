@@ -18,11 +18,12 @@ def test_repository_root_has_no_dotenv_files() -> None:
     assert dotenv_paths == []
 
 
-def test_compose_owns_service_ports_and_runtime_settings() -> None:
-    """Compose 应直接声明服务端口、数据库参数和 backend 启动命令。
+def test_compose_owns_service_ports_runtime_settings_and_startup() -> None:
+    """Compose 和 Makefile 应共同声明完整的本地服务启动契约。
 
-    该断言保护配置所有权边界：Makefile 只调用 Compose，backend 镜像只负责提供
-    运行环境，不再通过 dotenv 插值或 Dockerfile 默认命令维护第二份运行配置。
+    该断言保护配置所有权边界：Compose 直接声明端口、数据库参数和进程命令；Makefile
+    的 `compose-up` 与 `compose-rebuild` 在一次初始化完成后同时启动 backend、worker
+    和 frontend，避免任务成功入库后因 coordinator 未启动而长期停留在 pending。
     """
     compose_text = (REPO_ROOT / "docker-compose.yaml").read_text(encoding="utf-8")
     makefile_text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
@@ -39,11 +40,17 @@ def test_compose_owns_service_ports_and_runtime_settings() -> None:
     assert "POSTGRES_PASSWORD" not in compose_text
     assert "PGPASSWORD" not in compose_text
     assert 'command: ["uvicorn", "pokeop.main:app"' in compose_text
+    assert 'command: ["python3", "-m", "pokeop.workers.battle_inference"]' in compose_text
 
     assert "--env-file" not in makefile_text
     assert "COMPOSE_ENV" not in makefile_text
     assert "compose-env-check" not in makefile_text
     assert "compose-port-check" not in makefile_text
+    assert "$(COMPOSE) up -d backend worker frontend --remove-orphans" in makefile_text
+    assert (
+        "$(COMPOSE) up -d --force-recreate backend worker frontend --remove-orphans"
+        in makefile_text
+    )
 
     assert "EXPOSE " not in backend_dockerfile
     assert "\nCMD " not in backend_dockerfile
