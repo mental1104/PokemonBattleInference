@@ -30,8 +30,16 @@ def test_combination_response_keeps_side_lists_separate() -> None:
         candidate_count=5,
         move_set_count=2,
         move_sets=(
-            MoveSetOption("move-set:1,2,3,4", (1, 2, 3, 4), ("a", "b", "c", "d")),
-            MoveSetOption("move-set:1,2,3,5", (1, 2, 3, 5), ("a", "b", "c", "e")),
+            MoveSetOption(
+                "move-set:1,2,3,4",
+                (1, 2, 3, 4),
+                ("a", "b", "c", "d"),
+            ),
+            MoveSetOption(
+                "move-set:1,2,3,5",
+                (1, 2, 3, 5),
+                ("a", "b", "c", "e"),
+            ),
         ),
     )
     defender = MoveSetSideResult(
