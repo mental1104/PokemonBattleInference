@@ -163,6 +163,47 @@ function buildSupportedMoves(
   return moves;
 }
 
+function buildDisabledMoves(
+  pokemonId: number,
+  versionGroupId: number,
+): CandidateMoveOption[] {
+  const base = pokemonId * 10_000 + 900;
+  return [
+    {
+      move_id: base + 1,
+      identifier: 'variable-power-fixture',
+      display_name: '变化威力示例',
+      type_identifier: 'normal',
+      type_name: '一般',
+      damage_class: 'physical',
+      power: null,
+      admission: {
+        status: 'partial',
+        selectable: false,
+        reason: `version_group_id=${versionGroupId} 下尚未实现动态威力上下文。`,
+        disabled_reason: `version_group_id=${versionGroupId} 下尚未实现动态威力上下文。`,
+        missing_mechanism_identifiers: ['dynamic-power-context'],
+      },
+    },
+    {
+      move_id: base + 2,
+      identifier: 'future-generation-fixture',
+      display_name: '未来世代示例',
+      type_identifier: 'fairy',
+      type_name: '妖精',
+      damage_class: 'special',
+      power: 95,
+      admission: {
+        status: 'unsupported',
+        selectable: false,
+        reason: `该 fixture 不属于 version_group_id=${versionGroupId} 的严格准入范围。`,
+        disabled_reason: `该 fixture 不属于 version_group_id=${versionGroupId} 的严格准入范围。`,
+        missing_mechanism_identifiers: ['version-group-legality'],
+      },
+    },
+  ];
+}
+
 function fixtureSeedsForPokemon(pokemonId: number): readonly MoveFixtureSeed[] {
   if (pokemonId === DRAGONITE_EXAMPLE.pokemon_id) return DRAGONITE_MOVE_SEEDS;
   if (pokemonId === WEAVILE_EXAMPLE.pokemon_id) return WEAVILE_MOVE_SEEDS;
@@ -177,10 +218,13 @@ async function listFixtureCandidateMoves(
     ruleset_id: request.ruleset_id,
     version_group_id: request.version_group_id,
     calculation_revision: `fixture.configuration-space.v1.vg-${request.version_group_id}`,
-    moves: buildSupportedMoves(
-      request.pokemon_id,
-      fixtureSeedsForPokemon(request.pokemon_id),
-    ),
+    moves: [
+      ...buildSupportedMoves(
+        request.pokemon_id,
+        fixtureSeedsForPokemon(request.pokemon_id),
+      ),
+      ...buildDisabledMoves(request.pokemon_id, request.version_group_id),
+    ],
   };
 }
 
