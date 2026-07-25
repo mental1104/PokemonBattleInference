@@ -1,28 +1,34 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
-from pathlib import Path
+
+import pytest
 
 from pokeop.persistence import bootstrap
 from pokeop.persistence.commands import initialize_database as command
 
 
-def test_initialize_database_prepares_regenerable_assets(monkeypatch) -> None:
-    """一次性命令应使用幂等参数准备 raw tables、CSV 和物化视图。
+def test_initialize_database_prepares_runtime_and_regenerable_assets(monkeypatch) -> None:
+    """一次性命令应先补齐运行时表，再准备可再生资产。
 
-    该断言保护 Compose Job 的稳定职责：正常启动只做可重复的资产准备，不调用
-    破坏性 reset，也不在这里创建或迁移 `app`、`audit` 用户配置表。
+    该断言保护 Compose Job 的稳定职责：`make compose-up` 调用同一个 `db-init` 后，
+    backend 创建任务所依赖的 `poke_runtime` 表必须存在，同时继续幂等准备 raw tables、
+    CSV、sprites 和物化视图。HTTP 与 worker 生命周期不承担这些数据库结构副作用。
 
     Args:
-        monkeypatch: pytest 提供的属性替换夹具，用于隔离真实 PostgreSQL。
+        monkeypatch: pytest 提供的属性替换夹具，用于隔离真实 PostgreSQL 和文件系统。
     """
     init_db = Mock()
+    prepare_runtime_tables = Mock()
     monkeypatch.setattr(command, "init_db", init_db)
+    monkeypatch.setattr(command, "_prepare_runtime_tables", prepare_runtime_tables)
     monkeypatch.setattr(command, "_sprites_source_dir", lambda: Path("/data/pokeapi-sprites"))
 
     command.initialize_database()
 
+    prepare_runtime_tables.assert_called_once_with()
     init_db.assert_called_once_with(
         create_tables=True,
         import_csv=True,
@@ -31,6 +37,50 @@ def test_initialize_database_prepares_regenerable_assets(monkeypatch) -> None:
         create_materialized_views=True,
         refresh_materialized_views=True,
     )
+
+
+def test_postgres_url_allows_passwordless_compose_trust_auth(monkeypatch) -> None:
+    """运行时表初始化应复用 Compose 的标准 PG 环境并允许无密码 trust 认证。
+
+    Args:
+        monkeypatch: pytest 提供的环境变量替换夹具，用于隔离开发机真实 PostgreSQL 设置。
+    """
+    monkeypatch.setenv("PGHOST", "postgres")
+    monkeypatch.setenv("PGPORT", "5432")
+    monkeypatch.setenv("PGDATABASE", "pokemon_battle_inference")
+    monkeypatch.setenv("PGUSER", "pokeop")
+    monkeypatch.delenv("PGPASSWORD", raising=False)
+
+    url = command._postgres_url()
+
+    assert url.drivername == "postgresql+psycopg"
+    assert url.host == "postgres"
+    assert url.port == 5432
+    assert url.database == "pokemon_battle_inference"
+    assert url.username == "pokeop"
+    assert url.password is None
+
+
+def test_prepare_runtime_tables_disposes_engine_when_creation_fails(monkeypatch) -> None:
+    """运行时建表失败时也必须释放一次性 engine 的连接池。
+
+    Args:
+        monkeypatch: pytest 提供的属性替换夹具，用于注入 fake URL、engine 和建表函数。
+    """
+    postgres_url = object()
+    engine = Mock()
+    create_engine = Mock(return_value=engine)
+    create_runtime_tables = Mock(side_effect=RuntimeError("create runtime tables failed"))
+    monkeypatch.setattr(command, "_postgres_url", Mock(return_value=postgres_url))
+    monkeypatch.setattr(command, "create_engine", create_engine)
+    monkeypatch.setattr(command, "create_runtime_tables", create_runtime_tables)
+
+    with pytest.raises(RuntimeError, match="create runtime tables failed"):
+        command._prepare_runtime_tables()
+
+    create_engine.assert_called_once_with(postgres_url, pool_pre_ping=True)
+    create_runtime_tables.assert_called_once_with(engine)
+    engine.dispose.assert_called_once_with()
 
 
 def test_postgres_conn_params_allows_passwordless_compose_trust_auth(monkeypatch) -> None:
