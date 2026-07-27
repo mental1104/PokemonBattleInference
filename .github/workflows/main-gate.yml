@@ -89,7 +89,18 @@ jobs:
 
       - name: Run frontend tests
         working-directory: web
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee frontend-test.log
+
+      - name: Upload frontend failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-${{ github.run_id }}
+          path: web/frontend-test.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build frontend
         working-directory: web
