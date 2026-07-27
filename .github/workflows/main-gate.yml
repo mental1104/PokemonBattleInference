@@ -1,6 +1,9 @@
 name: Main Gate
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -9,33 +12,43 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  validate-main:
-    name: Validate main ref
+  validate-target:
+    name: Validate target ref
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - name: Require main branch
+      - name: Require main target
         shell: bash
         run: |
-          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            if [[ "${GITHUB_BASE_REF}" != "main" ]]; then
+              echo "::error::Pull request gate only supports the main target."
+              exit 1
+            fi
+          elif [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
             echo "::error::Main Gate can only run against main."
             exit 1
           fi
 
   test:
-    needs: validate-main
+    needs: validate-target
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 业务测试依赖 common 与 PokeAPI CSV；sprites 数据量大且不属于常规门禁输入。
+      # 开发者仍可在 .gitmodules 中使用 SSH；Hosted Runner 没有仓库 SSH key，
+      # 因此只在当前 CI checkout 中把所需子模块的传输地址覆盖为 HTTPS。
       - name: Initialize required submodules
-        run: git submodule update --init submodules/common submodules/pokeapi
+        run: |
+          git config submodule.submodules/common.url https://github.com/mental1104/common.git
+          git config submodule.submodules/pokeapi.url https://github.com/PokeAPI/pokeapi.git
+          git submodule update --init --depth 1 submodules/common submodules/pokeapi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +84,7 @@ jobs:
 
   notify-manual-failure:
     name: Notify manual failure
-    needs: [validate-main, test]
+    needs: [validate-target, test]
     if: >-
       always() &&
       github.event_name == 'workflow_dispatch' &&
