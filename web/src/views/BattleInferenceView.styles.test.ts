@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
 /** 直接读取 CSS 源文件，避免 Vitest 的 CSS 转换配置把 `?raw` 导入替换为空字符串。 */
 const readStyleSource = (relativePath: string): string =>
-  readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8');
+  readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 
 const candidateStyles = readStyleSource('../components/inference/CandidateMovePoolSelector.css');
 const viewStyles = readStyleSource('./BattleInferenceView.css');
