@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from pokeop.api.schemas.battle_exploration import (
     ExactProbabilityResponse,
@@ -93,6 +93,34 @@ class WinningPathGroupResponse(_AttributeResponseModel):
     attacker_remaining_hp_values: list[int]
     defender_remaining_hp_values: list[int]
     key_events: list[WinningPathKeyEventResponse]
+
+    @field_validator("representative_path", mode="before")
+    @classmethod
+    def project_representative_path(cls, value: object) -> object:
+        """把 application 路径步骤显式投影为 HTTP 可验证字段。
+
+        Args:
+            value: application 返回的路径步骤序列，或已经完成投影的响应数据。
+
+        Returns:
+            保留三个稳定 ID 的字典序列；已是 HTTP DTO 或字典的数据原样保留。
+        """
+        if not isinstance(value, (list, tuple)):
+            return value
+
+        projected: list[object] = []
+        for step in value:
+            if isinstance(step, (dict, ExplorationPathStepResponse)):
+                projected.append(step)
+                continue
+            projected.append(
+                {
+                    "source_node_id": int(getattr(step, "source_node_id")),
+                    "edge_id": int(getattr(step, "edge_id")),
+                    "target_node_id": int(getattr(step, "target_node_id")),
+                }
+            )
+        return projected
 
 
 class WinningPathPrefixNodeResponse(_AttributeResponseModel):
