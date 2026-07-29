@@ -91,7 +91,7 @@ class StateGraphNode:
     state: BattleState
     state_key: StateKey
     outcome: GraphNodeOutcome
-    termination_reason: TerminationReason | GraphTruncationReason | None
+    termination_reason: TerminationReason | GraphTruncationReason | None = None
     predecessor_node_id: GraphNodeId | None = None
     predecessor_edge_id: GraphEdgeId | None = None
 
