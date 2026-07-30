@@ -84,10 +84,12 @@ beforeEach(() => {
 });
 
 describe('DamageCalculatorView', () => {
-  it('shares a selection between both selectors without changing the other side selection', async () => {
+  it('keeps attacker and defender recent selections isolated', async () => {
     /**
-     * 攻击方和防守方必须共享页面级最近记录，但各自当前选择仍保持独立。测试在攻击方点击妙蛙种子，
-     * 断言两个 PokemonSelector 都收到最近列表，防守方仍未被自动选中。
+     * 页面同时挂载攻击方和防守方两个 PokémonSelector。测试先在攻击方选择妙蛙种子，确认防守方仍保持
+     * 默认候选列表且没有出现妙蛙种子的最近记录；随后在防守方选择皮卡丘，断言两侧最近列表分别只包含
+     * 自己操作过的 Pokémon。该场景保护每个输入框独立维护 LRU 历史，避免另一侧选择污染展示顺序或占用
+     * 八个历史名额，同时确认双方当前选中状态和详情加载仍然彼此独立。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
@@ -99,13 +101,23 @@ describe('DamageCalculatorView', () => {
     await flushPromises();
 
     selectors = wrapper.findAllComponents(PokemonSelector);
+    expect((selectors[0].props('recentPokemon') as PokemonSearchItem[]).map((item) => item.pokemon_id)).toEqual([1]);
+    expect(selectors[1].props('recentPokemon')).toEqual([]);
+    expect(selectors[1].props('selected')).toBeNull();
+    expect(selectors[1].find('[data-mode="recent"]').exists()).toBe(false);
+
+    await selectors[1].get(`[data-pokemon-id="${PIKACHU.pokemon_id}"]`).trigger('click');
+    await flushPromises();
+
+    selectors = wrapper.findAllComponents(PokemonSelector);
     const attackerRecent = selectors[0].props('recentPokemon') as PokemonSearchItem[];
     const defenderRecent = selectors[1].props('recentPokemon') as PokemonSearchItem[];
     expect(attackerRecent.map((item) => item.pokemon_id)).toEqual([1]);
-    expect(defenderRecent.map((item) => item.pokemon_id)).toEqual([1]);
-    expect(selectors[1].props('selected')).toBeNull();
-    expect(selectors[1].find('[data-mode="recent"]').text()).toContain('妙蛙种子');
+    expect(defenderRecent.map((item) => item.pokemon_id)).toEqual([25]);
+    expect(selectors[0].props('selected')).toMatchObject({ pokemon_id: 1 });
+    expect(selectors[1].props('selected')).toMatchObject({ pokemon_id: 25 });
     expect(getPokemonDetailMock).toHaveBeenCalledWith(1, 'pokemon-champion');
+    expect(getPokemonDetailMock).toHaveBeenCalledWith(25, 'pokemon-champion');
     expect(listPokemonMovesMock).toHaveBeenCalledWith(1, 'pokemon-champion', {
       query: '',
       category: 'all',

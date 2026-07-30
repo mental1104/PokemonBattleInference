@@ -11,7 +11,14 @@ import { useDamageCalculator } from '../composables/useDamageCalculator';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 
 const calculator = useDamageCalculator();
-const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
+const {
+  items: attackerRecentPokemon,
+  remember: rememberAttackerPokemon,
+} = useRecentPokemon();
+const {
+  items: defenderRecentPokemon,
+  remember: rememberDefenderPokemon,
+} = useRecentPokemon();
 
 /** 初始化页面所需的服务端模板。 */
 onMounted(() => {
@@ -25,8 +32,8 @@ onMounted(() => {
  * @returns 详情和可用招式加载完成后 resolve 的 Promise。
  */
 async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
-  // 先更新页面内存，使防守方选择器无需等待详情请求即可看到最近记录。
-  rememberPokemon(pokemon);
+  // 攻击方只更新自己的会话历史，避免污染防守方选择框。
+  rememberAttackerPokemon(pokemon);
   await calculator.selectAttacker(pokemon);
 }
 
@@ -37,8 +44,8 @@ async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
  * @returns 防守方详情加载完成后 resolve 的 Promise。
  */
 async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
-  // 两侧共享同一个 store，但只更新当前被操作一侧的 calculator 选择。
-  rememberPokemon(pokemon);
+  // 防守方拥有独立 LRU，攻击方历史不会占用其八个记录名额。
+  rememberDefenderPokemon(pokemon);
   await calculator.selectDefender(pokemon);
 }
 </script>
@@ -59,7 +66,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           title="攻击方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
           :selected="calculator.attacker.value"
-          :recent-pokemon="recentPokemon"
+          :recent-pokemon="attackerRecentPokemon"
           @select="selectAttacker"
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
@@ -78,7 +85,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           title="防守方 Pokémon"
           :ruleset-id="calculator.rulesetId.value"
           :selected="calculator.defender.value"
-          :recent-pokemon="recentPokemon"
+          :recent-pokemon="defenderRecentPokemon"
           @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
