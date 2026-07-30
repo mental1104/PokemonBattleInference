@@ -4,14 +4,22 @@ import type { PokemonSearchItem } from '../api/calculator';
 import { SUPPORTED_VERSION_GROUPS } from '../api/configurationSpace';
 import {
   enumerateMoveSetCombinations,
-  inferFixedBattleSummary,
+  inferFixedBattleJourney,
 } from '../api/fixedBattle';
+import type {
+  BattleExplorationResult,
+  BattleGraphExplorationResult,
+} from '../api/inference';
 import BattleSideConfigurationPanel from '../components/inference/BattleSideConfigurationPanel.vue';
+import BattleGraphExplorer from '../components/inference/BattleGraphExplorer.vue';
+import BattleReportPanel from '../components/inference/BattleReportPanel.vue';
+import BattleGraphTreeScreen from '../components/inference/BattleGraphTreeScreen.vue';
 import {
   useBattleInferenceConfiguration,
   type BattleSideConfigurationState,
 } from '../composables/useBattleInferenceConfiguration';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
+import { createBattleReportPresenterContext } from '../presenters/battleEventPresenter';
 import type {
   FixedBattleSideInput,
   FixedBattleSummaryResult,
@@ -49,6 +57,9 @@ const combinations = ref<MoveSetCombinationsResult | null>(null);
 const selectedAttackerMoveSetId = ref<string | null>(null);
 const selectedDefenderMoveSetId = ref<string | null>(null);
 const summary = ref<FixedBattleSummaryResult | null>(null);
+const graphHandle = ref<BattleExplorationResult | null>(null);
+const activeExploration = ref<BattleGraphExplorationResult | null>(null);
+const treeScreenOpen = ref(false);
 
 /** 初始化能力值模板；候选池会在选择 Pokémon 后按侧加载。 */
 onMounted(() => {
@@ -143,7 +154,7 @@ async function generateCombinations(): Promise<void> {
   }
 }
 
-/** 对当前选中的唯一双方技能组执行精确概率摘要。 */
+/** 对当前选中的唯一双方技能组执行精确求解并保存可探索完整图。 */
 async function runFixedInference(): Promise<void> {
   const attackerMoveSet = selectedMoveSet('attacker');
   const defenderMoveSet = selectedMoveSet('defender');
@@ -153,7 +164,7 @@ async function runFixedInference(): Promise<void> {
   workflowError.value = null;
   summary.value = null;
   try {
-    summary.value = await inferFixedBattleSummary({
+    const result = await inferFixedBattleJourney({
       ruleset_id: rulesetId.value,
       version_group_id: versionGroupId.value,
       attacker: {
@@ -172,6 +183,10 @@ async function runFixedInference(): Promise<void> {
         max_turns: 20,
       },
     });
+    summary.value = result.summary;
+    graphHandle.value = result.exploration;
+    activeExploration.value = null;
+    treeScreenOpen.value = false;
   } catch (caught) {
     workflowError.value = caught instanceof Error ? caught.message : '固定配置推演失败';
   } finally {
@@ -210,12 +225,49 @@ const selectionFingerprint = computed(() =>
   }),
 );
 
+const reportContext = computed(() =>
+  summary.value === null
+    ? null
+    : createBattleReportPresenterContext(summary.value),
+);
+
+/**
+ * 保存图浏览器当前 cursor 对应的探索 DTO，供右侧战报面板同步展示。
+ *
+ * @param exploration 服务端返回的当前节点、分支组和结构化战报；null 表示图尚未加载。
+ */
+function updateActiveExploration(
+  exploration: BattleGraphExplorationResult | null,
+): void {
+  activeExploration.value = exploration;
+}
+
+/**
+ * 使用当前固定技能组重新求解完整图，刷新 graph TTL 和探索根节点。
+ */
+function rerunCurrentFixedInference(): void {
+  void runFixedInference();
+}
+
+/** 打开占满视口的从左到右树状探索模式。 */
+function openTreeScreen(): void {
+  treeScreenOpen.value = true;
+}
+
+/** 关闭大屏树状探索模式，保留当前固定配置摘要和小窗探索入口。 */
+function closeTreeScreen(): void {
+  treeScreenOpen.value = false;
+}
+
 watch(selectionFingerprint, () => {
   // 任一固定字段或候选池变化后，旧组合和旧概率已不再对应当前快照，必须显式失效。
   combinations.value = null;
   selectedAttackerMoveSetId.value = null;
   selectedDefenderMoveSetId.value = null;
   summary.value = null;
+  graphHandle.value = null;
+  activeExploration.value = null;
+  treeScreenOpen.value = false;
 });
 </script>
 
@@ -428,7 +480,7 @@ watch(selectionFingerprint, () => {
           "
           @click="runFixedInference"
         >
-          {{ inferenceLoading ? '正在精确求解' : '运行这个固定配置' }}
+          {{ inferenceLoading ? '正在精确求解并保存图' : '运行这个固定配置' }}
         </button>
       </div>
     </section>
@@ -503,6 +555,42 @@ watch(selectionFingerprint, () => {
         </div>
       </dl>
     </section>
+
+    <section
+      v-if="graphHandle && reportContext"
+      class="fixed-exploration-layout"
+      aria-label="固定配置树状探索与逐回合战报"
+    >
+      <div class="fixed-exploration-pane">
+        <div class="fixed-exploration-pane__toolbar">
+          <div>
+            <p class="battle-configuration-eyebrow">GRAPH EXPLORATION</p>
+            <strong>当前页内小窗</strong>
+          </div>
+          <button type="button" class="secondary-button" @click="openTreeScreen">
+            打开大屏树状图
+          </button>
+        </div>
+        <BattleGraphExplorer
+          :key="graphHandle.graph_id"
+          :handle="graphHandle"
+          @rerun="rerunCurrentFixedInference"
+          @exploration-change="updateActiveExploration"
+        />
+      </div>
+      <BattleReportPanel
+        :report="activeExploration?.battle_report ?? null"
+        :context="reportContext"
+      />
+    </section>
+
+    <BattleGraphTreeScreen
+      v-if="treeScreenOpen && graphHandle && reportContext"
+      :handle="graphHandle"
+      :context="reportContext"
+      @close="closeTreeScreen"
+      @rerun="rerunCurrentFixedInference"
+    />
   </main>
 </template>
 
@@ -631,10 +719,54 @@ watch(selectionFingerprint, () => {
   margin: 0;
 }
 
+.fixed-exploration-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+  margin-top: 24px;
+}
+
+.fixed-exploration-pane {
+  min-width: 0;
+}
+
+.fixed-exploration-pane__toolbar {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.fixed-exploration-pane__toolbar p {
+  margin: 0 0 4px;
+}
+
+.secondary-button {
+  background: #fff;
+  border: 1px solid #cbd7d0;
+  border-radius: 10px;
+  color: #183d31;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.secondary-button:hover {
+  border-color: #86a895;
+  background: #f3f8f5;
+}
+
+.fixed-exploration-layout :deep(.battle-graph-explorer) {
+  margin-top: 0;
+}
+
 @media (max-width: 760px) {
   .move-set-selection__grid,
   .fixed-summary__probabilities,
-  .fixed-summary__metadata {
+  .fixed-summary__metadata,
+  .fixed-exploration-layout {
     grid-template-columns: 1fr;
   }
 

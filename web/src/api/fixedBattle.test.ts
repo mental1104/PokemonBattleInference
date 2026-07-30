@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   enumerateMoveSetCombinations,
+  inferFixedBattleJourney,
   inferFixedBattleSummary,
 } from './fixedBattle';
 import type {
@@ -94,6 +95,35 @@ describe('fixed battle HTTP workflow', () => {
     expect(body.attacker.move_ids).toEqual([1, 2, 3, 4]);
     expect(body.defender.move_ids).toEqual([11, 12, 13, 14]);
     expect(body.attacker_policy).toBe('uniform-random');
+  });
+
+  it('submits one chosen fixed snapshot to the graph journey endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        summary: { win_probability: { percent: 50 } },
+        exploration: {
+          graph_id: 'graph-fixed-1',
+          root_node_id: 0,
+          calculation_revision: 'battle-inference.summary-exploration.v2',
+          expires_at: '2026-07-30T00:00:00Z',
+          cursor: { steps: [] },
+          expandable: true,
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await inferFixedBattleJourney(summaryRequest);
+
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      '/inference/fixed-one-on-one/graph',
+    );
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    ) as FixedBattleSummaryRequest;
+    expect(body.attacker.move_ids).toEqual([1, 2, 3, 4]);
+    expect(result.exploration.graph_id).toBe('graph-fixed-1');
   });
 
   it('renders structured mechanism rejection details', async () => {

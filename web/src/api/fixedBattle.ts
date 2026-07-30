@@ -1,3 +1,4 @@
+import type { BattleJourneyResult } from './inference';
 import type {
   FixedBattleSummaryRequest,
   FixedBattleSummaryResult,
@@ -94,6 +95,21 @@ export function inferFixedBattleSummary(
 ): Promise<FixedBattleSummaryResult> {
   return postJson<FixedBattleSummaryRequest, FixedBattleSummaryResult>(
     '/inference/fixed-one-on-one',
+    request,
+  );
+}
+
+/**
+ * 对用户选定的固定配置求解，并返回可渐进探索的完整图句柄。
+ *
+ * @param request 与 summary-only 入口相同的固定配置请求。
+ * @returns 包含全局 summary 和 graph exploration handle 的顶层结果。
+ */
+export function inferFixedBattleJourney(
+  request: FixedBattleSummaryRequest,
+): Promise<BattleJourneyResult> {
+  return postJson<FixedBattleSummaryRequest, BattleJourneyResult>(
+    '/inference/fixed-one-on-one/graph',
     request,
   );
 }

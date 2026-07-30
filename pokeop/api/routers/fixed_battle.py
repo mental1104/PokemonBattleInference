@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from pokeop.api.schemas.battle_exploration import (
+    StoredBattleInferenceJourneyResponse,
+    stored_battle_inference_journey_response,
+)
 from pokeop.api.schemas.fixed_battle import (
     FixedBattleSummaryRequest,
     MoveSetCombinationsRequest,
@@ -14,8 +18,15 @@ from pokeop.api.schemas.fixed_battle import (
     move_set_combinations_response,
 )
 from pokeop.api.schemas.inference import BattleInferenceSummaryResponse
+from pokeop.application.battle_graph_store import (
+    BattleGraphCapacityExceeded,
+    BattleGraphIdentifierCollision,
+    BattleGraphStore,
+    BattleGraphStoreError,
+)
 from pokeop.application.battle_candidate_pool.admission import (
     StrictMechanismAdmissionRejected,
+    ValidateFixedMechanismSelectionCommand,
     ValidateFixedMechanismSelectionUseCase,
 )
 from pokeop.application.battle_candidate_pool.listing import (
@@ -41,7 +52,11 @@ from pokeop.application.use_cases.fixed_battle_workflow import (
 from pokeop.application.use_cases.infer_one_on_one_battle import (
     BattleActionPolicyKind,
     BattleInferenceExecutionError,
+    InferFixedOneOnOneBattleCommand,
     InferOneOnOneBattleUseCase,
+)
+from pokeop.application.use_cases.store_battle_graph import (
+    StoreBackedInferOneOnOneBattleUseCase,
 )
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
 from pokeop.persistence.battle_inference.repository import (
@@ -109,6 +124,37 @@ SummaryUseCaseDependency = Annotated[
     RunAdmittedFixedBattleSummaryUseCase,
     Depends(summary_use_case),
 ]
+InferenceUseCaseDependency = Annotated[
+    InferOneOnOneBattleUseCase,
+    Depends(inference_use_case),
+]
+
+
+def _graph_store(request: Request) -> BattleGraphStore:
+    """从应用生命周期 state 读取固定配置图探索使用的共享 store。
+
+    Args:
+        request: 当前 FastAPI 请求，用于访问 lifespan 初始化的 application state。
+
+    Returns:
+        可保存完整固定推演图并供后续探索接口读取的 store。
+
+    Raises:
+        HTTPException: 应用未初始化 graph store 时返回 503。
+    """
+    graph_store = getattr(request.app.state, "battle_graph_store", None)
+    if not isinstance(graph_store, BattleGraphStore):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "battle_graph_store_unavailable",
+                "message": "battle graph store is not available",
+            },
+        )
+    return graph_store
+
+
+GraphStoreDependency = Annotated[BattleGraphStore, Depends(_graph_store)]
 
 
 def _rules(
@@ -193,6 +239,94 @@ def _raise_http_error(error: Exception) -> NoReturn:
     raise HTTPException(status_code=status_code, detail=detail) from error
 
 
+def _raise_graph_store_http_error(error: BattleGraphStoreError) -> NoReturn:
+    """把完整图保存失败转换为稳定 HTTP 服务错误。
+
+    Args:
+        error: graph store 在保存完整状态图时抛出的稳定异常。
+
+    Raises:
+        HTTPException: 容量或 ID 冲突等 store 错误统一返回 503。
+    """
+    if isinstance(error, BattleGraphCapacityExceeded):
+        code = "battle_graph_store_capacity_exceeded"
+    elif isinstance(error, BattleGraphIdentifierCollision):
+        code = "battle_graph_identifier_collision"
+    else:
+        code = "battle_graph_store_error"
+    raise HTTPException(
+        status_code=503,
+        detail={"code": code, "message": str(error)},
+    ) from error
+
+
+def _command_from_request(
+    request: FixedBattleSummaryRequest,
+) -> InferFixedOneOnOneBattleCommand:
+    """把固定配置 HTTP 请求转换为 application 推演命令。
+
+    Args:
+        request: 双方固定配置、行动策略和图预算均已由 Pydantic 初步校验的请求。
+
+    Returns:
+        可交给摘要求解或完整图求解的统一 command。
+
+    Raises:
+        ValueError: 双方等级不一致或 action policy 不受支持时抛出。
+    """
+    if request.attacker.level != request.defender.level:
+        raise ValueError("both sides must use the same level in v1")
+    rules = _rules(
+        ruleset_id=request.ruleset_id,
+        version_group_id=request.version_group_id,
+        level=request.attacker.level,
+        max_turns=request.limits.max_turns,
+    )
+    return build_fixed_inference_command(
+        rules=rules,
+        attacker=request.attacker.to_application(),
+        attacker_move_ids=tuple(request.attacker.move_ids),
+        defender=request.defender.to_application(),
+        defender_move_ids=tuple(request.defender.move_ids),
+        attacker_policy=_policy(request.attacker_policy),
+        defender_policy=_policy(request.defender_policy),
+        graph_limits=StateGraphLimits(
+            max_nodes=request.limits.max_nodes,
+            max_edges=request.limits.max_edges,
+            max_turns=request.limits.max_turns,
+        ),
+    )
+
+
+def _validate_fixed_mechanisms(
+    inference: InferOneOnOneBattleUseCase,
+    command: InferFixedOneOnOneBattleCommand,
+) -> None:
+    """复用候选池严格准入，避免完整图入口绕过页面禁用状态。
+
+    Args:
+        inference: 与随后求解共享 repository 和 effect factory 的 application 用例。
+        command: 已构造好的双方固定推演命令。
+
+    Raises:
+        StrictMechanismAdmissionRejected: 任一招式、特性或道具不可进入精确推演时抛出。
+    """
+    admission = ValidateFixedMechanismSelectionUseCase(
+        inference.repository,
+        inference.effect_factory,
+    )
+    for selection in (command.attacker, command.defender):
+        admission.execute(
+            ValidateFixedMechanismSelectionCommand(
+                rules=command.rules,
+                pokemon_id=selection.pokemon_id,
+                move_ids=selection.move_ids,
+                ability_identifier=selection.ability_identifier,
+                item_identifier=selection.item_identifier,
+            )
+        )
+
+
 @router.post(
     "/move-set-combinations",
     response_model=MoveSetCombinationsResponse,
@@ -264,28 +398,7 @@ def infer_fixed_one_on_one(
         HTTPException: 机制未通过准入、图被截断或输入不符合首版边界时抛出。
     """
     try:
-        if request.attacker.level != request.defender.level:
-            raise ValueError("both sides must use the same level in v1")
-        rules = _rules(
-            ruleset_id=request.ruleset_id,
-            version_group_id=request.version_group_id,
-            level=request.attacker.level,
-            max_turns=request.limits.max_turns,
-        )
-        command = build_fixed_inference_command(
-            rules=rules,
-            attacker=request.attacker.to_application(),
-            attacker_move_ids=tuple(request.attacker.move_ids),
-            defender=request.defender.to_application(),
-            defender_move_ids=tuple(request.defender.move_ids),
-            attacker_policy=_policy(request.attacker_policy),
-            defender_policy=_policy(request.defender_policy),
-            graph_limits=StateGraphLimits(
-                max_nodes=request.limits.max_nodes,
-                max_edges=request.limits.max_edges,
-                max_turns=request.limits.max_turns,
-            ),
-        )
+        command = _command_from_request(request)
         return fixed_battle_summary_response(use_case.execute(command))
     except (
         BattleCandidatePoolNotFound,
@@ -294,6 +407,48 @@ def infer_fixed_one_on_one(
         ValueError,
     ) as error:
         _raise_http_error(error)
+
+
+@router.post(
+    "/fixed-one-on-one/graph",
+    response_model=StoredBattleInferenceJourneyResponse,
+    summary="精确求解固定配置并保存可探索完整图",
+)
+def infer_fixed_one_on_one_graph(
+    request: FixedBattleSummaryRequest,
+    inference: InferenceUseCaseDependency,
+    graph_store: GraphStoreDependency,
+) -> StoredBattleInferenceJourneyResponse:
+    """对单个固定配置求解并返回后续树状探索所需的 graph handle。
+
+    Args:
+        request: 与 summary-only 入口相同的固定配置请求。
+        inference: 共享正式 repository 与 effect factory 的完整图推演用例。
+        graph_store: 当前 backend 进程生命周期内保存完整图的 store。
+
+    Returns:
+        同时包含全局胜负平 summary 和可跨请求探索的 graph handle。
+
+    Raises:
+        HTTPException: 准入、求解或 graph store 保存失败时返回稳定 HTTP 错误。
+    """
+    try:
+        command = _command_from_request(request)
+        _validate_fixed_mechanisms(inference, command)
+        stored = StoreBackedInferOneOnOneBattleUseCase(
+            inference_use_case=inference,
+            graph_store=graph_store,
+        ).execute_fixed_with_handle(command)
+        return stored_battle_inference_journey_response(stored)
+    except (
+        BattleCandidatePoolNotFound,
+        StrictMechanismAdmissionRejected,
+        BattleInferenceExecutionError,
+        ValueError,
+    ) as error:
+        _raise_http_error(error)
+    except BattleGraphStoreError as error:
+        _raise_graph_store_http_error(error)
 
 
 __all__ = ["router"]

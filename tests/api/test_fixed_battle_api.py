@@ -20,6 +20,7 @@ def test_fixed_battle_routes_share_the_inference_resource_prefix() -> None:
 
     assert "/move-set-combinations" in paths
     assert "/fixed-one-on-one" in paths
+    assert "/fixed-one-on-one/graph" in paths
 
 
 def test_combination_response_keeps_side_lists_separate() -> None:

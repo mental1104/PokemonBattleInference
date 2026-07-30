@@ -8,7 +8,7 @@ import {
 } from '../api/calculator';
 import {
   enumerateMoveSetCombinations,
-  inferFixedBattleSummary,
+  inferFixedBattleJourney,
 } from '../api/fixedBattle';
 import {
   DRAGONITE_EXAMPLE,
@@ -32,18 +32,32 @@ vi.mock('../api/calculator', async (importOriginal) => {
 
 vi.mock('../api/fixedBattle', () => ({
   enumerateMoveSetCombinations: vi.fn(),
-  inferFixedBattleSummary: vi.fn(),
+  inferFixedBattleJourney: vi.fn(),
 }));
 
 const searchPokemonMock = vi.mocked(searchPokemon);
 const getPokemonDetailMock = vi.mocked(getPokemonDetail);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 const enumerateMock = vi.mocked(enumerateMoveSetCombinations);
-const inferMock = vi.mocked(inferFixedBattleSummary);
+const inferMock = vi.mocked(inferFixedBattleJourney);
 
 /** 挂载真实双侧配置组件；网络边界通过模块 mock 隔离。 */
 function mountView(): VueWrapper {
-  return mount(BattleInferenceView);
+  return mount(BattleInferenceView, {
+    global: {
+      stubs: {
+        BattleGraphExplorer: {
+          template: '<section data-test="graph-explorer">路径聚焦式状态图</section>',
+        },
+        BattleReportPanel: {
+          template: '<aside data-test="battle-report">逐回合战报</aside>',
+        },
+        BattleGraphTreeScreen: {
+          template: '<section data-test="tree-screen">从起点向右追踪战斗路径</section>',
+        },
+      },
+    },
+  });
 }
 
 /** 返回文本完全匹配的按钮。 */
@@ -163,56 +177,66 @@ beforeEach(() => {
     },
   );
   inferMock.mockReset().mockResolvedValue({
-    ruleset_id: 'pokemon-champion',
-    version_group_id: 25,
-    observer: 'attacker',
-    attacker: {
-      pokemon_id: 149,
-      name: 'attacker',
-      level: 50,
-      ability_identifier: 'multiscale',
-      item_identifier: 'none',
-      move_ids: [1, 2, 3, 4],
-      move_names: ['move-1', 'move-2', 'move-3', 'move-4'],
-      stats: {},
-      dimension_labels: {},
+    summary: {
+      ruleset_id: 'pokemon-champion',
+      version_group_id: 25,
+      observer: 'attacker',
+      attacker: {
+        pokemon_id: 149,
+        name: 'attacker',
+        level: 50,
+        ability_identifier: 'multiscale',
+        item_identifier: 'none',
+        move_ids: [1, 2, 3, 4],
+        move_names: ['move-1', 'move-2', 'move-3', 'move-4'],
+        stats: { hp: 166 },
+        dimension_labels: {},
+      },
+      defender: {
+        pokemon_id: 461,
+        name: 'defender',
+        level: 50,
+        ability_identifier: 'pressure',
+        item_identifier: 'none',
+        move_ids: [11, 12, 13, 14],
+        move_names: ['move-11', 'move-12', 'move-13', 'move-14'],
+        stats: { hp: 155 },
+        dimension_labels: {},
+      },
+      win_probability: { numerator: '5', denominator: '8', decimal: 0.625, percent: 62.5 },
+      loss_probability: { numerator: '3', denominator: '8', decimal: 0.375, percent: 37.5 },
+      draw_probability: { numerator: '0', denominator: '1', decimal: 0, percent: 0 },
+      expected_turns: { available: true, numerator: 5, denominator: 2, decimal: 2.5 },
+      attacker_policy: 'uniform-random',
+      defender_policy: 'uniform-random',
+      graph: {
+        unique_state_count: 120,
+        edge_count: 840,
+        max_turn_number: 4,
+        closed_cycle_count: 0,
+        terminal_reachable_cycle_count: 0,
+        is_complete: true,
+        truncation_reasons: [],
+      },
+      representative_paths: [],
+      included_mechanisms: [],
+      excluded_mechanisms: [],
+      configuration_coverage_percent: 100,
+      completeness: {
+        graph_complete: true,
+        solver_status: 'solved',
+        truncation_reasons: [],
+        diagnostics: [],
+        warnings: [],
+      },
     },
-    defender: {
-      pokemon_id: 461,
-      name: 'defender',
-      level: 50,
-      ability_identifier: 'pressure',
-      item_identifier: 'none',
-      move_ids: [11, 12, 13, 14],
-      move_names: ['move-11', 'move-12', 'move-13', 'move-14'],
-      stats: {},
-      dimension_labels: {},
-    },
-    win_probability: { numerator: '5', denominator: '8', decimal: 0.625, percent: 62.5 },
-    loss_probability: { numerator: '3', denominator: '8', decimal: 0.375, percent: 37.5 },
-    draw_probability: { numerator: '0', denominator: '1', decimal: 0, percent: 0 },
-    expected_turns: { available: true, numerator: 5, denominator: 2, decimal: 2.5 },
-    attacker_policy: 'uniform-random',
-    defender_policy: 'uniform-random',
-    graph: {
-      unique_state_count: 120,
-      edge_count: 840,
-      max_turn_number: 4,
-      closed_cycle_count: 0,
-      terminal_reachable_cycle_count: 0,
-      is_complete: true,
-      truncation_reasons: [],
-    },
-    representative_paths: [],
-    included_mechanisms: [],
-    excluded_mechanisms: [],
-    configuration_coverage_percent: 100,
-    completeness: {
-      graph_complete: true,
-      solver_status: 'solved',
-      truncation_reasons: [],
-      diagnostics: [],
-      warnings: [],
+    exploration: {
+      graph_id: 'graph-fixed-test',
+      root_node_id: 0,
+      calculation_revision: 'battle-inference.summary-exploration.v2',
+      expires_at: '2026-07-30T00:00:00Z',
+      cursor: { steps: [] },
+      expandable: true,
     },
   });
 });
@@ -254,6 +278,12 @@ describe('BattleInferenceView', () => {
     expect(request.attacker_policy).toBe('uniform-random');
     expect(wrapper.text()).toContain('62.50%');
     expect(wrapper.text()).toContain('120 nodes · 840 edges');
+    expect(wrapper.text()).toContain('路径聚焦式状态图');
+    expect(wrapper.text()).toContain('逐回合战报');
+
+    await buttonByText(wrapper, '打开大屏树状图').trigger('click');
+
+    expect(wrapper.text()).toContain('从起点向右追踪战斗路径');
   });
 
   it('invalidates generated combinations when the candidate selection changes', async () => {

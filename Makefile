@@ -118,6 +118,10 @@ compose-up:
 	$(COMPOSE) run --rm db-init
 	$(COMPOSE) up -d backend worker frontend --remove-orphans
 
+compose-frontend-rebuild:
+	$(COMPOSE) build frontend
+	$(COMPOSE) up -d frontend
+
 compose-down:
 	$(COMPOSE) down --remove-orphans
 

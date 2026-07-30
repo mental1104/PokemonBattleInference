@@ -179,11 +179,15 @@ def test_progressive_api_routes_are_registered() -> None:
         "/v1/inference/graphs/{graph_id}/advance",
         "/v1/inference/graphs/{graph_id}/backtrack",
     }
-    routes = {
-        route.path: route
-        for route in application.routes
-        if route.path in expected_paths
-    }
+    routes = {}
+    for route in application.routes:
+        prefix = getattr(getattr(route, "include_context", None), "prefix", "")
+        nested_router = getattr(route, "original_router", None)
+        candidates = getattr(nested_router, "routes", None) or (route,)
+        for candidate in candidates:
+            path = f"{prefix}{getattr(candidate, 'path', '')}"
+            if path in expected_paths:
+                routes[path] = candidate
 
     assert set(routes) == expected_paths
     assert all("POST" in route.methods for route in routes.values())
