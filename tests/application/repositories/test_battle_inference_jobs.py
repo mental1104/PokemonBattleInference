@@ -11,6 +11,7 @@ from pokeop.application.repositories.battle_inference_jobs import (
     BattleInferenceCaseDefinition,
     BattleInferenceCaseFilter,
     BattleInferenceCasePage,
+    BattleInferenceCaseProgress,
     BattleInferenceCaseResult,
     BattleInferenceCaseSnapshot,
     BattleInferenceCaseStatus,
@@ -116,6 +117,19 @@ class _FakeBattleInferenceJobRepository:
         calculation_revision: str,
     ) -> bool:
         """表示 fake 可实现幂等结果写入入口。"""
+        raise NotImplementedError
+
+    def record_case_progress(
+        self,
+        job_id: str,
+        configuration_pair_id: str,
+        progress: BattleInferenceCaseProgress,
+        *,
+        lease_owner: str,
+        observed_at: datetime,
+        calculation_revision: str,
+    ) -> bool:
+        """表示 fake 可实现运行中进度写入入口。"""
         raise NotImplementedError
 
     def request_cancel(

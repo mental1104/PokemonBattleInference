@@ -21,6 +21,7 @@ from pokeop.domain.battle.stats import (
     StatValues,
     calculate_actual_stats,
 )
+from pokeop.domain.configuration_presets import stat_profile_from_snapshot
 from pokeop.domain.models.pokemon_fields import StatField
 
 
@@ -87,10 +88,15 @@ class StatDimensionProvider:
         command = context.command.stats
         if command.mode is StatEnumerationMode.PRESET:
             for key in command.preset_keys:
-                preset = PRESETS.get(key)
-                if preset is None:
-                    raise ConfigurationSpaceError(f"unknown stat profile preset: {key}")
-                profile = preset.apply(context.profile.base_stats)
+                try:
+                    profile = stat_profile_from_snapshot(key, context.profile.base_stats)
+                except ValueError as exc:
+                    raise ConfigurationSpaceError(str(exc)) from exc
+                if profile is None:
+                    preset = PRESETS.get(key)
+                    if preset is None:
+                        raise ConfigurationSpaceError(f"unknown stat profile preset: {key}")
+                    profile = preset.apply(context.profile.base_stats)
                 self._validate_evs(profile.evs)
                 yield profile, f"preset:{key}"
             return

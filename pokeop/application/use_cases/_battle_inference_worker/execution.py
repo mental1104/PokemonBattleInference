@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from fractions import Fraction
+from typing import Any
 
 from pokeop.application.repositories.battle_inference_jobs import (
     BattleInferenceCaseResult,
@@ -21,7 +22,9 @@ from pokeop.application.use_cases.stream_configuration_pairs import (
     ConfigurationPairAggregate,
     ConfigurationPairExecutionResult,
     ConfigurationPairExecutionStatus,
+    ConfigurationPairRuntimeProgress,
     ConfigurationPairResultSink,
+    ConfigurationPairProgressObserver,
     NormalizedBattleConfiguration,
     StreamConfigurationPairsCommand,
     StreamConfigurationPairsUseCase,
@@ -45,10 +48,53 @@ class _SingleResultSink(ConfigurationPairResultSink):
         """接收但不保存单配置聚合。"""
 
 
+@dataclass(slots=True)
+class _QueueProgressObserver(ConfigurationPairProgressObserver):
+    """把子进程内的单配置进度写入父进程提供的队列。
+
+    Args:
+        configuration_pair_id: 当前 case 的稳定配置对 ID。
+        queue: ``multiprocessing.Manager().Queue`` 代理；None 表示丢弃进度。
+    """
+
+    configuration_pair_id: str
+    queue: Any | None
+
+    def write_runtime_progress(self, progress: ConfigurationPairRuntimeProgress) -> None:
+        """发送一帧可 pickle 的轻量进度。
+
+        Args:
+            progress: 当前 case 构图或求解阶段的数字统计。
+        """
+        if self.queue is None:
+            return
+        self.queue.put(
+            {
+                "configuration_pair_id": self.configuration_pair_id,
+                "phase": progress.phase,
+                "node_count": progress.node_count,
+                "edge_count": progress.edge_count,
+                "expanded_node_count": progress.expanded_node_count,
+                "frontier_count": progress.frontier_count,
+                "action_pair_completed_count": progress.action_pair_completed_count,
+                "action_pair_total_count": progress.action_pair_total_count,
+            }
+        )
+
+
 def execute_prepared_battle_inference_case(
     prepared: PreparedBattleInferenceCase,
+    progress_queue: Any | None = None,
 ) -> ConfigurationPairExecutionResult:
-    """在子进程中复用 #86 流式执行器求解一个准备完成的配置。"""
+    """在子进程中复用 #86 流式执行器求解一个准备完成的配置。
+
+    Args:
+        prepared: 父进程准备好的不可变单配置执行输入。
+        progress_queue: 可选的进程间队列，用于把实时进度发送回父进程。
+
+    Returns:
+        可持久化为 case 终态的轻量执行结果。
+    """
     sink = _SingleResultSink()
     command = StreamConfigurationPairsCommand(
         rules=prepared.rules,
@@ -73,7 +119,13 @@ def execute_prepared_battle_inference_case(
         max_configuration_pairs=1,
         top_k=1,
     )
-    StreamConfigurationPairsUseCase(result_sink=sink).execute(command)
+    StreamConfigurationPairsUseCase(
+        result_sink=sink,
+        runtime_progress_observer=_QueueProgressObserver(
+            prepared.configuration_pair_id,
+            progress_queue,
+        ),
+    ).execute(command)
     if sink.result is None:
         raise RuntimeError("single configuration execution produced no result")
     return replace(sink.result, pair_id=prepared.configuration_pair_id)
@@ -96,6 +148,7 @@ def persistent_result(
             node_count=result.node_count,
             edge_count=result.edge_count,
             budget_consumed=result.node_count + result.edge_count,
+            explanation_json=result.explanation_json,
         )
     diagnostic = "; ".join(result.diagnostics) or result.status.value
     if result.status is ConfigurationPairExecutionStatus.TRUNCATED:

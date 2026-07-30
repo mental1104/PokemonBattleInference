@@ -312,8 +312,17 @@ async function playIncrementalReport(
 }
 
 watch(
-  () => props.report,
-  (report) => {
+  () =>
+    [
+      props.report,
+      props.context.sides.attacker.maxHp,
+      props.context.sides.defender.maxHp,
+    ] as const,
+  ([report, attackerMaxHp, defenderMaxHp], previous) => {
+    // snapshot mode 可能先渲染临时 maxHp=0，再由当前节点补齐真实最大 HP；此时必须重算整条已选路径。
+    const hpBaselineChanged =
+      previous !== undefined
+      && (previous[1] !== attackerMaxHp || previous[2] !== defenderMaxHp);
     playbackVersion.value += 1;
     if (report === null || report.steps.length === 0) {
       appliedStepKeys.value = [];
@@ -322,7 +331,7 @@ watch(
     }
 
     const nextKeys = reportStepKeys(report);
-    if (isPathPrefix(appliedStepKeys.value, nextKeys)) {
+    if (!hpBaselineChanged && isPathPrefix(appliedStepKeys.value, nextKeys)) {
       void playIncrementalReport(report, appliedStepKeys.value.length, nextKeys);
       return;
     }

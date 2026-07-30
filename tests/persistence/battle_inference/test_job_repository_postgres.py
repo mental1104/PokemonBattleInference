@@ -382,6 +382,32 @@ def test_failure_truncation_filters_and_cancellation_preserve_completed_rows(
     assert final.progress.cancelled_count == 2
 
 
+def test_cancel_requested_job_without_lease_is_reclaimable(
+    transaction_factory: TransactionFactory,
+) -> None:
+    """被取消但尚未领取的任务必须可由重启后的 coordinator 收口。"""
+    repository = PostgresBattleInferenceJobRepository(transaction_factory)
+    now = datetime(2026, 7, 25, 4, 30, tzinfo=UTC)
+    repository.create_job(_command("job-cancel-reclaim", 1), created_at=now)
+    repository.request_cancel(
+        "job-cancel-reclaim",
+        requested_at=now + timedelta(seconds=5),
+    )
+
+    reclaimed = repository.claim_next_job(
+        lease_owner="coordinator-restarted",
+        now=now + timedelta(seconds=10),
+        lease_duration=timedelta(minutes=1),
+        calculation_revision="battle-inference.v2",
+    )
+
+    assert reclaimed is not None
+    assert reclaimed.status is BattleInferenceJobStatus.CANCEL_REQUESTED
+    assert reclaimed.attempt_count == 1
+    assert reclaimed.lease is not None
+    assert reclaimed.lease.owner == "coordinator-restarted"
+
+
 def test_coordinators_compete_for_job_and_expired_lease_is_reclaimed(
     transaction_factory: TransactionFactory,
 ) -> None:

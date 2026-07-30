@@ -16,6 +16,7 @@ from pokeop.application.solver.graph_solver import (
     ExpectedTurnsStatus,
 )
 from pokeop.application.solver.models import StateGraphBuildResult, StateGraphLimits
+from pokeop.application.solver.state_graph import StateGraphBuildProgress
 from pokeop.application.use_cases.infer_one_on_one_battle import BattleActionPolicyKind
 from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.inference_rules import BattleInferenceRules
@@ -125,6 +126,79 @@ class ConfigurationPairWorkItem:
 
 
 @dataclass(frozen=True, slots=True)
+class ConfigurationPairRuntimeProgress:
+    """描述当前配置对构图或求解阶段的一帧运行进度。
+
+    Args:
+        phase: 当前执行阶段，例如 ``building_graph`` 或 ``solving_probabilities``。
+        node_count: 当前观测到的状态图节点数。
+        edge_count: 当前观测到的状态图边数。
+        expanded_node_count: 构图阶段已展开节点数；非构图阶段保留最近值。
+        frontier_count: 构图阶段待展开队列长度；非构图阶段可为 0。
+        action_pair_completed_count: 当前节点内已完成动作组合数。
+        action_pair_total_count: 当前节点内动作组合总数；未知时为 0。
+    """
+
+    phase: str
+    node_count: int
+    edge_count: int
+    expanded_node_count: int
+    frontier_count: int
+    action_pair_completed_count: int = 0
+    action_pair_total_count: int = 0
+
+
+@runtime_checkable
+class ConfigurationPairProgressObserver(Protocol):
+    """接收单配置执行过程中实时进度的 application 端口。"""
+
+    def write_runtime_progress(self, progress: ConfigurationPairRuntimeProgress) -> None:
+        """接收一帧单配置运行进度。
+
+        Args:
+            progress: 当前配置对构图或求解阶段的轻量数字统计。
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class DiscardConfigurationPairProgressObserver:
+    """默认丢弃单配置运行进度，保持历史调用路径无额外副作用。"""
+
+    def write_runtime_progress(self, progress: ConfigurationPairRuntimeProgress) -> None:
+        """忽略一帧运行进度。
+
+        Args:
+            progress: 当前配置对产生的进度事件。
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class StateGraphToConfigurationPairProgressObserver:
+    """把状态图 builder 事件适配为单配置运行进度事件。"""
+
+    target: ConfigurationPairProgressObserver
+
+    def write_graph_progress(self, progress: StateGraphBuildProgress) -> None:
+        """转换并转发一帧构图进度。
+
+        Args:
+            progress: ``StateGraphBuilder`` 产生的构图统计。
+        """
+        self.target.write_runtime_progress(
+            ConfigurationPairRuntimeProgress(
+                phase=progress.phase,
+                node_count=progress.discovered_node_count,
+                edge_count=progress.edge_count,
+                expanded_node_count=progress.expanded_node_count,
+                frontier_count=progress.frontier_count,
+                action_pair_completed_count=0,
+                action_pair_total_count=0,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class StreamConfigurationPairsCommand:
     """声明一次同步、可组合的配置对流式精确执行。
 
@@ -222,10 +296,12 @@ class ConfigurationPairGraphArtifact:
     Args:
         graph: 本配置对的完整或显式截断状态图。
         solve_result: 精确 solver 返回的成功或类型化未完成结果。
+        explanation_json: 成功结果可选的总结型归因 JSON；不会保存完整图。
     """
 
     graph: StateGraphBuildResult
     solve_result: BattleGraphSolveResult
+    explanation_json: str | None = None
 
 
 @runtime_checkable
@@ -241,6 +317,8 @@ class ConfigurationPairGraphExecutor(Protocol):
         defender_policy: BattleActionPolicyKind,
         observer: BattleSide,
         graph_limits: StateGraphLimits,
+        progress_observer: ConfigurationPairProgressObserver
+        | None = None,
     ) -> ConfigurationPairGraphArtifact:
         """构建并求解一个配置对。
 
@@ -251,6 +329,7 @@ class ConfigurationPairGraphExecutor(Protocol):
             defender_policy: 防守方行动策略。
             observer: 胜负概率观察方。
             graph_limits: 当前配置对独立使用的图运行保护。
+            progress_observer: 可选的运行进度观察者；None 表示不输出进度。
 
         Returns:
             只在调用方提取摘要前保留完整图的短生命周期 artifact。
@@ -280,6 +359,7 @@ class ConfigurationPairExecutionResult:
     edge_count: int
     scc_count: int
     max_turn_number: int
+    explanation_json: str | None = None
     diagnostics: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -363,6 +443,10 @@ class ConfigurationPairExecutionResult:
         if self.expected_turns_status is not ExpectedTurnsStatus.UNAVAILABLE:
             raise ConfigurationPairStreamError(
                 "unfinished pair result requires unavailable expected turns"
+            )
+        if self.explanation_json is not None:
+            raise ConfigurationPairStreamError(
+                "unfinished pair result cannot expose explanation_json"
             )
 
 
@@ -568,18 +652,22 @@ __all__ = [
     "ConfigurationPairExecutionStatus",
     "ConfigurationPairGraphArtifact",
     "ConfigurationPairGraphExecutor",
+    "ConfigurationPairProgressObserver",
     "ConfigurationPairProgress",
     "ConfigurationPairRankingEntry",
     "ConfigurationPairResultSink",
+    "ConfigurationPairRuntimeProgress",
     "ConfigurationPairStopReason",
     "ConfigurationPairStreamError",
     "ConfigurationPairWorkItem",
+    "DiscardConfigurationPairProgressObserver",
     "DiscardConfigurationPairResultSink",
     "DiscardProgressSink",
     "FractionComplexitySummary",
     "NeverCancelledToken",
     "NormalizedBattleConfiguration",
     "ProgressSink",
+    "StateGraphToConfigurationPairProgressObserver",
     "StreamConfigurationPairsCommand",
     "equally_weighted_configurations",
 ]

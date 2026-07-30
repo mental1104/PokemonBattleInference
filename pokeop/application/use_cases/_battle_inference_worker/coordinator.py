@@ -7,15 +7,20 @@ import time
 from concurrent.futures import Future
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from multiprocessing import Manager
+from queue import Empty
+from typing import Any, Callable
 
 from pokeop.application.repositories.battle_inference_jobs import (
+    BattleInferenceCalculationRevisionMismatch,
     BattleInferenceCaseResult,
+    BattleInferenceCaseProgress,
     BattleInferenceCaseSnapshot,
     BattleInferenceCaseStatus,
     BattleInferenceFailureCode,
     BattleInferenceJobSnapshot,
     BattleInferenceJobStatus,
+    BattleInferenceLeaseConflict,
 )
 from pokeop.application.use_cases._battle_inference_worker.contracts import (
     BattleInferenceCasePreparer,
@@ -107,6 +112,8 @@ class RunBattleInferenceWorkerUseCase:
     ) -> None:
         """维护一个任务的队列、heartbeat、取消与最终收口。"""
         executor = self.executor_factory(execution_spec.process_count)
+        progress_manager = Manager()
+        progress_queue = progress_manager.Queue()
         in_flight: dict[Future[object], BattleInferenceCaseSnapshot] = {}
         last_heartbeat = self.clock()
         cancellation_started_at: datetime | None = None
@@ -123,7 +130,14 @@ class RunBattleInferenceWorkerUseCase:
                 if cancelling:
                     self.store.cancel_unclaimed_cases(snapshot.job_id, cancelled_at=now)
                 else:
-                    self._fill_queue(snapshot, execution_spec, executor, in_flight)
+                    self._fill_queue(
+                        snapshot,
+                        execution_spec,
+                        executor,
+                        in_flight,
+                        progress_queue,
+                    )
+                self._drain_progress_queue(snapshot, in_flight, progress_queue)
                 self._record_completed(snapshot, in_flight)
                 if not cancelling and now - last_heartbeat >= self.heartbeat_interval:
                     self.store.heartbeat_job(
@@ -166,6 +180,7 @@ class RunBattleInferenceWorkerUseCase:
             raise
         finally:
             executor.shutdown()
+            progress_manager.shutdown()
 
     def _fail_owned_job(self, job_id: str, error: Exception) -> None:
         """尽力记录仍由当前 coordinator 持有的任务级失败。"""
@@ -186,10 +201,14 @@ class RunBattleInferenceWorkerUseCase:
         execution_spec: BattleInferenceExecutionSpec,
         executor: WorkerExecutor,
         in_flight: dict[Future[object], BattleInferenceCaseSnapshot],
+        progress_queue: Any,
     ) -> None:
         """在 queue depth 范围内领取、准备并提交新的配置。"""
         available = execution_spec.queue_depth - len(in_flight)
-        if available <= 0 or job.progress.pending_count <= 0:
+        if (
+            available <= 0
+            or (job.progress.pending_count <= 0 and job.progress.running_count <= 0)
+        ):
             return
         claimed = self.store.claim_cases(
             job.job_id,
@@ -212,8 +231,68 @@ class RunBattleInferenceWorkerUseCase:
                     ),
                 )
                 continue
-            future = executor.submit(execute_prepared_battle_inference_case, prepared)
+            future = executor.submit(
+                execute_prepared_battle_inference_case,
+                prepared,
+                progress_queue,
+            )
             in_flight[future] = case
+
+    def _drain_progress_queue(
+        self,
+        job: BattleInferenceJobSnapshot,
+        in_flight: dict[Future[object], BattleInferenceCaseSnapshot],
+        progress_queue: Any,
+    ) -> None:
+        """把子进程积压的运行进度写入当前仍在执行的 case。
+
+        Args:
+            job: 当前 coordinator 正在维护的任务快照。
+            in_flight: 尚未返回终态结果的 Future 到 case 映射。
+            progress_queue: 子进程共享写入、父进程轮询读取的队列代理。
+        """
+        active_pair_ids = {
+            case.definition.configuration_pair_id for case in in_flight.values()
+        }
+        while True:
+            try:
+                event = progress_queue.get_nowait()
+            except Empty:
+                return
+            if not isinstance(event, dict):
+                continue
+            pair_id = event.get("configuration_pair_id")
+            if not isinstance(pair_id, str) or pair_id not in active_pair_ids:
+                continue
+            try:
+                progress = BattleInferenceCaseProgress(
+                    phase=str(event.get("phase") or "building_graph"),
+                    observed_node_count=int(event.get("node_count") or 0),
+                    observed_edge_count=int(event.get("edge_count") or 0),
+                    expanded_node_count=int(event.get("expanded_node_count") or 0),
+                    frontier_count=int(event.get("frontier_count") or 0),
+                    action_pair_completed_count=int(
+                        event.get("action_pair_completed_count") or 0
+                    ),
+                    action_pair_total_count=int(
+                        event.get("action_pair_total_count") or 0
+                    ),
+                )
+                self.store.record_case_progress(
+                    job.job_id,
+                    pair_id,
+                    progress,
+                    lease_owner=self.worker_id,
+                    observed_at=self.clock(),
+                    calculation_revision=job.calculation_revision,
+                )
+            except (
+                BattleInferenceCalculationRevisionMismatch,
+                BattleInferenceLeaseConflict,
+                ValueError,
+            ):
+                # 取消、lease 恢复或旧事件乱序时，终态结果/取消收口优先，进度可丢弃。
+                continue
 
     def _record_completed(
         self,

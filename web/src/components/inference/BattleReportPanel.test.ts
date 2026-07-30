@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import type {
   BattleEventDetailResult,
+  BattleNodeDetailResult,
   BattleReportResult,
 } from '../../api/inference';
 import type { BattleReportPresenterContext } from '../../presenters/battleEventPresenter';
@@ -94,6 +95,55 @@ function report(depth: 1 | 2): BattleReportResult {
   };
 }
 
+/**
+ * 构造只有战报面板需要读取的节点详情。
+ *
+ * @returns 带真实 max_hp 的当前探索节点 DTO。
+ */
+function currentNode(): BattleNodeDetailResult {
+  const battler = {
+    pokemon_id: 149,
+    name: 'dragonite',
+    ability: 'multiscale',
+    item: 'unknown',
+    current_hp: 104,
+    max_hp: 166,
+    moves: [],
+    major_status: null,
+    volatile_statuses: [],
+    stat_stages: {
+      attack: 0,
+      defense: 0,
+      special_attack: 0,
+      special_defense: 0,
+      speed: 0,
+      accuracy: 0,
+      evasion: 0,
+    },
+    last_move_id: null,
+    choice_lock_move_id: null,
+    item_consumed: false,
+    first_turn: false,
+  };
+  return {
+    node_id: 1,
+    turn_number: 2,
+    phase: 'action-selection',
+    outcome: 'ongoing',
+    termination_reason: null,
+    attacker: battler,
+    defender: { ...battler, current_hp: 168, max_hp: 198 },
+    field: {
+      weather: null,
+      terrain: null,
+      attacker_side_conditions: { reflect: false, light_screen: false, aurora_veil: false },
+      defender_side_conditions: { reflect: false, light_screen: false, aurora_veil: false },
+    },
+    terminal: false,
+    has_outgoing_edges: true,
+  };
+}
+
 describe('BattleReportPanel', () => {
   it('keeps the current turn expanded, history collapsible and exact probability strings intact', async () => {
     /**
@@ -131,5 +181,28 @@ describe('BattleReportPanel', () => {
     expect(wrapper.findAll('.battle-report-turn')).toHaveLength(1);
     expect(wrapper.text()).not.toContain('回合 2');
     expect(wrapper.text()).toContain('1 / 2');
+  });
+
+  it('uses the current node max HP when snapshot context has not received summary HP', () => {
+    /**
+     * 实时快照树会先创建 maxHp=0 的临时 context；战场血条必须以当前节点为准。
+     */
+    const wrapper = mount(BattleReportPanel, {
+      props: {
+        report: null,
+        context: {
+          ...CONTEXT,
+          sides: {
+            attacker: { ...CONTEXT.sides.attacker, maxHp: 0 },
+            defender: { ...CONTEXT.sides.defender, maxHp: 0 },
+          },
+        },
+        node: currentNode(),
+      },
+    });
+
+    expect(wrapper.text()).toContain('166 / 166');
+    expect(wrapper.text()).toContain('198 / 198');
+    expect(wrapper.text()).not.toContain('/ 0');
   });
 });

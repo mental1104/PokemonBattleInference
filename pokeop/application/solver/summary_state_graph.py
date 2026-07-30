@@ -27,7 +27,13 @@ from .models import (
     StateGraphLimits,
     StateGraphNode,
 )
-from .state_graph import _build_statistics, _classify_battle_state
+from .state_graph import (
+    DiscardStateGraphProgressObserver,
+    StateGraphBuildProgress,
+    StateGraphProgressObserver,
+    _build_statistics,
+    _classify_battle_state,
+)
 from .strong_components import analyze_strong_components, apply_closed_cycle_resolution
 
 
@@ -94,10 +100,14 @@ class SummaryStateGraphBuilder:
     Args:
         expander: 为每个非终局状态提供完整精确后继分布的扩展器。
         limits: 单次固定配置允许使用的节点、边和回合保护。
+        progress_observer: 构图过程中接收轻量进度的观察者。
+        progress_interval_nodes: 每展开多少个节点至少发出一次进度事件。
     """
 
     expander: BattleStateTransitionExpander
     limits: StateGraphLimits = StateGraphLimits()
+    progress_observer: StateGraphProgressObserver = DiscardStateGraphProgressObserver()
+    progress_interval_nodes: int = 200
 
     def __post_init__(self) -> None:
         """校验扩展器与限制模型使用正式 application 协议。"""
@@ -107,6 +117,14 @@ class SummaryStateGraphBuilder:
             )
         if not isinstance(self.limits, StateGraphLimits):
             raise StateGraphError("limits must be a StateGraphLimits instance")
+        if not isinstance(self.progress_observer, StateGraphProgressObserver):
+            raise StateGraphError("progress_observer must implement StateGraphProgressObserver")
+        if (
+            isinstance(self.progress_interval_nodes, bool)
+            or not isinstance(self.progress_interval_nodes, int)
+            or self.progress_interval_nodes <= 0
+        ):
+            raise StateGraphError("progress_interval_nodes must be a positive integer")
 
     def build(self, initial_state: BattleState) -> StateGraphBuildResult:
         """从初始状态构建精确摘要所需的最小完整图。
@@ -143,10 +161,19 @@ class SummaryStateGraphBuilder:
             work_queue.append(GraphNodeId(0))
 
         truncation_reasons: list[GraphTruncationReason] = []
+        expanded_node_count = 0
+        next_progress_at = self.progress_interval_nodes
         max_turns = (
             self.limits.max_turns
             if self.limits.max_turns is not None
             else initial_state.rules.max_turns
+        )
+        self._emit_progress(
+            phase="building_graph",
+            nodes=nodes,
+            edges=edges,
+            expanded_node_count=expanded_node_count,
+            frontier_count=len(work_queue),
         )
 
         while work_queue:
@@ -168,6 +195,7 @@ class SummaryStateGraphBuilder:
                 continue
 
             raw_transitions = tuple(self.expander.expand(node.state))
+            expanded_node_count += 1
             if not raw_transitions:
                 # 与正式构图器保持一致：整体没有后继代表异常无合法行动平局，
                 # 不能把领域允许的空分布误报为概率合同异常。
@@ -244,9 +272,25 @@ class SummaryStateGraphBuilder:
                         source_key=None,
                     )
                 )
+            if expanded_node_count >= next_progress_at:
+                self._emit_progress(
+                    phase="building_graph",
+                    nodes=nodes,
+                    edges=edges,
+                    expanded_node_count=expanded_node_count,
+                    frontier_count=len(work_queue),
+                )
+                next_progress_at = expanded_node_count + self.progress_interval_nodes
 
         components = analyze_strong_components(nodes, edges)
         nodes, components = apply_closed_cycle_resolution(nodes, components)
+        self._emit_progress(
+            phase="graph_built",
+            nodes=nodes,
+            edges=edges,
+            expanded_node_count=expanded_node_count,
+            frontier_count=0,
+        )
         return StateGraphBuildResult(
             root_node_id=GraphNodeId(0),
             nodes=tuple(nodes),
@@ -254,6 +298,36 @@ class SummaryStateGraphBuilder:
             components=components,
             statistics=_build_statistics(nodes, edges, components),
             truncation_reasons=tuple(truncation_reasons),
+        )
+
+    def _emit_progress(
+        self,
+        *,
+        phase: str,
+        nodes: list[StateGraphNode],
+        edges: list[StateGraphEdge],
+        expanded_node_count: int,
+        frontier_count: int,
+    ) -> None:
+        """同步发布一帧轻量 summary 构图进度。
+
+        Args:
+            phase: 当前构图阶段。
+            nodes: 当前已发现节点列表。
+            edges: 当前已写入边列表。
+            expanded_node_count: 已展开节点数量。
+            frontier_count: 待展开队列长度。
+        """
+        self.progress_observer.write_graph_progress(
+            StateGraphBuildProgress(
+                phase=phase,
+                discovered_node_count=len(nodes),
+                edge_count=len(edges),
+                expanded_node_count=expanded_node_count,
+                frontier_count=frontier_count,
+                max_nodes=self.limits.max_nodes,
+                max_edges=self.limits.max_edges,
+            )
         )
 
     @staticmethod

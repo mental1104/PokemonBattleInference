@@ -1,8 +1,9 @@
-"""使用现有状态图 builder 和精确 solver 执行单个配置对。"""
+"""使用状态图 builder 和精确 solver 执行单个配置对。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 
 from pokeop.application.configuration_space import (
     BattleConfiguration,
@@ -13,12 +14,17 @@ from pokeop.application.solver.graph_solver import (
     PurePythonBattleGraphSolver,
 )
 from pokeop.application.solver.models import StateGraphLimits
-from pokeop.application.solver.state_graph import StateGraphBuilder
+from pokeop.application.solver.graph_explanation import build_root_action_pair_explanation
+from pokeop.application.solver.summary_state_graph import SummaryStateGraphBuilder
 from pokeop.application.use_cases.infer_one_on_one_battle import BattleActionPolicyKind
 from pokeop.application.use_cases.stream_configuration_pairs.models import (
     ConfigurationPairGraphArtifact,
+    ConfigurationPairProgressObserver,
+    ConfigurationPairRuntimeProgress,
     ConfigurationPairStreamError,
     ConfigurationPairWorkItem,
+    DiscardConfigurationPairProgressObserver,
+    StateGraphToConfigurationPairProgressObserver,
 )
 from pokeop.domain.battle.action_policy import (
     ActionPolicy,
@@ -40,6 +46,7 @@ from pokeop.domain.battle.structured_turn_resolver import (
     BattleEventStandardMoveTurnResolver,
 )
 from pokeop.domain.battle.transitions import (
+    TransitionEventSummary,
     WeightedTransition,
     merge_equivalent_transitions,
 )
@@ -52,6 +59,7 @@ class _PolicyDrivenBattleStateExpander:
     turn_resolver: BattleEventStandardMoveTurnResolver
     attacker_policy: ActionPolicy[BattleAction]
     defender_policy: ActionPolicy[BattleAction]
+    progress_observer: ConfigurationPairProgressObserver
 
     def expand(self, state: BattleState) -> tuple[WeightedTransition[BattleState], ...]:
         """返回玩家策略概率与回合内部随机概率相乘后的归一化后继。
@@ -70,6 +78,10 @@ class _PolicyDrivenBattleStateExpander:
         defender_distribution.validate_legal_actions(defender_actions)
 
         transitions: list[WeightedTransition[BattleState]] = []
+        total_action_pairs = (
+            len(attacker_distribution.selections) * len(defender_distribution.selections)
+        )
+        completed_action_pairs = 0
         for attacker_selection in attacker_distribution.selections:
             for defender_selection in defender_distribution.selections:
                 resolution = self.turn_resolver.resolve(
@@ -90,7 +102,49 @@ class _PolicyDrivenBattleStateExpander:
                             or "battle.policy-and-turn",
                         )
                     )
+                completed_action_pairs += 1
+                self.progress_observer.write_runtime_progress(
+                    ConfigurationPairRuntimeProgress(
+                        phase="expanding_actions",
+                        node_count=0,
+                        edge_count=0,
+                        expanded_node_count=0,
+                        frontier_count=0,
+                        action_pair_completed_count=completed_action_pairs,
+                        action_pair_total_count=total_action_pairs,
+                    )
+                )
         return merge_equivalent_transitions(transitions)
+
+
+@dataclass(slots=True)
+class _RootCachingExpander:
+    """复用 root 预展开结果，避免归因采样导致 root 节点重复解析。
+
+    Args:
+        delegate: 正式行动策略 expander。
+        root_state_key: 初始状态的稳定状态键。
+        root_transitions: 已经为 root 计算过的完整后继分布。
+    """
+
+    delegate: _PolicyDrivenBattleStateExpander
+    root_state_key: object
+    root_transitions: tuple[WeightedTransition[BattleState], ...]
+    root_consumed: bool = False
+
+    def expand(self, state: BattleState) -> tuple[WeightedTransition[BattleState], ...]:
+        """返回缓存的 root 后继或委托正常展开。
+
+        Args:
+            state: 当前待展开状态。
+
+        Returns:
+            完整精确后继分布。
+        """
+        if not self.root_consumed and state.state_key == self.root_state_key:
+            self.root_consumed = True
+            return self.root_transitions
+        return self.delegate.expand(state)
 
 
 @dataclass(slots=True)
@@ -116,6 +170,7 @@ class ExactConfigurationPairGraphExecutor:
         defender_policy: BattleActionPolicyKind,
         observer: BattleSide,
         graph_limits: StateGraphLimits,
+        progress_observer: ConfigurationPairProgressObserver | None = None,
     ) -> ConfigurationPairGraphArtifact:
         """构建配置对完整状态图，并立即交给精确 solver。
 
@@ -126,23 +181,79 @@ class ExactConfigurationPairGraphExecutor:
             defender_policy: 防守方行动策略。
             observer: 胜负概率观察方。
             graph_limits: 当前 pair 独立使用的节点、边和回合上限。
+            progress_observer: 接收构图和求解阶段实时进度的观察者；None 时丢弃。
 
         Returns:
             同时持有图与求解结果的短生命周期 artifact。
         """
+        runtime_observer = progress_observer or DiscardConfigurationPairProgressObserver()
         effects = _effects(work_item.configuration, self.effect_factory)
         expander = _PolicyDrivenBattleStateExpander(
             turn_resolver=BattleEventStandardMoveTurnResolver(effects=effects),
             attacker_policy=_policy(attacker_policy),
             defender_policy=_policy(defender_policy),
+            progress_observer=runtime_observer,
         )
-        graph = StateGraphBuilder(expander=expander, limits=graph_limits).build(
-            _initial_state(work_item.configuration, rules)
+        initial_state = _initial_state(work_item.configuration, rules)
+        root_transitions = expander.expand(initial_state)
+        root_event_summary_by_state_key = {
+            transition.state.state_key: transition.event_summary
+            for transition in root_transitions
+        }
+        graph = SummaryStateGraphBuilder(
+            expander=_RootCachingExpander(
+                delegate=expander,
+                root_state_key=initial_state.state_key,
+                root_transitions=root_transitions,
+            ),
+            limits=graph_limits,
+            progress_observer=StateGraphToConfigurationPairProgressObserver(
+                runtime_observer
+            ),
+        ).build(initial_state)
+        runtime_observer.write_runtime_progress(
+            ConfigurationPairRuntimeProgress(
+                phase="solving_probabilities",
+                node_count=graph.statistics.unique_state_count,
+                edge_count=graph.statistics.edge_count,
+                expanded_node_count=graph.statistics.unique_state_count,
+                frontier_count=0,
+            )
         )
         return ConfigurationPairGraphArtifact(
             graph=graph,
             solve_result=self.solver.solve(graph, observer),
+            explanation_json=_explanation_json(
+                graph,
+                root_event_summary_by_state_key,
+            ),
         )
+
+
+def _explanation_json(
+    graph,
+    root_event_summary_by_state_key: dict[object, TransitionEventSummary],
+) -> str | None:
+    """为成功完整图生成可持久化的总结型归因 JSON。
+
+    Args:
+        graph: worker 刚构建完成的轻量 summary 状态图。
+        root_event_summary_by_state_key: root 后继状态键到事件摘要的映射。
+
+    Returns:
+        完整图返回紧凑 JSON 文本；截断图不产生归因，避免误导用户。
+    """
+    if not graph.is_complete:
+        return None
+    try:
+        payload = build_root_action_pair_explanation(
+            graph=graph,
+            root_event_summary_by_state_key=root_event_summary_by_state_key,
+        )
+    except Exception:
+        # 归因是完成页解释增强，不能让已求得的完整精确概率因为解释投影失败而丢失。
+        return None
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
 def _policy(kind: BattleActionPolicyKind) -> ActionPolicy[BattleAction]:
