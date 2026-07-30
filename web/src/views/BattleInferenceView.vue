@@ -45,7 +45,7 @@ const {
   loadPresets,
   selectPokemon: selectConfigurationPokemon,
   updateSelectedMoveIds,
-  applyDragoniteVsWeavilePreset,
+  applyDragoniteMirrorDragonClawPreset,
 } = configuration;
 const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
 const countFormatter = new Intl.NumberFormat('zh-CN');
@@ -312,9 +312,9 @@ watch(selectionFingerprint, () => {
       <button
         class="battle-example-button"
         type="button"
-        @click="applyDragoniteVsWeavilePreset"
+        @click="applyDragoniteMirrorDragonClawPreset"
       >
-        载入快龙 vs 玛纽拉示例
+        载入双快龙龙爪示例
       </button>
     </section>
 

@@ -25,4 +25,9 @@ RUN apt-get update \
     && apt-get purge -y --auto-remove gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt
 
-COPY . /app
+COPY pokeop /app/pokeop
+COPY scripts /app/scripts
+COPY tool /app/tool
+COPY models_pokeapi.py pytest.ini /app/
+COPY submodules/common/python/mental1104 /app/submodules/common/python/mental1104
+COPY submodules/pokeapi/data/v2/csv /app/submodules/pokeapi/data/v2/csv

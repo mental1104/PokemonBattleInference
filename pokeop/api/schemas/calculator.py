@@ -198,7 +198,7 @@ def _pokemon_sprite_url(
     Args:
         ruleset_id: 当前规则集标识。
         pokemon_id: PokeAPI pokemon_id。
-        slot: 图片槽位，第一阶段使用 front_default。
+        slot: 图片槽位，默认使用 front_default，战斗动画可显式请求 back_default。
 
     Returns:
         浏览器可直接加载的相对 URL；后端 assets API 负责不存在时返回 404。

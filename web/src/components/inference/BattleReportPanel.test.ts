@@ -8,9 +8,10 @@ import type { BattleReportPresenterContext } from '../../presenters/battleEventP
 import BattleReportPanel from './BattleReportPanel.vue';
 
 const CONTEXT: BattleReportPresenterContext = {
+  rulesetId: 'pokemon-champion',
   sides: {
-    attacker: { name: '快龙', maxHp: 166 },
-    defender: { name: '玛纽拉', maxHp: 145 },
+    attacker: { pokemonId: 149, name: '快龙', maxHp: 166 },
+    defender: { pokemonId: 461, name: '玛纽拉', maxHp: 145 },
   },
   moveNames: { 8: '冰冻拳', 280: '劈瓦' },
 };

@@ -11,7 +11,7 @@ class PokemonSpriteContent:
     Args:
         asset_id: poke_raw.sprite_assets 主键。
         pokemon_id: 该图片对应的 PokeAPI pokemon_id。
-        sprite_slot: 业务槽位，例如 front_default。
+        sprite_slot: 业务槽位，例如 front_default 或 back_default。
         mime_type: HTTP Content-Type。
         sha256: 稳定内容摘要，可作为 ETag。
         content: PostgreSQL BYTEA 中取出的原始字节。
@@ -52,7 +52,7 @@ class GetPokemonSpriteCommand:
     Args:
         ruleset_id: 前端/API 使用的稳定规则集标识。
         pokemon_id: PokeAPI pokemon_id。
-        slot: 图片槽位；第一阶段只公开 front_default。
+        slot: 图片槽位；默认 front_default，战斗动画可请求 back_default。
 
     Returns:
         dataclass 仅封装输入，不直接执行任何 I/O。

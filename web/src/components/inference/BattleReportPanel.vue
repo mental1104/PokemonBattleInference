@@ -5,6 +5,7 @@ import {
   presentBattleReport,
   type BattleReportPresenterContext,
 } from '../../presenters/battleEventPresenter';
+import BattleAnimationStage from './BattleAnimationStage.vue';
 import BattleReportTurn from './BattleReportTurn.vue';
 
 /** BattleReportPanel 的只读数据输入。 */
@@ -80,6 +81,8 @@ function formatPercent(percent: number): string {
         <small>{{ formatPercent(report.cumulative_probability.percent) }}</small>
       </div>
     </header>
+
+    <BattleAnimationStage :report="report" :context="context" />
 
     <div class="battle-report-panel__scroll" data-bounded-report-scroll>
       <div v-if="turns.length" class="battle-report-panel__turns">

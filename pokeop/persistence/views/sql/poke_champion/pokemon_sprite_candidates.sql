@@ -5,10 +5,14 @@ WITH version_sprite_priority AS (
         'scarlet-violet'::text AS version_identifier,
         10::integer AS priority
 ),
+desired_slots AS (
+    SELECT 'front_default'::text AS sprite_slot
+    UNION ALL SELECT 'back_default'::text
+),
 fallback_priority AS (
-    SELECT 20::integer AS priority, 'other'::text AS collection, 'home'::text AS render_style
+    SELECT 5::integer AS priority, 'pokemon'::text AS collection, NULL::text AS render_style
+    UNION ALL SELECT 20, 'other', 'home'
     UNION ALL SELECT 30, 'other', 'official-artwork'
-    UNION ALL SELECT 40, 'pokemon', NULL
 ),
 version_candidates AS (
     SELECT
@@ -19,6 +23,8 @@ version_candidates AS (
         asset.id AS asset_id,
         asset.relative_path,
         asset.sprite_slot,
+        asset.is_front,
+        asset.is_back,
         priority.priority,
         'version'::text AS selection_source,
         asset.collection,
@@ -30,13 +36,15 @@ version_candidates AS (
     FROM poke_champion.ruleset_context_mv rc
     JOIN version_sprite_priority priority
         ON priority.version_group_id = rc.version_group_id
+    JOIN desired_slots desired
+        ON true
     JOIN poke_raw.sprite_assets asset
         ON asset.asset_category = 'pokemon'
        AND asset.pokemon_id IS NOT NULL
        AND asset.collection = 'versions'
        AND asset.generation_identifier = priority.generation_identifier
        AND asset.version_identifier = priority.version_identifier
-       AND asset.sprite_slot = 'front_default'
+       AND asset.sprite_slot = desired.sprite_slot
        AND asset.is_active IS TRUE
        AND asset.mime_type = 'image/png'
 ),
@@ -49,6 +57,8 @@ fallback_candidates AS (
         asset.id AS asset_id,
         asset.relative_path,
         asset.sprite_slot,
+        asset.is_front,
+        asset.is_back,
         priority.priority,
         'fallback'::text AS selection_source,
         asset.collection,
@@ -60,17 +70,26 @@ fallback_candidates AS (
     FROM poke_champion.ruleset_context_mv rc
     JOIN fallback_priority priority
         ON true
+    JOIN desired_slots desired
+        ON true
     JOIN poke_raw.sprite_assets asset
         ON asset.asset_category = 'pokemon'
        AND asset.pokemon_id IS NOT NULL
        AND asset.collection = priority.collection
        AND COALESCE(asset.render_style, '') = COALESCE(priority.render_style, '')
-       AND asset.sprite_slot = 'front_default'
+       AND asset.sprite_slot = desired.sprite_slot
        AND asset.is_active IS TRUE
        AND asset.mime_type = 'image/png'
        AND (
            priority.collection <> 'pokemon'
-           OR asset.relative_path = ('pokemon/' || asset.pokemon_id::text || '.png')
+           OR (
+               desired.sprite_slot = 'front_default'
+               AND asset.relative_path = ('pokemon/' || asset.pokemon_id::text || '.png')
+           )
+           OR (
+               desired.sprite_slot = 'back_default'
+               AND asset.relative_path = ('pokemon/back/' || asset.pokemon_id::text || '.png')
+           )
        )
 )
 SELECT *

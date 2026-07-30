@@ -20,12 +20,14 @@ export type BattleReportEventTone =
 
 /** 保存一侧 Pokémon 的展示名称和最大 HP。 */
 export interface BattleReportSideContext {
+  pokemonId: number;
   name: string;
   maxHp: number;
 }
 
 /** 保存 presenter 解析双方与招式名称所需的纯展示上下文。 */
 export interface BattleReportPresenterContext {
+  rulesetId: string;
   sides: Record<BattleSide, BattleReportSideContext>;
   moveNames: Readonly<Record<number, string>>;
 }
@@ -57,6 +59,7 @@ const MOVE_NAMES: Readonly<Record<number, string>> = {
   8: '冰冻拳',
   252: '击掌奇袭',
   280: '劈瓦',
+  337: '龙爪',
 };
 
 const SOURCE_NAMES: Readonly<Record<string, string>> = {
@@ -114,12 +117,15 @@ export function createBattleReportPresenterContext(
   summary: BattleInferenceSummaryResult,
 ): BattleReportPresenterContext {
   return {
+    rulesetId: summary.ruleset_id,
     sides: {
       attacker: {
+        pokemonId: summary.attacker.pokemon_id,
         name: pokemonDisplayName(summary.attacker.name),
         maxHp: summary.attacker.stats.hp ?? 0,
       },
       defender: {
+        pokemonId: summary.defender.pokemon_id,
         name: pokemonDisplayName(summary.defender.name),
         maxHp: summary.defender.stats.hp ?? 0,
       },

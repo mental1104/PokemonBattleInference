@@ -39,7 +39,7 @@ class MaterializedViewSpriteRepository:
         Args:
             ruleset_id: 前端/API 使用的稳定规则集标识。
             pokemon_id: PokeAPI pokemon_id。
-            slot: 图片槽位，第一阶段公开支持 front_default。
+            slot: 图片槽位，当前公开支持 front_default 与 back_default。
 
         Returns:
             找到时返回二进制内容记录；没有匹配视图行或 raw 资产已失效时返回 None。

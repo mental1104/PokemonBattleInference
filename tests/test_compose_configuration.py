@@ -54,3 +54,17 @@ def test_compose_owns_service_ports_runtime_settings_and_startup() -> None:
 
     assert "EXPOSE " not in backend_dockerfile
     assert "\nCMD " not in backend_dockerfile
+
+
+def test_backend_image_build_context_excludes_frontend_iteration_noise() -> None:
+    """backend 镜像构建必须避免把整个仓库作为一个易失效源码层复制。前端 Vue/CSS 迭代不应该导致 backend 的最终 COPY 层重新打包、导出和解包；该测试锁住 Dockerfile.backend 只能复制运行所需的后端目录、common Python 包和 PokeAPI CSV，同时要求 Makefile 提供 frontend-only 重建目标，保护本地快速迭代路径。"""
+    backend_dockerfile = (REPO_ROOT / "Dockerfile.backend").read_text(encoding="utf-8")
+    backend_ignore = (REPO_ROOT / "Dockerfile.backend.dockerignore").read_text(encoding="utf-8")
+    makefile_text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "COPY . /app" not in backend_dockerfile
+    assert "COPY pokeop /app/pokeop" in backend_dockerfile
+    assert "COPY submodules/common/python/mental1104" in backend_dockerfile
+    assert "COPY submodules/pokeapi/data/v2/csv" in backend_dockerfile
+    assert "\nweb\n" in f"\n{backend_ignore}\n"
+    assert "compose-frontend-rebuild:" in makefile_text

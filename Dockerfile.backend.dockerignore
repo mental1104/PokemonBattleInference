@@ -16,4 +16,5 @@ submodules/common/cpp/build
 submodules/common/build
 submodules/common/export
 submodules/pokeapi-sprites
+submodules/pokeapi/data/v2/sprites
 .env*

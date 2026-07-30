@@ -11,11 +11,13 @@ from typing import Any
 from sqlalchemy import Boolean, Integer, create_engine, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine, URL
+from sqlalchemy.orm import Session
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMMON_PYTHON = REPO_ROOT / "submodules" / "common" / "python"
 DEFAULT_CSV_DIR = REPO_ROOT / "pokeop" / "assets_data"
+DEFAULT_SPRITES_DIR = REPO_ROOT / "submodules" / "pokeapi-sprites"
 LOCAL_PG_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 for path in (REPO_ROOT, COMMON_PYTHON):
@@ -44,9 +46,14 @@ def load_env_file(path: Path) -> None:
 
 
 def require_pg_env() -> None:
+    """校验 reset 必需的 PostgreSQL 连接环境变量。
+
+    本地 Compose 使用 trust 认证并且只绑定项目内网络，因此 `PGPASSWORD` 允许缺省；
+    生产或远端数据库如果需要密码，应由 libpq/服务端认证规则负责拒绝连接。
+    """
     missing = [
         name
-        for name in ("PGUSER", "PGPASSWORD", "PGHOST", "PGPORT", "PGDATABASE")
+        for name in ("PGUSER", "PGHOST", "PGPORT", "PGDATABASE")
         if not os.environ.get(name)
     ]
     if missing:
@@ -73,7 +80,7 @@ def postgres_url() -> URL:
     return URL.create(
         "postgresql+psycopg2",
         username=os.environ["PGUSER"],
-        password=os.environ["PGPASSWORD"],
+        password=os.environ.get("PGPASSWORD") or None,
         host=os.environ["PGHOST"],
         port=port,
         database=os.environ["PGDATABASE"],
@@ -235,6 +242,52 @@ def import_csv_data(
     return imported_tables
 
 
+def import_sprite_data(engine: Engine, *, sprites_dir: Path) -> int:
+    """把 PokeAPI sprites 文件导入 poke_raw.sprite_assets。
+
+    Args:
+        engine: 指向 reset 目标 database 的 SQLAlchemy engine。
+        sprites_dir: PokeAPI/sprites 仓库根目录，或其中的 sprites/ 子目录。
+
+    Returns:
+        本次扫描看到的 sprite 文件数量；导入器内部会幂等跳过未变化内容。
+    """
+    from pokeop.persistence.assets import import_sprite_assets
+
+    with Session(engine) as session:
+        with session.begin():
+            result = import_sprite_assets(session, source_root=sprites_dir)
+    return result.files_seen
+
+
+def resolve_sprites_dir(explicit_dir: Path | None) -> Path:
+    """解析 reset 使用的 sprites 数据源目录。
+
+    Args:
+        explicit_dir: 命令行传入的单个 sprites 根目录；为空时读取 POKEOP_SPRITES_DIR。
+
+    Returns:
+        第一个实际包含 sprites/ 子目录，或自身就是 sprites/ 的候选路径。
+
+    Raises:
+        FileNotFoundError: 所有候选路径都不存在或都不能被 importer 识别。
+    """
+    if explicit_dir is not None:
+        candidates = [explicit_dir]
+    else:
+        raw_value = os.environ.get("POKEOP_SPRITES_DIR", str(DEFAULT_SPRITES_DIR))
+        candidates = [Path(value) for value in raw_value.split(os.pathsep) if value]
+    for candidate in candidates:
+        if (candidate / "sprites").is_dir() or (
+            candidate.is_dir() and candidate.name == "sprites"
+        ):
+            return candidate
+    raise FileNotFoundError(
+        "sprites directory not found in candidates: "
+        + ", ".join(str(candidate) for candidate in candidates)
+    )
+
+
 def create_materialized_views(engine: Engine) -> None:
     from pokeop.persistence.views.registry import MATERIALIZED_VIEWS
 
@@ -292,6 +345,17 @@ def parse_args() -> argparse.Namespace:
         help="Also recreate Pokemon Champion materialized views.",
     )
     parser.add_argument(
+        "--with-sprites",
+        action="store_true",
+        help="Also import PokeAPI sprites into poke_raw.sprite_assets before creating views.",
+    )
+    parser.add_argument(
+        "--sprites-dir",
+        type=Path,
+        default=None,
+        help="PokeAPI/sprites root. Defaults to POKEOP_SPRITES_DIR or submodules/pokeapi-sprites.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the target connection and exit without changing PostgreSQL.",
@@ -339,6 +403,11 @@ def main() -> None:
                 ignore_conflicts=True,
             )
             print(f"imported CSV tables: {imported_tables}")
+
+        if args.with_sprites:
+            sprites_dir = resolve_sprites_dir(args.sprites_dir)
+            imported_sprites = import_sprite_data(engine, sprites_dir=sprites_dir)
+            print(f"imported sprite files: {imported_sprites}")
 
         if args.with_materialized_views:
             create_materialized_views(engine)

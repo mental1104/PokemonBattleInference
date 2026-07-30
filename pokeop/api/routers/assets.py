@@ -105,7 +105,7 @@ def _binary_asset_response(
     etag = f'"{sha256}"'
     headers = {
         "ETag": etag,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "public, max-age=0, must-revalidate",
     }
     if _normalize_etag(if_none_match) == sha256:
         return Response(status_code=304, headers=headers)

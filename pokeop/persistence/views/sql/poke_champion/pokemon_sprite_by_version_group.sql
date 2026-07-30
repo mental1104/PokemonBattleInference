@@ -19,6 +19,8 @@ SELECT
     version_group_id,
     pokemon_id,
     sprite_slot,
+    is_front,
+    is_back,
     asset_id,
     relative_path,
     priority,

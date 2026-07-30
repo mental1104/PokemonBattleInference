@@ -242,39 +242,46 @@ beforeEach(() => {
 });
 
 describe('BattleInferenceView', () => {
-  it('shows five move sets for a 5x4 candidate pool without creating a batch job', async () => {
+  it('loads the Dragonite mirror Dragon Claw example as one fixed move-set pair', async () => {
     const wrapper = mountView();
-    await buttonByText(wrapper, '载入快龙').trigger('click');
+    await buttonByText(wrapper, '载入双快龙').trigger('click');
     await flushPromises();
-    await selectSupportedUntil(wrapper, 'attacker', 5);
 
     await buttonByText(wrapper, '生成技能组合').trigger('click');
     await flushPromises();
 
     expect(enumerateMock).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('5 × 1 = 5');
-    expect(wrapper.findAll('input[name="attacker-move-set"]')).toHaveLength(5);
+    const request = enumerateMock.mock.calls[0][0];
+    expect(request.attacker.pokemon_id).toBe(149);
+    expect(request.defender.pokemon_id).toBe(149);
+    expect(request.attacker.ability_identifier).toBe('multiscale');
+    expect(request.defender.ability_identifier).toBe('multiscale');
+    expect(request.attacker.candidate_move_ids).toEqual([337]);
+    expect(request.defender.candidate_move_ids).toEqual([337]);
+    expect(wrapper.text()).toContain('1 × 1 = 1');
+    expect(wrapper.findAll('input[name="attacker-move-set"]')).toHaveLength(1);
     expect(wrapper.findAll('input[name="defender-move-set"]')).toHaveLength(1);
     expect(wrapper.text()).toContain('不会创建同等数量的 worker case');
   });
 
   it('submits only the selected fixed move-set pair to exact inference', async () => {
     const wrapper = mountView();
-    await buttonByText(wrapper, '载入快龙').trigger('click');
+    await buttonByText(wrapper, '载入双快龙').trigger('click');
     await flushPromises();
-    await selectSupportedUntil(wrapper, 'attacker', 5);
     await buttonByText(wrapper, '生成技能组合').trigger('click');
     await flushPromises();
 
-    const attackerOptions = wrapper.findAll('input[name="attacker-move-set"]');
-    await attackerOptions[1].setValue(true);
     await buttonByText(wrapper, '运行这个固定配置').trigger('click');
     await flushPromises();
 
     expect(inferMock).toHaveBeenCalledTimes(1);
     const request = inferMock.mock.calls[0][0];
-    expect(request.attacker.move_ids).toHaveLength(4);
-    expect(request.defender.move_ids).toHaveLength(4);
+    expect(request.attacker.pokemon_id).toBe(149);
+    expect(request.defender.pokemon_id).toBe(149);
+    expect(request.attacker.ability_identifier).toBe('multiscale');
+    expect(request.defender.ability_identifier).toBe('multiscale');
+    expect(request.attacker.move_ids).toEqual([337]);
+    expect(request.defender.move_ids).toEqual([337]);
     expect(request.attacker_policy).toBe('uniform-random');
     expect(wrapper.text()).toContain('62.50%');
     expect(wrapper.text()).toContain('120 nodes · 840 edges');
@@ -288,7 +295,7 @@ describe('BattleInferenceView', () => {
 
   it('invalidates generated combinations when the candidate selection changes', async () => {
     const wrapper = mountView();
-    await buttonByText(wrapper, '载入快龙').trigger('click');
+    await buttonByText(wrapper, '载入双快龙').trigger('click');
     await flushPromises();
     await selectSupportedUntil(wrapper, 'attacker', 5);
     await buttonByText(wrapper, '生成技能组合').trigger('click');

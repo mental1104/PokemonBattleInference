@@ -137,6 +137,7 @@ compose-assets-rebuild:
 	$(COMPOSE) run --rm db-init \
 	  python3 scripts/reset_postgres_db.py \
 	  --allow-remote-host \
+	  --with-sprites \
 	  --with-materialized-views
 
 compose-ps:

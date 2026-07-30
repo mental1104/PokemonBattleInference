@@ -21,7 +21,7 @@ export const DRAGONITE_EXAMPLE: PokemonDetail = {
   form_identifier: null,
   types: ['dragon', 'flying'],
   type_names: ['龙', '飞行'],
-  sprite_url: '/api/v1/assets/pokemon/149/sprite',
+  sprite_url: '/api/v1/assets/pokemon/149/sprite?ruleset_id=pokemon-champion&slot=front_default',
   base_stats: {
     hp: 91,
     attack: 134,
@@ -39,7 +39,7 @@ export const WEAVILE_EXAMPLE: PokemonDetail = {
   form_identifier: null,
   types: ['dark', 'ice'],
   type_names: ['恶', '冰'],
-  sprite_url: '/api/v1/assets/pokemon/461/sprite',
+  sprite_url: '/api/v1/assets/pokemon/461/sprite?ruleset_id=pokemon-champion&slot=front_default',
   base_stats: {
     hp: 70,
     attack: 120,

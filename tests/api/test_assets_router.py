@@ -100,7 +100,7 @@ async def test_assets_api_returns_binary_png_with_etag() -> None:
     assert response.body == b"\x89PNG\r\n"
     assert response.headers["content-type"] == "image/png"
     assert response.headers["etag"] == '"abc123"'
-    assert "max-age" in response.headers["cache-control"]
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
 
 
 @pytest.mark.anyio
@@ -147,7 +147,7 @@ async def test_type_assets_api_returns_postgres_png_with_etag() -> None:
     assert response.body == b"\x89PNGtype"
     assert response.headers["content-type"] == "image/png"
     assert response.headers["etag"] == '"type456"'
-    assert "max-age" in response.headers["cache-control"]
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
 
 
 @pytest.mark.anyio

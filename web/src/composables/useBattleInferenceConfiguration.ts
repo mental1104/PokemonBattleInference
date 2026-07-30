@@ -9,7 +9,6 @@ import {
 import {
   battleConfigurationSpaceAdapter,
   DRAGONITE_EXAMPLE,
-  WEAVILE_EXAMPLE,
 } from '../api/configurationSpace';
 import {
   calculateConfigurationBudget,
@@ -321,36 +320,26 @@ export function useBattleInferenceConfiguration() {
     createdJob.value = null;
   }
 
-  /** 应用固定快龙 vs 玛纽拉回归预设，并选择各自前四条可执行招式。 */
-  async function applyDragoniteVsWeavilePreset(): Promise<void> {
+  /** 应用双快龙 Multiscale 龙爪示例，并把候选池收敛到唯一可推演招式。 */
+  async function applyDragoniteMirrorDragonClawPreset(): Promise<void> {
     // 示例属于一次新的显式选择，先让两侧尚未返回的详情请求失效。
     detailRequestVersions.attacker += 1;
     detailRequestVersions.defender += 1;
-    selectionNotice.value = '已载入固定快龙 vs 玛纽拉回归预设，可继续修改任意字段。';
+    selectionNotice.value = '已载入双快龙 Multiscale 龙爪示例，可继续修改任意字段。';
     await Promise.all([
       assignPokemonDetail('attacker', DRAGONITE_EXAMPLE, {
         abilityIdentifier: 'multiscale',
         itemIdentifier: '',
       }),
-      assignPokemonDetail('defender', WEAVILE_EXAMPLE, {
-        abilityIdentifier: 'pressure',
+      assignPokemonDetail('defender', DRAGONITE_EXAMPLE, {
+        abilityIdentifier: 'multiscale',
         itemIdentifier: '',
       }),
     ]);
     attacker.statPreset = 'max_atk_plus';
     defender.statPreset = 'max_hp';
-    attacker.selectedMoveIds = normalizeCandidateMoveIds(
-      attacker.candidateMoves
-        .filter((move) => move.admission.selectable)
-        .slice(0, 4)
-        .map((move) => move.move_id),
-    );
-    defender.selectedMoveIds = normalizeCandidateMoveIds(
-      defender.candidateMoves
-        .filter((move) => move.admission.selectable)
-        .slice(0, 4)
-        .map((move) => move.move_id),
-    );
+    attacker.selectedMoveIds = normalizeCandidateMoveIds([337]);
+    defender.selectedMoveIds = normalizeCandidateMoveIds([337]);
   }
 
   /**
@@ -482,7 +471,7 @@ export function useBattleInferenceConfiguration() {
     loadPresets,
     selectPokemon,
     updateSelectedMoveIds,
-    applyDragoniteVsWeavilePreset,
+    applyDragoniteMirrorDragonClawPreset,
     submit,
   };
 }
