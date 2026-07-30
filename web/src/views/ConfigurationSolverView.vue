@@ -4,6 +4,7 @@ import type { PokemonSearchItem } from '../api/calculator';
 import MoveSelector from '../components/MoveSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import PokemonSummaryCard from '../components/PokemonSummaryCard.vue';
+import StatConfigurationPicker from '../components/StatConfigurationPicker.vue';
 import { useConfigurationSolver, type EditableSolverGoal } from '../composables/useConfigurationSolver';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 
@@ -58,21 +59,14 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
         />
         <PokemonSummaryCard :pokemon="solver.subject.value" />
 
-        <div class="solver-panel">
-          <h2>搜索配置</h2>
-          <div class="preset-grid">
-            <button
-              v-for="preset in solver.statPresets.value"
-              :key="preset.key"
-              type="button"
-              :class="{ selected: solver.selectedPresetKeys.value.includes(preset.key) }"
-              @click="solver.togglePreset(preset.key)"
-            >
-              <strong>{{ preset.label }}</strong>
-              <span>{{ preset.assumption }}</span>
-            </button>
-          </div>
-        </div>
+        <StatConfigurationPicker
+          title="搜索配置"
+          role="attacker"
+          :pokemon-id="solver.subject.value?.pokemon_id ?? null"
+          :pokemon-name="solver.subject.value?.display_name ?? null"
+          :model-value="solver.selectedPresetKeys.value[0] ?? ''"
+          @update:model-value="solver.selectedPresetKeys.value = [$event]"
+        />
       </aside>
 
       <section class="solver-main">
@@ -91,11 +85,6 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
               <select v-model="goal.rollPolicy" aria-label="随机伤害档">
                 <option value="max">最高伤害档</option>
                 <option value="min">最低伤害档</option>
-              </select>
-              <select v-model="goal.targetPreset" aria-label="对手配置">
-                <option v-for="preset in solver.statPresets.value" :key="preset.key" :value="preset.key">
-                  {{ preset.label }}
-                </option>
               </select>
               <label>
                 次数
@@ -123,6 +112,14 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                 @clear-selection="goal.move = null"
               />
             </div>
+            <StatConfigurationPicker
+              :title="goal.kind === 'attack' ? '目标耐久配置' : '攻击来源配置'"
+              :role="goal.kind === 'attack' ? 'defender' : 'attacker'"
+              :pokemon-id="goal.target?.pokemon_id ?? null"
+              :pokemon-name="goal.target?.display_name ?? null"
+              :model-value="goal.targetPreset"
+              @update:model-value="goal.targetPreset = $event"
+            />
           </article>
         </div>
 

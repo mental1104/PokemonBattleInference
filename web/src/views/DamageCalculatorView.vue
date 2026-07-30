@@ -6,7 +6,7 @@ import DamageResult from '../components/DamageResult.vue';
 import MoveSelector from '../components/MoveSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import PokemonSummaryCard from '../components/PokemonSummaryCard.vue';
-import StatPresetSelector from '../components/StatPresetSelector.vue';
+import StatConfigurationPicker from '../components/StatConfigurationPicker.vue';
 import { useDamageCalculator } from '../composables/useDamageCalculator';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 
@@ -63,11 +63,13 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectAttacker"
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
-        <StatPresetSelector
+        <StatConfigurationPicker
           v-model="calculator.attackerPreset.value"
           data-testid="attacker-config"
           title="攻击配置"
-          :presets="calculator.attackerPresets.value"
+          role="attacker"
+          :pokemon-id="calculator.attacker.value?.pokemon_id ?? null"
+          :pokemon-name="calculator.attacker.value?.display_name ?? null"
         />
       </div>
 
@@ -80,11 +82,13 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
-        <StatPresetSelector
+        <StatConfigurationPicker
           v-model="calculator.defenderPreset.value"
           data-testid="defender-config"
           title="耐久配置"
-          :presets="calculator.defenderPresets.value"
+          role="defender"
+          :pokemon-id="calculator.defender.value?.pokemon_id ?? null"
+          :pokemon-name="calculator.defender.value?.display_name ?? null"
         />
       </div>
     </section>

@@ -15,6 +15,10 @@ from pokeop.domain.battle.ko import KOChanceResult, estimate_ko_chance
 from pokeop.domain.battle.modifiers import defensive_stat, offensive_stat
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_version_group
 from pokeop.domain.battle.stats import StatProfile, StatValues, calculate_actual_stats
+from pokeop.domain.configuration_presets import (
+    stat_configuration_from_snapshot,
+    stat_profile_from_snapshot,
+)
 from pokeop.domain.models.types import Type
 
 
@@ -329,7 +333,7 @@ def stat_profile_from_preset(preset_key: str, base_stats: StatValues) -> StatPro
     """把公开配置模板 key 展开为 domain StatProfile。
 
     Args:
-        preset_key: application 层声明的配置模板 key。
+        preset_key: application 层声明的配置模板 key，或配置预设 API 生成的不可变快照引用。
         base_stats: 目标宝可梦的六项种族值。
 
     Returns:
@@ -338,6 +342,12 @@ def stat_profile_from_preset(preset_key: str, base_stats: StatValues) -> StatPro
     Raises:
         CalculatorInputError: preset_key 不属于当前支持集合时抛出。
     """
+    try:
+        snapshot_profile = stat_profile_from_snapshot(preset_key, base_stats)
+    except ValueError as exc:
+        raise CalculatorInputError(str(exc)) from exc
+    if snapshot_profile is not None:
+        return snapshot_profile
     return _preset_profile(preset_key, base_stats)
 
 
@@ -392,11 +402,11 @@ class CalculateCatalogDamageUseCase:
             raise CalculatorInputError("move is not available for attacker in this ruleset")
 
         attacker_stats = calculate_actual_stats(
-            _preset_profile(command.attacker.stat_preset, attacker_profile.base_stats),
+            stat_profile_from_preset(command.attacker.stat_preset, attacker_profile.base_stats),
             level=command.attacker.level,
         )
         defender_stats = calculate_actual_stats(
-            _preset_profile(command.defender.stat_preset, defender_profile.base_stats),
+            stat_profile_from_preset(command.defender.stat_preset, defender_profile.base_stats),
             level=command.defender.level,
         )
 
@@ -513,6 +523,13 @@ class CalculateCatalogDamageUseCase:
         presets = ATTACKER_PRESETS if attacker else DEFENDER_PRESETS
         if preset_key in presets:
             return presets[preset_key]
+        snapshot = stat_configuration_from_snapshot(preset_key)
+        if snapshot is not None:
+            return StatPresetView(
+                key=preset_key,
+                label=str(snapshot["label"]).strip() or "配置预设",
+                assumption="来自配置预设快照，包含显式 nature / EV / IV。",
+            )
         try:
             return ALL_STAT_PRESETS[preset_key]
         except KeyError as exc:

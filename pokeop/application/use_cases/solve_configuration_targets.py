@@ -21,6 +21,7 @@ from pokeop.domain.battle.damage import DamageRollResult, calculate_damage_rolls
 from pokeop.domain.battle.modifiers import defensive_stat, offensive_stat
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_version_group
 from pokeop.domain.battle.stats import StatValues, calculate_actual_stats
+from pokeop.domain.configuration_presets import stat_configuration_from_snapshot
 
 
 class ConfigurationGoalKind(StrEnum):
@@ -195,7 +196,7 @@ class SolvePokemonConfigurationUseCase:
             if all(goal_result.satisfied for goal_result in goal_results):
                 candidates.append(
                     SolvedConfigurationCandidate(
-                        preset=ALL_STAT_PRESETS[preset_key],
+                        preset=_preset_view(preset_key),
                         stats=subject_stats,
                         goal_results=goal_results,
                     )
@@ -265,7 +266,11 @@ class SolvePokemonConfigurationUseCase:
         unique_keys: list[str] = []
         for key in raw_keys:
             if key not in ALL_STAT_PRESETS:
-                raise ConfigurationSolverInputError(f"unsupported stat preset: {key}")
+                try:
+                    if stat_configuration_from_snapshot(key) is None:
+                        raise ConfigurationSolverInputError(f"unsupported stat preset: {key}")
+                except ValueError as exc:
+                    raise ConfigurationSolverInputError(str(exc)) from exc
             if key not in unique_keys:
                 unique_keys.append(key)
         return tuple(unique_keys)
@@ -401,6 +406,22 @@ class SolvePokemonConfigurationUseCase:
         if move.power <= 0:
             raise ConfigurationSolverInputError("moves without fixed positive power are not supported")
         return move
+
+
+def _preset_view(preset_key: str) -> StatPresetView:
+    """返回候选配置展示信息，兼容内置 key 和配置快照。"""
+    preset = ALL_STAT_PRESETS.get(preset_key)
+    if preset is not None:
+        return preset
+    payload = stat_configuration_from_snapshot(preset_key)
+    if payload is None:
+        raise ConfigurationSolverInputError(f"unsupported stat preset: {preset_key}")
+    label = str(payload["label"]).strip() or "自定义配置"
+    return StatPresetView(
+        key=preset_key,
+        label=label,
+        assumption="来自配置预设快照，包含显式 nature / EV / IV。",
+    )
 
 
 __all__ = [

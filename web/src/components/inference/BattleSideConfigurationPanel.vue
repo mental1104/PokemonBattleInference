@@ -2,11 +2,10 @@
 import type {
   PokemonDetail,
   PokemonSearchItem,
-  StatPreset,
 } from '../../api/calculator';
 import PokemonSelector from '../PokemonSelector.vue';
 import PokemonSummaryCard from '../PokemonSummaryCard.vue';
-import StatPresetSelector from '../StatPresetSelector.vue';
+import StatConfigurationPicker from '../StatConfigurationPicker.vue';
 import CandidateMovePoolSelector from './CandidateMovePoolSelector.vue';
 import type { CandidateMoveOption } from '../../types/battleConfigurationSpace';
 import './BattleSideConfigurationPanel.css';
@@ -17,7 +16,6 @@ const props = defineProps<{
   rulesetId: string;
   pokemon: PokemonDetail | null;
   recentPokemon: readonly PokemonSearchItem[];
-  presets: StatPreset[];
   statPreset: string;
   formId: number | null;
   level: number;
@@ -152,11 +150,13 @@ function inputValue(event: Event): string {
       </div>
     </section>
 
-    <StatPresetSelector
+    <StatConfigurationPicker
       :model-value="statPreset"
       :data-testid="`${side}-stat-preset`"
       :title="`${title}能力值预设`"
-      :presets="presets"
+      :role="side"
+      :pokemon-id="pokemon?.pokemon_id ?? null"
+      :pokemon-name="pokemon?.display_name ?? null"
       @update:model-value="emit('update-stat-preset', $event)"
     />
 

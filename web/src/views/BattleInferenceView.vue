@@ -45,14 +45,11 @@ const {
   calculationRevision,
   attacker,
   defender,
-  attackerPresets,
-  defenderPresets,
   selectionNotice,
   budget,
   remainingGlobalSlots,
   validationMessages,
   canSubmit,
-  loadPresets,
   selectPokemon: selectConfigurationPokemon,
   updateSelectedMoveIds,
   applyDragoniteMirrorDragonClawPreset,
@@ -81,7 +78,6 @@ let taskRequestActive = false;
 
 /** 初始化能力值模板；候选池会在选择 Pokémon 后按侧加载。 */
 onMounted(() => {
-  void loadPresets();
   void refreshTaskPanel();
   startTaskPolling();
 });
@@ -579,7 +575,6 @@ watch(selectionFingerprint, () => {
         :ruleset-id="rulesetId"
         :pokemon="attacker.pokemon"
         :recent-pokemon="recentPokemon"
-        :presets="attackerPresets"
         :stat-preset="attacker.statPreset"
         :form-id="attacker.formId"
         :level="attacker.level"
@@ -604,7 +599,6 @@ watch(selectionFingerprint, () => {
         :ruleset-id="rulesetId"
         :pokemon="defender.pokemon"
         :recent-pokemon="recentPokemon"
-        :presets="defenderPresets"
         :stat-preset="defender.statPreset"
         :form-id="defender.formId"
         :level="defender.level"
