@@ -14,15 +14,17 @@ describe('App home tabs', () => {
         stubs: {
           DamageCalculatorView: { template: '<section data-test="damage-page" />' },
           BattleInferenceView: { template: '<section data-test="inference-page" />' },
+          ConfigurationSolverView: { template: '<section data-test="solver-page" />' },
           InferenceJobDetailView: { template: '<section data-test="job-detail-page" />' },
         },
       },
     });
     const buttons = wrapper.findAll('.home-tabs__actions button');
 
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(3);
     expect(buttons[0].text()).toContain('单次伤害计算');
     expect(buttons[1].text()).toContain('固定配置精确推演');
+    expect(buttons[2].text()).toContain('配置反向求解');
     expect(wrapper.find('[data-test="damage-page"]').exists()).toBe(true);
     expect(buttons[0].classes()).toContain('home-tab--active');
 
@@ -30,6 +32,11 @@ describe('App home tabs', () => {
 
     expect(wrapper.find('[data-test="inference-page"]').exists()).toBe(true);
     expect(buttons[1].classes()).toContain('home-tab--active');
+
+    await buttons[2].trigger('click');
+
+    expect(wrapper.find('[data-test="solver-page"]').exists()).toBe(true);
+    expect(buttons[2].classes()).toContain('home-tab--active');
   });
 
   it('does not restore the deferred batch-job page from a stale job_id', () => {
@@ -40,13 +47,14 @@ describe('App home tabs', () => {
         stubs: {
           DamageCalculatorView: { template: '<section data-test="damage-page" />' },
           BattleInferenceView: { template: '<section data-test="inference-page" />' },
+          ConfigurationSolverView: { template: '<section data-test="solver-page" />' },
           InferenceJobDetailView: { template: '<section data-test="job-detail-page" />' },
         },
       },
     });
 
     expect(wrapper.find('[data-test="damage-page"]').exists()).toBe(true);
-    expect(wrapper.findAll('.home-tabs__actions button')).toHaveLength(2);
+    expect(wrapper.findAll('.home-tabs__actions button')).toHaveLength(3);
   });
 
   it('opens and restores the inference job detail view from a stable query URL', async () => {
@@ -58,6 +66,7 @@ describe('App home tabs', () => {
           BattleInferenceView: {
             template: '<section data-test="inference-page"><button @click="$emit(\'openJob\', \'fixed-one-on-one-job-1\')">open</button></section>',
           },
+          ConfigurationSolverView: { template: '<section data-test="solver-page" />' },
           InferenceJobDetailView: {
             props: ['jobId'],
             template: '<section data-test="job-detail-page">{{ jobId }}</section>',
@@ -79,6 +88,7 @@ describe('App home tabs', () => {
         stubs: {
           DamageCalculatorView: { template: '<section data-test="damage-page" />' },
           BattleInferenceView: { template: '<section data-test="inference-page" />' },
+          ConfigurationSolverView: { template: '<section data-test="solver-page" />' },
           InferenceJobDetailView: {
             props: ['jobId'],
             template: '<section data-test="job-detail-page">{{ jobId }}</section>',

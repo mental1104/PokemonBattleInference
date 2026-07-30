@@ -102,6 +102,7 @@ class ConfigurationGoalResult:
     move: CalculatorMoveProfile
     damage: DamageRollResult
     selected_damage: int
+    repetitions: int
     total_damage: int
     hp_threshold: int
     remaining_hp: int
@@ -360,6 +361,7 @@ class SolvePokemonConfigurationUseCase:
             move=move,
             damage=damage,
             selected_damage=selected_damage,
+            repetitions=goal.required_turns,
             total_damage=total_damage,
             hp_threshold=hp_threshold,
             remaining_hp=remaining_hp,

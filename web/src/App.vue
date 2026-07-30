@@ -2,9 +2,10 @@
 import { computed, ref } from 'vue';
 import DamageCalculatorView from './views/DamageCalculatorView.vue';
 import BattleInferenceView from './views/BattleInferenceView.vue';
+import ConfigurationSolverView from './views/ConfigurationSolverView.vue';
 import InferenceJobDetailView from './views/InferenceJobDetailView.vue';
 
-type HomeTab = 'calculator' | 'inference';
+type HomeTab = 'calculator' | 'inference' | 'solver';
 type AppView = 'home' | 'inference-job';
 
 const activeTab = ref<HomeTab>('calculator');
@@ -18,7 +19,7 @@ const showJobDetail = computed(
 /**
  * 切换首页主要产品能力。
  *
- * @param tab 单次伤害计算或固定配置多回合精确推演。
+ * @param tab 单次伤害计算、固定配置推演或配置反向求解。
  */
 function selectTab(tab: HomeTab): void {
   activeTab.value = tab;
@@ -78,6 +79,13 @@ function backToInference(): void {
         >
           固定配置精确推演
         </button>
+        <button
+          type="button"
+          :class="{ 'home-tab--active': activeTab === 'solver' }"
+          @click="selectTab('solver')"
+        >
+          配置反向求解
+        </button>
       </div>
     </nav>
 
@@ -88,7 +96,8 @@ function backToInference(): void {
     />
     <KeepAlive v-else>
       <DamageCalculatorView v-if="activeTab === 'calculator'" />
-      <BattleInferenceView v-else @open-job="openInferenceJob" />
+      <BattleInferenceView v-else-if="activeTab === 'inference'" @open-job="openInferenceJob" />
+      <ConfigurationSolverView v-else />
     </KeepAlive>
   </div>
 </template>
