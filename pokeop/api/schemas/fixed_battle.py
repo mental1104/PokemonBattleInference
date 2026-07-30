@@ -15,6 +15,7 @@ from pokeop.api.schemas.inference import (
     PokemonConfigurationResponse,
     ProbabilityResponse,
 )
+from pokeop.api.schemas.battle_exploration import ExplorationCursorRequest
 from pokeop.application.use_cases.fixed_battle_workflow import (
     EnumerateMoveSetCombinationsResult,
     FixedBattleSideSelection,
@@ -124,6 +125,31 @@ class FixedBattleSummaryRequest(BaseModel):
     limits: FixedBattleGraphLimitsRequest = Field(
         default_factory=FixedBattleGraphLimitsRequest
     )
+
+
+class FixedBattleSnapshotStepRequest(FixedBattleSummaryRequest):
+    """声明按当前路径快照展开下一层可能性的请求。"""
+
+    cursor: ExplorationCursorRequest = Field(default_factory=ExplorationCursorRequest)
+
+
+class FixedBattleJobLinksResponse(BaseModel):
+    """返回固定任务后续轮询和取消使用的稳定链接。"""
+
+    self: str
+    cancel: str
+
+
+class CreateFixedBattleJobResponse(BaseModel):
+    """返回固定配置异步任务提交确认。"""
+
+    job_id: str
+    job_type: Literal["fixed-one-on-one"] = "fixed-one-on-one"
+    status: str
+    phase: Literal["queued"] = "queued"
+    created_at: str
+    submitted_configuration_pairs: int
+    links: FixedBattleJobLinksResponse
 
 
 def _move_set_option_response(option: MoveSetOption) -> MoveSetOptionResponse:
@@ -294,6 +320,8 @@ def fixed_battle_summary_response(
 
 
 __all__ = [
+    "CreateFixedBattleJobResponse",
+    "FixedBattleSnapshotStepRequest",
     "FixedBattleSummaryRequest",
     "MoveSetCombinationsRequest",
     "MoveSetCombinationsResponse",

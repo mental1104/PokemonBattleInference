@@ -263,6 +263,13 @@ DEFENDER_PRESETS: dict[str, StatPresetView] = {
 }
 
 
+# application 层当前支持的全部配置模板，供需要同一套配置同时承担攻防角色的用例复用。
+ALL_STAT_PRESETS: dict[str, StatPresetView] = {
+    **DEFENDER_PRESETS,
+    **ATTACKER_PRESETS,
+}
+
+
 def _preset_profile(preset_key: str, base_stats: StatValues) -> StatProfile:
     """把 UI preset key 展开为 domain 能力配置。
 
@@ -316,6 +323,22 @@ def _preset_profile(preset_key: str, base_stats: StatValues) -> StatProfile:
             NatureModifier.increase(StatField.SPECIAL_DEFENSE),
         ).apply(base_stats)
     raise CalculatorInputError(f"unsupported stat preset: {preset_key}")
+
+
+def stat_profile_from_preset(preset_key: str, base_stats: StatValues) -> StatProfile:
+    """把公开配置模板 key 展开为 domain StatProfile。
+
+    Args:
+        preset_key: application 层声明的配置模板 key。
+        base_stats: 目标宝可梦的六项种族值。
+
+    Returns:
+        包含 EV、IV 和性格修正的 domain 能力配置。
+
+    Raises:
+        CalculatorInputError: preset_key 不属于当前支持集合时抛出。
+    """
+    return _preset_profile(preset_key, base_stats)
 
 
 class CalculateCatalogDamageUseCase:
@@ -488,13 +511,16 @@ class CalculateCatalogDamageUseCase:
     def _preset_view(self, preset_key: str, *, attacker: bool) -> StatPresetView:
         """按攻防侧选择可展示的模板文案。"""
         presets = ATTACKER_PRESETS if attacker else DEFENDER_PRESETS
-        try:
+        if preset_key in presets:
             return presets[preset_key]
+        try:
+            return ALL_STAT_PRESETS[preset_key]
         except KeyError as exc:
             raise CalculatorInputError(f"unsupported stat preset: {preset_key}") from exc
 
 
 __all__ = [
+    "ALL_STAT_PRESETS",
     "ATTACKER_PRESETS",
     "DEFAULT_LEVEL",
     "DEFAULT_RULESET_ID",
@@ -510,4 +536,5 @@ __all__ = [
     "CalculatorPokemonProfile",
     "CalculatorPokemonSearchResult",
     "CalculatorRulesetContext",
+    "stat_profile_from_preset",
 ]

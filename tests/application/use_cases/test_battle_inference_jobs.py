@@ -13,6 +13,10 @@ from pokeop.application.configuration_space.one_on_one import (
     PokemonMovePoolSelection,
 )
 from pokeop.application.repositories.battle_inference_jobs import (
+    BattleInferenceCaseFilter,
+    BattleInferenceCasePage,
+    BattleInferenceCaseSnapshot,
+    BattleInferenceCaseStatus,
     BattleInferenceJobAlreadyExists,
     BattleInferenceJobProgress,
     BattleInferenceJobSnapshot,
@@ -26,6 +30,12 @@ from pokeop.application.use_cases.battle_inference_jobs import (
     SubmitBattleInferenceJobCommand,
     decode_one_on_one_configuration_id,
 )
+from pokeop.application.use_cases.fixed_battle_jobs import (
+    CreateFixedBattleInferenceJobUseCase,
+    SubmitFixedBattleJobCommand,
+)
+from pokeop.application.use_cases.fixed_battle_workflow import FixedBattleSideSelection
+from pokeop.application.use_cases.infer_one_on_one_battle import BattleActionPolicyKind
 from pokeop.application.use_cases.infer_one_on_one_battle import (
     BATTLE_INFERENCE_CALCULATION_REVISION,
 )
@@ -68,6 +78,7 @@ class _IdempotentStore:
     """模拟唯一约束并允许相同幂等提交读取既有任务。"""
 
     created: BattleInferenceRuntimeSnapshot | None = None
+    command: CreateBattleInferenceJob | None = None
     create_calls: int = 0
 
     def create_job_with_execution_spec(
@@ -81,6 +92,7 @@ class _IdempotentStore:
         self.create_calls += 1
         if self.created is not None:
             raise BattleInferenceJobAlreadyExists(command.job_id)
+        self.command = command
         job = BattleInferenceJobSnapshot(
             job_id=command.job_id,
             ruleset_id=command.ruleset_id,
@@ -132,6 +144,57 @@ class _IdempotentStore:
         assert self.created is not None
         assert self.created.job.job_id == job_id
         return self.created.execution_spec
+
+    def list_cases(
+        self,
+        job_id: str,
+        query: BattleInferenceCaseFilter,
+        *,
+        calculation_revision: str | None = None,
+    ) -> BattleInferenceCasePage:
+        """返回首次创建任务的稳定 case 快照页。"""
+        assert self.created is not None
+        assert self.command is not None
+        assert self.created.job.job_id == job_id
+        cases = tuple(
+            BattleInferenceCaseSnapshot(
+                job_id=job_id,
+                sequence_no=sequence_no,
+                definition=definition,
+                status=BattleInferenceCaseStatus.PENDING,
+                attempt_count=0,
+                lease=None,
+                attacker_win=None,
+                defender_win=None,
+                draw=None,
+                expected_turns=None,
+                node_count=0,
+                edge_count=0,
+                progress_phase=None,
+                observed_node_count=0,
+                observed_edge_count=0,
+                expanded_node_count=0,
+                frontier_count=0,
+                action_pair_completed_count=0,
+                action_pair_total_count=0,
+                budget_consumed=0,
+                failure_code=None,
+                diagnostic=None,
+                last_failure_code=None,
+                last_failure_diagnostic=None,
+                created_at=self.created.job.created_at,
+                updated_at=self.created.job.created_at,
+                started_at=None,
+                completed_at=None,
+            )
+            for sequence_no, definition in enumerate(self.command.cases)
+        )
+        return BattleInferenceCasePage(
+            items=cases[query.offset : query.offset + query.limit],
+            total_count=len(cases),
+            offset=query.offset,
+            limit=query.limit,
+        )
 
 
 def _fixed(pokemon_id: int) -> FixedPokemonConfiguration:
@@ -245,6 +308,66 @@ def test_idempotency_key_reuses_the_same_persisted_job() -> None:
     assert store.create_calls == 2
     assert store.created is not None
     assert store.created.job.progress.total_count == 25
+
+
+def test_fixed_battle_job_creates_one_recoverable_case() -> None:
+    """固定配置任务必须退化为一个后台 case，而不是重新执行同步 solver。
+
+    用户在页面已经从左右技能组中各选定唯一一组招式；创建固定任务时 application 只应
+    执行严格准入、冻结预算和持久化单个 canonical 配置身份。该测试保护 504 修复的核心
+    产品边界：HTTP 创建入口立即返回 job，不在请求线程构建状态图。
+    """
+    store = _IdempotentStore()
+    created_at = datetime(2026, 7, 30, tzinfo=timezone.utc)
+
+    submitted = CreateFixedBattleInferenceJobUseCase(
+        store=store,  # type: ignore[arg-type]
+        create_job_use_case=CreateBattleInferenceJobUseCase(
+            store=store,  # type: ignore[arg-type]
+            admission_validator=_AcceptAllAdmission(),
+        ),
+    ).execute(
+        SubmitFixedBattleJobCommand(
+            ruleset_id="pokemon-champion",
+            version_group_id=25,
+            attacker=FixedBattleSideSelection(
+                pokemon_id=149,
+                form_id=None,
+                level=50,
+                stat_profile_id="max_atk_plus",
+                ability_identifier="multiscale",
+            ),
+            attacker_move_ids=(337,),
+            defender=FixedBattleSideSelection(
+                pokemon_id=149,
+                form_id=None,
+                level=50,
+                stat_profile_id="max_hp",
+                ability_identifier="multiscale",
+            ),
+            defender_move_ids=(337,),
+            attacker_policy=BattleActionPolicyKind.UNIFORM_RANDOM,
+            defender_policy=BattleActionPolicyKind.UNIFORM_RANDOM,
+            max_nodes=50_000,
+            max_edges=300_000,
+            max_turns=20,
+            idempotency_key="fixed-dragonite-dragon-claw",
+        ),
+        created_at=created_at,
+    )
+
+    assert submitted.submitted_configuration_pairs == 1
+    assert submitted.job.status is BattleInferenceJobStatus.PENDING
+    assert store.command is not None
+    assert len(store.command.cases) == 1
+    assert store.created is not None
+    assert store.created.execution_spec.process_count == 1
+    assert store.created.execution_spec.queue_depth == 1
+    assert store.created.execution_spec.max_nodes_per_pair == 50_000
+    assert store.created.execution_spec.max_edges_per_pair == 300_000
+    case = store.command.cases[0]
+    assert case.attacker_move_ids == (337,)
+    assert case.defender_move_ids == (337,)
 
 
 def test_submit_rejects_explicit_form_before_worker_execution() -> None:

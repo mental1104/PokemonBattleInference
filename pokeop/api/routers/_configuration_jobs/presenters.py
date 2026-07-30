@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from fractions import Fraction
 from typing import Literal
 
@@ -123,6 +124,7 @@ def case_response(case: BattleInferenceCaseSnapshot) -> BattleInferenceCaseRespo
         expected_turns=_expected_turns_text(case),
         node_count=case.node_count,
         edge_count=case.edge_count,
+        explanation=_explanation_payload(case.explanation_json),
         failure_code=case.failure_code.value if case.failure_code is not None else None,
         diagnostic=case.diagnostic,
         attempt_count=case.attempt_count,
@@ -174,3 +176,21 @@ def _expected_turns_text(case: BattleInferenceCaseSnapshot) -> str | None:
     if expected.numerator is None or expected.denominator is None:
         return expected.kind.value
     return f"{expected.numerator}/{expected.denominator}"
+
+
+def _explanation_payload(value: str | None) -> dict[str, object] | None:
+    """把持久化 JSON 文本恢复为 HTTP 对象。
+
+    Args:
+        value: case 行保存的总结型归因 JSON 文本；历史数据可为 None。
+
+    Returns:
+        可 JSON 序列化的字典；文本损坏或不是对象时返回 None。
+    """
+    if value is None:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None

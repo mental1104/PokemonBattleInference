@@ -15,10 +15,16 @@ from pokeop.application.use_cases.fixed_battle_workflow import (
 
 
 def test_fixed_battle_routes_share_the_inference_resource_prefix() -> None:
-    """路由模块必须同时暴露组合预览和单配置精确摘要入口。"""
+    """路由模块必须同时暴露组合预览、异步任务和兼容同步入口。
+
+    固定配置页面的默认产品链路已经从同步 HTTP 求解切换为后台任务，因此 router
+    需要保留旧 summary/graph 入口作为兼容能力，同时新增不会执行 solver 的任务创建
+    入口。该测试只检查模块自身路径，避免依赖真实数据库或 worker。
+    """
     paths = {route.path for route in router.routes}
 
     assert "/move-set-combinations" in paths
+    assert "/fixed-one-on-one-jobs" in paths
     assert "/fixed-one-on-one" in paths
     assert "/fixed-one-on-one/graph" in paths
 

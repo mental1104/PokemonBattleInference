@@ -151,6 +151,10 @@ class BattleInferenceCaseModel(RuntimeBase):
         ),
         CheckConstraint(
             "attempt_count >= 0 AND node_count >= 0 AND edge_count >= 0 AND "
+            "observed_node_count >= 0 AND observed_edge_count >= 0 AND "
+            "expanded_node_count >= 0 AND frontier_count >= 0 AND "
+            "action_pair_completed_count >= 0 AND action_pair_total_count >= 0 AND "
+            "action_pair_completed_count <= action_pair_total_count AND "
             "budget_consumed >= 0",
             name="battle_inference_cases_nonnegative_ck",
         ),
@@ -238,7 +242,17 @@ class BattleInferenceCaseModel(RuntimeBase):
     expected_turns_denominator: Mapped[str | None] = mapped_column(Text, nullable=True)
     node_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     edge_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    progress_phase: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    observed_node_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    observed_edge_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    expanded_node_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    frontier_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    action_pair_completed_count: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    action_pair_total_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     budget_consumed: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    explanation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     diagnostic: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)

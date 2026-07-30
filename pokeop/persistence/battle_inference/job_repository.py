@@ -16,6 +16,7 @@ from pokeop.application.repositories.battle_inference_jobs import (
     BattleInferenceCaseFilter,
     BattleInferenceCaseNotFound,
     BattleInferenceCasePage,
+    BattleInferenceCaseProgress,
     BattleInferenceCaseResult,
     BattleInferenceCaseSnapshot,
     BattleInferenceCaseStatus,
@@ -53,6 +54,7 @@ _JOB_CLAIMABLE_STATUSES = {
     BattleInferenceJobStatus.PENDING,
     BattleInferenceJobStatus.PREPARING,
     BattleInferenceJobStatus.RUNNING,
+    BattleInferenceJobStatus.CANCEL_REQUESTED,
 }
 
 
@@ -200,6 +202,69 @@ class PostgresBattleInferenceJobRepository:
             job, progress = _load_job_and_progress(session, job_id)
             _assert_calculation_revision(job, calculation_revision)
             return _job_snapshot(job, progress)
+
+    def list_jobs(
+        self,
+        *,
+        statuses: tuple[BattleInferenceJobStatus, ...] = (),
+        active_only: bool = False,
+        job_id_prefix: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[BattleInferenceJobSnapshot, ...]:
+        """按创建时间倒序分页读取后台任务快照。
+
+        Args:
+            statuses: 可选任务状态过滤；空元组表示不过滤状态。
+            active_only: 是否只返回仍可继续执行或取消的非终态任务。
+            job_id_prefix: 可选 job ID 前缀，用于固定任务这类未单独建表的轻量分类。
+            offset: 跳过的行数，必须非负。
+            limit: 返回上限，范围 1..100。
+
+        Returns:
+            按 ``created_at DESC, job_id DESC`` 排列的一页任务快照。
+        """
+        _require_limit(limit, maximum=100)
+        if isinstance(offset, bool) or offset < 0:
+            raise ValueError("offset must be a non-negative integer")
+        if any(not isinstance(status, BattleInferenceJobStatus) for status in statuses):
+            raise ValueError("statuses must contain BattleInferenceJobStatus values")
+        predicates = []
+        if statuses:
+            predicates.append(
+                BattleInferenceJobModel.status.in_(tuple(status.value for status in statuses))
+            )
+        if active_only:
+            predicates.append(
+                BattleInferenceJobModel.status.in_(
+                    (
+                        BattleInferenceJobStatus.PENDING.value,
+                        BattleInferenceJobStatus.PREPARING.value,
+                        BattleInferenceJobStatus.RUNNING.value,
+                        BattleInferenceJobStatus.CANCEL_REQUESTED.value,
+                    )
+                )
+            )
+        if job_id_prefix is not None:
+            _require_identifier(job_id_prefix, "job_id_prefix")
+            predicates.append(BattleInferenceJobModel.job_id.startswith(job_id_prefix))
+
+        statement = (
+            select(BattleInferenceJobModel, BattleInferenceJobProgressModel)
+            .join(
+                BattleInferenceJobProgressModel,
+                BattleInferenceJobProgressModel.job_id == BattleInferenceJobModel.job_id,
+            )
+            .where(*predicates)
+            .order_by(
+                BattleInferenceJobModel.created_at.desc(),
+                BattleInferenceJobModel.job_id.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        with self._transaction_factory() as session:
+            return tuple(_job_snapshot(job, progress) for job, progress in session.execute(statement))
 
     def claim_next_job(
         self,
@@ -532,6 +597,81 @@ class PostgresBattleInferenceJobRepository:
             progress.budget_consumed += result.budget_consumed
             progress.updated_at = completed_at
             job.updated_at = completed_at
+            session.flush()
+            return True
+
+    def record_case_progress(
+        self,
+        job_id: str,
+        configuration_pair_id: str,
+        progress: BattleInferenceCaseProgress,
+        *,
+        lease_owner: str,
+        observed_at: datetime,
+        calculation_revision: str,
+    ) -> bool:
+        """写入运行中 case 的最新观测进度。
+
+        Args:
+            job_id: 目标任务 ID。
+            configuration_pair_id: 当前 worker 正在执行的稳定配置对 ID。
+            progress: 子进程 observer 上报的非终态进度。
+            lease_owner: 提交进度的 worker 标识，必须仍持有目标 case lease。
+            observed_at: 父进程接收到进度的带时区时间。
+            calculation_revision: 产生进度的计算语义版本。
+
+        Returns:
+            目标 case 仍处于 RUNNING 并成功写入返回 True；迟到事件遇到终态 case 时
+            返回 False。
+
+        Raises:
+            BattleInferenceLeaseConflict: 当前 worker 没有有效 lease 时抛出。
+            BattleInferenceCalculationRevisionMismatch: 结果版本与任务不兼容时抛出。
+        """
+        _require_identifier(configuration_pair_id, "configuration_pair_id")
+        _require_identifier(lease_owner, "lease_owner")
+        _require_aware_datetime(observed_at, "observed_at")
+        if not isinstance(progress, BattleInferenceCaseProgress):
+            raise ValueError("progress must be BattleInferenceCaseProgress")
+        with self._transaction_factory() as session:
+            job, _job_progress = _load_job_and_progress(session, job_id, for_update=True)
+            _assert_calculation_revision(job, calculation_revision)
+            case = _load_case(
+                session,
+                job_id,
+                configuration_pair_id,
+                for_update=True,
+            )
+            status = BattleInferenceCaseStatus(case.status)
+            if status.is_terminal:
+                return False
+            if status is not BattleInferenceCaseStatus.RUNNING:
+                raise BattleInferenceInvalidTransition(
+                    "case progress can only be recorded for running cases"
+                )
+            _require_effective_case_lease(
+                case,
+                lease_owner=lease_owner,
+                now=observed_at,
+            )
+            case.progress_phase = progress.phase
+            case.observed_node_count = max(
+                case.observed_node_count,
+                progress.observed_node_count,
+            )
+            case.observed_edge_count = max(
+                case.observed_edge_count,
+                progress.observed_edge_count,
+            )
+            case.expanded_node_count = max(
+                case.expanded_node_count,
+                progress.expanded_node_count,
+            )
+            case.frontier_count = progress.frontier_count
+            case.action_pair_completed_count = progress.action_pair_completed_count
+            case.action_pair_total_count = progress.action_pair_total_count
+            case.updated_at = observed_at
+            job.updated_at = observed_at
             session.flush()
             return True
 
@@ -991,6 +1131,7 @@ def _apply_case_result(
     case.node_count = result.node_count
     case.edge_count = result.edge_count
     case.budget_consumed = result.budget_consumed
+    case.explanation_json = result.explanation_json
     case.failure_code = result.failure_code.value if result.failure_code is not None else None
     case.diagnostic = result.diagnostic
     case.result_fingerprint = result.fingerprint
@@ -1155,7 +1296,15 @@ def _case_snapshot(case: BattleInferenceCaseModel) -> BattleInferenceCaseSnapsho
         ),
         node_count=case.node_count,
         edge_count=case.edge_count,
+        progress_phase=case.progress_phase,
+        observed_node_count=case.observed_node_count,
+        observed_edge_count=case.observed_edge_count,
+        expanded_node_count=case.expanded_node_count,
+        frontier_count=case.frontier_count,
+        action_pair_completed_count=case.action_pair_completed_count,
+        action_pair_total_count=case.action_pair_total_count,
         budget_consumed=case.budget_consumed,
+        explanation_json=case.explanation_json,
         failure_code=_failure_code(case.failure_code),
         diagnostic=case.diagnostic,
         last_failure_code=_failure_code(case.last_failure_code),

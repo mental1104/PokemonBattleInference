@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { BattleReportResult } from '../../api/inference';
+import type { BattleNodeDetailResult, BattleReportResult } from '../../api/inference';
 import {
   presentBattleReport,
   type BattleReportPresenterContext,
@@ -14,11 +14,26 @@ interface Props {
   report: BattleReportResult | null;
   /** Pokémon、最大 HP 和招式名称的纯展示上下文。 */
   context: BattleReportPresenterContext;
+  /** 当前探索节点；snapshot mode 会用它补齐异步 summary 尚未提供的最大 HP。 */
+  node?: BattleNodeDetailResult | null;
 }
 
 const props = defineProps<Props>();
+const effectiveContext = computed<BattleReportPresenterContext>(() => ({
+  ...props.context,
+  sides: {
+    attacker: {
+      ...props.context.sides.attacker,
+      maxHp: props.node?.attacker.max_hp ?? props.context.sides.attacker.maxHp,
+    },
+    defender: {
+      ...props.context.sides.defender,
+      maxHp: props.node?.defender.max_hp ?? props.context.sides.defender.maxHp,
+    },
+  },
+}));
 const turns = computed(() =>
-  props.report === null ? [] : presentBattleReport(props.report, props.context),
+  props.report === null ? [] : presentBattleReport(props.report, effectiveContext.value),
 );
 const expandedTurns = ref<Set<number>>(new Set());
 
@@ -82,7 +97,7 @@ function formatPercent(percent: number): string {
       </div>
     </header>
 
-    <BattleAnimationStage :report="report" :context="context" />
+    <BattleAnimationStage :report="report" :context="effectiveContext" />
 
     <div class="battle-report-panel__scroll" data-bounded-report-scroll>
       <div v-if="turns.length" class="battle-report-panel__turns">

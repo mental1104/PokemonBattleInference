@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
 import { SUPPORTED_VERSION_GROUPS } from '../api/configurationSpace';
 import {
+  cancelInferenceJob,
+  createFixedBattleJob,
   enumerateMoveSetCombinations,
-  inferFixedBattleJourney,
+  listFixedBattleJobs,
 } from '../api/fixedBattle';
 import type {
   BattleExplorationResult,
@@ -20,13 +22,21 @@ import {
 } from '../composables/useBattleInferenceConfiguration';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 import { createBattleReportPresenterContext } from '../presenters/battleEventPresenter';
+import type { BattleReportPresenterContext } from '../presenters/battleEventPresenter';
 import type {
   FixedBattleSideInput,
+  FixedBattleSummaryRequest,
   FixedBattleSummaryResult,
+  InferenceJobSummary,
   MoveSetCombinationsResult,
   MoveSetOptionResult,
 } from '../types/fixedBattle';
 import './BattleInferenceView.css';
+
+const emit = defineEmits<{
+  /** 请求宿主页面打开稳定 URL 的任务详情。 */
+  openJob: [jobId: string];
+}>();
 
 const configuration = useBattleInferenceConfiguration();
 const {
@@ -58,12 +68,27 @@ const selectedAttackerMoveSetId = ref<string | null>(null);
 const selectedDefenderMoveSetId = ref<string | null>(null);
 const summary = ref<FixedBattleSummaryResult | null>(null);
 const graphHandle = ref<BattleExplorationResult | null>(null);
+const snapshotRequest = ref<FixedBattleSummaryRequest | null>(null);
 const activeExploration = ref<BattleGraphExplorationResult | null>(null);
 const treeScreenOpen = ref(false);
+const taskPanelOpen = ref(false);
+const taskLoading = ref(false);
+const taskMessage = ref<string | null>(null);
+const taskError = ref<string | null>(null);
+const fixedJobs = ref<InferenceJobSummary[]>([]);
+let taskPollTimer: ReturnType<typeof setInterval> | null = null;
+let taskRequestActive = false;
 
 /** 初始化能力值模板；候选池会在选择 Pokémon 后按侧加载。 */
 onMounted(() => {
   void loadPresets();
+  void refreshTaskPanel();
+  startTaskPolling();
+});
+
+/** 离开固定推演页面时释放轮询 timer。 */
+onUnmounted(() => {
+  stopTaskPolling();
 });
 
 /**
@@ -154,49 +179,221 @@ async function generateCombinations(): Promise<void> {
   }
 }
 
-/** 对当前选中的唯一双方技能组执行精确求解并保存可探索完整图。 */
+/** 对当前选中的唯一双方技能组提交异步后台任务。 */
 async function runFixedInference(): Promise<void> {
-  const attackerMoveSet = selectedMoveSet('attacker');
-  const defenderMoveSet = selectedMoveSet('defender');
-  if (attackerMoveSet === null || defenderMoveSet === null) return;
+  const request = currentFixedBattleRequest();
+  if (request === null) return;
 
   inferenceLoading.value = true;
   workflowError.value = null;
   summary.value = null;
+  taskMessage.value = null;
+  taskError.value = null;
   try {
-    const result = await inferFixedBattleJourney({
-      ruleset_id: rulesetId.value,
-      version_group_id: versionGroupId.value,
-      attacker: {
-        ...fixedSideInput(attacker),
-        move_ids: [...attackerMoveSet.move_ids],
-      },
-      defender: {
-        ...fixedSideInput(defender),
-        move_ids: [...defenderMoveSet.move_ids],
-      },
-      attacker_policy: 'uniform-random',
-      defender_policy: 'uniform-random',
-      limits: {
-        max_nodes: 50_000,
-        max_edges: 300_000,
-        max_turns: 20,
-      },
-    });
-    summary.value = result.summary;
-    graphHandle.value = result.exploration;
+    snapshotRequest.value = request;
+    const result = await createFixedBattleJob(request, fixedTaskIdempotencyKey());
+    taskMessage.value = `已提交任务：${shortJobId(result.job_id)}`;
+    taskPanelOpen.value = true;
+    await refreshTaskPanel();
     activeExploration.value = null;
     treeScreenOpen.value = false;
   } catch (caught) {
-    workflowError.value = caught instanceof Error ? caught.message : '固定配置推演失败';
+    workflowError.value = caught instanceof Error ? caught.message : '固定配置任务提交失败';
   } finally {
     inferenceLoading.value = false;
   }
 }
 
+/** 根据当前双方技能组选择构造固定配置请求；选择不完整时返回 null。 */
+function currentFixedBattleRequest(): FixedBattleSummaryRequest | null {
+  const attackerMoveSet = selectedMoveSet('attacker');
+  const defenderMoveSet = selectedMoveSet('defender');
+  if (attackerMoveSet === null || defenderMoveSet === null) return null;
+  return {
+    ruleset_id: rulesetId.value,
+    version_group_id: versionGroupId.value,
+    attacker: {
+      ...fixedSideInput(attacker),
+      move_ids: [...attackerMoveSet.move_ids],
+    },
+    defender: {
+      ...fixedSideInput(defender),
+      move_ids: [...defenderMoveSet.move_ids],
+    },
+    attacker_policy: 'uniform-random',
+    defender_policy: 'uniform-random',
+    limits: {
+      max_nodes: 50_000,
+      max_edges: 300_000,
+      max_turns: 20,
+    },
+  };
+}
+
+/** 打开不依赖完整图的实时快照树状探索。 */
+function openSnapshotTreeScreen(): void {
+  const request = currentFixedBattleRequest();
+  if (request === null) return;
+  snapshotRequest.value = request;
+  graphHandle.value = null;
+  activeExploration.value = null;
+  treeScreenOpen.value = true;
+}
+
 /** 把精确概率格式化为百分比，并保留分数作为 title。 */
 function probabilityLabel(value: { percent: number }): string {
   return `${value.percent.toFixed(2)}%`;
+}
+
+/** 生成一次真实提交使用的幂等键；同一次点击不会复用旧任务。 */
+function fixedTaskIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `fixed-${crypto.randomUUID()}`;
+  }
+  return `fixed-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/** 按固定上限刷新任务面板，不因一次失败清空已有任务。 */
+async function refreshTaskPanel(): Promise<void> {
+  if (taskRequestActive) return;
+  taskRequestActive = true;
+  taskLoading.value = fixedJobs.value.length === 0;
+  try {
+    const result = await listFixedBattleJobs({ limit: 20 });
+    fixedJobs.value = result.items;
+    taskError.value = null;
+  } catch (caught) {
+    taskError.value = caught instanceof Error ? caught.message : '任务列表刷新失败';
+  } finally {
+    taskRequestActive = false;
+    taskLoading.value = false;
+  }
+}
+
+/** 开始固定任务面板低频轮询。 */
+function startTaskPolling(): void {
+  if (taskPollTimer !== null) return;
+  taskPollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && hasActiveJobs.value) {
+      void refreshTaskPanel();
+    }
+  }, 2500);
+}
+
+/** 停止固定任务面板轮询。 */
+function stopTaskPolling(): void {
+  if (taskPollTimer !== null) {
+    clearInterval(taskPollTimer);
+    taskPollTimer = null;
+  }
+}
+
+/** 请求取消指定任务并立即刷新列表。 */
+async function cancelJob(job: InferenceJobSummary): Promise<void> {
+  taskError.value = null;
+  taskMessage.value = null;
+  try {
+    await cancelInferenceJob(job.job_id);
+    taskMessage.value = `已请求取消：${shortJobId(job.job_id)}`;
+    await refreshTaskPanel();
+  } catch (caught) {
+    taskError.value = caught instanceof Error ? caught.message : '取消任务失败';
+  }
+}
+
+/** 返回短任务 ID，保留完整 ID 在 title 中查看。 */
+function shortJobId(jobId: string): string {
+  return jobId.length <= 14 ? jobId : `${jobId.slice(0, 10)}…${jobId.slice(-4)}`;
+}
+
+/** 格式化任务阶段为中文。 */
+function phaseLabel(phase: string): string {
+  const labels: Record<string, string> = {
+    queued: '等待执行',
+    preparing_battle: '准备配置',
+    running: '运行中',
+    building_graph: '构建状态图',
+    expanding_actions: '展开动作组合',
+    graph_built: '状态图完成',
+    solving_probabilities: '概率求解',
+    cancel_requested: '取消中',
+    completed: '已完成',
+    cancelled: '已取消',
+    failed: '失败',
+  };
+  return labels[phase] ?? phase;
+}
+
+/** 格式化任务状态为中文。 */
+function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pending: '等待执行',
+    preparing: '准备中',
+    running: '运行中',
+    cancel_requested: '取消中',
+    succeeded: '已完成',
+    completed_with_failures: '部分完成',
+    cancelled: '已取消',
+    failed: '失败',
+  };
+  return labels[status] ?? status;
+}
+
+/** 格式化 ISO 时间为本地短时间。 */
+function formatTime(value: string | null): string {
+  if (value === null) return '—';
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+}
+
+/** 返回运行时长展示文本。 */
+function elapsedLabel(job: InferenceJobSummary): string {
+  const seconds = job.progress.elapsed_seconds;
+  if (seconds === null) return '尚未开始';
+  return `${seconds.toFixed(1)} 秒`;
+}
+
+/** 返回任务卡片进度条使用的百分比。 */
+function jobProgressPercent(job: InferenceJobSummary): number {
+  if (job.progress.counts.total <= 0) return 0;
+  const completedRatio =
+    job.progress.counts.completed / job.progress.counts.total;
+  const runningRatio =
+    job.progress.running_case === null
+      ? 0
+      : job.progress.running_case.percent / 100 / job.progress.counts.total;
+  return Math.min(100, Math.max(0, (completedRatio + runningRatio) * 100));
+}
+
+/** 返回任务卡片进度条旁的紧凑阶段文案。 */
+function jobProgressLabel(job: InferenceJobSummary): string {
+  const running = job.progress.running_case;
+  if (running === null) {
+    return `${job.progress.counts.completed} / ${job.progress.counts.total}`;
+  }
+  return `${phaseLabel(running.phase)} ${running.percent.toFixed(1)}%`;
+}
+
+/** 返回进度条 title，鼠标浮上去展示节点、边和构图队列细节。 */
+function jobProgressTitle(job: InferenceJobSummary): string {
+  const running = job.progress.running_case;
+  if (running === null) {
+    return `配置完成 ${job.progress.counts.completed} / ${job.progress.counts.total}`;
+  }
+  return [
+    `当前 case：${shortJobId(running.configuration_id)}`,
+    `阶段：${phaseLabel(running.phase)}`,
+    `节点：${formatCount(running.observed_nodes)} / ${formatCount(running.node_limit)}`,
+    `边：${formatCount(running.observed_edges)} / ${formatCount(running.edge_limit)}`,
+    `已展开节点：${formatCount(running.expanded_nodes)}`,
+    `待展开队列：${formatCount(running.frontier_nodes)}`,
+    `动作组合：${formatCount(running.action_pairs_completed)} / ${formatCount(running.action_pairs_total)}`,
+    `更新：${formatTime(running.updated_at)}`,
+  ].join('\n');
 }
 
 const selectionFingerprint = computed(() =>
@@ -227,8 +424,57 @@ const selectionFingerprint = computed(() =>
 
 const reportContext = computed(() =>
   summary.value === null
-    ? null
+    ? snapshotReportContext.value
     : createBattleReportPresenterContext(summary.value),
+);
+
+const snapshotReportContext = computed<BattleReportPresenterContext | null>(() => {
+  const attackerMoveSet = selectedMoveSet('attacker');
+  const defenderMoveSet = selectedMoveSet('defender');
+  const result = combinations.value;
+  if (attackerMoveSet === null || defenderMoveSet === null || result === null) {
+    return null;
+  }
+  const moveNames: Record<number, string> = {};
+  for (const moveSet of [attackerMoveSet, defenderMoveSet]) {
+    moveSet.move_ids.forEach((moveId, index) => {
+      moveNames[moveId] = moveSet.move_names[index] ?? `招式 #${moveId}`;
+    });
+  }
+  return {
+    rulesetId: rulesetId.value,
+    sides: {
+      attacker: {
+        pokemonId: result.attacker.pokemon_id,
+        name: result.attacker.pokemon_name,
+        maxHp: 0,
+      },
+      defender: {
+        pokemonId: result.defender.pokemon_id,
+        name: result.defender.pokemon_name,
+        maxHp: 0,
+      },
+    },
+    moveNames,
+  };
+});
+
+const activeJobCount = computed(
+  () => fixedJobs.value.filter((job) => job.can_cancel).length,
+);
+
+const hasActiveJobs = computed(() => activeJobCount.value > 0);
+
+const runningJobs = computed(() =>
+  fixedJobs.value.filter((job) => ['preparing', 'running', 'cancel_requested'].includes(job.status)),
+);
+
+const queuedJobs = computed(() =>
+  fixedJobs.value.filter((job) => job.status === 'pending'),
+);
+
+const terminalJobs = computed(() =>
+  fixedJobs.value.filter((job) => !job.can_cancel),
 );
 
 /**
@@ -251,6 +497,9 @@ function rerunCurrentFixedInference(): void {
 
 /** 打开占满视口的从左到右树状探索模式。 */
 function openTreeScreen(): void {
+  if (graphHandle.value !== null) {
+    snapshotRequest.value = null;
+  }
   treeScreenOpen.value = true;
 }
 
@@ -266,6 +515,7 @@ watch(selectionFingerprint, () => {
   selectedDefenderMoveSetId.value = null;
   summary.value = null;
   graphHandle.value = null;
+  snapshotRequest.value = null;
   activeExploration.value = null;
   treeScreenOpen.value = false;
 });
@@ -480,7 +730,18 @@ watch(selectionFingerprint, () => {
           "
           @click="runFixedInference"
         >
-          {{ inferenceLoading ? '正在精确求解并保存图' : '运行这个固定配置' }}
+          {{ inferenceLoading ? '正在提交任务' : '提交精确推演任务' }}
+        </button>
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="
+            selectedAttackerMoveSetId === null ||
+            selectedDefenderMoveSetId === null
+          "
+          @click="openSnapshotTreeScreen"
+        >
+          打开实时树状图
         </button>
       </div>
     </section>
@@ -488,6 +749,112 @@ watch(selectionFingerprint, () => {
     <p v-if="workflowError" class="error fixed-workflow-error" role="alert">
       {{ workflowError }}
     </p>
+    <p v-if="taskMessage" class="battle-task-message" role="status">
+      {{ taskMessage }}
+    </p>
+
+    <section class="battle-task-panel" aria-label="固定配置推演任务">
+      <button
+        class="battle-task-panel__summary"
+        type="button"
+        :aria-expanded="taskPanelOpen"
+        @click="taskPanelOpen = !taskPanelOpen"
+      >
+        <span>推演任务（{{ activeJobCount }} 个运行中）</span>
+        <small>{{ taskPanelOpen ? '收起' : '展开查看状态和进度' }}</small>
+      </button>
+
+      <div v-if="taskPanelOpen" class="battle-task-panel__body">
+        <div class="battle-task-panel__toolbar">
+          <p v-if="taskLoading">正在刷新任务列表…</p>
+          <p v-else-if="taskError" class="error">{{ taskError }}</p>
+          <p v-else>显示最近 {{ fixedJobs.length }} 个固定配置任务。</p>
+          <button class="secondary-button" type="button" @click="refreshTaskPanel">
+            刷新
+          </button>
+        </div>
+
+        <template v-if="fixedJobs.length">
+          <div
+            v-for="group in [
+              { title: '正在运行', items: runningJobs },
+              { title: '等待执行', items: queuedJobs },
+              { title: '最近完成 / 失败 / 取消', items: terminalJobs },
+            ]"
+            :key="group.title"
+            class="battle-task-group"
+          >
+            <h3>{{ group.title }}</h3>
+            <article
+              v-for="job in group.items"
+              :key="job.job_id"
+              class="battle-task-item"
+            >
+              <div>
+                <strong :title="job.job_id">{{ shortJobId(job.job_id) }}</strong>
+                <span>{{ statusLabel(job.status) }} · {{ phaseLabel(job.phase) }}</span>
+              </div>
+              <div
+                class="battle-task-progress"
+                :title="jobProgressTitle(job)"
+                :aria-label="`任务进度 ${jobProgressLabel(job)}`"
+              >
+                <div class="battle-task-progress__meta">
+                  <span>{{ jobProgressLabel(job) }}</span>
+                  <strong>{{ jobProgressPercent(job).toFixed(1) }}%</strong>
+                </div>
+                <div class="battle-task-progress__track">
+                  <div
+                    class="battle-task-progress__bar"
+                    :style="{ width: `${jobProgressPercent(job)}%` }"
+                  />
+                </div>
+              </div>
+              <dl>
+                <div>
+                  <dt>配置</dt>
+                  <dd>{{ job.progress.counts.completed }} / {{ job.progress.counts.total }}</dd>
+                </div>
+                <div>
+                  <dt>节点</dt>
+                  <dd>{{ formatCount(job.progress.state_nodes.used) }} / {{ formatCount(job.progress.state_nodes.limit) }}</dd>
+                </div>
+                <div>
+                  <dt>边</dt>
+                  <dd>{{ formatCount(job.progress.state_edges.used) }} / {{ formatCount(job.progress.state_edges.limit) }}</dd>
+                </div>
+                <div>
+                  <dt>运行</dt>
+                  <dd>{{ elapsedLabel(job) }}</dd>
+                </div>
+                <div>
+                  <dt>更新</dt>
+                  <dd>{{ formatTime(job.updated_at) }}</dd>
+                </div>
+              </dl>
+              <div class="battle-task-item__actions">
+                <button
+                  class="secondary-button"
+                  type="button"
+                  :disabled="!job.can_cancel"
+                  @click="cancelJob(job)"
+                >
+                  取消
+                </button>
+                <button
+                  class="secondary-button"
+                  type="button"
+                  @click="emit('openJob', job.job_id)"
+                >
+                  查看详情
+                </button>
+              </div>
+            </article>
+          </div>
+        </template>
+        <p v-else class="battle-task-empty">暂无固定配置推演任务。</p>
+      </div>
+    </section>
 
     <section v-if="summary" class="fixed-summary" aria-label="固定配置精确结果">
       <div class="fixed-summary__heading">
@@ -581,12 +948,14 @@ watch(selectionFingerprint, () => {
       <BattleReportPanel
         :report="activeExploration?.battle_report ?? null"
         :context="reportContext"
+        :node="activeExploration?.node ?? null"
       />
     </section>
 
     <BattleGraphTreeScreen
-      v-if="treeScreenOpen && graphHandle && reportContext"
+      v-if="treeScreenOpen && (graphHandle || snapshotRequest) && reportContext"
       :handle="graphHandle"
+      :snapshot-request="snapshotRequest"
       :context="reportContext"
       @close="closeTreeScreen"
       @rerun="rerunCurrentFixedInference"
@@ -675,6 +1044,150 @@ watch(selectionFingerprint, () => {
 
 .fixed-workflow-error {
   margin-top: 18px;
+}
+
+.battle-task-message {
+  background: #eef7f2;
+  border: 1px solid #bfd8ca;
+  border-radius: 10px;
+  color: #174232;
+  font-weight: 700;
+  margin: 18px 0 0;
+  padding: 12px 14px;
+}
+
+.battle-task-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d9dee8);
+  border-radius: 14px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.battle-task-panel__summary {
+  align-items: center;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  justify-content: space-between;
+  padding: 16px 18px;
+  width: 100%;
+}
+
+.battle-task-panel__summary span {
+  color: #0b2b23;
+  font-weight: 900;
+}
+
+.battle-task-panel__summary small,
+.battle-task-panel__toolbar p,
+.battle-task-item span,
+.battle-task-item dt {
+  color: #667085;
+}
+
+.battle-task-panel__body {
+  border-top: 1px solid var(--border, #d9dee8);
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.battle-task-panel__toolbar,
+.battle-task-item,
+.battle-task-item__actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.battle-task-panel__toolbar p {
+  margin: 0;
+}
+
+.battle-task-group {
+  display: grid;
+  gap: 8px;
+}
+
+.battle-task-group h3 {
+  font-size: 0.95rem;
+  margin: 4px 0;
+}
+
+.battle-task-item {
+  border: 1px solid #dde7e1;
+  border-radius: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+}
+
+.battle-task-item > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+}
+
+.battle-task-progress {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.battle-task-progress__meta {
+  align-items: center;
+  display: flex;
+  font-size: 0.8rem;
+  justify-content: space-between;
+}
+
+.battle-task-progress__meta strong {
+  font-size: 0.85rem;
+}
+
+.battle-task-progress__track {
+  background: #e9f0ec;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.battle-task-progress__bar {
+  background: linear-gradient(90deg, #2f6f55, #b92b37);
+  border-radius: inherit;
+  height: 100%;
+  transition: width 180ms ease;
+}
+
+.battle-task-item dl {
+  display: grid;
+  flex: 1 1 520px;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+}
+
+.battle-task-item dl div {
+  min-width: 0;
+}
+
+.battle-task-item dt {
+  font-size: 0.75rem;
+}
+
+.battle-task-item dd {
+  font-weight: 700;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.battle-task-empty {
+  color: #667085;
+  margin: 0;
 }
 
 .fixed-summary__probabilities {
@@ -775,6 +1288,16 @@ watch(selectionFingerprint, () => {
   .fixed-inference-action {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .battle-task-panel__toolbar,
+  .battle-task-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .battle-task-item dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
+from pokeop.api.routers._configuration_jobs.dependencies import (
+    JobStoreDependency,
+    create_use_case as create_configuration_job_use_case,
+)
 from pokeop.api.schemas.battle_exploration import (
+    BattleGraphExplorationResponse,
     StoredBattleInferenceJourneyResponse,
+    battle_graph_exploration_response,
     stored_battle_inference_journey_response,
 )
 from pokeop.api.schemas.fixed_battle import (
+    CreateFixedBattleJobResponse,
+    FixedBattleSnapshotStepRequest,
     FixedBattleSummaryRequest,
+    FixedBattleJobLinksResponse,
     MoveSetCombinationsRequest,
     MoveSetCombinationsResponse,
     fixed_battle_summary_response,
@@ -40,6 +50,9 @@ from pokeop.application.composition.battle_inference_repository import (
     FactoryReconciledBattleInferenceRepository,
 )
 from pokeop.application.solver.models import StateGraphLimits
+from pokeop.application.repositories.battle_inference_jobs import (
+    BattleInferenceJobRepositoryError,
+)
 from pokeop.application.use_cases.admitted_fixed_battle import (
     RunAdmittedFixedBattleSummaryUseCase,
 )
@@ -48,6 +61,14 @@ from pokeop.application.use_cases.fixed_battle_workflow import (
     EnumerateMoveSetCombinationsUseCase,
     InferFixedBattleSummaryUseCase,
     build_fixed_inference_command,
+)
+from pokeop.application.use_cases.fixed_battle_jobs import (
+    CreateFixedBattleInferenceJobUseCase,
+    SubmitFixedBattleJobCommand,
+)
+from pokeop.application.use_cases.fixed_battle_snapshot import (
+    SNAPSHOT_GRAPH_ID,
+    ExpandFixedBattleSnapshotUseCase,
 )
 from pokeop.application.use_cases.infer_one_on_one_battle import (
     BattleActionPolicyKind,
@@ -239,6 +260,27 @@ def _raise_http_error(error: Exception) -> NoReturn:
     raise HTTPException(status_code=status_code, detail=detail) from error
 
 
+def _raise_fixed_job_http_error(error: Exception) -> NoReturn:
+    """把固定任务创建错误转换为稳定 HTTP 错误。
+
+    Args:
+        error: application 或 repository 抛出的任务提交异常。
+
+    Raises:
+        HTTPException: 输入非法返回 422；幂等键冲突返回 409。
+    """
+    status_code = 422 if isinstance(error, ValueError) else 409
+    code = (
+        "fixed_battle_job_invalid_request"
+        if status_code == 422
+        else "fixed_battle_job_idempotency_conflict"
+    )
+    raise HTTPException(
+        status_code=status_code,
+        detail={"code": code, "message": str(error)},
+    ) from error
+
+
 def _raise_graph_store_http_error(error: BattleGraphStoreError) -> NoReturn:
     """把完整图保存失败转换为稳定 HTTP 服务错误。
 
@@ -295,6 +337,38 @@ def _command_from_request(
             max_edges=request.limits.max_edges,
             max_turns=request.limits.max_turns,
         ),
+    )
+
+
+def _fixed_job_command_from_request(
+    request: FixedBattleSummaryRequest,
+    *,
+    idempotency_key: str,
+) -> SubmitFixedBattleJobCommand:
+    """把固定配置 HTTP 请求转换为后台任务提交命令。
+
+    Args:
+        request: 双方固定配置、已选技能组、行动策略和预算。
+        idempotency_key: 当前 HTTP 请求提供的幂等键。
+
+    Returns:
+        不执行 solver、只描述单 case 异步任务的 application 命令。
+    """
+    if request.attacker.level != request.defender.level:
+        raise ValueError("both sides must use the same level in v1")
+    return SubmitFixedBattleJobCommand(
+        ruleset_id=request.ruleset_id,
+        version_group_id=request.version_group_id,
+        attacker=request.attacker.to_application(),
+        attacker_move_ids=tuple(request.attacker.move_ids),
+        defender=request.defender.to_application(),
+        defender_move_ids=tuple(request.defender.move_ids),
+        attacker_policy=_policy(request.attacker_policy),
+        defender_policy=_policy(request.defender_policy),
+        max_nodes=request.limits.max_nodes,
+        max_edges=request.limits.max_edges,
+        max_turns=request.limits.max_turns,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -377,6 +451,61 @@ def enumerate_move_set_combinations(
 
 
 @router.post(
+    "/fixed-one-on-one-jobs",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=CreateFixedBattleJobResponse,
+    summary="提交一个固定配置精确推演后台任务",
+)
+def create_fixed_one_on_one_job(
+    request: FixedBattleSummaryRequest,
+    store: JobStoreDependency,
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ],
+) -> CreateFixedBattleJobResponse:
+    """创建单固定配置后台任务并立即返回 job ID。
+
+    Args:
+        request: 与旧同步 fixed-one-on-one 兼容的固定配置请求体。
+        store: 现有 battle inference job store。
+        idempotency_key: 防止前端重复点击或网络重试创建多个任务的稳定键。
+
+    Returns:
+        HTTP 202 响应；不包含任何完整求解结果或状态图。
+
+    Raises:
+        HTTPException: 严格准入、输入非法或幂等键冲突时返回稳定错误。
+    """
+    try:
+        submitted = CreateFixedBattleInferenceJobUseCase(
+            store=store,
+            create_job_use_case=create_configuration_job_use_case(store),
+        ).execute(
+            _fixed_job_command_from_request(
+                request,
+                idempotency_key=idempotency_key,
+            ),
+            created_at=datetime.now(timezone.utc),
+        )
+    except (BattleCandidatePoolNotFound, StrictMechanismAdmissionRejected) as error:
+        _raise_http_error(error)
+    except (BattleInferenceJobRepositoryError, ValueError) as error:
+        _raise_fixed_job_http_error(error)
+    job = submitted.job
+    return CreateFixedBattleJobResponse(
+        job_id=job.job_id,
+        status=job.status.value,
+        created_at=job.created_at.isoformat(),
+        submitted_configuration_pairs=submitted.submitted_configuration_pairs,
+        links=FixedBattleJobLinksResponse(
+            self=f"/v1/inference/jobs/{job.job_id}",
+            cancel=f"/v1/inference/jobs/{job.job_id}/cancel",
+        ),
+    )
+
+
+@router.post(
     "/fixed-one-on-one",
     response_model=BattleInferenceSummaryResponse,
     summary="精确求解一个双方固定配置快照",
@@ -400,6 +529,47 @@ def infer_fixed_one_on_one(
     try:
         command = _command_from_request(request)
         return fixed_battle_summary_response(use_case.execute(command))
+    except (
+        BattleCandidatePoolNotFound,
+        StrictMechanismAdmissionRejected,
+        BattleInferenceExecutionError,
+        ValueError,
+    ) as error:
+        _raise_http_error(error)
+
+
+@router.post(
+    "/fixed-one-on-one/step",
+    response_model=BattleGraphExplorationResponse,
+    summary="按固定配置当前路径快照单步展开树状可能性",
+)
+def expand_fixed_one_on_one_snapshot(
+    request: FixedBattleSnapshotStepRequest,
+    inference: InferenceUseCaseDependency,
+) -> BattleGraphExplorationResponse:
+    """不等待异步全局任务完成，按 cursor 当前快照展开一层分支。
+
+    Args:
+        request: 固定配置、行动策略、运行保护和从起点开始的局部 edge cursor。
+        inference: 共享正式 repository 与 effect factory 的配置准备用例。
+
+    Returns:
+        与完整图探索相同形状的当前节点、分支组和战报响应。
+
+    Raises:
+        HTTPException: 准入失败、cursor 不可重放或输入不符合首版边界时抛出。
+    """
+    try:
+        command = _command_from_request(request)
+        _validate_fixed_mechanisms(inference, command)
+        result = ExpandFixedBattleSnapshotUseCase(inference).execute(
+            command,
+            request.cursor.to_application(
+                graph_id=SNAPSHOT_GRAPH_ID,
+                root_node_id=0,
+            ),
+        )
+        return battle_graph_exploration_response(result.groups, result.report)
     except (
         BattleCandidatePoolNotFound,
         StrictMechanismAdmissionRejected,
