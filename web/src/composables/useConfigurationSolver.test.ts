@@ -140,12 +140,17 @@ beforeEach(() => {
 
 describe('useConfigurationSolver', () => {
   it('submits independent subject and target items and abilities', async () => {
+    /**
+     * 目标必须先通过新增流程完成 Pokémon 与特性加载，之后再配置招式、道具并提交。
+     * 断言保护新增弹窗改造不能丢失双方独立的机制字段。
+     */
     const solver = useConfigurationSolver();
     await solver.loadItems();
     await solver.selectSubject(SUBJECT);
 
-    const goal = solver.goals.value[0];
-    await solver.selectGoalTarget(goal, TARGET);
+    const goal = await solver.addGoalWithTarget('defense', TARGET);
+    expect(goal).not.toBeNull();
+    if (goal === null) throw new Error('goal should be created');
     goal.move = MOVE;
     solver.subjectItemIdentifier.value = 'life-orb';
     goal.targetItemIdentifier = 'eviolite';
@@ -179,18 +184,41 @@ describe('useConfigurationSolver', () => {
     });
   });
 
-  it('adds attack and defense targets into stable independent kinds', () => {
+  it('keeps the selected list empty until a target is fully loaded', async () => {
+    /**
+     * 点击添加只应打开选择流程，不能预先插入空白目标。新增 Promise 完成前列表保持为空，
+     * 目标详情和默认特性加载完成后才出现一条攻目标，避免待新增对象混入已选择列表。
+     */
     const solver = useConfigurationSolver();
 
-    solver.addGoal('attack');
-    solver.addGoal('defense');
+    const addPromise = solver.addGoalWithTarget('attack', TARGET);
+    expect(solver.goals.value).toEqual([]);
 
-    expect(solver.goals.value.map((goal) => goal.kind)).toEqual([
-      'defense',
-      'attack',
-      'defense',
-    ]);
-    expect(solver.goals.value[1].targetPreset).toBe('max_hp');
-    expect(solver.goals.value[1].rollPolicy).toBe('min');
+    const goal = await addPromise;
+
+    expect(goal).not.toBeNull();
+    expect(solver.goals.value).toHaveLength(1);
+    expect(solver.goals.value[0]).toMatchObject({
+      kind: 'attack',
+      target: TARGET,
+      targetPreset: 'max_hp',
+      targetAbilityIdentifier: 'cute-charm',
+      rollPolicy: 'min',
+    });
+  });
+
+  it('does not retain a blank goal when target loading fails', async () => {
+    /**
+     * 新增目标资料请求失败时必须返回 null，并继续保持已选列表为空；否则失败请求会生成
+     * 无法提交、也容易被误认为已选对象的残留卡片。
+     */
+    getPokemonDetailMock.mockRejectedValueOnce(new Error('target unavailable'));
+    const solver = useConfigurationSolver();
+
+    const goal = await solver.addGoalWithTarget('defense', TARGET);
+
+    expect(goal).toBeNull();
+    expect(solver.goals.value).toEqual([]);
+    expect(solver.error.value).toBe('target unavailable');
   });
 });

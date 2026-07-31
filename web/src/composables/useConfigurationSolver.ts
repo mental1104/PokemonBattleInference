@@ -46,7 +46,7 @@ export function useConfigurationSolver() {
   const subjectItemIdentifier = ref('none');
   const itemOptions = ref<BattleItemOption[]>([]);
   const itemsLoading = ref(false);
-  const goals = ref<EditableSolverGoal[]>([newGoal('defense')]);
+  const goals = ref<EditableSolverGoal[]>([]);
   const statPresets = ref<StatPreset[]>([]);
   const selectedPresetKeys = ref<string[]>([...DEFAULT_PRESETS]);
   const loading = ref(false);
@@ -70,7 +70,12 @@ export function useConfigurationSolver() {
     );
   });
 
-  /** 创建一条指定类型目标，并设置符合该角色的默认配置与伤害档。 */
+  /**
+   * 创建一条尚未写入已选列表的目标草稿。
+   *
+   * @param kind attack 表示待配置 Pokémon 主动攻击，defense 表示待配置 Pokémon 承受攻击。
+   * @returns 带对应默认配置和随机伤害档的独立目标对象。
+   */
   function newGoal(kind: ConfigurationGoalKind): EditableSolverGoal {
     return {
       id: `goal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -154,56 +159,75 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 设置某条目标中的对手 Pokémon，并并行读取详情与合法特性。
+   * 原子地设置某条目标中的对手 Pokémon，并读取详情与合法特性。
    *
-   * @param goal 需要更新的目标对象。
+   * 网络请求和特性完整性校验全部成功后才替换已确认目标；失败时保留原 Pokémon、招式和机制
+   * 选择，避免更换弹窗尚未成功就破坏列表中的有效对象。
+   *
+   * @param goal 需要更新的目标草稿或已选目标对象。
    * @param item 搜索选择器返回的 Pokémon。
+   * @returns 详情和默认特性均加载成功时返回 true；失败时保留原状态并返回 false。
    */
   async function selectGoalTarget(
     goal: EditableSolverGoal,
     item: PokemonSearchItem,
-  ): Promise<void> {
+  ): Promise<boolean> {
     error.value = null;
-    goal.move = null;
-    goal.targetAbilityIdentifier = '';
-    goal.targetAbilityOptions = [];
     goal.targetAbilitiesLoading = true;
-    result.value = null;
     try {
       const [detail, abilities] = await Promise.all([
         getPokemonDetail(item.pokemon_id, rulesetId.value),
         listPokemonAbilities(item.pokemon_id, rulesetId.value),
       ]);
-      goal.target = detail;
-      goal.targetAbilityOptions = abilities;
-      goal.targetAbilityIdentifier = abilities[0]?.identifier ?? '';
-      if (!goal.targetAbilityIdentifier) {
+      const defaultAbilityIdentifier = abilities[0]?.identifier ?? '';
+      if (!defaultAbilityIdentifier) {
         error.value = '目标 Pokémon 在当前规则集下没有可选择的特性';
+        return false;
       }
+
+      // 所有依赖均已准备完成后再一次性提交状态，避免旧目标出现半更新。
+      goal.target = detail;
+      goal.move = null;
+      goal.targetAbilityOptions = abilities;
+      goal.targetAbilityIdentifier = defaultAbilityIdentifier;
+      goal.targetItemIdentifier = 'none';
+      result.value = null;
+      return true;
     } catch (caught) {
-      goal.target = null;
       error.value = caught instanceof Error ? caught.message : '无法加载目标 Pokémon 资料';
+      return false;
     } finally {
       goal.targetAbilitiesLoading = false;
     }
   }
 
   /**
-   * 新增一条指定类型目标。
+   * 根据弹窗中已经确认的 Pokémon 新增一条完整目标。
+   *
+   * 未成功读取目标详情时不会把空白对象写入已选目标列表，避免用户把“新增中”误认为
+   * 已经选中的目标。
    *
    * @param kind attack 放入攻目标列，defense 放入防目标列。
+   * @param item 用户在新增弹窗中确认的 Pokémon。
+   * @returns 新增成功时返回目标对象；加载失败时返回 null。
    */
-  function addGoal(kind: ConfigurationGoalKind): void {
-    goals.value.push(newGoal(kind));
+  async function addGoalWithTarget(
+    kind: ConfigurationGoalKind,
+    item: PokemonSearchItem,
+  ): Promise<EditableSolverGoal | null> {
+    const goal = newGoal(kind);
+    if (!(await selectGoalTarget(goal, item))) return null;
+
+    goals.value.push(goal);
+    return goal;
   }
 
   /**
-   * 删除指定目标；页面至少保留一条目标，避免进入无约束状态。
+   * 删除指定目标；允许清空全部目标，空列表表示当前没有求解约束。
    *
    * @param goalId 要删除的目标 ID。
    */
   function removeGoal(goalId: string): void {
-    if (goals.value.length === 1) return;
     goals.value = goals.value.filter((goal) => goal.id !== goalId);
   }
 
@@ -279,7 +303,7 @@ export function useConfigurationSolver() {
     loadItems,
     selectSubject,
     selectGoalTarget,
-    addGoal,
+    addGoalWithTarget,
     removeGoal,
     submit,
   };
