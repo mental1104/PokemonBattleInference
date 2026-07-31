@@ -7,6 +7,7 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
     CalculationScope,
     CalculateCatalogDamageResult,
     CalculateCatalogDamageUseCase,
+    CalculatorCatalogRepository,
     CalculatorInputError,
     CalculatorMoveResult,
     CalculatorPokemonResult,
@@ -81,7 +82,7 @@ class CalculateCatalogDamageWithAbilitiesUseCase(CalculateCatalogDamageUseCase):
 
     def __init__(
         self,
-        catalog_repository,
+        catalog_repository: CalculatorCatalogRepository,
         ability_repository: CalculatorAbilityRepository,
     ) -> None:
         super().__init__(catalog_repository)
