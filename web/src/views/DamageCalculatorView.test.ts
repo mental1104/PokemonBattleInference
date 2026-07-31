@@ -10,13 +10,26 @@ import {
   type PokemonDetail,
   type PokemonSearchItem,
 } from '../api/calculator';
+import BattleStatStageSelector from '../components/BattleStatStageSelector.vue';
 import ItemSelector from '../components/ItemSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import DamageCalculatorView from './DamageCalculatorView.vue';
 
 vi.mock('../api/calculator', () => ({
   calculateDamage: vi.fn(),
+  createNeutralBattleStatStages: vi.fn(() => ({
+    attack: 0,
+    defense: 0,
+    special_attack: 0,
+    special_defense: 0,
+    speed: 0,
+    accuracy: 0,
+    evasion: 0,
+  })),
   getPokemonDetail: vi.fn(),
+  hasNonNeutralBattleStatStages: vi.fn((stages: Record<string, number>) =>
+    Object.values(stages).some((value) => value !== 0),
+  ),
   listBattleItems: vi.fn(),
   listPokemonAbilities: vi.fn(),
   listPokemonMoves: vi.fn(),
@@ -264,5 +277,40 @@ describe('DamageCalculatorView', () => {
     const grid = wrapper.get('.calculator-grid').element;
     const stage = moveStage.element;
     expect(grid.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders independent battle stat stages inside both selected pokemon summaries', async () => {
+    /**
+     * 攻击方和防守方完成 Pokémon 选择后，原截图红框位置必须各出现一套七项能力等级选择器，并位于各自
+     * pokemon-summary-card 内部。测试把攻击方攻击改为正二，再把防守方防御改为负一，重新读取组件 props
+     * 后确认两份 modelValue 只变化对应字段，另一侧和其余六项仍为零。该场景保护 UI 不是复用一个全局
+     * 能力等级对象，也确认选择器确实嵌入宝可梦摘要而非掉到道具、特性或攻击配置区域；这样双方可以表达
+     * 剑舞、威吓或防御下降后的不同战斗快照，并由 composable 继续提交给后端。
+     */
+    const wrapper = mount(DamageCalculatorView);
+    await flushPromises();
+
+    let pokemonSelectors = wrapper.findAllComponents(PokemonSelector);
+    await pokemonSelectors[0].get(`[data-pokemon-id="${BULBASAUR.pokemon_id}"]`).trigger('click');
+    await flushPromises();
+    pokemonSelectors = wrapper.findAllComponents(PokemonSelector);
+    await pokemonSelectors[1].get(`[data-pokemon-id="${PIKACHU.pokemon_id}"]`).trigger('click');
+    await flushPromises();
+
+    let stageSelectors = wrapper.findAllComponents(BattleStatStageSelector);
+    expect(stageSelectors).toHaveLength(2);
+    expect(wrapper.findAll('.pokemon-summary-card .battle-stat-stage-selector')).toHaveLength(2);
+
+    await stageSelectors[0].get('[data-stat-stage="attack"]').setValue('2');
+    await flushPromises();
+    stageSelectors = wrapper.findAllComponents(BattleStatStageSelector);
+    expect(stageSelectors[0].props('modelValue')).toMatchObject({ attack: 2, defense: 0 });
+    expect(stageSelectors[1].props('modelValue')).toMatchObject({ attack: 0, defense: 0 });
+
+    await stageSelectors[1].get('[data-stat-stage="defense"]').setValue('-1');
+    await flushPromises();
+    stageSelectors = wrapper.findAllComponents(BattleStatStageSelector);
+    expect(stageSelectors[0].props('modelValue')).toMatchObject({ attack: 2, defense: 0 });
+    expect(stageSelectors[1].props('modelValue')).toMatchObject({ attack: 0, defense: -1 });
   });
 });
