@@ -178,13 +178,13 @@ describe('MoveSelector', () => {
     expect(wrapper.findAll('.type-image-button.active')).toHaveLength(0);
   });
 
-  it('shows type artwork, category and power on selected and candidate move cards', async () => {
+  it('highlights the selected move in its original list position', async () => {
     /**
-     * 已选招式与页面候选必须共享同一视觉合同：属性图片来自 assets API，分类使用醒目徽章，威力
-     * 使用独立 POWER 数值块，卡片通过受控 CSS 变量获得属性浅色背景。
+     * 已选招式不能额外插入到列表顶部，否则同一个 move_id 会在页面内出现两份。组件只应在
+     * 原候选按钮上标记选中状态，并继续保留属性图片、分类和威力的视觉合同。
      */
     const selected = move(85, 'electric', 'special', 90);
-    listPokemonMovesMock.mockResolvedValue(page([selected]));
+    listPokemonMovesMock.mockResolvedValue(page([move(1), selected, move(2)]));
     const wrapper = mount(MoveSelector, {
       props: {
         pokemonId: 25,
@@ -195,17 +195,18 @@ describe('MoveSelector', () => {
     });
     await flushPromises();
 
-    const selectedCard = wrapper.get('[data-testid="selected-move-card"]');
-    expect(selectedCard.get('.move-type-image').attributes('src')).toBe(
+    expect(wrapper.find('[data-testid="selected-move-card"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-testid="embedded-move-list"] .move-option-card')).toHaveLength(3);
+    expect(wrapper.findAll('.move-option-card--selected')).toHaveLength(1);
+
+    const candidate = wrapper.findAll('[data-testid="embedded-move-list"] .move-option-card')[1];
+    expect(candidate.attributes('aria-pressed')).toBe('true');
+    expect(candidate.get('.move-type-image').attributes('src')).toBe(
       '/api/v1/assets/types/electric/sprite',
     );
-    expect(selectedCard.get('.move-category-badge').text()).toBe('SPECIAL');
-    expect(selectedCard.get('.move-power-badge').text()).toContain('POWER90');
-    expect(selectedCard.attributes('style')).toContain('--move-type-color: #f4d23c');
-
-    const candidate = wrapper.get('[data-testid="embedded-move-list"] .move-option-card');
+    expect(candidate.get('.move-category-badge').text()).toBe('SPECIAL');
     expect(candidate.get('.move-category-badge').attributes('data-category')).toBe('special');
-    expect(candidate.get('.move-power-badge').text()).toContain('90');
+    expect(candidate.get('.move-power-badge').text()).toContain('POWER90');
     expect(candidate.attributes('style')).toContain('--move-type-color: #f4d23c');
   });
 

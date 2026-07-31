@@ -80,10 +80,6 @@
   font-weight: 700;
 }
 
-.selected-move-card {
-  margin-top: 10px;
-}
-
 .move-card {
   --move-type-color: #7b8b82;
   display: grid;
@@ -204,6 +200,14 @@
   border-color: var(--move-type-color);
   box-shadow: 0 5px 16px rgba(23, 32, 27, 0.11);
   transform: translateY(-1px);
+}
+
+.move-option-card--selected {
+  border-color: var(--move-type-color);
+  background: color-mix(in srgb, var(--move-type-color) 18%, white);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--move-type-color) 28%, transparent),
+    0 5px 16px rgba(23, 32, 27, 0.11);
 }
 
 .move-more-button {

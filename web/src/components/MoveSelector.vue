@@ -224,6 +224,16 @@ function moveCategoryLabel(moveCategory: MoveSearchItem['category']): string {
 }
 
 /**
+ * 判断某个招式是否就是父层当前保存的选择。
+ *
+ * @param move 候选列表或弹窗列表中的一条招式 DTO。
+ * @returns move_id 与当前选择一致时返回 true；没有选择时恒为 false。
+ */
+function isSelectedMove(move: MoveSearchItem): boolean {
+  return props.selected?.move_id === move.move_id;
+}
+
+/**
  * 加载弹窗中的一页结果并按 move_id 去重追加。
  *
  * @param offset 本次弹窗请求的起始偏移；首次为 0，后续为已加载数量。
@@ -386,32 +396,6 @@ onBeforeUnmount(() => {
       :disabled="disabled"
     />
 
-    <div
-      v-if="selected"
-      class="selected-move-card move-card"
-      data-testid="selected-move-card"
-      :style="moveTypeStyle(selected.type)"
-    >
-      <div class="move-card-identity">
-        <img
-          class="move-type-image"
-          :src="typeSpriteUrl(selected.type)"
-          :alt="selected.type"
-          loading="lazy"
-        />
-        <div class="move-card-copy">
-          <strong>{{ selected.display_name }}</strong>
-          <small>{{ selected.identifier }}</small>
-        </div>
-      </div>
-      <div class="move-card-meta">
-        <span class="move-category-badge" :data-category="selected.category">
-          {{ moveCategoryLabel(selected.category) }}
-        </span>
-        <span class="move-power-badge"><small>POWER</small>{{ selected.power }}</span>
-      </div>
-    </div>
-
     <div v-if="disabled" class="muted row-message">先选择攻击方</div>
     <div v-else-if="loading" class="muted row-message">加载中</div>
     <div v-else-if="error" class="error row-message">
@@ -424,7 +408,9 @@ onBeforeUnmount(() => {
         v-for="moveItem in moves"
         :key="moveItem.move_id"
         class="list-option move-option-card move-card"
+        :class="{ 'move-option-card--selected': isSelectedMove(moveItem) }"
         type="button"
+        :aria-pressed="isSelectedMove(moveItem)"
         :style="moveTypeStyle(moveItem.type)"
         @click="selectMove(moveItem)"
       >
@@ -484,7 +470,9 @@ onBeforeUnmount(() => {
             v-for="moveItem in modalItems"
             :key="moveItem.move_id"
             class="list-option move-option-card move-card"
+            :class="{ 'move-option-card--selected': isSelectedMove(moveItem) }"
             type="button"
+            :aria-pressed="isSelectedMove(moveItem)"
             :style="moveTypeStyle(moveItem.type)"
             @click="selectMove(moveItem)"
           >
