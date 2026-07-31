@@ -14,7 +14,11 @@ import {
 
 export type CalculatorState = 'EMPTY' | 'ATTACKER_SELECTED' | 'MOVE_SELECTED' | 'READY' | 'CALCULATING' | 'RESULT';
 
-/** 管理基础伤害计算器的选择状态、加载状态和结果失效语义。 */
+/**
+ * 管理基础伤害计算器的双方选择、异步加载、提交请求和旧结果失效语义。
+ *
+ * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；攻击方与防守方道具状态彼此独立。
+ */
 export function useDamageCalculator() {
   const rulesetId = ref('pokemon-champion');
   const level = ref(50);
