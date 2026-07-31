@@ -1,0 +1,127 @@
+.speed-goal-column {
+  background: #f8faf8;
+  border: 1px solid #dfe6dc;
+  border-radius: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.speed-goal-column .goal-column__heading {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.speed-goal-column .goal-column__heading h3 {
+  margin: 0;
+}
+
+.speed-goal-column .goal-column__heading small {
+  color: #65736b;
+  display: block;
+  margin-top: 4px;
+}
+
+.speed-goal-column .goal-empty {
+  border: 1px dashed #cbd6cc;
+  border-radius: 8px;
+  color: #65736b;
+  margin: 12px 0 0;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+.speed-goal-column .goal-summary-row {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  margin-top: 10px;
+  padding: 8px;
+}
+
+.speed-goal-column .goal-summary-row__main {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 4px;
+  text-align: left;
+}
+
+.speed-goal-column .goal-summary-row__main:hover {
+  background: #f4f8f4;
+  border-radius: 8px;
+}
+
+.speed-goal-column .goal-summary-row__sprite {
+  height: 48px;
+  object-fit: contain;
+  width: 48px;
+}
+
+.speed-goal-column .goal-summary-row__body,
+.speed-goal-column .goal-summary-row__title,
+.speed-goal-column .goal-summary-row__primary,
+.speed-goal-column .goal-summary-row__meta {
+  display: block;
+  min-width: 0;
+}
+
+.speed-goal-column .goal-summary-row__title {
+  color: #17201b;
+  font-weight: 800;
+}
+
+.speed-goal-column .goal-summary-row__title small {
+  color: #6b776f;
+  font-weight: 500;
+  margin-left: 5px;
+}
+
+.speed-goal-column .goal-summary-row__primary,
+.speed-goal-column .goal-summary-row__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speed-goal-column .goal-summary-row__meta {
+  color: #6b776f;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.speed-goal-column .goal-summary-row__edit {
+  color: #315c49;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.speed-goal-column .goal-summary-row__delete {
+  align-self: center;
+}
+
+@media (max-width: 640px) {
+  .speed-goal-column .goal-summary-row__main {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .speed-goal-column .goal-summary-row__sprite {
+    height: 40px;
+    width: 40px;
+  }
+
+  .speed-goal-column .goal-summary-row__edit {
+    display: none;
+  }
+}
