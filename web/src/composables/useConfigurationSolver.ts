@@ -1,4 +1,12 @@
-import { computed, ref, watch } from 'vue';
+import {
+  computed,
+  getCurrentInstance,
+  inject,
+  provide,
+  ref,
+  watch,
+  type InjectionKey,
+} from 'vue';
 import {
   getPokemonDetail,
   listBattleItems,
@@ -12,15 +20,19 @@ import {
   type StatPreset,
 } from '../api/calculator';
 import {
-  searchConfigurationSpreads,
-  solveConfiguration,
   type ConfigurationGoalKind,
   type ConfigurationGoalRequest,
   type ConfigurationSearchMode,
   type DamageRollPolicy,
   type GoalVerification,
-  type SolveConfigurationResponse,
 } from '../api/configurationSolver';
+import {
+  searchConfigurationSpreadsWithSpeed,
+  solveConfigurationWithSpeed,
+  type ConfigurationSpeedGoalRequest,
+  type SpeedAwareSolveConfigurationResponse,
+  type SpeedGoalVerification,
+} from '../api/configurationSpeedGoals';
 
 export interface EditableSolverGoal {
   id: string;
@@ -36,10 +48,24 @@ export interface EditableSolverGoal {
   rollPolicy: DamageRollPolicy;
 }
 
+export interface EditableSpeedGoal {
+  id: string;
+  target: PokemonDetail | null;
+  targetPreset: string;
+  targetLoading: boolean;
+}
+
 const DEFAULT_PRESETS = ['max_hp_def_plus', 'max_hp_spdef_plus', 'max_spatk_plus', 'max_atk_plus'];
 
-/** 管理配置反向求解页面的 Pokémon、机制选择、目标列表、搜索模式和提交状态。 */
-export function useConfigurationSolver() {
+/**
+ * 创建配置反向求解页面的一套独立状态。
+ *
+ * 状态同时维护攻目标、防目标和严格速度目标；App 会把同一实例提供给主页面与速度目标
+ * Teleport 组件。单元测试直接调用时仍会得到独立实例，避免跨用例污染。
+ *
+ * @returns 包含页面状态、目标编辑方法、提交动作和结果证据的组合式 API。
+ */
+export function createConfigurationSolver() {
   const rulesetId = ref('pokemon-champion');
   const level = ref(50);
   const searchMode = ref<ConfigurationSearchMode>('preset');
@@ -51,29 +77,32 @@ export function useConfigurationSolver() {
   const itemOptions = ref<BattleItemOption[]>([]);
   const itemsLoading = ref(false);
   const goals = ref<EditableSolverGoal[]>([]);
+  const speedGoals = ref<EditableSpeedGoal[]>([]);
   const statPresets = ref<StatPreset[]>([]);
   const selectedPresetKeys = ref<string[]>([...DEFAULT_PRESETS]);
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const result = ref<SolveConfigurationResponse | null>(null);
+  const result = ref<SpeedAwareSolveConfigurationResponse | null>(null);
 
   const canSubmit = computed(() => {
     const searchInputReady = searchMode.value === 'spread'
       || selectedPresetKeys.value.length > 0;
+    const hasAnyGoal = goals.value.length > 0 || speedGoals.value.length > 0;
     return Boolean(
       subject.value
         && subjectAbilityIdentifier.value
-        && goals.value.length > 0
+        && hasAnyGoal
         && goals.value.every(isGoalComplete)
+        && speedGoals.value.every(isSpeedGoalComplete)
         && searchInputReady
         && !loading.value,
     );
   });
 
   /**
-   * 判断一条目标是否已经包含可提交的 Pokémon、招式和机制选择。
+   * 判断一条伤害目标是否已经包含可提交的 Pokémon、招式和机制选择。
    *
-   * @param goal 新增或编辑弹窗中的目标草稿。
+   * @param goal 新增或编辑弹窗中的伤害目标草稿。
    * @returns 所有必填字段完整且次数有效时返回 true。
    */
   function isGoalComplete(goal: EditableSolverGoal): boolean {
@@ -87,9 +116,19 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 创建一条尚未写入已选列表的目标草稿。
+   * 判断速度目标是否已经选择参照 Pokémon 与明确配置。
    *
-   * @param kind attack 表示待配置 Pokémon 主动攻击，defense 表示待配置 Pokémon 承受攻击。
+   * @param goal 新增或编辑中的速度目标草稿。
+   * @returns 可以提交严格速度比较时返回 true。
+   */
+  function isSpeedGoalComplete(goal: EditableSpeedGoal): boolean {
+    return Boolean(goal.target && goal.targetPreset);
+  }
+
+  /**
+   * 创建一条尚未写入已选列表的伤害目标草稿。
+   *
+   * @param kind attack 表示待配置 Pokémon 主动攻击，defense 表示承受攻击。
    * @returns 带对应默认配置和随机伤害档的独立目标对象。
    */
   function createGoalDraft(kind: ConfigurationGoalKind): EditableSolverGoal {
@@ -109,23 +148,46 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 为编辑弹窗复制一份与已选列表隔离的目标快照。
+   * 创建一条严格速度目标草稿。
    *
-   * @param goal 当前已保存的目标。
-   * @returns 可独立修改的浅层业务快照；数组字段会额外复制，避免取消编辑时污染列表。
+   * @returns 默认使用极限速度配置作为参照的独立目标对象。
+   */
+  function createSpeedGoalDraft(): EditableSpeedGoal {
+    return {
+      id: `speed-goal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      target: null,
+      targetPreset: 'max_speed_plus',
+      targetLoading: false,
+    };
+  }
+
+  /**
+   * 为伤害目标编辑弹窗复制一份与已选列表隔离的快照。
+   *
+   * @param goal 当前已保存的伤害目标。
+   * @returns 可独立修改的深层业务快照。
    */
   function cloneGoal(goal: EditableSolverGoal): EditableSolverGoal {
     return {
       ...goal,
-      target: goal.target === null ? null : {
-        ...goal.target,
-        types: [...goal.target.types],
-        type_names: [...goal.target.type_names],
-        base_stats: { ...goal.target.base_stats },
-      },
+      target: clonePokemonDetail(goal.target),
       move: goal.move === null ? null : { ...goal.move },
       targetAbilityOptions: [...goal.targetAbilityOptions],
       targetAbilitiesLoading: false,
+    };
+  }
+
+  /**
+   * 为速度目标编辑弹窗复制一份与已选列表隔离的快照。
+   *
+   * @param goal 当前已保存的速度目标。
+   * @returns 取消编辑不会污染原列表的目标副本。
+   */
+  function cloneSpeedGoal(goal: EditableSpeedGoal): EditableSpeedGoal {
+    return {
+      ...goal,
+      target: clonePokemonDetail(goal.target),
+      targetLoading: false,
     };
   }
 
@@ -141,7 +203,7 @@ export function useConfigurationSolver() {
     }
   }
 
-  /** 初始化当前规则集可展示的道具目录，并修正已经失效的选择。 */
+  /** 初始化当前规则集可展示的道具目录，并修正已经失效的伤害目标选择。 */
   async function loadItems(): Promise<void> {
     itemsLoading.value = true;
     try {
@@ -196,14 +258,11 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 原子地设置目标草稿中的 Pokémon，并读取详情与合法特性。
+   * 原子地设置伤害目标草稿中的 Pokémon，并读取详情与合法特性。
    *
-   * 网络请求和特性完整性校验全部成功后才替换草稿内容；失败时保留原 Pokémon、招式和机制
-   * 选择。弹窗保存前不会修改已选列表，因此取消编辑不会产生任何列表副作用。
-   *
-   * @param goal 新增或编辑弹窗中的独立目标草稿。
+   * @param goal 新增或编辑弹窗中的独立伤害目标草稿。
    * @param item 搜索选择器返回的 Pokémon。
-   * @returns 详情和默认特性均加载成功时返回 true；失败时保留原状态并返回 false。
+   * @returns 详情和默认特性均加载成功时返回 true；失败时保留原状态。
    */
   async function selectGoalTarget(
     goal: EditableSolverGoal,
@@ -222,7 +281,7 @@ export function useConfigurationSolver() {
         return false;
       }
 
-      // 所有依赖均已准备完成后再一次性提交草稿状态，避免旧目标出现半更新。
+      // 所有依赖均准备完成后再一次性提交草稿，避免旧目标出现半更新。
       goal.target = detail;
       goal.move = null;
       goal.targetAbilityOptions = abilities;
@@ -239,46 +298,76 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 将完整弹窗草稿保存为列表中的一条紧凑目标。
+   * 设置速度目标的参照 Pokémon；速度比较不读取道具、特性或招式。
    *
-   * 相同 id 表示编辑已有目标并执行原子替换；新 id 表示新增。保存时再次复制草稿，保证弹窗关闭后
-   * 不会继续持有列表对象的可变引用。
+   * @param goal 新增或编辑中的速度目标草稿。
+   * @param item 用户选中的参照 Pokémon。
+   * @returns 目标详情加载成功时返回 true；失败时保留旧目标并返回 false。
+   */
+  async function selectSpeedGoalTarget(
+    goal: EditableSpeedGoal,
+    item: PokemonSearchItem,
+  ): Promise<boolean> {
+    error.value = null;
+    goal.targetLoading = true;
+    try {
+      const detail = await getPokemonDetail(item.pokemon_id, rulesetId.value);
+      goal.target = detail;
+      goal.targetPreset = 'max_speed_plus';
+      return true;
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '无法加载速度目标 Pokémon 资料';
+      return false;
+    } finally {
+      goal.targetLoading = false;
+    }
+  }
+
+  /**
+   * 将完整伤害目标草稿保存为列表中的紧凑目标。
    *
-   * @param draft 已完成 Pokémon、配置、道具、特性、招式和次数选择的目标草稿。
-   * @returns 保存成功时返回 true；必填字段不完整时返回 false 并设置页面错误。
+   * @param draft 已完成 Pokémon、配置、机制、招式和次数选择的草稿。
+   * @returns 保存成功时返回 true；必填字段不完整时返回 false。
    */
   function saveGoalDraft(draft: EditableSolverGoal): boolean {
     if (!isGoalComplete(draft)) {
       error.value = '请完成目标 Pokémon、配置、道具、特性和招式选择';
       return false;
     }
-
-    const savedGoal = cloneGoal(draft);
-    const existingIndex = goals.value.findIndex((goal) => goal.id === draft.id);
-    if (existingIndex < 0) {
-      goals.value.push(savedGoal);
-    } else {
-      goals.value.splice(existingIndex, 1, savedGoal);
-    }
+    saveById(goals.value, cloneGoal(draft));
     result.value = null;
     error.value = null;
     return true;
   }
 
   /**
-   * 删除指定目标；允许清空全部目标，空列表表示当前没有求解约束。
+   * 将完整速度目标草稿保存为速度列中的紧凑目标。
    *
-   * @param goalId 要删除的目标 ID。
+   * @param draft 已选择参照 Pokémon 和配置的草稿。
+   * @returns 保存成功时返回 true；信息不完整时返回 false。
    */
+  function saveSpeedGoalDraft(draft: EditableSpeedGoal): boolean {
+    if (!isSpeedGoalComplete(draft)) {
+      error.value = '请完成速度目标 Pokémon 和配置选择';
+      return false;
+    }
+    saveById(speedGoals.value, cloneSpeedGoal(draft));
+    result.value = null;
+    error.value = null;
+    return true;
+  }
+
+  /** 删除指定伤害目标。 */
   function removeGoal(goalId: string): void {
     goals.value = goals.value.filter((goal) => goal.id !== goalId);
   }
 
-  /**
-   * 把页面中的目标快照转换成模板求解和属性反推共用的 API 输入。
-   *
-   * @returns 保留目标 Pokémon、招式、配置、机制和伤害档口径的请求数组。
-   */
+  /** 删除指定严格速度目标。 */
+  function removeSpeedGoal(goalId: string): void {
+    speedGoals.value = speedGoals.value.filter((goal) => goal.id !== goalId);
+  }
+
+  /** 把页面中的伤害目标快照转换成 API 输入。 */
   function goalRequests(): ConfigurationGoalRequest[] {
     return goals.value.map((goal) => ({
       goal_id: goal.id,
@@ -294,11 +383,19 @@ export function useConfigurationSolver() {
     }));
   }
 
+  /** 把页面中的严格速度目标转换成 API 输入。 */
+  function speedGoalRequests(): ConfigurationSpeedGoalRequest[] {
+    return speedGoals.value.map((goal) => ({
+      goal_id: goal.id,
+      target_pokemon_id: goal.target?.pokemon_id ?? 0,
+      target_stat_preset: goal.targetPreset,
+    }));
+  }
+
   /**
-   * 按当前全局模式提交模板验证或 EV/IV/性格反推请求。
+   * 按全局模式提交模板验证或 EV、IV 与性格反推请求。
    *
-   * 模板模式保持已有配置选择并最多返回三条；反推模式不提交待配置 Pokémon 的模板，
-   * 由服务端在合法 EV、IV 与性格空间中最多返回十条候选。
+   * 两种模式都会把伤害目标和严格速度目标作为同一套配置必须同时满足的约束。
    */
   async function submit(): Promise<void> {
     if (!subject.value || !canSubmit.value) return;
@@ -313,13 +410,14 @@ export function useConfigurationSolver() {
           subjectItemIdentifier.value === 'none' ? null : subjectItemIdentifier.value,
         level: level.value,
         goals: goalRequests(),
+        speed_goals: speedGoalRequests(),
       };
       result.value = searchMode.value === 'spread'
-        ? await searchConfigurationSpreads({
+        ? await searchConfigurationSpreadsWithSpeed({
           ...commonRequest,
           max_candidates: 10,
         })
-        : await solveConfiguration({
+        : await solveConfigurationWithSpeed({
           ...commonRequest,
           allowed_stat_presets: selectedPresetKeys.value,
           max_candidates: 3,
@@ -331,15 +429,29 @@ export function useConfigurationSolver() {
     }
   }
 
-  /** 返回用于不可达场景展示的目标证据。 */
+  /** 返回当前候选或不可达响应中的伤害目标证据。 */
   const visibleEvidence = computed<GoalVerification[]>(() => {
     if (!result.value) return [];
     if (result.value.reachable) return result.value.candidates[0]?.goals ?? [];
     return result.value.rejected_goals;
   });
 
+  /** 返回当前候选或不可达响应中的严格速度目标证据。 */
+  const visibleSpeedEvidence = computed<SpeedGoalVerification[]>(() => {
+    if (!result.value) return [];
+    if (result.value.reachable) return result.value.candidates[0]?.speed_goals ?? [];
+    return result.value.rejected_speed_goals;
+  });
+
   watch(
-    [searchMode, subjectAbilityIdentifier, subjectItemIdentifier, selectedPresetKeys, goals],
+    [
+      searchMode,
+      subjectAbilityIdentifier,
+      subjectItemIdentifier,
+      selectedPresetKeys,
+      goals,
+      speedGoals,
+    ],
     () => {
       if (result.value) result.value = null;
     },
@@ -358,6 +470,7 @@ export function useConfigurationSolver() {
     itemOptions,
     itemsLoading,
     goals,
+    speedGoals,
     statPresets,
     selectedPresetKeys,
     loading,
@@ -365,15 +478,82 @@ export function useConfigurationSolver() {
     result,
     canSubmit,
     visibleEvidence,
+    visibleSpeedEvidence,
     isGoalComplete,
+    isSpeedGoalComplete,
     createGoalDraft,
+    createSpeedGoalDraft,
     cloneGoal,
+    cloneSpeedGoal,
     loadPresets,
     loadItems,
     selectSubject,
     selectGoalTarget,
+    selectSpeedGoalTarget,
     saveGoalDraft,
+    saveSpeedGoalDraft,
     removeGoal,
+    removeSpeedGoal,
     submit,
   };
+}
+
+export type ConfigurationSolverState = ReturnType<typeof createConfigurationSolver>;
+
+const CONFIGURATION_SOLVER_KEY: InjectionKey<ConfigurationSolverState> = Symbol(
+  'configuration-solver',
+);
+
+/**
+ * 在 App 根组件提供一套共享求解状态。
+ *
+ * @returns 已提供给后代组件的求解状态，供根组件必要时直接访问。
+ */
+export function provideConfigurationSolver(): ConfigurationSolverState {
+  const solver = createConfigurationSolver();
+  provide(CONFIGURATION_SOLVER_KEY, solver);
+  return solver;
+}
+
+/**
+ * 读取上层提供的共享求解状态；测试或独立挂载时创建隔离实例。
+ *
+ * @returns 当前组件树共享的求解状态，或调用方专属的新状态。
+ */
+export function useConfigurationSolver(): ConfigurationSolverState {
+  if (getCurrentInstance() !== null) {
+    return inject(CONFIGURATION_SOLVER_KEY, null) ?? createConfigurationSolver();
+  }
+  return createConfigurationSolver();
+}
+
+/**
+ * 深复制 Pokémon 详情，避免弹窗草稿修改嵌套数组或种族值时污染已保存目标。
+ *
+ * @param pokemon 原始详情；null 表示尚未选择。
+ * @returns 与原对象无可变嵌套引用共享的新对象，或 null。
+ */
+function clonePokemonDetail(pokemon: PokemonDetail | null): PokemonDetail | null {
+  if (pokemon === null) return null;
+  return {
+    ...pokemon,
+    types: [...pokemon.types],
+    type_names: [...pokemon.type_names],
+    base_stats: { ...pokemon.base_stats },
+  };
+}
+
+/**
+ * 按稳定 ID 新增或原子替换目标快照。
+ *
+ * @param collection 当前响应式数组的可变值。
+ * @param item 已经完成深复制的目标快照。
+ */
+function saveById<T extends { id: string }>(collection: T[], item: T): void {
+  const existingIndex = collection.findIndex((candidate) => candidate.id === item.id);
+  if (existingIndex < 0) {
+    collection.push(item);
+  } else {
+    collection.splice(existingIndex, 1, item);
+  }
 }
