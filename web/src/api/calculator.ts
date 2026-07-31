@@ -60,10 +60,20 @@ export interface BattleItemOption {
   sprite_url: string | null;
 }
 
+export interface BattleAbilityOption {
+  ability_id: number;
+  identifier: string;
+  display_name: string;
+  slot: number;
+  is_hidden: boolean;
+  implemented: boolean;
+}
+
 export interface CalculatorPokemonInput {
   pokemon_id: number;
   level: number;
   stat_preset: string;
+  ability_identifier: string;
   item_identifier?: string | null;
 }
 
@@ -181,6 +191,17 @@ export function searchPokemon(query: string, rulesetId: string): Promise<Pokemon
 export function getPokemonDetail(pokemonId: number, rulesetId: string): Promise<PokemonDetail> {
   const params = new URLSearchParams({ ruleset_id: rulesetId });
   return requestJson<PokemonDetail>(`${API_BASE}/calculator/pokemon/${pokemonId}?${params.toString()}`);
+}
+
+/** 读取一只 Pokémon 在当前规则集下的全部合法特性和实现状态。 */
+export function listPokemonAbilities(
+  pokemonId: number,
+  rulesetId: string,
+): Promise<BattleAbilityOption[]> {
+  const params = new URLSearchParams({ ruleset_id: rulesetId });
+  return requestJson<BattleAbilityOption[]>(
+    `${API_BASE}/calculator/pokemon/${pokemonId}/abilities?${params.toString()}`,
+  );
 }
 
 /**
