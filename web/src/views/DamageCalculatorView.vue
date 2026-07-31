@@ -21,7 +21,7 @@ const {
   remember: rememberDefenderPokemon,
 } = useRecentPokemon();
 
-/** 初始化页面所需的服务端模板。 */
+/** 初始化页面所需的服务端模板和战斗道具。 */
 onMounted(() => {
   void calculator.loadPresets();
   void calculator.loadItems();
@@ -73,6 +73,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
         <ItemSelector
+          data-testid="attacker-item"
           title="携带道具"
           :items="calculator.itemOptions.value"
           :selected-identifier="calculator.attackerItemIdentifier.value"
@@ -99,7 +100,15 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
-        <section class="panel-block ability-placeholder" aria-label="特性选择预留"></section>
+        <ItemSelector
+          data-testid="defender-item"
+          title="携带道具"
+          :items="calculator.itemOptions.value"
+          :selected-identifier="calculator.defenderItemIdentifier.value"
+          :disabled="!calculator.defender.value"
+          :loading="calculator.itemsLoading.value"
+          @select="calculator.defenderItemIdentifier.value = $event.identifier"
+        />
         <StatConfigurationPicker
           v-model="calculator.defenderPreset.value"
           data-testid="defender-config"
@@ -144,9 +153,5 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
 .move-stage {
   width: 100%;
   margin: 20px 0 0;
-}
-
-.ability-placeholder {
-  min-height: 78px;
 }
 </style>
