@@ -9,6 +9,7 @@ import {
   type PokemonDetail,
   type PokemonSearchItem,
 } from '../api/calculator';
+import ItemSelector from '../components/ItemSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import DamageCalculatorView from './DamageCalculatorView.vue';
 
@@ -146,26 +147,43 @@ describe('DamageCalculatorView', () => {
     });
   });
 
-  it('places item selection between attacker summary and stats while leaving the ability slot blank', async () => {
+  it('places independent item selectors between both summaries and stat configurations', async () => {
     /**
-     * 双栏内部必须拥有相同的 Pokémon、摘要、配置顺序。攻击方道具选择位于摘要和配置之间；
-     * 防守方同位置暂时留给特性选择，MoveSelector 仍位于 calculator-grid 之后的居中区域。
+     * 攻击方与防守方都必须在 Pokémon 摘要和能力配置之间展示独立的 ItemSelector，并且共享同一份服务端
+     * 道具候选列表但维护各自的 selectedIdentifier。测试同时检查两个选择器初始都显示“不携带道具”、尚未
+     * 选择对应 Pokémon 时保持禁用、双方列内排列顺序一致，以及 MoveSelector 仍然只出现在双栏之后并占满
+     * calculator 主区域宽度。该场景防止后续视觉调整再次把防守方道具入口替换为空白占位，或错误复用攻击方
+     * 的选择状态，同时保护最新招式区域布局不被本功能回退。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
 
     const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
     const defenderColumn = wrapper.get('[data-testid="defender-column"]');
-    const itemSelector = attackerColumn.get('.item-selector');
+    const itemSelectors = wrapper.findAllComponents(ItemSelector);
+    expect(itemSelectors).toHaveLength(2);
+
+    const attackerItemSelector = attackerColumn.get('[data-testid="attacker-item"]');
+    const defenderItemSelector = defenderColumn.get('[data-testid="defender-item"]');
     expect(attackerColumn.find('[data-testid="attacker-config"]').exists()).toBe(true);
     expect(defenderColumn.find('[data-testid="defender-config"]').exists()).toBe(true);
-    expect(itemSelector.text()).toContain('不携带道具');
-    expect(defenderColumn.get('.ability-placeholder').text()).toBe('');
+    expect(attackerItemSelector.text()).toContain('不携带道具');
+    expect(defenderItemSelector.text()).toContain('不携带道具');
+    expect(itemSelectors[0].props('selectedIdentifier')).toBe('none');
+    expect(itemSelectors[1].props('selectedIdentifier')).toBe('none');
+    expect(itemSelectors[0].props('disabled')).toBe(true);
+    expect(itemSelectors[1].props('disabled')).toBe(true);
     expect(attackerColumn.find('.move-selector').exists()).toBe(false);
     expect(defenderColumn.find('.move-selector').exists()).toBe(false);
 
     const attackerConfig = attackerColumn.get('[data-testid="attacker-config"]').element;
-    expect(itemSelector.element.compareDocumentPosition(attackerConfig) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const defenderConfig = defenderColumn.get('[data-testid="defender-config"]').element;
+    expect(
+      attackerItemSelector.element.compareDocumentPosition(attackerConfig) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      defenderItemSelector.element.compareDocumentPosition(defenderConfig) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     const moveStage = wrapper.get('[data-testid="move-stage"]');
     expect(moveStage.findAll('.move-selector')).toHaveLength(1);
