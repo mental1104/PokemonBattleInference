@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import ConfigurationSpeedGoalFeature from './components/ConfigurationSpeedGoalFeature.vue';
 import './components/configurationSpeedGoals.css';
 import { provideConfigurationSolver } from './composables/useConfigurationSolver';
@@ -14,6 +14,7 @@ type AppView = 'home' | 'inference-job';
 const activeTab = ref<HomeTab>('calculator');
 const currentView = ref<AppView>(initialView());
 const activeJobId = ref<string | null>(initialJobId());
+const solverFeatureReady = ref(false);
 
 // 主页面和 Teleport 速度目标组件必须共享同一组目标与结果状态。
 provideConfigurationSolver();
@@ -21,6 +22,14 @@ provideConfigurationSolver();
 const showJobDetail = computed(
   () => currentView.value === 'inference-job' && activeJobId.value !== null,
 );
+
+watch(activeTab, async (tab) => {
+  solverFeatureReady.value = false;
+  if (tab !== 'solver') return;
+  // 等主求解视图生成 .goal-columns 后再挂载 Teleport，避免首次切换找不到目标节点。
+  await nextTick();
+  solverFeatureReady.value = true;
+});
 
 /**
  * 切换首页主要产品能力。
@@ -118,7 +127,7 @@ function backToInference(): void {
       <ConfigurationSolverView v-else />
     </KeepAlive>
     <ConfigurationSpeedGoalFeature
-      v-if="!showJobDetail && activeTab === 'solver'"
+      v-if="!showJobDetail && activeTab === 'solver' && solverFeatureReady"
     />
   </div>
 </template>
