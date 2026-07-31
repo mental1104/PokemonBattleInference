@@ -3,7 +3,7 @@
 from pokeop.persistence.calculator.ability_repository import (
     MaterializedViewCalculatorAbilityRepository,
 )
-from pokeop.persistence.calculator.repository import (
+from pokeop.persistence.calculator.item_catalog_repository import (
     MaterializedViewCalculatorRepository,
 )
 
