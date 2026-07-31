@@ -18,6 +18,18 @@ vi.mock('../api/calculator', () => ({
   listBattleItems: vi.fn(),
   listPokemonAbilities: vi.fn(),
   listStatPresets: vi.fn(),
+  createNeutralBattleStatStages: vi.fn(() => ({
+    attack: 0,
+    defense: 0,
+    special_attack: 0,
+    special_defense: 0,
+    speed: 0,
+    accuracy: 0,
+    evasion: 0,
+  })),
+  hasNonNeutralBattleStatStages: vi.fn((stages) =>
+    Object.values(stages).some((value) => value !== 0),
+  ),
 }));
 
 const calculateDamageMock = vi.mocked(calculateDamage);
@@ -198,6 +210,78 @@ describe('useDamageCalculator', () => {
     expect(calculator.staleResult.value).toBe(false);
 
     calculator.defenderItemIdentifier.value = 'none';
+    await nextTick();
+
+    expect(calculator.staleResult.value).toBe(true);
+  });
+
+  it('submits non-neutral stat stages independently and invalidates the result when they change', async () => {
+    /**
+     * 攻击方攻击正二与命中正一、防守方防御负一与回避正二必须作为两份独立 stat_stages 快照进入请求，
+     * 而不是共享同一个对象或只提交影响伤害的四项字段。计算完成后再次替换攻击方速度等级，旧结果应立即
+     * 标记为 stale，证明速度、命中和回避虽然当前不改变单次伤害值，仍属于用户输入和结果有效性合同。
+     * 该测试同时保护中性请求继续省略 stat_stages 以兼容旧客户端，而非中性请求完整发送七项字段，避免
+     * 后端默认值吞掉用户在摘要卡红框中的选择。
+     */
+    const calculator = useDamageCalculator();
+    calculator.attacker.value = ATTACKER;
+    calculator.defender.value = DEFENDER;
+    calculator.move.value = MOVE;
+    calculator.attackerAbilityIdentifier.value = 'technician';
+    calculator.defenderAbilityIdentifier.value = 'static';
+    calculator.attackerStatStages.value = {
+      attack: 2,
+      defense: 0,
+      special_attack: 0,
+      special_defense: 0,
+      speed: 0,
+      accuracy: 1,
+      evasion: 0,
+    };
+    calculator.defenderStatStages.value = {
+      attack: 0,
+      defense: -1,
+      special_attack: 0,
+      special_defense: 0,
+      speed: 0,
+      accuracy: 0,
+      evasion: 2,
+    };
+
+    await calculator.submit();
+
+    expect(calculateDamageMock).toHaveBeenCalledWith({
+      ruleset_id: 'pokemon-champion',
+      attacker: expect.objectContaining({
+        stat_stages: {
+          attack: 2,
+          defense: 0,
+          special_attack: 0,
+          special_defense: 0,
+          speed: 0,
+          accuracy: 1,
+          evasion: 0,
+        },
+      }),
+      defender: expect.objectContaining({
+        stat_stages: {
+          attack: 0,
+          defense: -1,
+          special_attack: 0,
+          special_defense: 0,
+          speed: 0,
+          accuracy: 0,
+          evasion: 2,
+        },
+      }),
+      move_id: 418,
+    });
+    expect(calculator.staleResult.value).toBe(false);
+
+    calculator.attackerStatStages.value = {
+      ...calculator.attackerStatStages.value,
+      speed: 1,
+    };
     await nextTick();
 
     expect(calculator.staleResult.value).toBe(true);
