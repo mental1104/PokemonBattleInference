@@ -4,6 +4,10 @@ import pytest
 from fastapi import HTTPException
 
 from pokeop.api.routers import assets
+from pokeop.application.use_cases.get_item_sprite import (
+    GetItemSpriteUseCase,
+    ItemSpriteContent,
+)
 from pokeop.application.use_cases.get_pokemon_sprite import (
     GetPokemonSpriteUseCase,
     PokemonSpriteContent,
@@ -82,6 +86,30 @@ class FakeTypeSpriteRepository:
             mime_type="image/png",
             sha256="type456",
             content=b"\x89PNGtype",
+        )
+
+
+class FakeItemSpriteRepository:
+    """用于道具图标 router 测试的内存 repository。"""
+
+    def __init__(self, *, found: bool = True) -> None:
+        """配置 fake repository 是否返回 item 图标。
+
+        Args:
+            found: False 时模拟道具不存在或对应图标尚未导入。
+        """
+        self._found = found
+
+    def get_item_sprite(self, *, item_identifier: str) -> ItemSpriteContent | None:
+        """返回固定道具 PNG 内容，或模拟资源不存在。"""
+        if not self._found:
+            return None
+        return ItemSpriteContent(
+            asset_id=3,
+            item_identifier=item_identifier,
+            mime_type="image/png",
+            sha256="item789",
+            content=b"\x89PNGitem",
         )
 
 
@@ -176,3 +204,32 @@ async def test_type_assets_api_returns_404_when_sprite_is_missing() -> None:
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == "type sprite not found"
+
+
+@pytest.mark.anyio
+async def test_item_assets_api_returns_binary_png_with_etag() -> None:
+    """道具图片 API 成功时返回二进制内容、Content-Type、ETag 和缓存头。"""
+    response = await assets.get_item_sprite(
+        item_identifier="life-orb",
+        if_none_match=None,
+        use_case=GetItemSpriteUseCase(FakeItemSpriteRepository()),
+    )
+
+    assert response.status_code == 200
+    assert response.body == b"\x89PNGitem"
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["etag"] == '"item789"'
+
+
+@pytest.mark.anyio
+async def test_item_assets_api_returns_404_when_sprite_is_missing() -> None:
+    """道具不存在或图标未导入时返回 404。"""
+    with pytest.raises(HTTPException) as exc_info:
+        await assets.get_item_sprite(
+            item_identifier="life-orb",
+            if_none_match=None,
+            use_case=GetItemSpriteUseCase(FakeItemSpriteRepository(found=False)),
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "item sprite not found"

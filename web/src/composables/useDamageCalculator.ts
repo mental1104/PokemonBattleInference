@@ -2,7 +2,9 @@ import { computed, ref, watch } from 'vue';
 import {
   calculateDamage,
   getPokemonDetail,
+  listBattleItems,
   listStatPresets,
+  type BattleItemOption,
   type CalculateDamageResponse,
   type MoveSearchItem,
   type PokemonDetail,
@@ -19,6 +21,9 @@ export function useDamageCalculator() {
   const attacker = ref<PokemonDetail | null>(null);
   const defender = ref<PokemonDetail | null>(null);
   const move = ref<MoveSearchItem | null>(null);
+  const attackerItemIdentifier = ref('none');
+  const itemOptions = ref<BattleItemOption[]>([]);
+  const itemsLoading = ref(false);
   const attackerPreset = ref('max_atk_neutral');
   const defenderPreset = ref('max_hp');
   const attackerPresets = ref<StatPreset[]>([]);
@@ -47,6 +52,23 @@ export function useDamageCalculator() {
       defenderPresets.value = presets.defender;
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '无法加载配置模板';
+    }
+  }
+
+  /** 初始化当前规则集可选择的已实现战斗持有道具。 */
+  async function loadItems(): Promise<void> {
+    itemsLoading.value = true;
+    try {
+      itemOptions.value = await listBattleItems(rulesetId.value);
+      if (!itemOptions.value.some((item) => item.identifier === attackerItemIdentifier.value)) {
+        attackerItemIdentifier.value = itemOptions.value[0]?.identifier ?? 'none';
+      }
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '无法加载道具列表';
+      itemOptions.value = [];
+      attackerItemIdentifier.value = 'none';
+    } finally {
+      itemsLoading.value = false;
     }
   }
 
@@ -82,6 +104,7 @@ export function useDamageCalculator() {
           pokemon_id: attacker.value.pokemon_id,
           level: level.value,
           stat_preset: attackerPreset.value,
+          item_identifier: attackerItemIdentifier.value === 'none' ? null : attackerItemIdentifier.value,
         },
         defender: {
           pokemon_id: defender.value.pokemon_id,
@@ -99,7 +122,7 @@ export function useDamageCalculator() {
   }
 
   /** 任一输入变化后标记旧结果过期，避免页面继续显示为有效结论。 */
-  watch([attacker, defender, move, attackerPreset, defenderPreset], () => {
+  watch([attacker, defender, move, attackerPreset, defenderPreset, attackerItemIdentifier], () => {
     if (result.value) staleResult.value = true;
   });
 
@@ -109,6 +132,9 @@ export function useDamageCalculator() {
     attacker,
     defender,
     move,
+    attackerItemIdentifier,
+    itemOptions,
+    itemsLoading,
     attackerPreset,
     defenderPreset,
     attackerPresets,
@@ -120,6 +146,7 @@ export function useDamageCalculator() {
     state,
     canCalculate,
     loadPresets,
+    loadItems,
     selectAttacker,
     selectDefender,
     submit,

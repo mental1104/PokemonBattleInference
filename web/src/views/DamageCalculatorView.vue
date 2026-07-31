@@ -3,6 +3,7 @@ import { onMounted } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
 import CalculationScope from '../components/CalculationScope.vue';
 import DamageResult from '../components/DamageResult.vue';
+import ItemSelector from '../components/ItemSelector.vue';
 import MoveSelector from '../components/MoveSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import PokemonSummaryCard from '../components/PokemonSummaryCard.vue';
@@ -23,6 +24,7 @@ const {
 /** 初始化页面所需的服务端模板。 */
 onMounted(() => {
   void calculator.loadPresets();
+  void calculator.loadItems();
 });
 
 /**
@@ -70,6 +72,14 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectAttacker"
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
+        <ItemSelector
+          title="携带道具"
+          :items="calculator.itemOptions.value"
+          :selected-identifier="calculator.attackerItemIdentifier.value"
+          :disabled="!calculator.attacker.value"
+          :loading="calculator.itemsLoading.value"
+          @select="calculator.attackerItemIdentifier.value = $event.identifier"
+        />
         <StatConfigurationPicker
           v-model="calculator.attackerPreset.value"
           data-testid="attacker-config"
@@ -89,6 +99,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
+        <section class="panel-block ability-placeholder" aria-label="特性选择预留"></section>
         <StatConfigurationPicker
           v-model="calculator.defenderPreset.value"
           data-testid="defender-config"
@@ -133,5 +144,9 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
 .move-stage {
   width: min(800px, 100%);
   margin: 20px auto 0;
+}
+
+.ability-placeholder {
+  min-height: 78px;
 }
 </style>

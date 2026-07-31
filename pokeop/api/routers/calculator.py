@@ -3,12 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from pokeop.api.schemas.calculator import (
+    BattleItemOptionResponse,
     CalculateDamageRequest,
     CalculateDamageResponse,
     MoveSearchPageResponse,
     PokemonDetailResponse,
     PokemonSearchItem,
     StatPresetResponse,
+    battle_item_option_from_result,
     damage_response_from_result,
     move_search_page_from_result,
     pokemon_detail_from_profile,
@@ -130,6 +132,18 @@ async def list_stat_presets() -> dict[str, list[StatPresetResponse]]:
     }
 
 
+@router.get("/items", response_model=list[BattleItemOptionResponse])
+async def list_battle_item_options(
+    ruleset_id: str = Query(default=DEFAULT_RULESET_ID, description="当前规则集。"),
+    repository: CalculatorCatalogRepository = Depends(get_calculator_repository),
+) -> list[BattleItemOptionResponse]:
+    """返回基础伤害计算器当前可选择的已实现战斗持有道具。"""
+    return [
+        battle_item_option_from_result(item)
+        for item in repository.list_battle_item_options(ruleset_id=ruleset_id)
+    ]
+
+
 @router.post("/damage", response_model=CalculateDamageResponse)
 async def calculate_damage(
     request: CalculateDamageRequest,
@@ -144,11 +158,13 @@ async def calculate_damage(
                     pokemon_id=request.attacker.pokemon_id,
                     level=request.attacker.level,
                     stat_preset=request.attacker.stat_preset,
+                    item_identifier=request.attacker.item_identifier,
                 ),
                 defender=CalculateCatalogPokemonCommand(
                     pokemon_id=request.defender.pokemon_id,
                     level=request.defender.level,
                     stat_preset=request.defender.stat_preset,
+                    item_identifier=request.defender.item_identifier,
                 ),
                 move_id=request.move_id,
             )

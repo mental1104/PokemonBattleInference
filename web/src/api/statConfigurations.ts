@@ -134,23 +134,6 @@ export function deleteStatConfiguration(configId: string): Promise<void> {
   });
 }
 
-/** 隐藏或恢复配置显示。 */
-export function setStatConfigurationHidden(params: {
-  role: 'attacker' | 'defender';
-  source: StatConfigurationSource;
-  key: string;
-  hidden: boolean;
-}): Promise<void> {
-  return requestJson<void>('/stat-configurations/hidden', {
-    method: 'POST',
-    body: JSON.stringify({
-      role: params.role,
-      reference: { source: params.source, key: params.key },
-      hidden: params.hidden,
-    }),
-  });
-}
-
 /** 批量保存配置排序。 */
 export function saveStatConfigurationOrder(params: {
   role: 'attacker' | 'defender';

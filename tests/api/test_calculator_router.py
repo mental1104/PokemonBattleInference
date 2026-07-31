@@ -115,3 +115,34 @@ async def test_calculator_damage_api_uses_stat_configuration_snapshot():
 
     assert response.attacker.effective_attack == 200
     assert response.damage.min > 99
+
+
+@pytest.mark.anyio
+async def test_calculator_damage_api_passes_attacker_item_identifier():
+    """计算请求中的 item_identifier 必须进入 application，并触发已实现道具 modifier。"""
+    request = _request()
+    request.attacker.item_identifier = "life-orb"
+
+    response = await calculator.calculate_damage(
+        request,
+        use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository()),
+    )
+
+    assert response.damage.min > 99
+    assert any(item.key == "item:life_orb" for item in response.modifiers)
+
+
+@pytest.mark.anyio
+async def test_calculator_items_api_returns_database_mapping_with_sprite_url():
+    """道具枚举 API 必须暴露数据库 ID、PokeAPI identifier、展示名和项目内图标 URL。"""
+    response = await calculator.list_battle_item_options(
+        ruleset_id="pokemon-champion",
+        repository=FakeCalculatorRepository(),
+    )
+
+    assert response[0].identifier == "none"
+    assert response[0].sprite_url is None
+    assert response[1].item_id == 247
+    assert response[1].identifier == "life-orb"
+    assert response[1].effect_identifier == "life-orb"
+    assert response[1].sprite_url == "/api/v1/assets/items/life-orb/sprite"

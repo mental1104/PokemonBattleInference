@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response
 
 from pokeop.application.use_cases.calculate_catalog_damage import DEFAULT_RULESET_ID
+from pokeop.application.use_cases.get_item_sprite import (
+    GetItemSpriteCommand,
+    GetItemSpriteUseCase,
+    ItemSpriteRepository,
+)
 from pokeop.application.use_cases.get_pokemon_sprite import (
     GetPokemonSpriteCommand,
     GetPokemonSpriteUseCase,
@@ -15,6 +20,7 @@ from pokeop.application.use_cases.get_type_sprite import (
 )
 from pokeop.persistence.assets import (
     MaterializedViewSpriteRepository,
+    RawItemSpriteRepository,
     RawTypeSpriteRepository,
 )
 
@@ -65,6 +71,22 @@ def get_type_sprite_use_case(
         已注入 repository 的属性图片读取 use case。
     """
     return GetTypeSpriteUseCase(repository)
+
+
+def get_item_sprite_repository() -> ItemSpriteRepository:
+    """创建道具图标资产 repository 依赖。
+
+    Returns:
+        从 ``poke_raw`` 固定 item sprite 路径读取道具图标的 repository 实例。
+    """
+    return RawItemSpriteRepository()
+
+
+def get_item_sprite_use_case(
+    repository: ItemSpriteRepository = Depends(get_item_sprite_repository),
+) -> GetItemSpriteUseCase:
+    """创建道具图标读取 use case，供 FastAPI dependency override 替换。"""
+    return GetItemSpriteUseCase(repository)
 
 
 def _normalize_etag(value: str | None) -> str | None:
@@ -193,7 +215,47 @@ async def get_type_sprite(
     )
 
 
+@router.get("/items/{item_identifier}/sprite")
+async def get_item_sprite(
+    item_identifier: str = Path(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9-]+$",
+        description="PokeAPI 道具 identifier。",
+    ),
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+    use_case: GetItemSpriteUseCase = Depends(get_item_sprite_use_case),
+) -> Response:
+    """返回 PokeAPI item 图标。
+
+    Args:
+        item_identifier: PokeAPI 稳定道具 identifier，例如 ``life-orb``。
+        if_none_match: 浏览器缓存协商头。
+        use_case: 道具图片读取 application use case。
+
+    Returns:
+        从 PostgreSQL BYTEA 读取的 PNG 响应；ETag 命中时返回 304。
+
+    Raises:
+        HTTPException: 道具不存在或对应图片尚未导入时返回 404。
+    """
+    asset = use_case.execute(
+        GetItemSpriteCommand(item_identifier=item_identifier),
+    )
+    if asset is None:
+        raise HTTPException(status_code=404, detail="item sprite not found")
+    return _binary_asset_response(
+        content=asset.content,
+        mime_type=asset.mime_type,
+        sha256=asset.sha256,
+        if_none_match=if_none_match,
+    )
+
+
 __all__ = [
+    "get_item_sprite",
+    "get_item_sprite_repository",
+    "get_item_sprite_use_case",
     "get_pokemon_sprite",
     "get_sprite_repository",
     "get_sprite_use_case",

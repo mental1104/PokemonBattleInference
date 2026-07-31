@@ -204,10 +204,11 @@
 
 .move-option-card--selected {
   border-color: var(--move-type-color);
-  background: color-mix(in srgb, var(--move-type-color) 18%, white);
+  border-left-width: 8px;
+  background: color-mix(in srgb, var(--move-type-color) 32%, white);
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--move-type-color) 28%, transparent),
-    0 5px 16px rgba(23, 32, 27, 0.11);
+    0 0 0 3px color-mix(in srgb, var(--move-type-color) 38%, transparent),
+    0 7px 18px rgba(23, 32, 27, 0.14);
 }
 
 .move-more-button {

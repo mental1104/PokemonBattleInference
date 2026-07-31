@@ -52,10 +52,19 @@ export interface StatPreset {
   assumption: string;
 }
 
+export interface BattleItemOption {
+  item_id: number | null;
+  identifier: string;
+  display_name: string;
+  effect_identifier: string | null;
+  sprite_url: string | null;
+}
+
 export interface CalculatorPokemonInput {
   pokemon_id: number;
   level: number;
   stat_preset: string;
+  item_identifier?: string | null;
 }
 
 export interface CalculateDamageRequest {
@@ -205,6 +214,12 @@ export function listPokemonMoves(
 /** 读取 application 同源配置模板，避免前端自行解释 EV/性格含义。 */
 export function listStatPresets(): Promise<{ attacker: StatPreset[]; defender: StatPreset[] }> {
   return requestJson<{ attacker: StatPreset[]; defender: StatPreset[] }>(`${API_BASE}/calculator/presets`);
+}
+
+/** 读取基础伤害计算器可选择的已实现战斗持有道具。 */
+export function listBattleItems(rulesetId: string): Promise<BattleItemOption[]> {
+  const params = new URLSearchParams({ ruleset_id: rulesetId });
+  return requestJson<BattleItemOption[]>(`${API_BASE}/calculator/items?${params.toString()}`);
 }
 
 /** 提交基础伤害计算请求，派生战斗资料全部由服务端查询和校验。 */

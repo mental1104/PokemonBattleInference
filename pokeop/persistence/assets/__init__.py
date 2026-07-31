@@ -3,11 +3,13 @@ from __future__ import annotations
 from pokeop.persistence.assets.importer import SpriteImportResult, import_sprite_assets
 from pokeop.persistence.assets.repository import (
     MaterializedViewSpriteRepository,
+    RawItemSpriteRepository,
     RawTypeSpriteRepository,
 )
 
 __all__ = [
     "MaterializedViewSpriteRepository",
+    "RawItemSpriteRepository",
     "RawTypeSpriteRepository",
     "SpriteImportResult",
     "import_sprite_assets",

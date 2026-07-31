@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from pokeop.application.use_cases.calculate_catalog_damage import (
+    CalculatorBattleItemOption,
     CalculateCatalogDamageResult,
     CalculatorMoveSearchResult,
     CalculatorPokemonProfile,
@@ -74,12 +75,23 @@ class StatPresetResponse(BaseModel):
     assumption: str = Field(description="该模板展开后的等级、EV 与性格假设。")
 
 
+class BattleItemOptionResponse(BaseModel):
+    """伤害计算器可选择的一项战斗持有道具。"""
+
+    item_id: int | None = Field(description="PokeAPI item ID；不携带道具为 null。")
+    identifier: str = Field(description="PokeAPI 稳定 identifier；不携带道具为 none。")
+    display_name: str = Field(description="当前语言展示名称。")
+    effect_identifier: str | None = Field(description="交给 domain 道具 effect 的 identifier。")
+    sprite_url: str | None = Field(description="项目内道具图标 URL；不携带道具为 null。")
+
+
 class CalculatorPokemonInput(BaseModel):
     """计算请求中一侧宝可梦的用户选择。"""
 
     pokemon_id: int = Field(description="服务端可信查询用的 pokemon_id。")
     level: int = Field(default=50, ge=1, le=100, description="本次计算等级。")
     stat_preset: str = Field(description="application 层声明的配置模板 key。")
+    item_identifier: str | None = Field(default=None, description="可选 PokeAPI 持有道具 identifier。")
 
 
 class CalculateDamageRequest(BaseModel):
@@ -206,6 +218,31 @@ def _pokemon_sprite_url(
     return (
         f"/api/v1/assets/pokemon/{pokemon_id}/sprite"
         f"?ruleset_id={ruleset_id}&slot={slot}"
+    )
+
+
+def _item_sprite_url(identifier: str) -> str:
+    """按前端代理路径构造项目内道具图标 URL。
+
+    Args:
+        identifier: PokeAPI item identifier，例如 ``life-orb``。
+
+    Returns:
+        浏览器可直接加载的相对 URL；后端 assets API 负责不存在时返回 404。
+    """
+    return f"/api/v1/assets/items/{identifier}/sprite"
+
+
+def battle_item_option_from_result(
+    result: CalculatorBattleItemOption,
+) -> BattleItemOptionResponse:
+    """把 application 道具选项转换成 HTTP schema。"""
+    return BattleItemOptionResponse(
+        item_id=result.item_id,
+        identifier=result.identifier,
+        display_name=result.display_name,
+        effect_identifier=result.effect_identifier,
+        sprite_url=None if result.effect_identifier is None else _item_sprite_url(result.identifier),
     )
 
 

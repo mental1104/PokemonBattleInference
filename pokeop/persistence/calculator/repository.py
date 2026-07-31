@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import text
 
 from pokeop.application.use_cases.calculate_catalog_damage import (
+    CalculatorBattleItemOption,
     CalculatorMoveProfile,
     CalculatorMoveSearchResult,
     CalculatorPokemonProfile,
@@ -18,6 +19,7 @@ from pokeop.application.use_cases.list_calculable_moves import (
     ListCalculatorMovesQuery,
 )
 from pokeop.domain.battle.context import MoveCategory
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.stats import StatValues
 from pokeop.domain.models.types import Type
 
@@ -130,6 +132,29 @@ def _move_search_from_row(row: Mapping[str, Any]) -> CalculatorMoveSearchResult:
         type_name=row["type_name"] or row["type_identifier"],
         category=_move_category_from_identifier(row["damage_class_identifier"]),
         power=row["power"],
+    )
+
+
+def _item_option_from_row(row: Mapping[str, Any]) -> CalculatorBattleItemOption:
+    """把 PokeAPI item 行转换为 calculator 道具选择项。"""
+    return CalculatorBattleItemOption(
+        item_id=row["item_id"],
+        identifier=row["item_identifier"],
+        display_name=row["item_name"] or row["item_identifier"],
+        effect_identifier=row["item_identifier"],
+    )
+
+
+def _supported_item_identifiers() -> tuple[str, ...]:
+    """返回当前 domain 已实现且可映射回 PokeAPI 的道具 identifier。
+
+    Returns:
+        使用 PokeAPI kebab-case 的稳定 identifier 列表；``UNKNOWN`` 不进入选择池。
+    """
+    return tuple(
+        item.value.replace("_", "-")
+        for item in DamageItem
+        if item is not DamageItem.UNKNOWN
     )
 
 
@@ -434,6 +459,86 @@ class MaterializedViewCalculatorRepository:
                 },
             ).first()
         return row is not None
+
+    def list_battle_item_options(
+        self,
+        *,
+        ruleset_id: str,
+    ) -> tuple[CalculatorBattleItemOption, ...]:
+        """读取已实现且符合 PokeAPI 持有战斗道具边界的道具选项。
+
+        Args:
+            ruleset_id: 当前规则集稳定标识，用于确定语言和 generation 上限。
+
+        Returns:
+            以“不携带道具”开头，后续为数据库 item_id 排序的已实现道具映射。
+        """
+        supported_identifiers = _supported_item_identifiers()
+        DBKind, tx_scope = _db_runtime()
+        with tx_scope(DBKind.POSTGRES) as db:
+            rows = db.execute(
+                text(
+                    """
+                    WITH context AS (
+                        SELECT generation_id, language_id
+                        FROM poke_champion.ruleset_context_mv
+                        WHERE ruleset_id = :ruleset_id
+                        LIMIT 1
+                    ),
+                    battle_item_flags AS (
+                        SELECT map.item_id,
+                               bool_or(flag.identifier = 'holdable') AS holdable,
+                               bool_or(flag.identifier IN ('holdable-active', 'holdable-passive')) AS battle_holdable
+                        FROM poke_raw.item_flag_map map
+                        JOIN poke_raw.item_flags flag
+                          ON flag.id = map.item_flag_id
+                        GROUP BY map.item_id
+                    )
+                    SELECT item.id AS item_id,
+                           item.identifier AS item_identifier,
+                           item_name.name AS item_name
+                    FROM poke_raw.items item
+                    JOIN poke_raw.item_categories category
+                      ON category.id = item.category_id
+                    CROSS JOIN context rc
+                    LEFT JOIN battle_item_flags flags
+                      ON flags.item_id = item.id
+                    LEFT JOIN poke_raw.item_names item_name
+                      ON item_name.item_id = item.id
+                     AND item_name.local_language_id = rc.language_id
+                    WHERE item.identifier = ANY(CAST(:item_identifiers AS TEXT[]))
+                      AND (
+                          (flags.holdable IS TRUE AND flags.battle_holdable IS TRUE)
+                          OR category.identifier IN (
+                              'held-items',
+                              'choice',
+                              'type-enhancement',
+                              'bad-held-items',
+                              'plates'
+                          )
+                      )
+                      AND EXISTS (
+                          SELECT 1
+                          FROM poke_raw.item_game_indices item_generation
+                          WHERE item_generation.item_id = item.id
+                            AND item_generation.generation_id <= rc.generation_id
+                      )
+                    ORDER BY item.id
+                    """
+                ),
+                {
+                    "ruleset_id": ruleset_id,
+                    "item_identifiers": list(supported_identifiers),
+                },
+            ).all()
+        return (
+            CalculatorBattleItemOption(
+                item_id=None,
+                identifier="none",
+                display_name="不携带道具",
+                effect_identifier=None,
+            ),
+        ) + tuple(_item_option_from_row(_row_mapping(row)) for row in rows)
 
 
 __all__ = ["MaterializedViewCalculatorRepository"]

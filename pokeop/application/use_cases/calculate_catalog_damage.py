@@ -11,6 +11,7 @@ from pokeop.domain.battle.context import (
     MoveCategory,
 )
 from pokeop.domain.battle.damage import DamageRollResult, calculate_damage_rolls
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.ko import KOChanceResult, estimate_ko_chance
 from pokeop.domain.battle.modifiers import defensive_stat, offensive_stat
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_version_group
@@ -100,6 +101,23 @@ class CalculatorMoveSearchResult:
     power: int
 
 
+@dataclass(frozen=True)
+class CalculatorBattleItemOption:
+    """页面可选择的一项已实现战斗持有道具。
+
+    Args:
+        item_id: PokeAPI item ID；显式不携带道具使用 None。
+        identifier: PokeAPI 稳定 identifier；显式不携带道具固定为 ``none``。
+        display_name: 当前语言下的展示名称。
+        effect_identifier: 交给 domain ``DamageItem`` 解析的 identifier；无道具为 None。
+    """
+
+    item_id: int | None
+    identifier: str
+    display_name: str
+    effect_identifier: str | None
+
+
 class CalculatorCatalogRepository(Protocol):
     """calculator use case 依赖的持久化读取端口。
 
@@ -154,6 +172,13 @@ class CalculatorCatalogRepository(Protocol):
     ) -> bool:
         """校验招式是否属于该宝可梦在当前规则集下的可用招式。"""
 
+    def list_battle_item_options(
+        self,
+        *,
+        ruleset_id: str,
+    ) -> tuple[CalculatorBattleItemOption, ...]:
+        """读取当前规则集可展示的已实现战斗持有道具。"""
+
 
 @dataclass(frozen=True)
 class StatPresetView:
@@ -171,6 +196,7 @@ class CalculateCatalogPokemonCommand:
     pokemon_id: int
     level: int
     stat_preset: str
+    item_identifier: str | None = None
 
 
 @dataclass(frozen=True)
@@ -415,12 +441,14 @@ class CalculateCatalogDamageUseCase:
             level=command.attacker.level,
             types=attacker_profile.types,
             stats=attacker_stats,
+            item=self._item_from_identifier(command.attacker.item_identifier),
         )
         defender = BattlePokemon(
             name=defender_profile.identifier,
             level=command.defender.level,
             types=defender_profile.types,
             stats=defender_stats,
+            item=self._item_from_identifier(command.defender.item_identifier),
         )
         move = BattleMove(
             name=move_profile.identifier,
@@ -478,11 +506,39 @@ class CalculateCatalogDamageUseCase:
             ko_chance=ko_chance,
             scope=CalculationScope(
                 mode="basic",
-                included=("等级", "能力值模板", "招式固定威力", "STAB", "属性克制", "16 档随机伤害"),
-                excluded=("特性", "道具", "天气", "场地", "状态", "会心", "双打范围修正", "动态威力招式"),
+                included=(
+                    "等级",
+                    "能力值模板",
+                    "已实现持有道具",
+                    "招式固定威力",
+                    "STAB",
+                    "属性克制",
+                    "16 档随机伤害",
+                ),
+                excluded=("特性", "未实现道具", "天气", "场地", "状态", "会心", "双打范围修正", "动态威力招式"),
             ),
             warnings=(),
         )
+
+    def _item_from_identifier(self, identifier: str | None) -> DamageItem:
+        """把请求中的可选道具 identifier 转成当前已实现的 domain 道具。
+
+        Args:
+            identifier: 前端提交的 PokeAPI item identifier；None、空字符串和 ``none``
+                都表示不携带道具。
+
+        Returns:
+            可写入 ``BattlePokemon.item`` 的 ``DamageItem``。
+
+        Raises:
+            CalculatorInputError: identifier 不在当前 domain 已实现道具集合内。
+        """
+        if identifier is None or identifier.strip() == "" or identifier == "none":
+            return DamageItem.UNKNOWN
+        item = DamageItem.from_identifier(identifier)
+        if item is DamageItem.UNKNOWN:
+            raise CalculatorInputError(f"unsupported item_identifier: {identifier}")
+        return item
 
     def _require_ruleset(self, ruleset_id: str) -> CalculatorRulesetContext:
         """读取规则集，不存在时转成稳定的用户输入错误。"""
@@ -543,6 +599,7 @@ __all__ = [
     "DEFAULT_RULESET_ID",
     "DEFENDER_PRESETS",
     "CalculateCatalogDamageCommand",
+    "CalculatorBattleItemOption",
     "CalculateCatalogDamageResult",
     "CalculateCatalogDamageUseCase",
     "CalculateCatalogPokemonCommand",

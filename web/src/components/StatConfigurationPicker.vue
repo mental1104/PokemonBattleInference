@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
   createStatConfiguration,
   deleteStatConfiguration,
   listNatures,
   listStatConfigurations,
   saveStatConfigurationOrder,
-  setStatConfigurationHidden,
   updateStatConfiguration,
   type NatureOption,
   type PokemonBindingKind,
@@ -61,11 +60,14 @@ const natures = ref<NatureOption[]>([]);
 const configurations = ref<StatConfiguration[]>([]);
 const fallbackId = ref<string | null>(null);
 const manageOpen = ref(false);
-const editorOpen = ref(false);
-const detailConfig = ref<StatConfiguration | null>(null);
 const deleteTarget = ref<StatConfiguration | null>(null);
-const editingConfig = ref<StatConfiguration | null>(null);
 const showIvs = ref(false);
+const activeConfigId = ref<string | null>(null);
+const managerMode = ref<'view' | 'create'>('view');
+const draggingConfigId = ref<string | null>(null);
+const draggingDirty = ref(false);
+const draggingIndex = ref<number | null>(null);
+let dragPressTimer: number | undefined;
 
 const form = reactive<SaveStatConfigurationRequest>({
   name: '',
@@ -81,6 +83,12 @@ const visibleConfigurations = computed(() => configurations.value.filter((item) 
 const topConfigurations = computed(() => visibleConfigurations.value.slice(0, 6));
 const selectedConfiguration = computed(
   () => configurations.value.find((item) => item.snapshot_profile_id === props.modelValue) ?? null,
+);
+const activeConfiguration = computed(
+  () => configurations.value.find((item) => item.id === activeConfigId.value) ?? null,
+);
+const activeCanEdit = computed(
+  () => managerMode.value === 'create' || (activeConfiguration.value?.editable ?? false),
 );
 const evTotal = computed(() => STAT_FIELDS.reduce((total, field) => total + form.evs[field], 0));
 const evRemaining = computed(() => Math.max(0, 510 - evTotal.value));
@@ -117,6 +125,11 @@ onMounted(async () => {
   await refreshConfigurations();
 });
 
+/** 组件卸载时清理长按拖拽计时器。 */
+onBeforeUnmount(() => {
+  window.clearTimeout(dragPressTimer);
+});
+
 watch(
   () => [props.pokemonId, props.role] as const,
   () => {
@@ -146,6 +159,7 @@ async function refreshConfigurations(): Promise<void> {
     configurations.value = result.items;
     fallbackId.value = result.fallback_id;
     ensureValidSelection();
+    ensureActiveManagerSelection();
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '配置列表加载失败';
   } finally {
@@ -153,7 +167,7 @@ async function refreshConfigurations(): Promise<void> {
   }
 }
 
-/** 当前选择隐藏、删除或因 Pokémon 切换失效时回退到第一条可见配置。 */
+/** 当前选择删除或因 Pokémon 切换失效时回退到第一条可见配置。 */
 function ensureValidSelection(): void {
   const current = configurations.value.find(
     (item) => item.snapshot_profile_id === props.modelValue && !item.hidden,
@@ -161,6 +175,22 @@ function ensureValidSelection(): void {
   if (current !== undefined) return;
   const fallback = visibleConfigurations.value[0] ?? null;
   if (fallback !== null) emit('update:modelValue', fallback.snapshot_profile_id);
+}
+
+/** 管理面板打开或列表刷新后，保证右侧始终有一条可渲染的配置。 */
+function ensureActiveManagerSelection(): void {
+  if (!manageOpen.value || managerMode.value === 'create') return;
+  const active = activeConfiguration.value;
+  if (active !== null && !active.hidden) {
+    loadConfigIntoForm(active);
+    return;
+  }
+  const selected = selectedConfiguration.value;
+  const fallback = selected && !selected.hidden ? selected : (visibleConfigurations.value[0] ?? null);
+  if (fallback !== null) {
+    activeConfigId.value = fallback.id;
+    loadConfigIntoForm(fallback);
+  }
 }
 
 /**
@@ -173,15 +203,49 @@ function selectConfiguration(config: StatConfiguration): void {
   emit('update:modelValue', config.snapshot_profile_id);
 }
 
+/** 打开配置管理工作区，并默认选中当前正在使用的配置。 */
+function openManager(): void {
+  manageOpen.value = true;
+  managerMode.value = 'view';
+  const selected = selectedConfiguration.value;
+  const fallback = selected && !selected.hidden ? selected : (visibleConfigurations.value[0] ?? null);
+  if (fallback !== null) {
+    activeConfigId.value = fallback.id;
+    loadConfigIntoForm(fallback);
+  } else {
+    openEditor();
+  }
+}
+
+/** 关闭配置管理工作区，并取消未完成的拖拽状态。 */
+function closeManager(): void {
+  manageOpen.value = false;
+  clearDragState();
+}
+
+/**
+ * 在左侧栏切换配置，同时让右侧主区载入该配置的 EV、性格与 IV。
+ *
+ * @param config 用户点击的可见配置。
+ */
+function activateConfiguration(config: StatConfiguration): void {
+  if (config.hidden) return;
+  managerMode.value = 'view';
+  activeConfigId.value = config.id;
+  loadConfigIntoForm(config);
+  selectConfiguration(config);
+}
+
 /**
  * 打开新建或编辑表单。
  *
  * @param config 被编辑的自定义配置；省略表示新建。
  */
 function openEditor(config?: StatConfiguration): void {
-  editingConfig.value = config ?? null;
   showIvs.value = false;
   const source = config ?? null;
+  managerMode.value = source === null ? 'create' : 'view';
+  activeConfigId.value = source?.id ?? null;
   form.name = source?.name ?? `${props.pokemonName ?? '通用'}配置`;
   form.nature_id = source?.nature_id ?? 'hardy';
   form.evs = { ...(source?.evs ?? EMPTY_EVS) };
@@ -189,12 +253,27 @@ function openEditor(config?: StatConfiguration): void {
   form.role = source?.role ?? props.role;
   form.binding_kind = source?.binding_kind ?? 'global';
   form.pokemon_id = source?.binding_kind === 'pokemon' ? source.pokemon_id : null;
-  editorOpen.value = true;
+}
+
+/**
+ * 把配置快照载入右侧主区表单；内置预设也使用同一表单，只是控件被禁用。
+ *
+ * @param config 后端返回的配置视图。
+ */
+function loadConfigIntoForm(config: StatConfiguration): void {
+  showIvs.value = false;
+  form.name = config.name;
+  form.nature_id = config.nature_id;
+  form.evs = { ...config.evs };
+  form.ivs = { ...config.ivs };
+  form.role = config.role;
+  form.binding_kind = config.binding_kind;
+  form.pokemon_id = config.binding_kind === 'pokemon' ? config.pokemon_id : null;
 }
 
 /** 保存新建或编辑配置，成功后刷新列表并选中新快照。 */
 async function saveEditor(): Promise<void> {
-  if (!canSave.value) return;
+  if (!canSave.value || !activeCanEdit.value) return;
   saving.value = true;
   error.value = null;
   const request: SaveStatConfigurationRequest = {
@@ -207,11 +286,18 @@ async function saveEditor(): Promise<void> {
     pokemon_id: form.binding_kind === 'pokemon' ? props.pokemonId : null,
   };
   try {
-    const saved = editingConfig.value === null
-      ? await createStatConfiguration(request)
-      : await updateStatConfiguration(editingConfig.value.key, request);
-    editorOpen.value = false;
+    let saved: StatConfiguration;
+    if (managerMode.value === 'create') {
+      saved = await createStatConfiguration(request);
+    } else {
+      const targetKey = activeConfiguration.value?.key;
+      if (targetKey === undefined) return;
+      saved = await updateStatConfiguration(targetKey, request);
+    }
+    managerMode.value = 'view';
     await refreshConfigurations();
+    activeConfigId.value = saved.id;
+    loadConfigIntoForm(saved);
     emit('update:modelValue', saved.snapshot_profile_id);
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '配置保存失败';
@@ -261,38 +347,84 @@ function resetIvs(): void {
   form.ivs = { ...PERFECT_IVS };
 }
 
-/** 隐藏或恢复配置，并在当前选择失效后回退。 */
-async function toggleHidden(config: StatConfiguration, hidden: boolean): Promise<void> {
-  error.value = null;
-  try {
-    await setStatConfigurationHidden({
-      role: props.role,
-      source: config.source,
-      key: config.key,
-      hidden,
-    });
-    await refreshConfigurations();
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '显示偏好保存失败';
-  }
+/**
+ * 长按拖拽手柄后进入排序模式。
+ *
+ * @param config 被拖拽的配置。
+ * @param index 该配置在可见列表中的当前位置。
+ * @param event pointerdown 原生事件，用于阻止按钮点击。
+ */
+function beginDragPress(config: StatConfiguration, index: number, event: PointerEvent): void {
+  if (config.hidden) return;
+  event.preventDefault();
+  window.clearTimeout(dragPressTimer);
+  draggingConfigId.value = null;
+  draggingDirty.value = false;
+  draggingIndex.value = index;
+  dragPressTimer = window.setTimeout(() => {
+    draggingConfigId.value = config.id;
+  }, 280);
 }
 
-/** 上移或下移配置并批量保存排序。 */
-async function moveConfig(config: StatConfiguration, direction: -1 | 1): Promise<void> {
-  const list = [...visibleConfigurations.value];
-  const index = list.findIndex((item) => item.id === config.id);
-  const nextIndex = index + direction;
-  if (index < 0 || nextIndex < 0 || nextIndex >= list.length) return;
-  [list[index], list[nextIndex]] = [list[nextIndex], list[index]];
-  try {
-    await saveStatConfigurationOrder({
-      role: props.role,
-      references: list.map((item) => ({ source: item.source, key: item.key })),
-    });
-    await refreshConfigurations();
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '排序保存失败';
+/**
+ * 拖拽经过另一条配置时即时调整本地顺序。
+ *
+ * @param targetIndex 鼠标当前经过的可见配置位置。
+ */
+function enterDragTarget(targetIndex: number): void {
+  if (draggingConfigId.value === null || draggingIndex.value === null) return;
+  if (targetIndex === draggingIndex.value) return;
+  reorderVisibleConfigurations(draggingIndex.value, targetIndex);
+  draggingIndex.value = targetIndex;
+  draggingDirty.value = true;
+}
+
+/** 鼠标释放后保存拖拽排序；短按释放只会取消计时器。 */
+async function finishDrag(): Promise<void> {
+  window.clearTimeout(dragPressTimer);
+  if (draggingConfigId.value !== null && draggingDirty.value) {
+    try {
+      await saveCurrentVisibleOrder();
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : '排序保存失败';
+    }
   }
+  clearDragState();
+}
+
+/** 清空拖拽相关状态。 */
+function clearDragState(): void {
+  window.clearTimeout(dragPressTimer);
+  draggingConfigId.value = null;
+  draggingDirty.value = false;
+  draggingIndex.value = null;
+}
+
+/**
+ * 在保持不可见配置原位的前提下调整可见配置顺序。
+ *
+ * @param fromIndex 拖拽源在可见配置列表里的索引。
+ * @param toIndex 目标在可见配置列表里的索引。
+ */
+function reorderVisibleConfigurations(fromIndex: number, toIndex: number): void {
+  const visible = [...visibleConfigurations.value];
+  const [moved] = visible.splice(fromIndex, 1);
+  if (moved === undefined) return;
+  visible.splice(toIndex, 0, moved);
+  const visibleQueue = [...visible];
+  configurations.value = configurations.value.map((config) => {
+    if (config.hidden) return config;
+    return visibleQueue.shift() ?? config;
+  });
+}
+
+/** 保存当前左侧可见配置的顺序。 */
+async function saveCurrentVisibleOrder(): Promise<void> {
+  await saveStatConfigurationOrder({
+    role: props.role,
+    references: visibleConfigurations.value.map((item) => ({ source: item.source, key: item.key })),
+  });
+  await refreshConfigurations();
 }
 
 /** 软删除已确认的自定义配置。 */
@@ -303,6 +435,7 @@ async function confirmDelete(): Promise<void> {
     await deleteStatConfiguration(target.key);
     deleteTarget.value = null;
     await refreshConfigurations();
+    ensureActiveManagerSelection();
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '删除配置失败';
   }
@@ -336,7 +469,7 @@ function spreadSummary(spread: StatSpread): string {
           当前：{{ selectedConfiguration.name }} · {{ natureLabel(selectedConfiguration.nature_id) }}
         </p>
       </div>
-      <button type="button" class="secondary-button" :disabled="pokemonId === null" @click="manageOpen = true">
+      <button type="button" class="secondary-button" :disabled="pokemonId === null" @click="openManager">
         管理配置
       </button>
     </div>
@@ -354,61 +487,91 @@ function spreadSummary(spread: StatSpread): string {
         <span>{{ config.name }}</span>
         <small>{{ config.source === 'builtin' ? '内置' : '自定义' }} · {{ spreadSummary(config.evs) }}</small>
       </button>
-      <button type="button" class="preset-button" :disabled="pokemonId === null" @click="openEditor()">
-        <span>新建配置</span>
-        <small>{{ role === 'attacker' ? '默认攻击方' : '默认防守方' }}</small>
-      </button>
     </div>
 
-    <div v-if="manageOpen" class="stat-config-modal" role="dialog" aria-modal="true">
-      <div class="stat-config-modal__panel">
+    <div v-if="manageOpen" class="stat-config-modal" role="dialog" aria-modal="true" @pointerup="finishDrag">
+      <div class="stat-config-modal__panel stat-config-workbench">
         <header>
           <h3>{{ title }}管理</h3>
-          <button type="button" class="icon-button" @click="manageOpen = false">×</button>
+          <button type="button" class="icon-button" @click="closeManager">×</button>
         </header>
-        <div class="stat-config-modal__actions">
-          <button type="button" class="secondary-button" @click="openEditor()">新建配置</button>
-        </div>
-        <article v-for="config in configurations" :key="config.id" class="stat-config-row" :class="{ hidden: config.hidden }">
-          <button type="button" class="stat-config-row__main" @click="selectConfiguration(config)">
-            <strong>{{ config.name }}</strong>
-            <span>{{ config.source === 'builtin' ? '系统内置' : '租户自定义' }} · {{ natureLabel(config.nature_id) }}</span>
-            <small>{{ config.binding_kind === 'global' ? '全部 Pokémon' : `仅 ${pokemonName ?? config.pokemon_id}` }} · {{ spreadSummary(config.evs) }}</small>
-          </button>
-          <div class="stat-config-row__tools">
-            <button type="button" @click="detailConfig = config">详情</button>
-            <button type="button" :disabled="config.hidden" @click="moveConfig(config, -1)">上移</button>
-            <button type="button" :disabled="config.hidden" @click="moveConfig(config, 1)">下移</button>
-            <button v-if="config.hideable && !config.hidden" type="button" @click="toggleHidden(config, true)">隐藏</button>
-            <button v-if="config.hideable && config.hidden" type="button" @click="toggleHidden(config, false)">恢复</button>
-            <button v-if="config.editable" type="button" @click="openEditor(config)">编辑</button>
-            <button v-if="config.deletable" type="button" @click="deleteTarget = config">删除</button>
-          </div>
-        </article>
-      </div>
-    </div>
 
-    <div v-if="editorOpen" class="stat-config-modal" role="dialog" aria-modal="true">
-      <form class="stat-config-modal__panel" @submit.prevent="saveEditor">
-        <header>
-          <h3>{{ editingConfig ? '编辑配置' : '新建配置' }}</h3>
-          <button type="button" class="icon-button" @click="editorOpen = false">×</button>
-        </header>
+        <div class="stat-config-workbench__body">
+          <aside class="stat-config-sidebar" aria-label="配置列表">
+            <button
+              type="button"
+              class="stat-config-add-button"
+              :disabled="pokemonId === null"
+              aria-label="新增配置"
+              title="新增配置"
+              @click="openEditor()"
+            >
+              +
+            </button>
+
+            <button
+              v-for="(config, index) in visibleConfigurations"
+              :key="config.id"
+              type="button"
+              class="stat-config-sidebar-item"
+              :class="{
+                active: managerMode === 'view' && config.id === activeConfigId,
+                dragging: config.id === draggingConfigId,
+              }"
+              @click="activateConfiguration(config)"
+              @pointerenter="enterDragTarget(index)"
+            >
+              <span
+                class="stat-config-drag-handle"
+                aria-label="长按拖拽排序"
+                title="长按拖拽排序"
+                @click.stop
+                @pointerdown.stop="beginDragPress(config, index, $event)"
+              >
+                ☰
+              </span>
+              <span class="stat-config-sidebar-item__copy">
+                <strong>{{ config.name }}</strong>
+                <small>{{ config.source === 'builtin' ? '预设' : '自定义' }} · {{ spreadSummary(config.evs) }}</small>
+              </span>
+            </button>
+          </aside>
+
+          <form class="stat-config-editor" @submit.prevent="saveEditor">
+            <div class="stat-config-editor__heading">
+              <div>
+                <h4>{{ managerMode === 'create' ? '新增配置' : form.name }}</h4>
+                <p v-if="managerMode !== 'create'" class="muted">
+                  {{ activeConfiguration?.source === 'builtin' ? '预设配置，只能查看。' : '自定义配置，可直接修改后保存。' }}
+                </p>
+              </div>
+              <div class="stat-config-editor__tools">
+                <button
+                  v-if="activeConfiguration?.deletable && managerMode === 'view'"
+                  type="button"
+                  class="secondary-button"
+                  @click="deleteTarget = activeConfiguration"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+
         <label>
           <span>配置名称</span>
-          <input v-model="form.name" maxlength="48" />
+          <input v-model="form.name" maxlength="48" :disabled="!activeCanEdit" />
         </label>
         <div class="stat-config-form-grid">
           <label>
             <span>适用 Pokémon</span>
-            <select v-model="form.binding_kind">
+            <select v-model="form.binding_kind" :disabled="!activeCanEdit">
               <option value="global">全部 Pokémon</option>
               <option value="pokemon" :disabled="pokemonId === null">当前 Pokémon</option>
             </select>
           </label>
           <label>
             <span>适用位置</span>
-            <select v-model="form.role">
+            <select v-model="form.role" :disabled="!activeCanEdit">
               <option value="attacker">仅攻方</option>
               <option value="defender">仅防守方</option>
               <option value="both">攻防双方</option>
@@ -416,7 +579,7 @@ function spreadSummary(spread: StatSpread): string {
           </label>
           <label>
             <span>性格</span>
-            <select v-model="form.nature_id">
+            <select v-model="form.nature_id" :disabled="!activeCanEdit">
               <option v-for="nature in natures" :key="nature.identifier" :value="nature.identifier">
                 {{ natureLabel(nature.identifier) }}
               </option>
@@ -436,6 +599,7 @@ function spreadSummary(spread: StatSpread): string {
               min="0"
               max="252"
               :value="form.evs[field]"
+              :disabled="!activeCanEdit"
               @input="handleEvInput(field, $event)"
             />
             <input
@@ -443,6 +607,7 @@ function spreadSummary(spread: StatSpread): string {
               min="0"
               max="252"
               :value="form.evs[field]"
+              :disabled="!activeCanEdit"
               @change="handleEvInput(field, $event)"
             />
           </label>
@@ -450,9 +615,9 @@ function spreadSummary(spread: StatSpread): string {
 
         <section class="stat-config-iv-section">
           <button type="button" class="secondary-button" @click="showIvs = !showIvs">
-            {{ showIvs ? '收起个体值' : '高级设置 / 调整个体值' }}
+            {{ showIvs ? '收起个体值' : '显示个体值' }}
           </button>
-          <button v-if="showIvs" type="button" class="secondary-button" @click="resetIvs">恢复全部 31</button>
+          <button v-if="showIvs && activeCanEdit" type="button" class="secondary-button" @click="resetIvs">恢复全部 31</button>
           <div v-if="showIvs" class="stat-config-form-grid">
             <label v-for="field in STAT_FIELDS" :key="field">
               <span>{{ FIELD_LABELS[field] }} IV</span>
@@ -461,6 +626,7 @@ function spreadSummary(spread: StatSpread): string {
                 min="0"
                 max="31"
                 :value="form.ivs[field]"
+                :disabled="!activeCanEdit"
                 @change="setIv(field, Number(($event.target as HTMLInputElement).value))"
               />
             </label>
@@ -470,28 +636,14 @@ function spreadSummary(spread: StatSpread): string {
           <li v-for="message in formErrors" :key="message">{{ message }}</li>
         </ul>
         <footer>
-          <button type="button" class="secondary-button" @click="editorOpen = false">取消</button>
-          <button type="submit" class="primary-button" :disabled="!canSave">{{ saving ? '保存中' : '保存' }}</button>
+          <button v-if="managerMode === 'create'" type="button" class="secondary-button" @click="ensureActiveManagerSelection">取消</button>
+          <button v-if="activeCanEdit" type="submit" class="primary-button" :disabled="!canSave">
+            {{ saving ? '保存中' : '保存配置' }}
+          </button>
         </footer>
       </form>
-    </div>
-
-    <div v-if="detailConfig" class="stat-config-modal" role="dialog" aria-modal="true">
-      <article class="stat-config-modal__panel">
-        <header>
-          <h3>{{ detailConfig.name }}</h3>
-          <button type="button" class="icon-button" @click="detailConfig = null">×</button>
-        </header>
-        <dl class="stat-config-detail">
-          <dt>来源</dt><dd>{{ detailConfig.source === 'builtin' ? '系统内置' : '租户自定义' }}</dd>
-          <dt>适用范围</dt><dd>{{ detailConfig.binding_kind === 'global' ? '全部 Pokémon' : `当前 Pokémon #${detailConfig.pokemon_id}` }}</dd>
-          <dt>适用位置</dt><dd>{{ detailConfig.role }}</dd>
-          <dt>性格</dt><dd>{{ natureLabel(detailConfig.nature_id) }}</dd>
-          <dt>EV</dt><dd>{{ spreadSummary(detailConfig.evs) }}</dd>
-          <dt>IV</dt><dd>{{ spreadSummary(detailConfig.ivs) }}</dd>
-          <dt>说明</dt><dd>{{ detailConfig.description }}</dd>
-        </dl>
-      </article>
+        </div>
+      </div>
     </div>
 
     <div v-if="deleteTarget" class="stat-config-modal" role="dialog" aria-modal="true">
@@ -512,9 +664,9 @@ function spreadSummary(spread: StatSpread): string {
 .stat-config-picker__heading,
 .stat-config-modal__panel header,
 .stat-config-modal__panel footer,
-.stat-config-modal__actions,
 .stat-config-budget,
-.stat-config-row__tools {
+.stat-config-editor__heading,
+.stat-config-editor__tools {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -544,34 +696,111 @@ function spreadSummary(spread: StatSpread): string {
   padding: 16px;
   width: min(760px, 100%);
 }
+.stat-config-workbench {
+  width: min(980px, 100%);
+}
 .stat-config-modal__panel h3 { margin: 0; }
+.stat-config-workbench__body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  min-height: min(620px, calc(86vh - 88px));
+}
+.stat-config-sidebar {
+  align-content: start;
+  display: grid;
+  gap: 8px;
+}
+.stat-config-add-button,
+.stat-config-sidebar-item {
+  width: 100%;
+  border: 1px solid #dce4d8;
+  border-radius: 6px;
+  background: #fff;
+  color: #17201b;
+}
+.stat-config-add-button {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  color: #286b52;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+.stat-config-sidebar-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 8px;
+  text-align: left;
+}
+.stat-config-sidebar-item.active {
+  border-color: #286b52;
+  background: #e6f1eb;
+}
+.stat-config-sidebar-item.dragging {
+  border-style: dashed;
+  box-shadow: 0 6px 16px rgba(23, 32, 27, 0.12);
+}
+.stat-config-drag-handle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 36px;
+  border: 1px solid #bdc9c0;
+  border-radius: 6px;
+  color: #325545;
+  cursor: grab;
+  user-select: none;
+}
+.stat-config-sidebar-item__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.stat-config-sidebar-item__copy strong,
+.stat-config-sidebar-item__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-config-sidebar-item__copy small {
+  color: #65736b;
+}
+.stat-config-editor {
+  align-content: start;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.stat-config-editor__heading {
+  align-items: flex-start;
+}
+.stat-config-editor__heading h4,
+.stat-config-editor__heading p {
+  margin: 0;
+}
+.stat-config-editor__heading p {
+  margin-top: 4px;
+}
+.stat-config-editor__tools {
+  justify-content: flex-end;
+}
 .stat-config-form-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 .stat-config-modal label { display: grid; gap: 5px; }
 .stat-config-modal input,
 .stat-config-modal select { min-height: 34px; }
 .stat-config-stat-row { align-items: center; grid-template-columns: 76px minmax(240px, 1fr) 76px; }
 .stat-config-stat-row input[type="range"] { width: 100%; }
-.stat-config-row {
-  border: 1px solid #d8dee8;
-  border-radius: 8px;
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-}
-.stat-config-row.hidden { opacity: 0.64; }
-.stat-config-row__main {
-  background: transparent;
-  border: 0;
-  display: grid;
-  gap: 3px;
-  padding: 0;
-  text-align: left;
-}
-.stat-config-row__tools { justify-content: flex-start; }
-.stat-config-detail { display: grid; gap: 8px; grid-template-columns: 110px 1fr; }
 .stat-config-iv-section { display: grid; gap: 10px; }
+@media (max-width: 760px) {
+  .stat-config-workbench__body { grid-template-columns: 1fr; }
+  .stat-config-sidebar { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
 @media (max-width: 560px) {
   .stat-config-stat-row { grid-template-columns: 1fr; }
-  .stat-config-detail { grid-template-columns: 1fr; }
 }
 </style>

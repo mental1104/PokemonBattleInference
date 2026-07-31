@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
+from pokeop.application.use_cases.get_item_sprite import ItemSpriteContent
 from pokeop.application.use_cases.get_pokemon_sprite import PokemonSpriteContent
 from pokeop.application.use_cases.get_type_sprite import TypeSpriteContent
 
@@ -133,6 +134,57 @@ class RawTypeSpriteRepository:
         return TypeSpriteContent(
             asset_id=data["asset_id"],
             type_identifier=data["type_identifier"],
+            mime_type=data["mime_type"],
+            sha256=data["sha256"],
+            content=bytes(data["content"]),
+        )
+
+
+class RawItemSpriteRepository:
+    """从 ``poke_raw`` 读取固定 item 图标。
+
+    道具 identifier 先由 ``poke_raw.items`` 校验存在，再与固定 ``items/`` 前缀拼成
+    importer 已保存的相对路径，避免 API 退化为任意 sprite 文件下载入口。
+    """
+
+    def get_item_sprite(self, *, item_identifier: str) -> ItemSpriteContent | None:
+        """读取一个道具对应的图标。
+
+        Args:
+            item_identifier: PokeAPI 稳定 item identifier，例如 ``life-orb``。
+
+        Returns:
+            找到有效 PNG 时返回 BYTEA 内容；道具不存在或图片未导入时返回 None。
+        """
+        DBKind, tx_scope = _db_runtime()
+        with tx_scope(DBKind.POSTGRES) as db:
+            row = db.execute(
+                text(
+                    """
+                    SELECT
+                        raw.id AS asset_id,
+                        item.identifier AS item_identifier,
+                        raw.mime_type,
+                        raw.sha256,
+                        raw.content
+                    FROM poke_raw.items item
+                    JOIN poke_raw.sprite_assets raw
+                      ON raw.relative_path = ('items/' || item.identifier || '.png')
+                     AND raw.asset_category = 'items'
+                     AND raw.is_active IS TRUE
+                    WHERE item.identifier = :item_identifier
+                    LIMIT 1
+                    """
+                ),
+                {"item_identifier": item_identifier},
+            ).first()
+
+        if row is None:
+            return None
+        data = row._mapping
+        return ItemSpriteContent(
+            asset_id=data["asset_id"],
+            item_identifier=data["item_identifier"],
             mime_type=data["mime_type"],
             sha256=data["sha256"],
             content=bytes(data["content"]),

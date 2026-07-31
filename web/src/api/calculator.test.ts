@@ -6,7 +6,7 @@ describe('calculator api', () => {
     vi.restoreAllMocks();
   });
 
-  it('posts only selected ids, ruleset, level and presets to damage endpoint', async () => {
+  it('posts selected ids, ruleset, level, presets and item identifiers to damage endpoint', async () => {
     /**
      * 该测试固定前端请求边界：请求体只能包含用户选择和模板 key，不能把种族值、
      * 招式威力、属性或伤害分类作为可信输入交给服务端。
@@ -77,7 +77,12 @@ describe('calculator api', () => {
 
     const result = await calculateDamage({
       ruleset_id: 'pokemon-champion',
-      attacker: { pokemon_id: 212, level: 50, stat_preset: 'max_atk_neutral' },
+      attacker: {
+        pokemon_id: 212,
+        level: 50,
+        stat_preset: 'max_atk_neutral',
+        item_identifier: 'life-orb',
+      },
       defender: { pokemon_id: 700, level: 50, stat_preset: 'max_hp' },
       move_id: 418,
     });
@@ -86,7 +91,12 @@ describe('calculator api', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/calculator/damage');
     expect(JSON.parse(init?.body as string)).toEqual({
       ruleset_id: 'pokemon-champion',
-      attacker: { pokemon_id: 212, level: 50, stat_preset: 'max_atk_neutral' },
+      attacker: {
+        pokemon_id: 212,
+        level: 50,
+        stat_preset: 'max_atk_neutral',
+        item_identifier: 'life-orb',
+      },
       defender: { pokemon_id: 700, level: 50, stat_preset: 'max_hp' },
       move_id: 418,
     });

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pokeop.application.use_cases.calculate_catalog_damage import (
+    CalculatorBattleItemOption,
     CalculateCatalogDamageCommand,
     CalculateCatalogDamageUseCase,
     CalculateCatalogPokemonCommand,
@@ -144,6 +145,19 @@ class FakeCalculatorRepository:
             and move_id == BULLET_PUNCH_ID
         )
 
+    def list_battle_item_options(
+        self,
+        *,
+        ruleset_id: str,
+    ) -> tuple[CalculatorBattleItemOption, ...]:
+        """返回当前 domain 已实现的最小道具映射集合。"""
+        if ruleset_id != "pokemon-champion":
+            return ()
+        return (
+            CalculatorBattleItemOption(None, "none", "不携带道具", None),
+            CalculatorBattleItemOption(247, "life-orb", "生命宝珠", "life-orb"),
+        )
+
 
 def _command() -> CalculateCatalogDamageCommand:
     """创建固定的巨钳螳螂子弹拳攻击仙子伊布计算命令。"""
@@ -221,3 +235,30 @@ def test_catalog_damage_use_case_rejects_unavailable_move_for_attacker():
         assert "move is not available" in str(exc)
     else:
         raise AssertionError("expected unavailable move to be rejected")
+
+
+def test_catalog_damage_use_case_applies_attacker_item_modifier():
+    """
+    攻击方携带已实现战斗道具时，catalog use case 必须把 PokeAPI identifier 映射到
+    domain DamageItem，再让伤害责任链输出对应 modifier。这里用 Life Orb 验证结果高于
+    无道具基线，并且 modifier trace 中出现 life_orb。
+    """
+    command = _command()
+    command = CalculateCatalogDamageCommand(
+        ruleset_id=command.ruleset_id,
+        attacker=CalculateCatalogPokemonCommand(
+            pokemon_id=command.attacker.pokemon_id,
+            level=command.attacker.level,
+            stat_preset=command.attacker.stat_preset,
+            item_identifier="life-orb",
+        ),
+        defender=command.defender,
+        move_id=command.move_id,
+    )
+
+    result = CalculateCatalogDamageUseCase(FakeCalculatorRepository()).execute(command)
+
+    assert result.damage.min_damage > 99
+    assert {modifier.key.value for modifier in result.damage.applied_modifiers} >= {
+        "item:life_orb",
+    }

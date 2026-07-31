@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getPokemonDetail,
+  listBattleItems,
   listPokemonMoves,
   listStatPresets,
   searchPokemon,
@@ -14,6 +15,7 @@ import DamageCalculatorView from './DamageCalculatorView.vue';
 vi.mock('../api/calculator', () => ({
   calculateDamage: vi.fn(),
   getPokemonDetail: vi.fn(),
+  listBattleItems: vi.fn(),
   listPokemonMoves: vi.fn(),
   listStatPresets: vi.fn(),
   searchPokemon: vi.fn(),
@@ -21,6 +23,7 @@ vi.mock('../api/calculator', () => ({
 
 const searchPokemonMock = vi.mocked(searchPokemon);
 const getPokemonDetailMock = vi.mocked(getPokemonDetail);
+const listBattleItemsMock = vi.mocked(listBattleItems);
 const listPokemonMovesMock = vi.mocked(listPokemonMoves);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 
@@ -80,6 +83,22 @@ beforeEach(() => {
     has_more: false,
     available_types: [],
   });
+  listBattleItemsMock.mockReset().mockResolvedValue([
+    {
+      item_id: null,
+      identifier: 'none',
+      display_name: '不携带道具',
+      effect_identifier: null,
+      sprite_url: null,
+    },
+    {
+      item_id: 247,
+      identifier: 'life-orb',
+      display_name: '生命宝珠',
+      effect_identifier: 'life-orb',
+      sprite_url: '/api/v1/assets/items/life-orb/sprite',
+    },
+  ]);
   listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
 });
 
@@ -127,20 +146,26 @@ describe('DamageCalculatorView', () => {
     });
   });
 
-  it('aligns both stat configurations and places the attacker-only move selector below them', async () => {
+  it('places item selection between attacker summary and stats while leaving the ability slot blank', async () => {
     /**
-     * 双栏内部必须拥有相同的 Pokémon、摘要、配置顺序，MoveSelector 不再占据攻击方列高度。
-     * 测试检查两个配置组件分别属于左右列，并且唯一 MoveSelector 位于 calculator-grid 之后的居中区域。
+     * 双栏内部必须拥有相同的 Pokémon、摘要、配置顺序。攻击方道具选择位于摘要和配置之间；
+     * 防守方同位置暂时留给特性选择，MoveSelector 仍位于 calculator-grid 之后的居中区域。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
 
     const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
     const defenderColumn = wrapper.get('[data-testid="defender-column"]');
+    const itemSelector = attackerColumn.get('.item-selector');
     expect(attackerColumn.find('[data-testid="attacker-config"]').exists()).toBe(true);
     expect(defenderColumn.find('[data-testid="defender-config"]').exists()).toBe(true);
+    expect(itemSelector.text()).toContain('不携带道具');
+    expect(defenderColumn.get('.ability-placeholder').text()).toBe('');
     expect(attackerColumn.find('.move-selector').exists()).toBe(false);
     expect(defenderColumn.find('.move-selector').exists()).toBe(false);
+
+    const attackerConfig = attackerColumn.get('[data-testid="attacker-config"]').element;
+    expect(itemSelector.element.compareDocumentPosition(attackerConfig) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const moveStage = wrapper.get('[data-testid="move-stage"]');
     expect(moveStage.findAll('.move-selector')).toHaveLength(1);
