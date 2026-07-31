@@ -335,7 +335,7 @@ describe('ConfigurationSolverView goal detail dialog', () => {
     await flushPromises();
     await wrapper.get('[data-testid="spread-mode-toggle"]').trigger('click');
 
-    expect(wrapper.get('[data-testid="spread-input-note"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="spread-input-note"]').exists()).toBe(true);
     expect(wrapper.find('.solver-side .stat-picker-stub').exists()).toBe(false);
 
     await wrapper.get('[data-testid="open-attack-goal-dialog"]').trigger('click');
