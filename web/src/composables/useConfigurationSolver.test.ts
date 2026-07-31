@@ -8,6 +8,7 @@ import {
   type PokemonDetail,
 } from '../api/calculator';
 import {
+  searchConfigurationSpreads,
   solveConfiguration,
   type SolveConfigurationResponse,
 } from '../api/configurationSolver';
@@ -22,6 +23,7 @@ vi.mock('../api/calculator', () => ({
 
 vi.mock('../api/configurationSolver', () => ({
   solveConfiguration: vi.fn(),
+  searchConfigurationSpreads: vi.fn(),
 }));
 
 const getPokemonDetailMock = vi.mocked(getPokemonDetail);
@@ -29,6 +31,7 @@ const listBattleItemsMock = vi.mocked(listBattleItems);
 const listPokemonAbilitiesMock = vi.mocked(listPokemonAbilities);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 const solveConfigurationMock = vi.mocked(solveConfiguration);
+const searchConfigurationSpreadsMock = vi.mocked(searchConfigurationSpreads);
 
 const SUBJECT: PokemonDetail = {
   pokemon_id: 212,
@@ -136,6 +139,7 @@ beforeEach(() => {
   ]);
   listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
   solveConfigurationMock.mockReset().mockResolvedValue(RESPONSE);
+  searchConfigurationSpreadsMock.mockReset().mockResolvedValue(RESPONSE);
 });
 
 describe('useConfigurationSolver', () => {
@@ -185,6 +189,7 @@ describe('useConfigurationSolver', () => {
       ],
       max_candidates: 3,
     });
+    expect(searchConfigurationSpreadsMock).not.toHaveBeenCalled();
   });
 
   it('keeps target details outside the selected list until the full draft is saved', async () => {
@@ -249,5 +254,47 @@ describe('useConfigurationSolver', () => {
     expect(loaded).toBe(false);
     expect(solver.goals.value).toEqual([]);
     expect(solver.error.value).toBe('target unavailable');
+  });
+
+  it('submits spread search without requiring a selected subject preset', async () => {
+    /**
+     * 全局反推开关开启后，待配置 Pokémon 的性格、EV 与 IV 不再来自左侧模板，因此即使用户清空
+     * selectedPresetKeys，只要 Pokémon、特性、道具和至少一个完整目标已经准备完成，提交按钮仍应
+     * 可用。请求必须改发 search-spreads 接口、最多索取十条候选，并完全省略 allowed_stat_presets；
+     * 同时不能误调用旧模板求解接口。该测试保护两个模式的输入边界不会在 composable 中再次混合。
+     */
+    const solver = useConfigurationSolver();
+    await solver.selectSubject(SUBJECT);
+    const draft = solver.createGoalDraft('attack');
+    await solver.selectGoalTarget(draft, TARGET);
+    draft.move = MOVE;
+    expect(solver.saveGoalDraft(draft)).toBe(true);
+
+    solver.selectedPresetKeys.value = [];
+    solver.searchMode.value = 'spread';
+
+    expect(solver.canSubmit.value).toBe(true);
+    await solver.submit();
+
+    expect(searchConfigurationSpreadsMock).toHaveBeenCalledWith({
+      ruleset_id: 'pokemon-champion',
+      subject_pokemon_id: SUBJECT.pokemon_id,
+      subject_ability_identifier: 'technician',
+      subject_item_identifier: null,
+      level: 50,
+      goals: [{
+        goal_id: draft.id,
+        kind: 'attack',
+        target_pokemon_id: TARGET.pokemon_id,
+        move_id: MOVE.move_id,
+        required_turns: 1,
+        target_ability_identifier: 'cute-charm',
+        target_item_identifier: null,
+        target_stat_preset: 'max_hp',
+        damage_roll_policy: 'min',
+      }],
+      max_candidates: 10,
+    });
+    expect(solveConfigurationMock).not.toHaveBeenCalled();
   });
 });
