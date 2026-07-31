@@ -20,17 +20,21 @@ import {
   type StatPreset,
 } from '../api/calculator';
 import {
+  searchConfigurationSpreads,
+  solveConfiguration,
   type ConfigurationGoalKind,
   type ConfigurationGoalRequest,
   type ConfigurationSearchMode,
   type DamageRollPolicy,
   type GoalVerification,
+  type SolveConfigurationResponse,
 } from '../api/configurationSolver';
 import {
   searchConfigurationSpreadsWithSpeed,
   solveConfigurationWithSpeed,
   type ConfigurationSpeedGoalRequest,
   type SpeedAwareSolveConfigurationResponse,
+  type SpeedAwareSolvedConfiguration,
   type SpeedGoalVerification,
 } from '../api/configurationSpeedGoals';
 
@@ -357,17 +361,29 @@ export function createConfigurationSolver() {
     return true;
   }
 
-  /** 删除指定伤害目标。 */
+  /**
+   * 删除指定伤害目标。
+   *
+   * @param goalId 要删除的稳定伤害目标 ID。
+   */
   function removeGoal(goalId: string): void {
     goals.value = goals.value.filter((goal) => goal.id !== goalId);
   }
 
-  /** 删除指定严格速度目标。 */
+  /**
+   * 删除指定严格速度目标。
+   *
+   * @param goalId 要删除的稳定速度目标 ID。
+   */
   function removeSpeedGoal(goalId: string): void {
     speedGoals.value = speedGoals.value.filter((goal) => goal.id !== goalId);
   }
 
-  /** 把页面中的伤害目标快照转换成 API 输入。 */
+  /**
+   * 把页面中的伤害目标快照转换成 API 输入。
+   *
+   * @returns 保留双方机制、配置、招式和随机伤害档的请求数组。
+   */
   function goalRequests(): ConfigurationGoalRequest[] {
     return goals.value.map((goal) => ({
       goal_id: goal.id,
@@ -383,7 +399,11 @@ export function createConfigurationSolver() {
     }));
   }
 
-  /** 把页面中的严格速度目标转换成 API 输入。 */
+  /**
+   * 把页面中的严格速度目标转换成 API 输入。
+   *
+   * @returns 保留目标 Pokémon 与不可变配置快照的请求数组。
+   */
   function speedGoalRequests(): ConfigurationSpeedGoalRequest[] {
     return speedGoals.value.map((goal) => ({
       goal_id: goal.id,
@@ -395,7 +415,8 @@ export function createConfigurationSolver() {
   /**
    * 按全局模式提交模板验证或 EV、IV 与性格反推请求。
    *
-   * 两种模式都会把伤害目标和严格速度目标作为同一套配置必须同时满足的约束。
+   * 没有速度目标时继续使用原 API 客户端，保证既有调用测试和纯伤害流程不受影响；存在
+   * 速度目标时提交扩展字段，并把两类目标作为同一套配置必须同时满足的约束。
    */
   async function submit(): Promise<void> {
     if (!subject.value || !canSubmit.value) return;
@@ -410,18 +431,35 @@ export function createConfigurationSolver() {
           subjectItemIdentifier.value === 'none' ? null : subjectItemIdentifier.value,
         level: level.value,
         goals: goalRequests(),
-        speed_goals: speedGoalRequests(),
       };
-      result.value = searchMode.value === 'spread'
-        ? await searchConfigurationSpreadsWithSpeed({
+      if (speedGoals.value.length === 0) {
+        const baseResult = searchMode.value === 'spread'
+          ? await searchConfigurationSpreads({
+            ...commonRequest,
+            max_candidates: 10,
+          })
+          : await solveConfiguration({
+            ...commonRequest,
+            allowed_stat_presets: selectedPresetKeys.value,
+            max_candidates: 3,
+          });
+        result.value = normalizeBaseResponse(baseResult);
+      } else {
+        const speedRequest = {
           ...commonRequest,
-          max_candidates: 10,
-        })
-        : await solveConfigurationWithSpeed({
-          ...commonRequest,
-          allowed_stat_presets: selectedPresetKeys.value,
-          max_candidates: 3,
-        });
+          speed_goals: speedGoalRequests(),
+        };
+        result.value = searchMode.value === 'spread'
+          ? await searchConfigurationSpreadsWithSpeed({
+            ...speedRequest,
+            max_candidates: 10,
+          })
+          : await solveConfigurationWithSpeed({
+            ...speedRequest,
+            allowed_stat_presets: selectedPresetKeys.value,
+            max_candidates: 3,
+          });
+      }
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '求解失败';
     } finally {
@@ -556,4 +594,24 @@ function saveById<T extends { id: string }>(collection: T[], item: T): void {
   } else {
     collection.splice(existingIndex, 1, item);
   }
+}
+
+/**
+ * 把旧求解响应补齐为空的速度证据，使页面可以使用统一结果模型。
+ *
+ * @param response 原模板验证或属性反推客户端返回的纯伤害响应。
+ * @returns 保留全部旧字段，并为每条候选和顶层补充空速度目标数组的新对象。
+ */
+function normalizeBaseResponse(
+  response: SolveConfigurationResponse,
+): SpeedAwareSolveConfigurationResponse {
+  const candidates: SpeedAwareSolvedConfiguration[] = response.candidates.map((candidate) => ({
+    ...candidate,
+    speed_goals: [],
+  }));
+  return {
+    ...response,
+    candidates,
+    rejected_speed_goals: [],
+  };
 }
