@@ -27,6 +27,7 @@
 .item-selector__sprite {
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
   object-fit: contain;
   image-rendering: auto;
 }
@@ -36,6 +37,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
   border: 1px dashed #bdc9c0;
   border-radius: 6px;
   color: #65736b;
@@ -76,9 +78,50 @@
   margin: 0;
 }
 
+.item-selector-modal__toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.item-selector-modal__search input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #bdc9c0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #17201b;
+}
+
+.item-selector-modal__search input:focus {
+  outline: 2px solid rgba(40, 107, 82, 0.2);
+  border-color: #286b52;
+}
+
+.item-selector-modal__count {
+  color: #65736b;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .item-selector-modal__list {
   display: grid;
   gap: 8px;
+}
+
+.item-selector-option-wrap {
+  min-width: 0;
+}
+
+.item-selector-option-wrap.is-unimplemented {
+  cursor: not-allowed;
+}
+
+.item-selector-option-wrap.is-unimplemented .item-selector-option {
+  pointer-events: none;
 }
 
 .item-selector-option {
@@ -92,17 +135,66 @@
   text-align: left;
 }
 
+.item-selector-option:not(:disabled):hover {
+  border-color: #9eb3a6;
+  background: #f6faf7;
+}
+
 .item-selector-option.active {
   border-color: #286b52;
   background: #e6f1eb;
 }
 
-.item-selector-option span:last-child {
+.item-selector-option:disabled {
+  cursor: not-allowed;
+  border-color: #e2e5e2;
+  background: #f6f7f6;
+  color: #7b847f;
+  opacity: 0.72;
+}
+
+.item-selector-option__label {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
 .item-selector-option small {
+  overflow: hidden;
   color: #65736b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-selector-option__unimplemented {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 1px solid #a6ada9;
+  border-radius: 50%;
+  color: #69716d;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.item-selector-modal__empty {
+  margin: 8px 0;
+  padding: 20px 12px;
+  color: #65736b;
+  text-align: center;
+}
+
+.item-selector__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
