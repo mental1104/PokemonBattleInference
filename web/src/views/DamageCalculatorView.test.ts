@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getPokemonDetail,
   listBattleItems,
+  listPokemonAbilities,
   listPokemonMoves,
   listStatPresets,
   searchPokemon,
@@ -16,6 +17,7 @@ vi.mock('../api/calculator', () => ({
   calculateDamage: vi.fn(),
   getPokemonDetail: vi.fn(),
   listBattleItems: vi.fn(),
+  listPokemonAbilities: vi.fn(),
   listPokemonMoves: vi.fn(),
   listStatPresets: vi.fn(),
   searchPokemon: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock('../api/calculator', () => ({
 const searchPokemonMock = vi.mocked(searchPokemon);
 const getPokemonDetailMock = vi.mocked(getPokemonDetail);
 const listBattleItemsMock = vi.mocked(listBattleItems);
+const listPokemonAbilitiesMock = vi.mocked(listPokemonAbilities);
 const listPokemonMovesMock = vi.mocked(listPokemonMoves);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 
@@ -75,6 +78,38 @@ beforeEach(() => {
     const selected = pokemonId === BULBASAUR.pokemon_id ? BULBASAUR : PIKACHU;
     return detail(selected);
   });
+  listPokemonAbilitiesMock.mockReset().mockImplementation(async (pokemonId) => {
+    if (pokemonId === BULBASAUR.pokemon_id) {
+      return [
+        {
+          ability_id: 65,
+          identifier: 'overgrow',
+          display_name: '茂盛',
+          slot: 1,
+          is_hidden: false,
+          implemented: false,
+        },
+        {
+          ability_id: 34,
+          identifier: 'chlorophyll',
+          display_name: '叶绿素',
+          slot: 3,
+          is_hidden: true,
+          implemented: false,
+        },
+      ];
+    }
+    return [
+      {
+        ability_id: 9,
+        identifier: 'static',
+        display_name: '静电',
+        slot: 1,
+        is_hidden: false,
+        implemented: false,
+      },
+    ];
+  });
   listPokemonMovesMock.mockReset().mockResolvedValue({
     items: [],
     total: 0,
@@ -107,8 +142,8 @@ describe('DamageCalculatorView', () => {
     /**
      * 页面同时挂载攻击方和防守方两个 PokémonSelector。测试先在攻击方选择妙蛙种子，确认防守方仍保持
      * 默认候选列表且没有出现妙蛙种子的最近记录；随后在防守方选择皮卡丘，断言两侧最近列表分别只包含
-     * 自己操作过的 Pokémon。该场景保护每个输入框独立维护 LRU 历史，避免另一侧选择污染展示顺序或占用
-     * 八个历史名额，同时确认双方当前选中状态和详情加载仍然彼此独立。
+     * 自己操作过的 Pokémon。该场景保护每个输入框独立维护 LRU 历史，同时确认详情和特性列表按各自
+     * pokemon_id 独立加载，避免另一侧选择污染展示顺序、能力候选或占用八个历史名额。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
@@ -137,6 +172,8 @@ describe('DamageCalculatorView', () => {
     expect(selectors[1].props('selected')).toMatchObject({ pokemon_id: 25 });
     expect(getPokemonDetailMock).toHaveBeenCalledWith(1, 'pokemon-champion');
     expect(getPokemonDetailMock).toHaveBeenCalledWith(25, 'pokemon-champion');
+    expect(listPokemonAbilitiesMock).toHaveBeenCalledWith(1, 'pokemon-champion');
+    expect(listPokemonAbilitiesMock).toHaveBeenCalledWith(25, 'pokemon-champion');
     expect(listPokemonMovesMock).toHaveBeenCalledWith(1, 'pokemon-champion', {
       query: '',
       category: 'all',
@@ -146,26 +183,53 @@ describe('DamageCalculatorView', () => {
     });
   });
 
-  it('places item selection between attacker summary and stats while leaving the ability slot blank', async () => {
+  it('places required ability selectors between equipment and stat configuration', async () => {
     /**
-     * 双栏内部必须拥有相同的 Pokémon、摘要、配置顺序。攻击方道具选择位于摘要和配置之间；
-     * 防守方同位置暂时留给特性选择，MoveSelector 仍位于 calculator-grid 之后的居中区域。
+     * 攻击方选择妙蛙种子、防守方选择皮卡丘后，两栏都必须展示真实特性候选。攻击方特性面板位于携带道具
+     * 下方和攻击配置上方，防守方特性面板位于摘要与耐久配置之间；未实现候选仍可点击，但必须显示禁止符号、
+     * “未实现”标识和按无特性处理的悬浮说明。MoveSelector 继续独立位于双栏之后，防止新增面板破坏主布局。
      */
     const wrapper = mount(DamageCalculatorView);
+    await flushPromises();
+
+    let selectors = wrapper.findAllComponents(PokemonSelector);
+    await selectors[0].get(`[data-pokemon-id="${BULBASAUR.pokemon_id}"]`).trigger('click');
+    await flushPromises();
+    selectors = wrapper.findAllComponents(PokemonSelector);
+    await selectors[1].get(`[data-pokemon-id="${PIKACHU.pokemon_id}"]`).trigger('click');
     await flushPromises();
 
     const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
     const defenderColumn = wrapper.get('[data-testid="defender-column"]');
     const itemSelector = attackerColumn.get('.item-selector');
-    expect(attackerColumn.find('[data-testid="attacker-config"]').exists()).toBe(true);
-    expect(defenderColumn.find('[data-testid="defender-config"]').exists()).toBe(true);
+    const attackerAbilitySelector = attackerColumn.get('.ability-selector');
+    const defenderAbilitySelector = defenderColumn.get('.ability-selector');
+    const attackerConfig = attackerColumn.get('[data-testid="attacker-config"]');
+    const defenderConfig = defenderColumn.get('[data-testid="defender-config"]');
+
     expect(itemSelector.text()).toContain('不携带道具');
-    expect(defenderColumn.get('.ability-placeholder').text()).toBe('');
+    expect(attackerAbilitySelector.text()).toContain('茂盛');
+    expect(attackerAbilitySelector.text()).toContain('叶绿素');
+    expect(attackerAbilitySelector.text()).toContain('⊘ 未实现');
+    expect(attackerAbilitySelector.get('.ability-selector__unsupported').attributes('title')).toBe(
+      '当前未实现，参与计算时按无特性处理',
+    );
+    expect(defenderAbilitySelector.text()).toContain('静电');
     expect(attackerColumn.find('.move-selector').exists()).toBe(false);
     expect(defenderColumn.find('.move-selector').exists()).toBe(false);
 
-    const attackerConfig = attackerColumn.get('[data-testid="attacker-config"]').element;
-    expect(itemSelector.element.compareDocumentPosition(attackerConfig) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      itemSelector.element.compareDocumentPosition(attackerAbilitySelector.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      attackerAbilitySelector.element.compareDocumentPosition(attackerConfig.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      defenderAbilitySelector.element.compareDocumentPosition(defenderConfig.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     const moveStage = wrapper.get('[data-testid="move-stage"]');
     expect(moveStage.findAll('.move-selector')).toHaveLength(1);
