@@ -1,17 +1,95 @@
 .move-selector {
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(300px, 36%) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  column-gap: 28px;
+  min-height: 440px;
+  overflow: hidden;
+}
+
+.move-selector::before {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  margin-bottom: 10px;
+  color: #24362e;
+  content: '技能列表';
+  font-weight: 700;
+}
+
+.move-selector::after {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: calc(36% + 13px);
+  width: 1px;
+  background: #dfe6dc;
+  content: '';
+}
+
+.move-selector > .field-title {
+  grid-column: 1;
+  grid-row: 1;
+  padding-right: 8px;
+  font-size: 0;
+}
+
+.move-selector > .field-title::after {
+  content: '筛选条件';
+  font-size: 16px;
 }
 
 .move-filter-group,
 .move-type-filter {
-  display: flex;
-  flex-wrap: wrap;
+  padding-right: 8px;
+}
+
+.move-filter-group {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .move-type-filter {
-  gap: 6px;
+  grid-column: 1;
+  grid-row: 3 / span 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+}
+
+.move-selector > .search-input {
+  grid-column: 2;
+  grid-row: 2;
+  margin-bottom: 10px;
+}
+
+.move-selector > .row-message,
+.move-selector > .option-list.compact {
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+}
+
+.move-selector > .row-message {
+  align-self: start;
+}
+
+.move-selector > .option-list.compact {
+  max-height: 330px;
+  margin-top: 0;
+  padding-right: 4px;
+}
+
+.move-selector > .move-more-button {
+  grid-column: 2;
+  grid-row: 4;
 }
 
 .filter-button,
@@ -24,24 +102,27 @@
 }
 
 .filter-button {
-  min-height: 34px;
-  padding: 5px 12px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 10px;
 }
 
 .filter-button.active {
   border-color: #286b52;
   background: #e6f1eb;
   color: #173f30;
+  box-shadow: inset 0 0 0 1px rgba(40, 107, 82, 0.08);
 }
 
 .type-image-button {
   display: inline-grid;
   place-items: center;
-  width: 92px;
+  width: 100%;
+  min-width: 0;
   min-height: 36px;
   border: 1px solid #d7dfd3;
   border-radius: 8px;
-  padding: 3px 7px;
+  padding: 3px 6px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(23, 32, 27, 0.04);
   transition:
@@ -57,6 +138,7 @@
 
 .type-image-button.active {
   border-color: #173f30;
+  background: #f0f6f2;
   box-shadow:
     0 0 0 2px rgba(40, 107, 82, 0.18),
     0 4px 10px rgba(23, 32, 27, 0.1);
@@ -64,7 +146,7 @@
 
 .type-filter-image {
   display: block;
-  width: 76px;
+  width: min(76px, 100%);
   height: 24px;
   object-fit: contain;
 }
@@ -91,7 +173,6 @@
   border-left: 5px solid var(--move-type-color);
   border-radius: 9px;
   padding: 9px 11px;
-  background: #fff;
   background: color-mix(in srgb, var(--move-type-color) 13%, white);
   box-shadow: 0 3px 12px rgba(23, 32, 27, 0.06);
   color: #17201b;
@@ -193,7 +274,9 @@
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease,
-    transform 120ms ease;
+    transform 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .move-option-card:hover {
@@ -203,12 +286,33 @@
 }
 
 .move-option-card--selected {
-  border-color: var(--move-type-color);
+  border-color: color-mix(in srgb, var(--move-type-color) 78%, #0f2019);
   border-left-width: 8px;
-  background: color-mix(in srgb, var(--move-type-color) 32%, white);
+  background: color-mix(in srgb, var(--move-type-color) 68%, #10251d);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--move-type-color) 32%, transparent),
+    0 8px 20px rgba(23, 32, 27, 0.18);
+  color: #fff;
+}
+
+.move-option-card--selected:hover {
+  border-color: color-mix(in srgb, var(--move-type-color) 88%, #0f2019);
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--move-type-color) 38%, transparent),
-    0 7px 18px rgba(23, 32, 27, 0.14);
+    0 10px 22px rgba(23, 32, 27, 0.22);
+}
+
+.move-option-card--selected .move-card-copy small {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.move-option-card--selected .move-type-image {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+}
+
+.move-option-card--selected .move-power-badge {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .move-more-button {
@@ -262,13 +366,67 @@
   max-height: min(560px, calc(100vh - 210px));
 }
 
-@media (max-width: 760px) {
-  .type-image-button {
-    width: 84px;
+@media (max-width: 960px) {
+  .move-selector {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+    min-height: 0;
   }
 
-  .type-filter-image {
-    width: 70px;
+  .move-selector::before {
+    grid-column: 1;
+    grid-row: 4;
+    margin-top: 10px;
+  }
+
+  .move-selector::after {
+    top: auto;
+    right: 14px;
+    bottom: auto;
+    left: 14px;
+    width: auto;
+    height: 1px;
+    margin-top: 8px;
+  }
+
+  .move-selector > .field-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .move-filter-group {
+    grid-column: 1;
+    grid-row: 2;
+    padding-right: 0;
+  }
+
+  .move-type-filter {
+    grid-column: 1;
+    grid-row: 3;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-right: 0;
+  }
+
+  .move-selector > .search-input {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  .move-selector > .row-message,
+  .move-selector > .option-list.compact {
+    grid-column: 1;
+    grid-row: 6;
+  }
+
+  .move-selector > .move-more-button {
+    grid-column: 1;
+    grid-row: 7;
+  }
+}
+
+@media (max-width: 760px) {
+  .move-type-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .move-card {
@@ -294,9 +452,8 @@
 }
 
 @media (max-width: 420px) {
-  .type-image-button {
-    width: calc(33.333% - 4px);
-    min-width: 0;
+  .move-type-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .type-filter-image {
