@@ -152,7 +152,11 @@ async def solve_configuration(
                 subject_item_identifier=request.subject_item_identifier,
                 level=request.level,
                 goals=_goal_commands(request.goals),
-                speed_goals=_speed_goal_commands(request.speed_goals),
+                # 直接调用 router 的旧测试会传入原 SolveConfigurationRequest；缺少扩展字段时
+                # 按空速度目标处理，保持原入口兼容。
+                speed_goals=_speed_goal_commands(
+                    getattr(request, "speed_goals", ())
+                ),
                 allowed_stat_presets=tuple(request.allowed_stat_presets),
                 max_candidates=request.max_candidates,
             )
@@ -190,7 +194,9 @@ async def search_configuration_spreads(
                 subject_item_identifier=request.subject_item_identifier,
                 level=request.level,
                 goals=_goal_commands(request.goals),
-                speed_goals=_speed_goal_commands(request.speed_goals),
+                speed_goals=_speed_goal_commands(
+                    getattr(request, "speed_goals", ())
+                ),
                 max_candidates=request.max_candidates,
             )
         )
