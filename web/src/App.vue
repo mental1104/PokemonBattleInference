@@ -19,7 +19,7 @@ const showJobDetail = computed(
 /**
  * 切换首页主要产品能力。
  *
- * @param tab 单次伤害计算、固定配置推演或配置反向求解。
+ * @param tab 单次伤害计算、配置反向求解或固定配置推演。
  */
 function selectTab(tab: HomeTab): void {
   activeTab.value = tab;
@@ -74,17 +74,17 @@ function backToInference(): void {
         </button>
         <button
           type="button"
-          :class="{ 'home-tab--active': activeTab === 'inference' }"
-          @click="selectTab('inference')"
-        >
-          固定配置精确推演
-        </button>
-        <button
-          type="button"
           :class="{ 'home-tab--active': activeTab === 'solver' }"
           @click="selectTab('solver')"
         >
           配置反向求解
+        </button>
+        <button
+          type="button"
+          :class="{ 'home-tab--active': activeTab === 'inference' }"
+          @click="selectTab('inference')"
+        >
+          固定配置精确推演
         </button>
       </div>
     </nav>
