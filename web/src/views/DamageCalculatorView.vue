@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
+import AbilitySelector from '../components/AbilitySelector.vue';
 import CalculationScope from '../components/CalculationScope.vue';
 import DamageResult from '../components/DamageResult.vue';
 import ItemSelector from '../components/ItemSelector.vue';
@@ -31,7 +32,7 @@ onMounted(() => {
  * 记录攻击方选择并交给 calculator 加载详情。
  *
  * @param pokemon 用户在攻击方选择器中选中的 Pokémon。
- * @returns 详情和可用招式加载完成后 resolve 的 Promise。
+ * @returns 详情、特性和可用招式加载完成后 resolve 的 Promise。
  */
 async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
   // 攻击方只更新自己的会话历史，避免污染防守方选择框。
@@ -43,7 +44,7 @@ async function selectAttacker(pokemon: PokemonSearchItem): Promise<void> {
  * 记录防守方选择并交给 calculator 加载详情。
  *
  * @param pokemon 用户在防守方选择器中选中的 Pokémon。
- * @returns 防守方详情加载完成后 resolve 的 Promise。
+ * @returns 防守方详情和特性加载完成后 resolve 的 Promise。
  */
 async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
   // 防守方拥有独立 LRU，攻击方历史不会占用其八个记录名额。
@@ -81,6 +82,15 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           :loading="calculator.itemsLoading.value"
           @select="calculator.attackerItemIdentifier.value = $event.identifier"
         />
+        <AbilitySelector
+          data-testid="attacker-ability"
+          title="特性"
+          :abilities="calculator.attackerAbilityOptions.value"
+          :selected-identifier="calculator.attackerAbilityIdentifier.value"
+          :disabled="!calculator.attacker.value"
+          :loading="calculator.attackerAbilitiesLoading.value"
+          @select="calculator.attackerAbilityIdentifier.value = $event.identifier"
+        />
         <StatConfigurationPicker
           v-model="calculator.attackerPreset.value"
           data-testid="attacker-config"
@@ -108,6 +118,15 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           :disabled="!calculator.defender.value"
           :loading="calculator.itemsLoading.value"
           @select="calculator.defenderItemIdentifier.value = $event.identifier"
+        />
+        <AbilitySelector
+          data-testid="defender-ability"
+          title="特性"
+          :abilities="calculator.defenderAbilityOptions.value"
+          :selected-identifier="calculator.defenderAbilityIdentifier.value"
+          :disabled="!calculator.defender.value"
+          :loading="calculator.defenderAbilitiesLoading.value"
+          @select="calculator.defenderAbilityIdentifier.value = $event.identifier"
         />
         <StatConfigurationPicker
           v-model="calculator.defenderPreset.value"

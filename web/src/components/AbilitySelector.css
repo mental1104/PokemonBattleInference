@@ -1,0 +1,78 @@
+.ability-selector {
+  display: grid;
+  gap: 8px;
+}
+
+.ability-selector__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.ability-selector__option {
+  position: relative;
+  display: grid;
+  min-height: 58px;
+  gap: 6px;
+  border: 1px solid #dce4d8;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #fff;
+  color: #17201b;
+  text-align: left;
+}
+
+.ability-selector__option:hover:not(:disabled) {
+  border-color: #8aa897;
+}
+
+.ability-selector__option.active {
+  border-color: #286b52;
+  background: #e6f1eb;
+}
+
+.ability-selector__option.unsupported {
+  border-style: dashed;
+}
+
+.ability-selector__option:disabled {
+  opacity: 0.65;
+}
+
+.ability-selector__name {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.ability-selector__name small {
+  overflow: hidden;
+  color: #65736b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ability-selector__hidden,
+.ability-selector__unsupported {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ability-selector__hidden {
+  background: #eef2ef;
+  color: #59665f;
+}
+
+.ability-selector__unsupported {
+  background: #f5ece9;
+  color: #8c4035;
+}
+
+.ability-selector__notice {
+  margin: 0;
+  color: #8c4035;
+  font-size: 12px;
+}
