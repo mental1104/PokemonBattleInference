@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import ConfigurationSpeedGoalFeature from './components/ConfigurationSpeedGoalFeature.vue';
+import './components/configurationSpeedGoals.css';
 import { provideConfigurationSolver } from './composables/useConfigurationSolver';
 import DamageCalculatorView from './views/DamageCalculatorView.vue';
 import BattleInferenceView from './views/BattleInferenceView.vue';
