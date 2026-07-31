@@ -22,6 +22,7 @@ export function useDamageCalculator() {
   const defender = ref<PokemonDetail | null>(null);
   const move = ref<MoveSearchItem | null>(null);
   const attackerItemIdentifier = ref('none');
+  const defenderItemIdentifier = ref('none');
   const itemOptions = ref<BattleItemOption[]>([]);
   const itemsLoading = ref(false);
   const attackerPreset = ref('max_atk_neutral');
@@ -55,18 +56,27 @@ export function useDamageCalculator() {
     }
   }
 
-  /** 初始化当前规则集可选择的已实现战斗持有道具。 */
+  /**
+   * 初始化当前规则集可选择的已实现战斗持有道具，并修正双方已经失效的选择。
+   *
+   * @returns 道具列表请求完成后 resolve；请求失败时双方都回退为不携带道具。
+   */
   async function loadItems(): Promise<void> {
     itemsLoading.value = true;
     try {
       itemOptions.value = await listBattleItems(rulesetId.value);
+      const fallbackIdentifier = itemOptions.value[0]?.identifier ?? 'none';
       if (!itemOptions.value.some((item) => item.identifier === attackerItemIdentifier.value)) {
-        attackerItemIdentifier.value = itemOptions.value[0]?.identifier ?? 'none';
+        attackerItemIdentifier.value = fallbackIdentifier;
+      }
+      if (!itemOptions.value.some((item) => item.identifier === defenderItemIdentifier.value)) {
+        defenderItemIdentifier.value = fallbackIdentifier;
       }
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '无法加载道具列表';
       itemOptions.value = [];
       attackerItemIdentifier.value = 'none';
+      defenderItemIdentifier.value = 'none';
     } finally {
       itemsLoading.value = false;
     }
@@ -76,6 +86,7 @@ export function useDamageCalculator() {
    * 选择攻击方后读取详情，并清空依赖旧攻击方的招式和伤害结果。
    *
    * @param item 用户从攻击方选择器选中的 Pokémon 搜索结果。
+   * @returns 攻击方详情加载完成后 resolve 的 Promise。
    */
   async function selectAttacker(item: PokemonSearchItem): Promise<void> {
     error.value = null;
@@ -86,13 +97,22 @@ export function useDamageCalculator() {
     staleResult.value = false;
   }
 
-  /** 选择防守方后读取详情。 */
+  /**
+   * 选择防守方后读取详情，保留双方其他已经完成的输入。
+   *
+   * @param item 用户从防守方选择器选中的 Pokémon 搜索结果。
+   * @returns 防守方详情加载完成后 resolve 的 Promise。
+   */
   async function selectDefender(item: PokemonSearchItem): Promise<void> {
     error.value = null;
     defender.value = await getPokemonDetail(item.pokemon_id, rulesetId.value);
   }
 
-  /** 提交当前选择，得到真实 domain 伤害结果。 */
+  /**
+   * 提交当前双方 Pokémon、配置、持有道具和招式选择，得到真实 domain 伤害结果。
+   *
+   * @returns 服务端计算完成后 resolve；输入不完整时直接结束且不发起请求。
+   */
   async function submit(): Promise<void> {
     if (!attacker.value || !defender.value || !move.value) return;
     loading.value = true;
@@ -110,6 +130,7 @@ export function useDamageCalculator() {
           pokemon_id: defender.value.pokemon_id,
           level: level.value,
           stat_preset: defenderPreset.value,
+          item_identifier: defenderItemIdentifier.value === 'none' ? null : defenderItemIdentifier.value,
         },
         move_id: move.value.move_id,
       });
@@ -122,9 +143,20 @@ export function useDamageCalculator() {
   }
 
   /** 任一输入变化后标记旧结果过期，避免页面继续显示为有效结论。 */
-  watch([attacker, defender, move, attackerPreset, defenderPreset, attackerItemIdentifier], () => {
-    if (result.value) staleResult.value = true;
-  });
+  watch(
+    [
+      attacker,
+      defender,
+      move,
+      attackerPreset,
+      defenderPreset,
+      attackerItemIdentifier,
+      defenderItemIdentifier,
+    ],
+    () => {
+      if (result.value) staleResult.value = true;
+    },
+  );
 
   return {
     rulesetId,
@@ -133,6 +165,7 @@ export function useDamageCalculator() {
     defender,
     move,
     attackerItemIdentifier,
+    defenderItemIdentifier,
     itemOptions,
     itemsLoading,
     attackerPreset,
