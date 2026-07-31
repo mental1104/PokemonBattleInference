@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
+import type { ConfigurationGoalKind } from '../api/configurationSolver';
 import AbilitySelector from '../components/AbilitySelector.vue';
 import ItemSelector from '../components/ItemSelector.vue';
 import MoveSelector from '../components/MoveSelector.vue';
@@ -10,10 +11,26 @@ import StatConfigurationPicker from '../components/StatConfigurationPicker.vue';
 import { useConfigurationSolver, type EditableSolverGoal } from '../composables/useConfigurationSolver';
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 
+type GoalDialogMode = 'create' | 'replace';
+
 const solver = useConfigurationSolver();
 const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
 const attackGoals = computed(() => solver.goals.value.filter((goal) => goal.kind === 'attack'));
 const defenseGoals = computed(() => solver.goals.value.filter((goal) => goal.kind === 'defense'));
+const goalDialogOpen = ref(false);
+const goalDialogMode = ref<GoalDialogMode>('create');
+const goalDialogKind = ref<ConfigurationGoalKind>('attack');
+const goalDialogGoalId = ref<string | null>(null);
+const goalDialogPokemon = ref<PokemonSearchItem | null>(null);
+const goalDialogSubmitting = ref(false);
+
+const goalDialogTitle = computed(() => {
+  const action = goalDialogMode.value === 'create' ? '添加' : '更换';
+  return `${action}${goalDialogKind.value === 'attack' ? '攻目标' : '防目标'}`;
+});
+const goalDialogPokemonTitle = computed(() => (
+  goalDialogKind.value === 'attack' ? '选择防守目标' : '选择攻击来源'
+));
 
 /** 初始化配置模板与战斗道具目录。 */
 onMounted(() => {
@@ -31,14 +48,75 @@ async function selectSubject(pokemon: PokemonSearchItem): Promise<void> {
 }
 
 /**
- * 选择目标 Pokémon，并写入最近选择。
+ * 打开新增目标弹窗；已选目标列表在确认前保持不变。
  *
- * @param goal 被更新的目标。
- * @param pokemon 用户选中的 Pokémon。
+ * @param kind attack 表示新增防守对象，defense 表示新增攻击来源。
  */
-async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem): Promise<void> {
-  rememberPokemon(pokemon);
-  await solver.selectGoalTarget(goal, pokemon);
+function openAddGoalDialog(kind: ConfigurationGoalKind): void {
+  goalDialogMode.value = 'create';
+  goalDialogKind.value = kind;
+  goalDialogGoalId.value = null;
+  goalDialogPokemon.value = null;
+  goalDialogOpen.value = true;
+}
+
+/**
+ * 打开更换目标弹窗，并以当前 Pokémon 作为初始选择。
+ *
+ * @param goal 用户准备更换 Pokémon 的已选目标。
+ */
+function openReplaceGoalDialog(goal: EditableSolverGoal): void {
+  goalDialogMode.value = 'replace';
+  goalDialogKind.value = goal.kind;
+  goalDialogGoalId.value = goal.id;
+  goalDialogPokemon.value = goal.target;
+  goalDialogOpen.value = true;
+}
+
+/**
+ * 保存弹窗中的临时 Pokémon 选择，不立即修改已选目标列表。
+ *
+ * @param pokemon 用户在新增或更换弹窗中点选的 Pokémon。
+ */
+function selectGoalDialogPokemon(pokemon: PokemonSearchItem): void {
+  goalDialogPokemon.value = pokemon;
+}
+
+/** 关闭目标选择弹窗，并丢弃尚未确认的临时选择。 */
+function closeGoalDialog(): void {
+  if (goalDialogSubmitting.value) return;
+  goalDialogOpen.value = false;
+  goalDialogGoalId.value = null;
+  goalDialogPokemon.value = null;
+}
+
+/**
+ * 确认弹窗选择，并在资料加载成功后新增或更换目标。
+ *
+ * 新增模式只有在目标详情和合法特性加载完成后才写入列表；更换模式则更新对应已选目标，
+ * 从而让列表始终只展示已经确认的对象。
+ */
+async function confirmGoalDialog(): Promise<void> {
+  const pokemon = goalDialogPokemon.value;
+  if (!pokemon || goalDialogSubmitting.value) return;
+
+  goalDialogSubmitting.value = true;
+  try {
+    if (goalDialogMode.value === 'create') {
+      const created = await solver.addGoalWithTarget(goalDialogKind.value, pokemon);
+      if (created === null) return;
+    } else {
+      const goal = solver.goals.value.find((item) => item.id === goalDialogGoalId.value);
+      if (!goal || !(await solver.selectGoalTarget(goal, pokemon))) return;
+    }
+
+    rememberPokemon(pokemon);
+    goalDialogOpen.value = false;
+    goalDialogGoalId.value = null;
+    goalDialogPokemon.value = null;
+  } finally {
+    goalDialogSubmitting.value = false;
+  }
 }
 </script>
 
@@ -95,7 +173,7 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
           <div class="panel-heading">
             <div>
               <h2>攻防目标</h2>
-              <p class="muted">每条目标独立选择 Pokémon、配置、道具、特性与招式。</p>
+              <p class="muted">新增时先在弹窗中选择 Pokémon，列表只展示已经确认的目标。</p>
             </div>
           </div>
 
@@ -109,7 +187,8 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                 <button
                   type="button"
                   class="secondary-button"
-                  @click="solver.addGoal('attack')"
+                  data-testid="open-attack-goal-dialog"
+                  @click="openAddGoalDialog('attack')"
                 >
                   添加攻目标
                 </button>
@@ -132,7 +211,6 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                   <button
                     type="button"
                     class="icon-button"
-                    :disabled="solver.goals.value.length === 1"
                     aria-label="删除攻目标"
                     @click="solver.removeGoal(goal.id)"
                   >
@@ -140,13 +218,16 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                   </button>
                 </div>
 
-                <PokemonSelector
-                  title="防守目标"
-                  :ruleset-id="solver.rulesetId.value"
-                  :selected="goal.target"
-                  :recent-pokemon="recentPokemon"
-                  @select="selectTarget(goal, $event)"
-                />
+                <div class="goal-target-heading">
+                  <strong>防守目标</strong>
+                  <button
+                    type="button"
+                    class="text-button"
+                    @click="openReplaceGoalDialog(goal)"
+                  >
+                    更换
+                  </button>
+                </div>
                 <PokemonSummaryCard :pokemon="goal.target" />
 
                 <div class="goal-mechanics">
@@ -199,7 +280,8 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                 <button
                   type="button"
                   class="secondary-button"
-                  @click="solver.addGoal('defense')"
+                  data-testid="open-defense-goal-dialog"
+                  @click="openAddGoalDialog('defense')"
                 >
                   添加防目标
                 </button>
@@ -222,7 +304,6 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                   <button
                     type="button"
                     class="icon-button"
-                    :disabled="solver.goals.value.length === 1"
                     aria-label="删除防目标"
                     @click="solver.removeGoal(goal.id)"
                   >
@@ -230,13 +311,16 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
                   </button>
                 </div>
 
-                <PokemonSelector
-                  title="攻击来源"
-                  :ruleset-id="solver.rulesetId.value"
-                  :selected="goal.target"
-                  :recent-pokemon="recentPokemon"
-                  @select="selectTarget(goal, $event)"
-                />
+                <div class="goal-target-heading">
+                  <strong>攻击来源</strong>
+                  <button
+                    type="button"
+                    class="text-button"
+                    @click="openReplaceGoalDialog(goal)"
+                  >
+                    更换
+                  </button>
+                </div>
                 <PokemonSummaryCard :pokemon="goal.target" />
 
                 <div class="goal-mechanics">
@@ -340,6 +424,66 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
         </section>
       </section>
     </section>
+
+    <div
+      v-if="goalDialogOpen"
+      class="goal-dialog-backdrop"
+      data-testid="goal-dialog-backdrop"
+      @click.self="closeGoalDialog"
+    >
+      <section
+        class="goal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="goal-dialog-title"
+        tabindex="-1"
+        @keydown.esc.prevent="closeGoalDialog"
+      >
+        <header class="goal-dialog__header">
+          <div>
+            <h2 id="goal-dialog-title">{{ goalDialogTitle }}</h2>
+            <p class="muted">先选择 Pokémon，确认后才会写入已选目标列表。</p>
+          </div>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="关闭目标选择弹窗"
+            :disabled="goalDialogSubmitting"
+            @click="closeGoalDialog"
+          >
+            ×
+          </button>
+        </header>
+
+        <PokemonSelector
+          :title="goalDialogPokemonTitle"
+          :ruleset-id="solver.rulesetId.value"
+          :selected="goalDialogPokemon"
+          :recent-pokemon="recentPokemon"
+          @select="selectGoalDialogPokemon"
+        />
+
+        <footer class="goal-dialog__footer">
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="goalDialogSubmitting"
+            @click="closeGoalDialog"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="primary-button"
+            data-testid="confirm-goal-dialog"
+            :disabled="!goalDialogPokemon || goalDialogSubmitting"
+            @click="confirmGoalDialog"
+          >
+            {{ goalDialogSubmitting ? '加载中' : goalDialogTitle }}
+          </button>
+        </footer>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -373,7 +517,8 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
 
 .panel-heading,
 .goal-toolbar,
-.goal-column__heading {
+.goal-column__heading,
+.goal-target-heading {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -454,6 +599,11 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
   margin-left: auto;
 }
 
+.goal-target-heading {
+  border-bottom: 1px solid #e5e9e4;
+  padding-bottom: 8px;
+}
+
 .goal-mechanics {
   display: grid;
   gap: 10px;
@@ -514,6 +664,59 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
 .goal-move-selector :deep(.move-selector > .move-more-button) {
   grid-column: 1;
   grid-row: 6;
+}
+
+.goal-dialog-backdrop {
+  align-items: center;
+  background: rgba(23, 32, 27, 0.52);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 70;
+}
+
+.goal-dialog {
+  background: #fff;
+  border: 1px solid #bdc9c0;
+  border-radius: 12px;
+  box-shadow: 0 20px 64px rgba(23, 32, 27, 0.28);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 16px;
+  width: min(640px, 100%);
+}
+
+.goal-dialog__header,
+.goal-dialog__footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.goal-dialog__header {
+  margin-bottom: 14px;
+}
+
+.goal-dialog__header h2,
+.goal-dialog__header p {
+  margin: 0;
+}
+
+.goal-dialog__header p {
+  margin-top: 4px;
+}
+
+.goal-dialog__footer {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.goal-dialog :deep(.panel-block) {
+  max-height: min(560px, calc(100vh - 190px));
+  overflow: auto;
 }
 
 .preset-grid,
@@ -599,6 +802,17 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
 @media (max-width: 900px) {
   .solver-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .goal-dialog-backdrop {
+    padding: 10px;
+  }
+
+  .goal-dialog {
+    max-height: calc(100vh - 20px);
+    padding: 12px;
   }
 }
 </style>
