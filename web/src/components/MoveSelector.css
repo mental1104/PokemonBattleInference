@@ -82,6 +82,9 @@
 }
 
 .move-selector > .option-list.compact {
+  /* 候选项按内容高度从顶部排列，避免单条结果被 Grid 拉伸填满整个待选区。 */
+  align-content: start;
+  grid-auto-rows: max-content;
   max-height: 330px;
   margin-top: 0;
   padding-right: 4px;
