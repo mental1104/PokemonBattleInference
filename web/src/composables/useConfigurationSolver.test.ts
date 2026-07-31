@@ -139,21 +139,24 @@ beforeEach(() => {
 });
 
 describe('useConfigurationSolver', () => {
-  it('submits independent subject and target items and abilities', async () => {
+  it('saves a complete dialog draft and submits independent mechanisms', async () => {
     /**
-     * 目标必须先通过新增流程完成 Pokémon 与特性加载，之后再配置招式、道具并提交。
-     * 断言保护新增弹窗改造不能丢失双方独立的机制字段。
+     * 新增目标先在独立草稿中完成 Pokémon、招式、配置、道具与特性选择，保存后才进入列表。
+     * 断言同时保护求解请求仍携带待配置 Pokémon 与目标双方的独立机制字段。
      */
     const solver = useConfigurationSolver();
     await solver.loadItems();
     await solver.selectSubject(SUBJECT);
 
-    const goal = await solver.addGoalWithTarget('defense', TARGET);
-    expect(goal).not.toBeNull();
-    if (goal === null) throw new Error('goal should be created');
-    goal.move = MOVE;
+    const draft = solver.createGoalDraft('defense');
+    await solver.selectGoalTarget(draft, TARGET);
+    draft.move = MOVE;
+    draft.targetItemIdentifier = 'eviolite';
     solver.subjectItemIdentifier.value = 'life-orb';
-    goal.targetItemIdentifier = 'eviolite';
+
+    expect(solver.goals.value).toEqual([]);
+    expect(solver.saveGoalDraft(draft)).toBe(true);
+    expect(solver.goals.value).toHaveLength(1);
 
     await solver.submit();
 
@@ -164,7 +167,7 @@ describe('useConfigurationSolver', () => {
       subject_item_identifier: 'life-orb',
       level: 50,
       goals: [{
-        goal_id: goal.id,
+        goal_id: draft.id,
         kind: 'defense',
         target_pokemon_id: TARGET.pokemon_id,
         move_id: MOVE.move_id,
@@ -184,40 +187,66 @@ describe('useConfigurationSolver', () => {
     });
   });
 
-  it('keeps the selected list empty until a target is fully loaded', async () => {
+  it('keeps target details outside the selected list until the full draft is saved', async () => {
     /**
-     * 点击添加只应打开选择流程，不能预先插入空白目标。新增 Promise 完成前列表保持为空，
-     * 目标详情和默认特性加载完成后才出现一条攻目标，避免待新增对象混入已选择列表。
+     * 仅加载 Pokémon 和默认特性仍属于弹窗内部状态；缺少招式时保存失败且列表为空。
+     * 完成招式后再次保存，列表才得到一份与草稿隔离的目标快照。
      */
     const solver = useConfigurationSolver();
+    const draft = solver.createGoalDraft('attack');
 
-    const addPromise = solver.addGoalWithTarget('attack', TARGET);
+    await solver.selectGoalTarget(draft, TARGET);
+
+    expect(solver.goals.value).toEqual([]);
+    expect(solver.saveGoalDraft(draft)).toBe(false);
     expect(solver.goals.value).toEqual([]);
 
-    const goal = await addPromise;
-
-    expect(goal).not.toBeNull();
-    expect(solver.goals.value).toHaveLength(1);
+    draft.move = MOVE;
+    expect(solver.saveGoalDraft(draft)).toBe(true);
+    expect(solver.goals.value[0]).not.toBe(draft);
     expect(solver.goals.value[0]).toMatchObject({
       kind: 'attack',
       target: TARGET,
+      move: MOVE,
       targetPreset: 'max_hp',
       targetAbilityIdentifier: 'cute-charm',
       rollPolicy: 'min',
     });
   });
 
-  it('does not retain a blank goal when target loading fails', async () => {
+  it('edits a cloned goal without changing the compact list before save', async () => {
     /**
-     * 新增目标资料请求失败时必须返回 null，并继续保持已选列表为空；否则失败请求会生成
-     * 无法提交、也容易被误认为已选对象的残留卡片。
+     * 编辑弹窗必须持有已选目标的副本。用户修改次数和道具但尚未保存时，列表仍显示旧值；
+     * 保存后再按相同 id 原子替换，避免取消编辑留下半成品状态。
      */
+    const solver = useConfigurationSolver();
+    const draft = solver.createGoalDraft('defense');
+    await solver.selectGoalTarget(draft, TARGET);
+    draft.move = MOVE;
+    solver.saveGoalDraft(draft);
+
+    const editing = solver.cloneGoal(solver.goals.value[0]);
+    editing.repetitions = 3;
+    editing.targetItemIdentifier = 'eviolite';
+
+    expect(solver.goals.value[0].repetitions).toBe(1);
+    expect(solver.goals.value[0].targetItemIdentifier).toBe('none');
+
+    expect(solver.saveGoalDraft(editing)).toBe(true);
+    expect(solver.goals.value).toHaveLength(1);
+    expect(solver.goals.value[0].repetitions).toBe(3);
+    expect(solver.goals.value[0].targetItemIdentifier).toBe('eviolite');
+  });
+
+  it('keeps the selected list unchanged when target loading fails', async () => {
+    /** 目标资料请求失败时只更新错误状态，不会把不完整草稿写入列表。 */
     getPokemonDetailMock.mockRejectedValueOnce(new Error('target unavailable'));
     const solver = useConfigurationSolver();
+    const draft = solver.createGoalDraft('defense');
 
-    const goal = await solver.addGoalWithTarget('defense', TARGET);
+    const loaded = await solver.selectGoalTarget(draft, TARGET);
 
-    expect(goal).toBeNull();
+    expect(loaded).toBe(false);
     expect(solver.goals.value).toEqual([]);
     expect(solver.error.value).toBe('target unavailable');
   });
