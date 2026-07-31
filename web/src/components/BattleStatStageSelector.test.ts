@@ -1,6 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { createNeutralBattleStatStages } from '../api/calculator';
+import {
+  createNeutralBattleStatStages,
+  type BattleStatStages,
+} from '../api/calculator';
 import BattleStatStageSelector from './BattleStatStageSelector.vue';
 
 describe('BattleStatStageSelector', () => {
@@ -32,13 +35,13 @@ describe('BattleStatStageSelector', () => {
     expect(selects[0].text()).toContain('+6');
 
     await wrapper.get('[data-stat-stage="attack"]').setValue('2');
-    const firstUpdate = wrapper.emitted('update:modelValue')?.[0]?.[0];
+    const firstUpdate = wrapper.emitted<[BattleStatStages]>('update:modelValue')?.[0]?.[0];
     expect(firstUpdate).toEqual({ ...stages, attack: 2 });
     expect(stages.attack).toBe(0);
 
     await wrapper.setProps({ modelValue: firstUpdate });
     await wrapper.get('[data-stat-stage="evasion"]').setValue('-1');
-    const secondUpdate = wrapper.emitted('update:modelValue')?.[1]?.[0];
+    const secondUpdate = wrapper.emitted<[BattleStatStages]>('update:modelValue')?.[1]?.[0];
     expect(secondUpdate).toEqual({ ...stages, attack: 2, evasion: -1 });
   });
 });
