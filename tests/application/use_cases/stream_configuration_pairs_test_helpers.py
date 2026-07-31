@@ -149,6 +149,7 @@ class _FakeGraphExecutor:
         defender_policy: BattleActionPolicyKind,
         observer: BattleSide,
         graph_limits: StateGraphLimits,
+        progress_observer: object | None = None,
     ) -> ConfigurationPairGraphArtifact:
         """为当前配置对创建一个短生命周期 fake 图和精确 solver 结果。
 
@@ -159,6 +160,7 @@ class _FakeGraphExecutor:
             defender_policy: 本测试不解释的防守方策略枚举。
             observer: solver 结果使用的观察方。
             graph_limits: 本测试不解释的单 pair 图限制。
+            progress_observer: 本 fake 不使用的实时进度观察者。
 
         Returns:
             可由流式用例提取摘要的短生命周期 artifact。
@@ -166,7 +168,7 @@ class _FakeGraphExecutor:
         Raises:
             RuntimeError: 当前配置对被声明为单项异常时抛出。
         """
-        del attacker_policy, defender_policy, graph_limits
+        del attacker_policy, defender_policy, graph_limits, progress_observer
         assert rules is _RULES
         key = (
             work_item.attacker_configuration_id,

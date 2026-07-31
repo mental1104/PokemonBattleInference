@@ -8,6 +8,13 @@ from pokeop.api.schemas.calculator import CalculateDamageRequest, CalculatorPoke
 from pokeop.application.use_cases.calculate_catalog_damage import (
     CalculateCatalogDamageUseCase,
 )
+from pokeop.domain.configuration_presets import (
+    PokemonBindingKind,
+    StatConfiguration,
+    StatConfigurationRole,
+    StatConfigurationSource,
+    StatSpread,
+)
 from tests.application.use_cases.test_calculate_catalog_damage import (
     BULLET_PUNCH_ID,
     SCIZOR_ID,
@@ -79,3 +86,32 @@ async def test_calculator_damage_api_returns_400_for_illegal_move_combination():
 
     assert exc_info.value.status_code == 400
     assert "move is not available" in str(exc_info.value.detail)
+
+
+@pytest.mark.anyio
+async def test_calculator_damage_api_uses_stat_configuration_snapshot():
+    """
+    配置预设提交到计算器时不能只保存 CRUD 数据或显示名称。测试把攻击方配置编码为
+    snapshot stat_preset，断言 application 展开其中的 adamant nature、252 Attack EV
+    和 31 IV 后，巨钳螳螂实际攻击从满攻中性 182 提升到极限物攻 200。
+    """
+    request = _request()
+    snapshot = StatConfiguration(
+        key="custom-scizor-atk",
+        source=StatConfigurationSource.CUSTOM,
+        name="Custom Scizor Attack",
+        nature_id="adamant",
+        evs=StatSpread.evs(attack=252),
+        ivs=StatSpread.perfect_ivs(),
+        role=StatConfigurationRole.ATTACKER,
+        binding_kind=PokemonBindingKind.GLOBAL,
+    ).snapshot_profile_id()
+    request.attacker.stat_preset = snapshot
+
+    response = await calculator.calculate_damage(
+        request,
+        use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository()),
+    )
+
+    assert response.attacker.effective_attack == 200
+    assert response.damage.min > 99

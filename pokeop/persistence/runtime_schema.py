@@ -13,10 +13,11 @@ def import_runtime_models() -> type[RuntimeBase]:
     """导入全部 poke_runtime SQLAlchemy model 并返回 metadata owner。
 
     Returns:
-        已注册任务、冻结执行规格、进度和配置 case 表的 ``RuntimeBase``。
+        已注册任务、冻结执行规格、进度、配置 case 和租户配置预设表的 ``RuntimeBase``。
     """
     import pokeop.persistence.battle_inference.execution_models  # noqa: F401
     import pokeop.persistence.battle_inference.job_models  # noqa: F401
+    import pokeop.persistence.stat_configurations.models  # noqa: F401
 
     return RuntimeBase
 

@@ -2,11 +2,11 @@
 import type {
   PokemonDetail,
   PokemonSearchItem,
-  StatPreset,
 } from '../../api/calculator';
+import { useRecentPokemon } from '../../composables/useRecentPokemon';
 import PokemonSelector from '../PokemonSelector.vue';
 import PokemonSummaryCard from '../PokemonSummaryCard.vue';
-import StatPresetSelector from '../StatPresetSelector.vue';
+import StatConfigurationPicker from '../StatConfigurationPicker.vue';
 import CandidateMovePoolSelector from './CandidateMovePoolSelector.vue';
 import type { CandidateMoveOption } from '../../types/battleConfigurationSpace';
 import './BattleSideConfigurationPanel.css';
@@ -16,8 +16,8 @@ const props = defineProps<{
   title: string;
   rulesetId: string;
   pokemon: PokemonDetail | null;
+  /** 兼容父级现有装配；面板历史由当前组件实例独立维护，不直接复用该共享数组。 */
   recentPokemon: readonly PokemonSearchItem[];
-  presets: StatPreset[];
   statPreset: string;
   formId: number | null;
   level: number;
@@ -38,6 +38,22 @@ const emit = defineEmits<{
   'update-item-identifier': [value: string];
   'update-selected-move-ids': [moveIds: number[]];
 }>();
+
+const {
+  items: sideRecentPokemon,
+  remember: rememberPokemon,
+} = useRecentPokemon();
+
+/**
+ * 在当前攻方或守方配置面板中记录选择，再把事件交给页面级业务状态。
+ *
+ * @param pokemon 当前面板的 PokemonSelector 返回的搜索项。
+ */
+function selectPokemon(pokemon: PokemonSearchItem): void {
+  // 每个面板实例拥有自己的 LRU，另一侧选择不会改变本侧记录或淘汰顺序。
+  rememberPokemon(pokemon);
+  emit('select-pokemon', pokemon);
+}
 
 /**
  * 将 level 输入收敛到 Pokémon 合法区间后发送给页面状态。
@@ -98,8 +114,8 @@ function inputValue(event: Event): string {
       :title="`${title} Pokémon`"
       :ruleset-id="rulesetId"
       :selected="pokemon"
-      :recent-pokemon="recentPokemon"
-      @select="emit('select-pokemon', $event)"
+      :recent-pokemon="sideRecentPokemon"
+      @select="selectPokemon"
     />
     <PokemonSummaryCard :pokemon="pokemon" />
 
@@ -152,11 +168,13 @@ function inputValue(event: Event): string {
       </div>
     </section>
 
-    <StatPresetSelector
+    <StatConfigurationPicker
       :model-value="statPreset"
       :data-testid="`${side}-stat-preset`"
       :title="`${title}能力值预设`"
-      :presets="presets"
+      :role="side"
+      :pokemon-id="pokemon?.pokemon_id ?? null"
+      :pokemon-name="pokemon?.display_name ?? null"
       @update:model-value="emit('update-stat-preset', $event)"
     />
 

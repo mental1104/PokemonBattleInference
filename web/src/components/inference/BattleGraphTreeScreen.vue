@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import {
   advanceBattleExploration,
   exploreBattleGraph,
@@ -9,14 +9,18 @@ import {
   type JointActionDetailResult,
   type TransitionOutcomeResult,
 } from '../../api/inference';
+import { expandFixedBattleSnapshot } from '../../api/fixedBattle';
 import type { BattleReportPresenterContext } from '../../presenters/battleEventPresenter';
+import type { FixedBattleSummaryRequest } from '../../types/fixedBattle';
 import BattleGraphNode from './BattleGraphNode.vue';
 import BattleReportPanel from './BattleReportPanel.vue';
 
 /** 大屏树状探索器的只读输入。 */
 interface Props {
-  /** 首次固定推演返回的完整图句柄。 */
-  handle: BattleExplorationResult;
+  /** 首次固定推演返回的完整图句柄；snapshot mode 下为 null。 */
+  handle?: BattleExplorationResult | null;
+  /** 固定配置快照展开请求；提供时不要求完整图句柄。 */
+  snapshotRequest?: FixedBattleSummaryRequest | null;
   /** 战报 presenter 需要的双方名称、HP 与招式名称上下文。 */
   context: BattleReportPresenterContext;
 }
@@ -35,16 +39,66 @@ const expandedPrimaryBucketKey = ref<string | null>(null);
 const expandedSecondaryBucketKey = ref<string | null>(null);
 const outcomeViewMode = ref<'grouped' | 'raw'>('grouped');
 const visibleBucketLimit = ref(12);
+const selectedAttackerMoveId = ref<number | null>(null);
+const selectedDefenderMoveId = ref<number | null>(null);
 const loading = ref(false);
 const outcomesLoading = ref(false);
 const error = ref<string | null>(null);
+const canvasViewport = ref<HTMLElement | null>(null);
+const canvasContent = ref<HTMLElement | null>(null);
 let lifecycleVersion = 0;
 
 const current = computed(() => columns.value[columns.value.length - 1] ?? null);
 const currentDepth = computed(() => Math.max(0, columns.value.length - 1));
 const currentReport = computed(() => current.value?.battle_report ?? null);
+const currentTransitionGroups = computed(() => current.value?.transition_groups ?? []);
+const snapshotMode = computed(() => props.snapshotRequest !== null && props.snapshotRequest !== undefined);
+const attackerMoveOptions = computed(() => moveOptions(currentTransitionGroups.value, 'attacker'));
+const defenderMoveOptions = computed(() => moveOptions(currentTransitionGroups.value, 'defender'));
+const filteredTransitionGroups = computed(() =>
+  currentTransitionGroups.value.filter((group) => {
+    const attackerMoveId = groupMoveId(group, 'attacker');
+    const defenderMoveId = groupMoveId(group, 'defender');
+    return (
+      (selectedAttackerMoveId.value === null || selectedAttackerMoveId.value === attackerMoveId)
+      && (selectedDefenderMoveId.value === null || selectedDefenderMoveId.value === defenderMoveId)
+    );
+  }),
+);
 const outcomeBuckets = computed(() => activeOutcomeGroupingStrategy.build(outcomes.value));
 const visibleOutcomeBuckets = computed(() => outcomeBuckets.value.slice(0, visibleBucketLimit.value));
+
+/** 左侧树画布的视角状态。 */
+interface CanvasViewportTransform {
+  /** 内容层相对 viewport 左上角的横向偏移，单位 px。 */
+  x: number;
+  /** 内容层相对 viewport 左上角的纵向偏移，单位 px。 */
+  y: number;
+  /** 内容层缩放倍率。 */
+  scale: number;
+}
+
+/** 拖拽平移时保留的指针起点和原始视角。 */
+interface CanvasPanSession {
+  /** 正在拖拽的 pointerId。 */
+  pointerId: number;
+  /** pointerdown 时的 clientX。 */
+  startClientX: number;
+  /** pointerdown 时的 clientY。 */
+  startClientY: number;
+  /** pointerdown 时的原始 x 偏移。 */
+  originX: number;
+  /** pointerdown 时的原始 y 偏移。 */
+  originY: number;
+}
+
+const MIN_CANVAS_SCALE = 0.55;
+const MAX_CANVAS_SCALE = 1.4;
+const canvasTransform = ref<CanvasViewportTransform>({ x: 0, y: 0, scale: 1 });
+const canvasPanSession = ref<CanvasPanSession | null>(null);
+const canvasTransformStyle = computed(() => ({
+  transform: `translate(${canvasTransform.value.x}px, ${canvasTransform.value.y}px) scale(${canvasTransform.value.scale})`,
+}));
 
 /** 大屏中用于降低分支噪音的 outcome 聚合桶。 */
 interface OutcomeBucket {
@@ -108,9 +162,72 @@ function actionLabel(action: JointActionDetailResult | null): string {
     return '未解析';
   }
   if (action.action_type === 'move' && action.move_id !== null) {
-    return `#${action.move_id}`;
+    return `${moveDisplayName(action.move_id)} #${action.move_id}`;
   }
   return action.move_id === null ? action.action_type : `${action.action_type} #${action.move_id}`;
+}
+
+/** 当前节点技能筛选器的一项。 */
+interface MoveFilterOption {
+  /** 技能 ID。 */
+  moveId: number;
+  /** 用户可读技能名称。 */
+  label: string;
+  /** 该技能参与的 transition group 数量。 */
+  count: number;
+}
+
+/**
+ * 根据当前节点 transition group 汇总某一侧可筛选技能。
+ *
+ * @param groups 当前节点的联合行动分支组。
+ * @param side 需要汇总的行动侧。
+ * @returns 按技能 ID 升序排列的筛选项；非 move 行动排在最后。
+ */
+function moveOptions(
+  groups: BattleGraphExplorationResult['transition_groups'],
+  side: BattleSideKey,
+): MoveFilterOption[] {
+  const counts = new Map<number, number>();
+  for (const group of groups) {
+    const moveId = groupMoveId(group, side);
+    if (moveId === null) {
+      continue;
+    }
+    counts.set(moveId, (counts.get(moveId) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([moveId, count]) => ({
+      moveId,
+      count,
+      label: moveDisplayName(moveId),
+    }));
+}
+
+/**
+ * 读取 transition group 中某一侧的 move ID。
+ *
+ * @param group 当前节点的一组联合行动分支。
+ * @param side 需要读取的行动侧。
+ * @returns move 行动返回 move ID；非 move 或未解析行动返回 null。
+ */
+function groupMoveId(
+  group: BattleGraphExplorationResult['transition_groups'][number],
+  side: BattleSideKey,
+): number | null {
+  const action = side === 'attacker' ? group.attacker_action : group.defender_action;
+  return action?.action_type === 'move' ? action.move_id : null;
+}
+
+/**
+ * 返回技能 ID 的展示名称。
+ *
+ * @param moveId PokeAPI move ID。
+ * @returns 当前任务上下文中的技能名；缺失时返回稳定 ID 文本。
+ */
+function moveDisplayName(moveId: number): string {
+  return props.context.moveNames[moveId] ?? `招式 #${moveId}`;
 }
 
 /**
@@ -497,29 +614,234 @@ function exactOutcomeDamageLabel(outcome: TransitionOutcomeResult): string {
 }
 
 /**
- * 根据 handle 读取根节点，并清空旧树路径。
+ * 把缩放倍率限制在画布可用范围内。
  *
- * @param handle 固定推演返回的图句柄。
+ * @param scale 用户滚轮或按钮请求的新缩放倍率。
+ * @returns 不小于最小倍率且不大于最大倍率的安全值。
  */
-async function start(handle: BattleExplorationResult): Promise<void> {
-  lifecycleVersion += 1;
-  const requestVersion = lifecycleVersion;
-  loading.value = true;
-  error.value = null;
-  columns.value = [];
+function clampCanvasScale(scale: number): number {
+  return Math.max(MIN_CANVAS_SCALE, Math.min(MAX_CANVAS_SCALE, scale));
+}
+
+/**
+ * 重置左侧树画布视角到默认位置。
+ *
+ * @returns 无返回值；会直接更新响应式视角状态。
+ */
+function resetCanvasViewport(): void {
+  canvasTransform.value = { x: 0, y: 0, scale: 1 };
+}
+
+/**
+ * 围绕指定屏幕坐标缩放树画布。
+ *
+ * @param nextScale 目标缩放倍率。
+ * @param clientX 缩放中心的视口横坐标；缺省时使用画布中心。
+ * @param clientY 缩放中心的视口纵坐标；缺省时使用画布中心。
+ */
+function zoomCanvasTo(nextScale: number, clientX?: number, clientY?: number): void {
+  const viewport = canvasViewport.value;
+  if (viewport === null) {
+    canvasTransform.value = {
+      ...canvasTransform.value,
+      scale: clampCanvasScale(nextScale),
+    };
+    return;
+  }
+  const rect = viewport.getBoundingClientRect();
+  const originClientX = clientX ?? rect.left + rect.width / 2;
+  const originClientY = clientY ?? rect.top + rect.height / 2;
+  const localX = originClientX - rect.left;
+  const localY = originClientY - rect.top;
+  const previous = canvasTransform.value;
+  const scale = clampCanvasScale(nextScale);
+  const worldX = (localX - previous.x) / previous.scale;
+  const worldY = (localY - previous.y) / previous.scale;
+  canvasTransform.value = {
+    x: localX - worldX * scale,
+    y: localY - worldY * scale,
+    scale,
+  };
+}
+
+/**
+ * 处理鼠标滚轮缩放；缩放中心固定在鼠标所在位置，方便追踪远端节点。
+ *
+ * @param event 浏览器 wheel 事件。
+ */
+function zoomCanvas(event: WheelEvent): void {
+  const factor = Math.exp(-event.deltaY * 0.001);
+  zoomCanvasTo(canvasTransform.value.scale * factor, event.clientX, event.clientY);
+}
+
+/** 放大左侧树画布。 */
+function zoomInCanvas(): void {
+  zoomCanvasTo(canvasTransform.value.scale * 1.16);
+}
+
+/** 缩小左侧树画布。 */
+function zoomOutCanvas(): void {
+  zoomCanvasTo(canvasTransform.value.scale / 1.16);
+}
+
+/** 重置视角并把当前节点列对齐回可操作区域。 */
+function resetAndFocusCanvas(): void {
+  resetCanvasViewport();
+  void nextTick(focusCurrentColumn);
+}
+
+/**
+ * 判断一次 pointerdown 是否应该开始拖拽画布。
+ *
+ * @param target 事件目标节点。
+ * @returns 在按钮、输入和具体交互卡片上按下时返回 false，其余空白区域返回 true。
+ */
+function canStartCanvasPan(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return target.closest('button, a, input, select, textarea, [role="button"]') === null;
+}
+
+/**
+ * 开始拖拽平移左侧画布。
+ *
+ * @param event pointerdown 事件；只响应鼠标左键或触控主指针。
+ */
+function startCanvasPan(event: PointerEvent): void {
+  if (event.button !== 0 || !canStartCanvasPan(event.target)) {
+    return;
+  }
+  const viewport = canvasViewport.value;
+  if (viewport === null) {
+    return;
+  }
+  viewport.setPointerCapture(event.pointerId);
+  canvasPanSession.value = {
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    originX: canvasTransform.value.x,
+    originY: canvasTransform.value.y,
+  };
+}
+
+/**
+ * 拖拽过程中更新画布偏移。
+ *
+ * @param event pointermove 事件。
+ */
+function moveCanvasPan(event: PointerEvent): void {
+  const session = canvasPanSession.value;
+  if (session === null || session.pointerId !== event.pointerId) {
+    return;
+  }
+  canvasTransform.value = {
+    ...canvasTransform.value,
+    x: session.originX + event.clientX - session.startClientX,
+    y: session.originY + event.clientY - session.startClientY,
+  };
+}
+
+/**
+ * 结束拖拽平移并释放 pointer capture。
+ *
+ * @param event pointerup 或 pointercancel 事件。
+ */
+function endCanvasPan(event: PointerEvent): void {
+  const session = canvasPanSession.value;
+  if (session === null || session.pointerId !== event.pointerId) {
+    return;
+  }
+  canvasViewport.value?.releasePointerCapture(event.pointerId);
+  canvasPanSession.value = null;
+}
+
+/**
+ * 当路径推进或回退后，把当前列自动拉回左侧画布可见区域。
+ *
+ * @returns 无返回值；仅在当前列超出 viewport 时调整 x 偏移。
+ */
+function focusCurrentColumn(): void {
+  const viewport = canvasViewport.value;
+  const content = canvasContent.value;
+  if (viewport === null || content === null) {
+    return;
+  }
+  const currentColumn = content.querySelectorAll<HTMLElement>('.battle-tree-column')[currentDepth.value];
+  if (currentColumn === undefined) {
+    return;
+  }
+  const padding = 24;
+  const viewportWidth = viewport.clientWidth;
+  const scale = canvasTransform.value.scale;
+  const columnLeft = currentColumn.offsetLeft * scale + canvasTransform.value.x;
+  const columnRight =
+    (currentColumn.offsetLeft + currentColumn.offsetWidth) * scale + canvasTransform.value.x;
+  let nextX = canvasTransform.value.x;
+  if (columnRight > viewportWidth - padding) {
+    nextX -= columnRight - (viewportWidth - padding);
+  }
+  if (columnLeft < padding) {
+    nextX += padding - columnLeft;
+  }
+  canvasTransform.value = {
+    ...canvasTransform.value,
+    x: nextX,
+    y: Math.min(padding, canvasTransform.value.y),
+  };
+}
+
+/** 清空当前节点的技能筛选和 outcome 展开状态。 */
+function resetBranchSelection(): void {
+  outcomes.value = [];
+  expandedGroupId.value = null;
+  expandedPrimaryBucketKey.value = null;
+  expandedSecondaryBucketKey.value = null;
+  selectedAttackerMoveId.value = null;
+  selectedDefenderMoveId.value = null;
+  visibleBucketLimit.value = 12;
+}
+
+/**
+ * 切换当前节点某一侧的技能筛选。
+ *
+ * @param side 攻击方或防守方。
+ * @param moveId 目标技能 ID；null 表示清空该侧筛选。
+ */
+function selectMoveFilter(side: BattleSideKey, moveId: number | null): void {
+  if (side === 'attacker') {
+    selectedAttackerMoveId.value = moveId;
+  } else {
+    selectedDefenderMoveId.value = moveId;
+  }
   outcomes.value = [];
   expandedGroupId.value = null;
   expandedPrimaryBucketKey.value = null;
   expandedSecondaryBucketKey.value = null;
   visibleBucketLimit.value = 12;
+}
+
+/**
+ * 根据 handle 读取根节点，并清空旧树路径。
+ *
+ * @param handle 固定推演返回的图句柄。
+ */
+async function start(handle: BattleExplorationResult | null | undefined): Promise<void> {
+  lifecycleVersion += 1;
+  const requestVersion = lifecycleVersion;
+  loading.value = true;
+  error.value = null;
+  columns.value = [];
+  resetCanvasViewport();
+  resetBranchSelection();
   try {
-    const root = await exploreBattleGraph(
-      handle.graph_id,
-      handle.calculation_revision,
-      { steps: [] },
-    );
+    const root = snapshotMode.value
+      ? await expandSnapshot({ steps: [] })
+      : await exploreStoredGraph(handle, { steps: [] });
     if (requestVersion !== lifecycleVersion) return;
     columns.value = [root];
+    void nextTick(focusCurrentColumn);
   } catch (caught) {
     if (requestVersion === lifecycleVersion) {
       error.value = caught instanceof Error ? caught.message : '大屏状态图加载失败';
@@ -531,6 +853,31 @@ async function start(handle: BattleExplorationResult): Promise<void> {
   }
 }
 
+/** 使用完整图句柄读取一个 cursor 对应的探索视图。 */
+async function exploreStoredGraph(
+  handle: BattleExplorationResult | null | undefined,
+  cursor: BattleGraphExplorationResult['cursor'],
+): Promise<BattleGraphExplorationResult> {
+  if (handle === null || handle === undefined) {
+    throw new Error('完整图句柄不可用。');
+  }
+  return exploreBattleGraph(
+    handle.graph_id,
+    handle.calculation_revision,
+    cursor,
+  );
+}
+
+/** 使用固定配置快照请求展开一个 cursor 对应的探索视图。 */
+async function expandSnapshot(
+  cursor: BattleGraphExplorationResult['cursor'],
+): Promise<BattleGraphExplorationResult> {
+  if (props.snapshotRequest === null || props.snapshotRequest === undefined) {
+    throw new Error('固定配置快照请求不可用。');
+  }
+  return expandFixedBattleSnapshot(props.snapshotRequest, cursor);
+}
+
 /**
  * 截断到用户选择的祖先节点，使后续分支可以重新选择。
  *
@@ -538,11 +885,8 @@ async function start(handle: BattleExplorationResult): Promise<void> {
  */
 function selectDepth(depth: number): void {
   columns.value = columns.value.slice(0, depth + 1);
-  outcomes.value = [];
-  expandedGroupId.value = null;
-  expandedPrimaryBucketKey.value = null;
-  expandedSecondaryBucketKey.value = null;
-  visibleBucketLimit.value = 12;
+  resetBranchSelection();
+  void nextTick(focusCurrentColumn);
 }
 
 /**
@@ -569,13 +913,21 @@ async function toggleGroup(groupId: string): Promise<void> {
   visibleBucketLimit.value = 12;
   error.value = null;
   try {
-    const result = await loadBattleTransitionGroupOutcomes(
-      props.handle.graph_id,
-      props.handle.calculation_revision,
-      source.cursor,
-      groupId,
-    );
-    outcomes.value = result.transition_group.outcomes;
+    if (snapshotMode.value) {
+      outcomes.value =
+        source.transition_groups.find((group) => group.group_id === groupId)?.outcomes ?? [];
+    } else {
+      if (props.handle === null || props.handle === undefined) {
+        throw new Error('完整图句柄不可用。');
+      }
+      const result = await loadBattleTransitionGroupOutcomes(
+        props.handle.graph_id,
+        props.handle.calculation_revision,
+        source.cursor,
+        groupId,
+      );
+      outcomes.value = result.transition_group.outcomes;
+    }
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '分支展开失败';
   } finally {
@@ -594,23 +946,42 @@ async function chooseOutcome(outcome: TransitionOutcomeResult): Promise<void> {
   loading.value = true;
   error.value = null;
   try {
-    const next = await advanceBattleExploration(
-      props.handle.graph_id,
-      props.handle.calculation_revision,
-      source.cursor,
-      outcome.edge_id,
-    );
+    const next = snapshotMode.value
+      ? await expandSnapshot({
+          steps: [
+            ...source.cursor.steps,
+            {
+              source_node_id: source.node.node_id,
+              edge_id: outcome.edge_id,
+              target_node_id: outcome.target_node_id,
+            },
+          ],
+        })
+      : await advanceStoredGraph(source, outcome);
     columns.value = [...columns.value, next];
-    outcomes.value = [];
-    expandedGroupId.value = null;
-    expandedPrimaryBucketKey.value = null;
-    expandedSecondaryBucketKey.value = null;
-    visibleBucketLimit.value = 12;
+    resetBranchSelection();
+    void nextTick(focusCurrentColumn);
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : '进入目标节点失败';
   } finally {
     loading.value = false;
   }
+}
+
+/** 沿完整图中的正式 edge 前进一层。 */
+async function advanceStoredGraph(
+  source: BattleGraphExplorationResult,
+  outcome: TransitionOutcomeResult,
+): Promise<BattleGraphExplorationResult> {
+  if (props.handle === null || props.handle === undefined) {
+    throw new Error('完整图句柄不可用。');
+  }
+  return advanceBattleExploration(
+    props.handle.graph_id,
+    props.handle.calculation_revision,
+    source.cursor,
+    outcome.edge_id,
+  );
 }
 
 /** 通知父组件关闭大屏。 */
@@ -624,11 +995,18 @@ function rerun(): void {
 }
 
 watch(
-  () => props.handle,
-  (handle) => {
+  () => [props.handle, props.snapshotRequest] as const,
+  ([handle]) => {
     void start(handle);
   },
   { immediate: true },
+);
+
+watch(
+  () => currentDepth.value,
+  () => {
+    void nextTick(focusCurrentColumn);
+  },
 );
 </script>
 
@@ -650,8 +1028,28 @@ watch(
     <p v-if="loading && columns.length === 0" class="battle-tree-screen__loading">正在加载 ROOT…</p>
 
     <div class="battle-tree-screen__body">
-      <div class="battle-tree-screen__canvas" data-testid="battle-tree-canvas">
-        <div class="battle-tree-screen__columns">
+      <div
+        ref="canvasViewport"
+        class="battle-tree-screen__canvas"
+        :class="{ 'battle-tree-screen__canvas--panning': canvasPanSession !== null }"
+        data-testid="battle-tree-canvas"
+        @wheel.prevent="zoomCanvas"
+        @pointerdown="startCanvasPan"
+        @pointermove="moveCanvasPan"
+        @pointerup="endCanvasPan"
+        @pointercancel="endCanvasPan"
+      >
+        <div class="battle-tree-canvas-controls" aria-label="树状图视角控制" @pointerdown.stop @wheel.stop>
+          <button type="button" title="缩小" @click="zoomOutCanvas">−</button>
+          <span>{{ Math.round(canvasTransform.scale * 100) }}%</span>
+          <button type="button" title="放大" @click="zoomInCanvas">+</button>
+          <button type="button" title="重置并定位当前节点" @click="resetAndFocusCanvas">重置</button>
+        </div>
+        <div
+          ref="canvasContent"
+          class="battle-tree-screen__columns"
+          :style="canvasTransformStyle"
+        >
           <article
             v-for="(column, index) in columns"
             :key="`${column.graph_id}:${index}:${column.node.node_id}`"
@@ -681,10 +1079,58 @@ watch(
               <section v-if="!column.terminal" class="battle-tree-branches">
                 <header>
                   <strong>选择下一条边</strong>
-                  <small>{{ column.transition_groups.length }} 个分支组</small>
+                  <small>
+                    {{ filteredTransitionGroups.length }} / {{ column.transition_groups.length }} 个分支组
+                  </small>
                 </header>
+                <div
+                  v-if="column.transition_groups.length > 1"
+                  class="battle-tree-action-filters"
+                  aria-label="按双方技能筛选分支组"
+                >
+                  <div class="battle-tree-action-filter-row">
+                    <span>己方技能</span>
+                    <button
+                      type="button"
+                      :class="{ 'battle-tree-action-filter--active': selectedAttackerMoveId === null }"
+                      @click="selectMoveFilter('attacker', null)"
+                    >
+                      全部
+                    </button>
+                    <button
+                      v-for="option in attackerMoveOptions"
+                      :key="`attacker:${option.moveId ?? 'other'}`"
+                      type="button"
+                      :class="{ 'battle-tree-action-filter--active': selectedAttackerMoveId === option.moveId }"
+                      @click="selectMoveFilter('attacker', option.moveId)"
+                    >
+                      {{ option.label }}
+                      <small>{{ option.count }}</small>
+                    </button>
+                  </div>
+                  <div class="battle-tree-action-filter-row">
+                    <span>对方技能</span>
+                    <button
+                      type="button"
+                      :class="{ 'battle-tree-action-filter--active': selectedDefenderMoveId === null }"
+                      @click="selectMoveFilter('defender', null)"
+                    >
+                      全部
+                    </button>
+                    <button
+                      v-for="option in defenderMoveOptions"
+                      :key="`defender:${option.moveId ?? 'other'}`"
+                      type="button"
+                      :class="{ 'battle-tree-action-filter--active': selectedDefenderMoveId === option.moveId }"
+                      @click="selectMoveFilter('defender', option.moveId)"
+                    >
+                      {{ option.label }}
+                      <small>{{ option.count }}</small>
+                    </button>
+                  </div>
+                </div>
                 <article
-                  v-for="group in column.transition_groups"
+                  v-for="group in filteredTransitionGroups"
                   :key="group.group_id"
                   class="battle-tree-group"
                 >
@@ -708,7 +1154,7 @@ watch(
                     <header class="battle-tree-outcomes__toolbar">
                       <span>
                         {{ activeOutcomeGroupingStrategy.label }} ·
-                        {{ outcomes.length }} 条精确边 · {{ outcomeBuckets.length }} 个己方结果簇
+                        {{ outcomes.length }} 条精确边 · {{ outcomeBuckets.length }} 个结果簇
                       </span>
                       <span class="battle-tree-outcomes__modes" aria-label="outcome 展示模式">
                         <button
@@ -827,7 +1273,7 @@ watch(
         </div>
       </div>
 
-      <BattleReportPanel :report="currentReport" :context="context" />
+      <BattleReportPanel :report="currentReport" :context="context" :node="current?.node ?? null" />
     </div>
   </section>
 </template>
@@ -839,6 +1285,7 @@ watch(
   z-index: 80;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   background: #f5f7f6;
   color: #14251d;
 }
@@ -914,22 +1361,78 @@ watch(
   gap: 16px;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.34fr);
   min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
+.battle-tree-screen__body :deep(.battle-report-panel) {
+  min-height: 0;
+  max-height: 100%;
+}
+
 .battle-tree-screen__canvas {
+  position: relative;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid #d3ddd6;
   border-radius: 18px;
   background: #ffffff;
+  cursor: grab;
+  touch-action: none;
+}
+
+.battle-tree-screen__canvas--panning {
+  cursor: grabbing;
+}
+
+.battle-tree-canvas-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d8e3dc;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(35, 54, 45, 0.08);
+  padding: 6px;
+}
+
+.battle-tree-canvas-controls button {
+  min-width: 32px;
+  min-height: 30px;
+  border: 1px solid #cad8d0;
+  border-radius: 8px;
+  background: #fff;
+  color: #183d31;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 4px 8px;
+}
+
+.battle-tree-canvas-controls span {
+  min-width: 44px;
+  color: #526259;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
 }
 
 .battle-tree-screen__columns {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
   gap: 18px;
-  min-height: 100%;
+  min-width: max-content;
+  min-height: max-content;
   padding: 18px;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .battle-tree-column {
@@ -955,6 +1458,11 @@ watch(
   cursor: pointer;
   padding: 12px;
   text-align: left;
+}
+
+.battle-tree-column__node,
+.battle-tree-column__detail {
+  cursor: auto;
 }
 
 .battle-tree-column__node:disabled {
@@ -994,6 +1502,52 @@ watch(
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+
+.battle-tree-action-filters {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dfe8e3;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.battle-tree-action-filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.battle-tree-action-filter-row > span {
+  flex: 0 0 64px;
+  color: #526259;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.battle-tree-action-filter-row button {
+  border: 1px solid #d4dfd8;
+  border-radius: 999px;
+  background: #fff;
+  color: #203b31;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 30px;
+  padding: 5px 10px;
+}
+
+.battle-tree-action-filter-row button small {
+  color: #6a7870;
+  margin-left: 4px;
+}
+
+.battle-tree-action-filter--active {
+  border-color: #7fa58f !important;
+  background: #e9f3ee !important;
+  color: #143c30 !important;
 }
 
 .battle-tree-group {

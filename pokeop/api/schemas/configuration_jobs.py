@@ -223,6 +223,7 @@ class BattleInferenceCaseResponse(_StrictModel):
     expected_turns: str | None
     node_count: int
     edge_count: int
+    explanation: dict[str, object] | None = None
     failure_code: str | None
     diagnostic: str | None
     attempt_count: int

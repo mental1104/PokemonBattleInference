@@ -342,6 +342,7 @@ class BattleInferenceCaseResult:
         node_count: 本用例实际构建或观察到的图节点数量。
         edge_count: 本用例实际构建或观察到的图边数量。
         budget_consumed: 本用例消耗的抽象预算单位。
+        explanation_json: 成功结果可选的总结型归因 JSON 文本；失败、截断和取消必须为空。
         failure_code: 失败、截断或取消时的稳定代码。
         diagnostic: 可直接展示或记录的规范化诊断文本。
     """
@@ -354,6 +355,7 @@ class BattleInferenceCaseResult:
     node_count: int = 0
     edge_count: int = 0
     budget_consumed: int = 0
+    explanation_json: str | None = None
     failure_code: BattleInferenceFailureCode | None = None
     diagnostic: str | None = None
 
@@ -370,6 +372,8 @@ class BattleInferenceCaseResult:
         _validate_non_negative_int(self.budget_consumed, "budget_consumed")
         if self.diagnostic is not None:
             _validate_identifier(self.diagnostic, "diagnostic")
+        if self.explanation_json is not None and not self.explanation_json.strip():
+            raise ValueError("explanation_json cannot be blank")
 
         probabilities = (self.attacker_win, self.defender_win, self.draw)
         if self.status is BattleInferenceCaseStatus.SUCCEEDED:
@@ -407,6 +411,8 @@ class BattleInferenceCaseResult:
             or self.expected_turns is not None
         ):
             raise ValueError("non-success result must not contain probability summary")
+        if self.explanation_json is not None:
+            raise ValueError("non-success result must not contain explanation_json")
         if self.failure_code is None:
             raise ValueError("non-success result requires failure_code")
         if self.diagnostic is None:
@@ -433,10 +439,53 @@ class BattleInferenceCaseResult:
             str(self.node_count),
             str(self.edge_count),
             str(self.budget_consumed),
+            self.explanation_json or "",
             self.failure_code.value if self.failure_code is not None else "",
             self.diagnostic or "",
         )
         return sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class BattleInferenceCaseProgress:
+    """保存运行中 case 的非终态观测进度。
+
+    Args:
+        phase: 当前执行阶段，例如 ``building_graph`` 或 ``solving_probabilities``。
+        observed_node_count: 本 case 当前已发现或已确认的状态图节点数。
+        observed_edge_count: 本 case 当前已生成或已确认的状态图边数。
+        expanded_node_count: 构图阶段已经展开过后继的节点数。
+        frontier_count: 构图队列中尚未展开的节点数；非构图阶段可为 0。
+        action_pair_completed_count: 当前节点内已完成的动作组合数。
+        action_pair_total_count: 当前节点内需要展开的动作组合总数；未知时为 0。
+    """
+
+    phase: str
+    observed_node_count: int
+    observed_edge_count: int
+    expanded_node_count: int
+    frontier_count: int
+    action_pair_completed_count: int = 0
+    action_pair_total_count: int = 0
+
+    def __post_init__(self) -> None:
+        """校验运行进度可安全持久化并用于前端百分比展示。"""
+        _validate_identifier(self.phase, "case progress phase")
+        for field_name in (
+            "observed_node_count",
+            "observed_edge_count",
+            "expanded_node_count",
+            "frontier_count",
+            "action_pair_completed_count",
+            "action_pair_total_count",
+        ):
+            _validate_non_negative_int(getattr(self, field_name), field_name)
+        if self.expanded_node_count > self.observed_node_count:
+            raise ValueError("expanded_node_count must not exceed observed_node_count")
+        if self.action_pair_completed_count > self.action_pair_total_count:
+            raise ValueError(
+                "action_pair_completed_count must not exceed action_pair_total_count"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -495,7 +544,15 @@ class BattleInferenceCaseSnapshot:
         expected_turns: 成功结果中的期望回合语义。
         node_count: 本 case 的状态图节点数量。
         edge_count: 本 case 的状态图边数量。
+        progress_phase: 运行中 case 最近一次观测阶段；未开始或历史数据可为 None。
+        observed_node_count: 运行中 case 最近一次观测到的节点数。
+        observed_edge_count: 运行中 case 最近一次观测到的边数。
+        expanded_node_count: 运行中 case 最近一次观测到的已展开节点数。
+        frontier_count: 运行中 case 最近一次观测到的待展开节点数。
+        action_pair_completed_count: 当前节点内已完成动作组合数。
+        action_pair_total_count: 当前节点内动作组合总数。
         budget_consumed: 本 case 消耗的抽象预算。
+        explanation_json: 成功结果可选的总结型归因 JSON 文本。
         failure_code: 失败、截断或取消的最终代码。
         diagnostic: 最终结果诊断。
         last_failure_code: 最近一次非最终恢复错误，例如 worker crash。
@@ -518,7 +575,15 @@ class BattleInferenceCaseSnapshot:
     expected_turns: BattleInferenceExpectedTurns | None
     node_count: int
     edge_count: int
+    progress_phase: str | None
+    observed_node_count: int
+    observed_edge_count: int
+    expanded_node_count: int
+    frontier_count: int
+    action_pair_completed_count: int
+    action_pair_total_count: int
     budget_consumed: int
+    explanation_json: str | None
     failure_code: BattleInferenceFailureCode | None
     diagnostic: str | None
     last_failure_code: BattleInferenceFailureCode | None
@@ -748,6 +813,32 @@ class BattleInferenceJobRepository(Protocol):
         Raises:
             BattleInferenceResultConflict: 终态已存在不同结果时抛出。
             BattleInferenceLeaseConflict: worker 不再拥有有效 lease 时抛出。
+        """
+        ...
+
+    def record_case_progress(
+        self,
+        job_id: str,
+        configuration_pair_id: str,
+        progress: BattleInferenceCaseProgress,
+        *,
+        lease_owner: str,
+        observed_at: datetime,
+        calculation_revision: str,
+    ) -> bool:
+        """幂等保存运行中配置对的最新观测进度。
+
+        Args:
+            job_id: 父任务 ID。
+            configuration_pair_id: 目标配置对稳定 ID。
+            progress: 子进程通过 observer 上报的非终态进度。
+            lease_owner: 当前拥有该 case lease 的 worker 标识。
+            observed_at: 进度事件产生或被父进程接收的带时区时间。
+            calculation_revision: 产生进度的计算版本。
+
+        Returns:
+            成功写入仍处于运行态的 case 时返回 True；case 已进入终态或已被回收时返回
+            False。
         """
         ...
 
@@ -982,6 +1073,7 @@ __all__ = [
     "BattleInferenceCaseFilter",
     "BattleInferenceCaseNotFound",
     "BattleInferenceCasePage",
+    "BattleInferenceCaseProgress",
     "BattleInferenceCaseResult",
     "BattleInferenceCaseSnapshot",
     "BattleInferenceCaseStatus",

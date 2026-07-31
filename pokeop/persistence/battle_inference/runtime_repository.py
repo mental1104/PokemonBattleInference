@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from pokeop.application.repositories.battle_inference_jobs import (
     BattleInferenceCaseFilter,
     BattleInferenceCasePage,
+    BattleInferenceCaseProgress,
     BattleInferenceCaseResult,
     BattleInferenceCaseSnapshot,
     BattleInferenceFailureCode,
@@ -199,6 +200,35 @@ class PostgresBattleInferenceJobStore:
             calculation_revision=calculation_revision,
         )
 
+    def list_jobs(
+        self,
+        *,
+        statuses: tuple[BattleInferenceJobStatus, ...] = (),
+        active_only: bool = False,
+        job_id_prefix: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[BattleInferenceJobSnapshot, ...]:
+        """分页读取任务列表，供通用 `/v1/inference/jobs` 轮询面板使用。
+
+        Args:
+            statuses: 可选 repository 状态过滤。
+            active_only: 是否只返回未进入终态的任务。
+            job_id_prefix: 可选 ID 前缀过滤，用于固定任务轻量分类。
+            offset: 零基偏移。
+            limit: 返回上限。
+
+        Returns:
+            按创建时间倒序排列的任务快照元组。
+        """
+        return self._jobs.list_jobs(
+            statuses=statuses,
+            active_only=active_only,
+            job_id_prefix=job_id_prefix,
+            offset=offset,
+            limit=limit,
+        )
+
     def claim_next_job(
         self,
         *,
@@ -286,6 +316,26 @@ class PostgresBattleInferenceJobStore:
             result,
             lease_owner=lease_owner,
             completed_at=completed_at,
+            calculation_revision=calculation_revision,
+        )
+
+    def record_case_progress(
+        self,
+        job_id: str,
+        configuration_pair_id: str,
+        progress: BattleInferenceCaseProgress,
+        *,
+        lease_owner: str,
+        observed_at: datetime,
+        calculation_revision: str,
+    ) -> bool:
+        """幂等保存运行中 case 的最新观测进度。"""
+        return self._jobs.record_case_progress(
+            job_id,
+            configuration_pair_id,
+            progress,
+            lease_owner=lease_owner,
+            observed_at=observed_at,
             calculation_revision=calculation_revision,
         )
 

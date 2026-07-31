@@ -7,8 +7,10 @@ import {
   type PokemonDetail,
 } from '../api/calculator';
 import {
+  createFixedBattleJob,
   enumerateMoveSetCombinations,
   inferFixedBattleJourney,
+  listFixedBattleJobs,
 } from '../api/fixedBattle';
 import {
   DRAGONITE_EXAMPLE,
@@ -31,8 +33,10 @@ vi.mock('../api/calculator', async (importOriginal) => {
 });
 
 vi.mock('../api/fixedBattle', () => ({
+  createFixedBattleJob: vi.fn(),
   enumerateMoveSetCombinations: vi.fn(),
   inferFixedBattleJourney: vi.fn(),
+  listFixedBattleJobs: vi.fn(),
 }));
 
 const searchPokemonMock = vi.mocked(searchPokemon);
@@ -40,6 +44,8 @@ const getPokemonDetailMock = vi.mocked(getPokemonDetail);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 const enumerateMock = vi.mocked(enumerateMoveSetCombinations);
 const inferMock = vi.mocked(inferFixedBattleJourney);
+const createJobMock = vi.mocked(createFixedBattleJob);
+const listJobsMock = vi.mocked(listFixedBattleJobs);
 
 /** 挂载真实双侧配置组件；网络边界通过模块 mock 隔离。 */
 function mountView(): VueWrapper {
@@ -176,6 +182,61 @@ beforeEach(() => {
       };
     },
   );
+  createJobMock.mockReset().mockResolvedValue({
+    job_id: 'fixed-one-on-one-job-test',
+    job_type: 'fixed-one-on-one',
+    status: 'pending',
+    phase: 'queued',
+    created_at: '2026-07-30T00:00:00Z',
+    submitted_configuration_pairs: 1,
+    links: {
+      self: '/v1/inference/jobs/fixed-one-on-one-job-test',
+      cancel: '/v1/inference/jobs/fixed-one-on-one-job-test/cancel',
+    },
+  });
+  listJobsMock.mockReset().mockResolvedValue({
+    items: [
+      {
+        job_id: 'fixed-one-on-one-job-test',
+        job_type: 'fixed-one-on-one',
+        status: 'pending',
+        phase: 'queued',
+        ruleset_id: 'pokemon-champion',
+        version_group_id: 25,
+        calculation_revision: 'battle-inference.summary-exploration.v2',
+        created_at: '2026-07-30T00:00:00Z',
+        started_at: null,
+        updated_at: '2026-07-30T00:00:00Z',
+        finished_at: null,
+        cancel_requested_at: null,
+        can_cancel: true,
+        progress: {
+          phase: 'queued',
+          counts: {
+            total: 1,
+            pending: 1,
+            running: 0,
+            succeeded: 0,
+            failed: 0,
+            truncated: 0,
+            cancelled: 0,
+            completed: 0,
+          },
+          state_nodes: { used: 0, limit: 50_000 },
+          state_edges: { used: 0, limit: 300_000 },
+          running_case: null,
+          elapsed_seconds: null,
+        },
+        error_code: null,
+        error_message: null,
+        links: {
+          self: '/v1/inference/jobs/fixed-one-on-one-job-test',
+          cancel: '/v1/inference/jobs/fixed-one-on-one-job-test/cancel',
+        },
+      },
+    ],
+    next_cursor: null,
+  });
   inferMock.mockReset().mockResolvedValue({
     summary: {
       ruleset_id: 'pokemon-champion',
@@ -264,18 +325,18 @@ describe('BattleInferenceView', () => {
     expect(wrapper.text()).toContain('不会创建同等数量的 worker case');
   });
 
-  it('submits only the selected fixed move-set pair to exact inference', async () => {
+  it('submits only the selected fixed move-set pair as an asynchronous job', async () => {
     const wrapper = mountView();
     await buttonByText(wrapper, '载入双快龙').trigger('click');
     await flushPromises();
     await buttonByText(wrapper, '生成技能组合').trigger('click');
     await flushPromises();
 
-    await buttonByText(wrapper, '运行这个固定配置').trigger('click');
+    await buttonByText(wrapper, '提交精确推演任务').trigger('click');
     await flushPromises();
 
-    expect(inferMock).toHaveBeenCalledTimes(1);
-    const request = inferMock.mock.calls[0][0];
+    expect(createJobMock).toHaveBeenCalledTimes(1);
+    const request = createJobMock.mock.calls[0][0];
     expect(request.attacker.pokemon_id).toBe(149);
     expect(request.defender.pokemon_id).toBe(149);
     expect(request.attacker.ability_identifier).toBe('multiscale');
@@ -283,14 +344,10 @@ describe('BattleInferenceView', () => {
     expect(request.attacker.move_ids).toEqual([337]);
     expect(request.defender.move_ids).toEqual([337]);
     expect(request.attacker_policy).toBe('uniform-random');
-    expect(wrapper.text()).toContain('62.50%');
-    expect(wrapper.text()).toContain('120 nodes · 840 edges');
-    expect(wrapper.text()).toContain('路径聚焦式状态图');
-    expect(wrapper.text()).toContain('逐回合战报');
-
-    await buttonByText(wrapper, '打开大屏树状图').trigger('click');
-
-    expect(wrapper.text()).toContain('从起点向右追踪战斗路径');
+    expect(createJobMock.mock.calls[0][1]).toMatch(/^fixed-/);
+    expect(wrapper.text()).toContain('已提交任务');
+    expect(wrapper.text()).toContain('推演任务（1 个运行中）');
+    expect(wrapper.text()).toContain('等待执行');
   });
 
   it('invalidates generated combinations when the candidate selection changes', async () => {

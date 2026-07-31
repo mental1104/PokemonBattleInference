@@ -1,7 +1,12 @@
-import type { BattleJourneyResult } from './inference';
+import type { BattleGraphExplorationResult, BattleJourneyResult, ExplorationCursorResult } from './inference';
 import type {
   FixedBattleSummaryRequest,
   FixedBattleSummaryResult,
+  FixedBattleJobCreationResult,
+  FixedBattleJobGraphResult,
+  InferenceJobCasePageResult,
+  InferenceJobListResult,
+  InferenceJobSummary,
   MoveSetCombinationsRequest,
   MoveSetCombinationsResult,
 } from '../types/fixedBattle';
@@ -54,10 +59,11 @@ export class FixedBattleApiError extends Error {
 async function postJson<RequestT, ResponseT>(
   path: string,
   body: RequestT,
+  headers: Record<string, string> = {},
 ): Promise<ResponseT> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
   const payload = (await response.json()) as ResponseT & ApiErrorPayload;
@@ -76,6 +82,30 @@ async function postJson<RequestT, ResponseT>(
     });
     message = `${message}（${failures.join('；')}）`;
   }
+  throw new FixedBattleApiError(response.status, code, message);
+}
+
+/**
+ * 调用固定推演 GET/POST 任务 API，并复用固定推演错误展示。
+ *
+ * @param path `/api/v1` 之后的资源路径。
+ * @param init fetch 参数。
+ * @returns 后端响应 JSON。
+ */
+async function requestJson<ResponseT>(
+  path: string,
+  init: RequestInit,
+): Promise<ResponseT> {
+  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const payload = (await response.json()) as ResponseT & ApiErrorPayload;
+  if (response.ok) return payload;
+
+  const detail = payload.detail;
+  const code = typeof detail === 'object' && detail !== null ? detail.code ?? null : null;
+  const message =
+    typeof detail === 'string'
+      ? detail
+      : detail?.message ?? `请求失败：HTTP ${response.status}`;
   throw new FixedBattleApiError(response.status, code, message);
 }
 
@@ -111,5 +141,80 @@ export function inferFixedBattleJourney(
   return postJson<FixedBattleSummaryRequest, BattleJourneyResult>(
     '/inference/fixed-one-on-one/graph',
     request,
+  );
+}
+
+/** 按当前 cursor 快照实时展开一层固定配置树状可能性。 */
+export function expandFixedBattleSnapshot(
+  request: FixedBattleSummaryRequest,
+  cursor: ExplorationCursorResult,
+): Promise<BattleGraphExplorationResult> {
+  return postJson<FixedBattleSummaryRequest & { cursor: ExplorationCursorResult }, BattleGraphExplorationResult>(
+    '/inference/fixed-one-on-one/step',
+    { ...request, cursor },
+  );
+}
+
+/** 提交固定配置异步任务，不等待 solver 完成。 */
+export function createFixedBattleJob(
+  request: FixedBattleSummaryRequest,
+  idempotencyKey: string,
+): Promise<FixedBattleJobCreationResult> {
+  return postJson<FixedBattleSummaryRequest, FixedBattleJobCreationResult>(
+    '/inference/fixed-one-on-one-jobs',
+    request,
+    { 'Idempotency-Key': idempotencyKey },
+  );
+}
+
+/** 分页读取固定配置后台任务列表。 */
+export function listFixedBattleJobs(
+  options: { activeOnly?: boolean; limit?: number } = {},
+): Promise<InferenceJobListResult> {
+  const params = new URLSearchParams({
+    job_type: 'fixed-one-on-one',
+    limit: String(options.limit ?? 20),
+  });
+  if (options.activeOnly === true) {
+    params.set('active_only', 'true');
+  }
+  return requestJson<InferenceJobListResult>(`/inference/jobs?${params}`, {
+    method: 'GET',
+  });
+}
+
+/** 读取一个后台任务详情。 */
+export function getInferenceJob(jobId: string): Promise<InferenceJobSummary> {
+  return requestJson<InferenceJobSummary>(
+    `/inference/jobs/${encodeURIComponent(jobId)}`,
+    { method: 'GET' },
+  );
+}
+
+/** 请求取消一个后台任务。 */
+export async function cancelInferenceJob(jobId: string): Promise<InferenceJobSummary> {
+  const response = await requestJson<{ job: InferenceJobSummary }>(
+    `/inference/jobs/${encodeURIComponent(jobId)}/cancel`,
+    { method: 'POST' },
+  );
+  return response.job;
+}
+
+/** 读取固定任务中已成功完成的单配置 case。 */
+export function listSucceededJobCases(jobId: string): Promise<InferenceJobCasePageResult> {
+  return requestJson<InferenceJobCasePageResult>(
+    `/inference/configuration-jobs/${encodeURIComponent(jobId)}/results?status=succeeded&limit=1`,
+    { method: 'GET' },
+  );
+}
+
+/** 为已完成 case 按需生成完整图，供树状图和战报查看。 */
+export function createJobCaseGraph(
+  jobId: string,
+  configurationId: string,
+): Promise<FixedBattleJobGraphResult> {
+  return requestJson<FixedBattleJobGraphResult>(
+    `/inference/configuration-jobs/${encodeURIComponent(jobId)}/configurations/${encodeURIComponent(configurationId)}/graph`,
+    { method: 'POST' },
   );
 }

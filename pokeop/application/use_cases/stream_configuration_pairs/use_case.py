@@ -27,10 +27,12 @@ from pokeop.application.use_cases.stream_configuration_pairs.models import (
     ConfigurationPairExecutionStatus,
     ConfigurationPairGraphArtifact,
     ConfigurationPairGraphExecutor,
+    ConfigurationPairProgressObserver,
     ConfigurationPairResultSink,
     ConfigurationPairStopReason,
     ConfigurationPairStreamError,
     ConfigurationPairWorkItem,
+    DiscardConfigurationPairProgressObserver,
     DiscardConfigurationPairResultSink,
     DiscardProgressSink,
     NeverCancelledToken,
@@ -47,6 +49,7 @@ class StreamConfigurationPairsUseCase:
         graph_executor: 单配置图构建与求解端口。
         result_sink: 单配置与最终聚合输出端口。
         progress_sink: 配置数量和累计资源进度输出端口。
+        runtime_progress_observer: 当前 case 内部构图/求解进度观察者。
         cancellation_token: 每次领取新配置前检查的同步取消端口。
     """
 
@@ -57,6 +60,9 @@ class StreamConfigurationPairsUseCase:
         default_factory=DiscardConfigurationPairResultSink
     )
     progress_sink: ProgressSink = field(default_factory=DiscardProgressSink)
+    runtime_progress_observer: ConfigurationPairProgressObserver = field(
+        default_factory=DiscardConfigurationPairProgressObserver
+    )
     cancellation_token: CancellationToken = field(default_factory=NeverCancelledToken)
 
     def execute(
@@ -121,6 +127,7 @@ class StreamConfigurationPairsUseCase:
                 defender_policy=command.defender_policy,
                 observer=command.observer,
                 graph_limits=command.graph_limits,
+                progress_observer=self.runtime_progress_observer,
             )
         except Exception as exc:  # noqa: BLE001 - 单配置失败必须类型化并继续。
             return _failed_result(work_item, exc)
@@ -287,6 +294,7 @@ def _summarize_artifact(
             else None
         ),
         expected_turns_status=solved.expected_turns.status,
+        explanation_json=artifact.explanation_json,
         diagnostics=solved.diagnostics,
     )
 

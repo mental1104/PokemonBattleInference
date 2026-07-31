@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, replace
+from typing import Protocol, runtime_checkable
 
 from pokeop.domain.battle.inference_outcome import TerminationReason
 from pokeop.domain.battle.state import BattlePhase, BattleState, StateKey
@@ -31,6 +32,54 @@ from .strong_components import (
 
 
 @dataclass(frozen=True, slots=True)
+class StateGraphBuildProgress:
+    """表示状态图构建过程中的一帧轻量进度。
+
+    Args:
+        phase: 构图阶段标识，当前固定为 ``building_graph`` 或 ``graph_built``。
+        discovered_node_count: 当前已经发现并去重后的节点数量。
+        edge_count: 当前已经写入的正式边数量。
+        expanded_node_count: 已经展开后继的非终局节点数量。
+        frontier_count: FIFO 队列中等待展开的节点数量。
+        max_nodes: 节点上限；None 表示没有显式上限。
+        max_edges: 边上限；None 表示没有显式上限。
+    """
+
+    phase: str
+    discovered_node_count: int
+    edge_count: int
+    expanded_node_count: int
+    frontier_count: int
+    max_nodes: int | None
+    max_edges: int | None
+
+
+@runtime_checkable
+class StateGraphProgressObserver(Protocol):
+    """接收状态图构建进度事件的 application 层观察者端口。"""
+
+    def write_graph_progress(self, progress: StateGraphBuildProgress) -> None:
+        """接收一帧构图进度。
+
+        Args:
+            progress: 当前 builder 在同一线程内同步产生的轻量统计。
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class DiscardStateGraphProgressObserver:
+    """默认丢弃构图进度，保持同步求解调用方零额外副作用。"""
+
+    def write_graph_progress(self, progress: StateGraphBuildProgress) -> None:
+        """忽略一帧构图进度。
+
+        Args:
+            progress: 当前 builder 产生的进度事件。
+        """
+
+
+@dataclass(frozen=True, slots=True)
 class StateGraphBuilder:
     """使用显式 FIFO 队列构建按 ``StateKey`` 去重的战斗状态图。
 
@@ -42,10 +91,14 @@ class StateGraphBuilder:
     Args:
         expander: 为每个非终局状态提供完整带权后继分布的稳定边界。
         limits: 节点、边和回合运行保护；None 时使用默认限制模型。
+        progress_observer: 构图过程中接收轻量进度的观察者。
+        progress_interval_nodes: 每展开多少个节点至少发出一次进度事件。
     """
 
     expander: BattleStateTransitionExpander
     limits: StateGraphLimits = StateGraphLimits()
+    progress_observer: StateGraphProgressObserver = DiscardStateGraphProgressObserver()
+    progress_interval_nodes: int = 200
 
     def __post_init__(self) -> None:
         """校验扩展器满足结构化协议并且限制模型类型正确。"""
@@ -55,6 +108,14 @@ class StateGraphBuilder:
             )
         if not isinstance(self.limits, StateGraphLimits):
             raise StateGraphError("limits must be a StateGraphLimits instance")
+        if not isinstance(self.progress_observer, StateGraphProgressObserver):
+            raise StateGraphError("progress_observer must implement StateGraphProgressObserver")
+        if (
+            isinstance(self.progress_interval_nodes, bool)
+            or not isinstance(self.progress_interval_nodes, int)
+            or self.progress_interval_nodes <= 0
+        ):
+            raise StateGraphError("progress_interval_nodes must be a positive integer")
 
     def build(self, initial_state: BattleState) -> StateGraphBuildResult:
         """从一个初始战斗状态构建完整或明确截断的去重状态图。
@@ -93,10 +154,19 @@ class StateGraphBuilder:
             work_queue.append(GraphNodeId(0))
 
         truncation_reasons: list[GraphTruncationReason] = []
+        expanded_node_count = 0
+        next_progress_at = self.progress_interval_nodes
         max_turns = (
             self.limits.max_turns
             if self.limits.max_turns is not None
             else initial_state.rules.max_turns
+        )
+        self._emit_progress(
+            phase="building_graph",
+            nodes=nodes,
+            edges=edges,
+            expanded_node_count=expanded_node_count,
+            frontier_count=len(work_queue),
         )
 
         while work_queue:
@@ -117,6 +187,7 @@ class StateGraphBuilder:
                 continue
 
             transitions = tuple(self.expander.expand(node.state))
+            expanded_node_count += 1
             if not transitions:
                 # 整个状态没有任何后继时无法推断责任侧。
                 # 稳定语义为异常平局。
@@ -195,10 +266,26 @@ class StateGraphBuilder:
                         source_key=transition.source_key,
                     )
                 )
+            if expanded_node_count >= next_progress_at:
+                self._emit_progress(
+                    phase="building_graph",
+                    nodes=nodes,
+                    edges=edges,
+                    expanded_node_count=expanded_node_count,
+                    frontier_count=len(work_queue),
+                )
+                next_progress_at = expanded_node_count + self.progress_interval_nodes
 
         components = analyze_strong_components(nodes, edges)
         nodes, components = apply_closed_cycle_resolution(nodes, components)
         statistics = _build_statistics(nodes, edges, components)
+        self._emit_progress(
+            phase="graph_built",
+            nodes=nodes,
+            edges=edges,
+            expanded_node_count=expanded_node_count,
+            frontier_count=0,
+        )
         return StateGraphBuildResult(
             root_node_id=GraphNodeId(0),
             nodes=tuple(nodes),
@@ -206,6 +293,36 @@ class StateGraphBuilder:
             components=components,
             statistics=statistics,
             truncation_reasons=tuple(truncation_reasons),
+        )
+
+    def _emit_progress(
+        self,
+        *,
+        phase: str,
+        nodes: list[StateGraphNode],
+        edges: list[StateGraphEdge],
+        expanded_node_count: int,
+        frontier_count: int,
+    ) -> None:
+        """同步发布一帧构图进度。
+
+        Args:
+            phase: 当前构图阶段。
+            nodes: 当前已发现节点列表。
+            edges: 当前已写入边列表。
+            expanded_node_count: 已展开节点数量。
+            frontier_count: 待展开队列长度。
+        """
+        self.progress_observer.write_graph_progress(
+            StateGraphBuildProgress(
+                phase=phase,
+                discovered_node_count=len(nodes),
+                edge_count=len(edges),
+                expanded_node_count=expanded_node_count,
+                frontier_count=frontier_count,
+                max_nodes=self.limits.max_nodes,
+                max_edges=self.limits.max_edges,
+            )
         )
 
 
