@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from pokeop.api.routers.calculator import get_calculator_repository
+from pokeop.api.routers.calculator import (
+    get_calculator_ability_repository,
+    get_calculator_repository,
+)
 from pokeop.api.schemas.configuration_solver import (
     SolveConfigurationRequest,
     SolveConfigurationResponse,
     solve_configuration_response_from_result,
+)
+from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import (
+    CalculatorAbilityRepository,
 )
 from pokeop.application.use_cases.solve_configuration_targets import (
     ConfigurationGoalCommand,
@@ -21,16 +27,12 @@ router = APIRouter()
 
 def get_configuration_solver_use_case(
     repository: MaterializedViewCalculatorRepository = Depends(get_calculator_repository),
+    ability_repository: CalculatorAbilityRepository = Depends(
+        get_calculator_ability_repository
+    ),
 ) -> SolvePokemonConfigurationUseCase:
-    """创建反向配置求解 use case。
-
-    Args:
-        repository: 复用 calculator 的物化视图读取 repository。
-
-    Returns:
-        已绑定 repository 的 application use case。
-    """
-    return SolvePokemonConfigurationUseCase(repository)
+    """创建同时读取 catalog 和合法特性的反向配置求解 use case。"""
+    return SolvePokemonConfigurationUseCase(repository, ability_repository)
 
 
 @router.post("/solve", response_model=SolveConfigurationResponse)
@@ -44,6 +46,8 @@ async def solve_configuration(
             SolvePokemonConfigurationCommand(
                 ruleset_id=request.ruleset_id,
                 subject_pokemon_id=request.subject_pokemon_id,
+                subject_ability_identifier=request.subject_ability_identifier,
+                subject_item_identifier=request.subject_item_identifier,
                 level=request.level,
                 goals=tuple(
                     ConfigurationGoalCommand(
@@ -52,6 +56,8 @@ async def solve_configuration(
                         target_pokemon_id=goal.target_pokemon_id,
                         move_id=goal.move_id,
                         required_turns=goal.required_turns,
+                        target_ability_identifier=goal.target_ability_identifier,
+                        target_item_identifier=goal.target_item_identifier,
                         target_stat_preset=goal.target_stat_preset,
                         damage_roll_policy=goal.damage_roll_policy,
                     )

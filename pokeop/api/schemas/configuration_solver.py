@@ -19,6 +19,14 @@ class ConfigurationGoalRequest(BaseModel):
     target_pokemon_id: int = Field(gt=0, description="目标或攻击来源 Pokémon ID。")
     move_id: int = Field(gt=0, description="本目标使用的招式 ID。")
     required_turns: int = Field(default=1, ge=1, le=10, description="击倒回合数或承受次数。")
+    target_ability_identifier: str = Field(
+        min_length=1,
+        description="目标 Pokémon 当前选择的合法特性 identifier。",
+    )
+    target_item_identifier: str | None = Field(
+        default=None,
+        description="目标 Pokémon 当前选择的已实现持有道具 identifier。",
+    )
     target_stat_preset: str = Field(default="no_investment", description="对手配置模板。")
     damage_roll_policy: DamageRollPolicy | None = Field(
         default=None,
@@ -31,6 +39,14 @@ class SolveConfigurationRequest(BaseModel):
 
     ruleset_id: str = Field(default="pokemon-champion", description="当前规则集标识。")
     subject_pokemon_id: int = Field(gt=0, description="需要被配置的 Pokémon ID。")
+    subject_ability_identifier: str = Field(
+        min_length=1,
+        description="待配置 Pokémon 当前选择的合法特性 identifier。",
+    )
+    subject_item_identifier: str | None = Field(
+        default=None,
+        description="待配置 Pokémon 当前选择的已实现持有道具 identifier。",
+    )
     level: int = Field(default=50, ge=1, le=100, description="本次求解等级。")
     goals: list[ConfigurationGoalRequest] = Field(min_length=1, max_length=20)
     allowed_stat_presets: list[str] = Field(

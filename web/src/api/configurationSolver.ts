@@ -9,6 +9,8 @@ export interface ConfigurationGoalRequest {
   target_pokemon_id: number;
   move_id: number;
   required_turns: number;
+  target_ability_identifier: string;
+  target_item_identifier: string | null;
   target_stat_preset: string;
   damage_roll_policy: DamageRollPolicy | null;
 }
@@ -16,6 +18,8 @@ export interface ConfigurationGoalRequest {
 export interface SolveConfigurationRequest {
   ruleset_id: string;
   subject_pokemon_id: number;
+  subject_ability_identifier: string;
+  subject_item_identifier: string | null;
   level: number;
   goals: ConfigurationGoalRequest[];
   allowed_stat_presets: string[];
