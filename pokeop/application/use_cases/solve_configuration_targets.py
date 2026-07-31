@@ -16,8 +16,14 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
     StatPresetView,
     stat_profile_from_preset,
 )
+from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import (
+    CalculatorAbilityOption,
+    CalculatorAbilityRepository,
+)
+from pokeop.domain.battle.abilities import DamageAbility
 from pokeop.domain.battle.context import BattleMove, BattlePokemon, DamageContextBuilder
 from pokeop.domain.battle.damage import DamageRollResult, calculate_damage_rolls
+from pokeop.domain.battle.items import DamageItem
 from pokeop.domain.battle.modifiers import defensive_stat, offensive_stat
 from pokeop.domain.battle.rulesets.resolver import resolve_ruleset_by_version_group
 from pokeop.domain.battle.stats import StatValues, calculate_actual_stats
@@ -45,6 +51,8 @@ class SolvePokemonConfigurationCommand:
     Args:
         ruleset_id: 当前规则集稳定标识。
         subject_pokemon_id: 用户要配置的 Pokémon ID。
+        subject_ability_identifier: 待配置 Pokémon 本次固定使用的合法特性。
+        subject_item_identifier: 待配置 Pokémon 本次固定携带的已实现道具。
         level: 本轮配置求解使用的等级。
         goals: 必须由同一套配置同时满足的攻防目标。
         allowed_stat_presets: 允许求解器尝试的配置模板；为空时使用首版内置确定性模板。
@@ -53,6 +61,8 @@ class SolvePokemonConfigurationCommand:
 
     ruleset_id: str = DEFAULT_RULESET_ID
     subject_pokemon_id: int = 0
+    subject_ability_identifier: str = ""
+    subject_item_identifier: str | None = None
     level: int = DEFAULT_LEVEL
     goals: tuple["ConfigurationGoalCommand", ...] = ()
     allowed_stat_presets: tuple[str, ...] = ()
@@ -69,6 +79,8 @@ class ConfigurationGoalCommand:
         target_pokemon_id: 对手 Pokémon ID；攻击目标中它是防守方，防守目标中它是攻击方。
         move_id: 本条目标使用的招式 ID。
         required_turns: 攻击目标要求几回合内击倒；防守目标要求承受几次攻击后仍存活。
+        target_ability_identifier: 该目标 Pokémon 本次固定使用的合法特性。
+        target_item_identifier: 该目标 Pokémon 本次固定携带的已实现道具。
         target_stat_preset: 对手使用的配置模板。
         damage_roll_policy: attack 默认用最低伤害档保证击倒，defense 默认用最高伤害档保证存活。
     """
@@ -78,6 +90,8 @@ class ConfigurationGoalCommand:
     target_pokemon_id: int
     move_id: int
     required_turns: int
+    target_ability_identifier: str
+    target_item_identifier: str | None = None
     target_stat_preset: str = "no_investment"
     damage_roll_policy: DamageRollPolicy | None = None
 
@@ -126,6 +140,14 @@ class SolvePokemonConfigurationResult:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _ResolvedAbility:
+    """保留合法特性选项和实际进入 domain 的降级值。"""
+
+    option: CalculatorAbilityOption
+    domain_value: DamageAbility
+
+
 class ConfigurationSolverInputError(CalculatorInputError):
     """表示反向求解请求非法或超出首版能力边界。"""
 
@@ -137,33 +159,24 @@ class ConfigurationSolverRepository(CalculatorCatalogRepository, Protocol):
 class SolvePokemonConfigurationUseCase:
     """执行确定性配置反向求解的 application use case。
 
-    首版把搜索空间限定为 application 声明的 EV/性格模板，并用统一 domain 伤害计算
-    对每个候选逐目标复核；它不纳入概率触发特性、道具副作用或自动放宽约束。
+    搜索空间限定为 application 声明的 EV/性格模板。双方已实现的特性与道具会进入
+    统一 domain 伤害计算；合法但未实现的特性按无特性处理并返回警告。
     """
 
-    def __init__(self, repository: ConfigurationSolverRepository) -> None:
-        """保存 repository 端口实现。
-
-        Args:
-            repository: 提供规则集、宝可梦、招式和 learnset 校验的读取端口。
-        """
+    def __init__(
+        self,
+        repository: ConfigurationSolverRepository,
+        ability_repository: CalculatorAbilityRepository,
+    ) -> None:
+        """保存 catalog 与 version-aware 特性读取端口。"""
         self._repository = repository
+        self._ability_repository = ability_repository
 
     def execute(
         self,
         command: SolvePokemonConfigurationCommand,
     ) -> SolvePokemonConfigurationResult:
-        """搜索满足全部目标的配置模板并返回逐目标证据。
-
-        Args:
-            command: 用户选择的待配置 Pokémon、目标集合和搜索预算。
-
-        Returns:
-            可达时包含一到多套候选；不可达时包含第一个候选的失败证据，帮助定位冲突方向。
-
-        Raises:
-            ConfigurationSolverInputError: 请求为空、引用未知资源或目标招式不合法时抛出。
-        """
+        """搜索满足全部目标的配置模板并返回逐目标证据。"""
         self._validate_command(command)
         ruleset = self._require_ruleset(command.ruleset_id)
         subject = self._require_pokemon(
@@ -171,6 +184,26 @@ class SolvePokemonConfigurationUseCase:
             pokemon_id=command.subject_pokemon_id,
             role="subject",
         )
+        subject_ability = self._require_ability(
+            ruleset_id=ruleset.ruleset_id,
+            pokemon_id=subject.pokemon_id,
+            identifier=command.subject_ability_identifier,
+            role="subject",
+        )
+        subject_item = self._item_from_identifier(command.subject_item_identifier)
+        goal_abilities = {
+            goal.goal_id: self._require_ability(
+                ruleset_id=ruleset.ruleset_id,
+                pokemon_id=goal.target_pokemon_id,
+                identifier=goal.target_ability_identifier,
+                role=f"goal {goal.goal_id} target",
+            )
+            for goal in command.goals
+        }
+        goal_items = {
+            goal.goal_id: self._item_from_identifier(goal.target_item_identifier)
+            for goal in command.goals
+        }
         preset_keys = self._candidate_preset_keys(command.allowed_stat_presets)
         domain_ruleset = resolve_ruleset_by_version_group(ruleset.version_group_id)
 
@@ -186,9 +219,12 @@ class SolvePokemonConfigurationUseCase:
                     ruleset=ruleset,
                     subject=subject,
                     subject_stats=subject_stats,
-                    subject_preset_key=preset_key,
+                    subject_ability=subject_ability.domain_value,
+                    subject_item=subject_item,
                     level=command.level,
                     goal=goal,
+                    target_ability=goal_abilities[goal.goal_id].domain_value,
+                    target_item=goal_items[goal.goal_id],
                     domain_ruleset=domain_ruleset,
                 )
                 for goal in command.goals
@@ -217,13 +253,19 @@ class SolvePokemonConfigurationUseCase:
                 "同一套配置同时验收全部目标",
                 "EV/性格模板",
                 "等级",
+                "已实现持有道具",
+                "已实现特性",
                 "招式固定威力",
                 "STAB",
                 "属性克制",
                 "指定随机伤害档",
             ),
             warnings=(
-                "首版只搜索确定性配置模板，不把概率触发特性或道具副作用作为成功保证。",
+                *self._ability_warnings(
+                    command=command,
+                    subject_ability=subject_ability,
+                    goal_abilities=goal_abilities,
+                ),
                 "未自动放宽目标；不可达表示当前搜索空间内没有配置满足全部约束。",
             ),
         )
@@ -232,19 +274,28 @@ class SolvePokemonConfigurationUseCase:
         """校验用户请求的基本边界，避免空目标或无意义预算进入搜索。"""
         if command.subject_pokemon_id <= 0:
             raise ConfigurationSolverInputError("subject_pokemon_id must be positive")
+        if not command.subject_ability_identifier.strip():
+            raise ConfigurationSolverInputError("subject_ability_identifier is required")
         if not 1 <= command.level <= 100:
             raise ConfigurationSolverInputError("level must be between 1 and 100")
         if not command.goals:
             raise ConfigurationSolverInputError("at least one goal is required")
         if not 1 <= command.max_candidates <= 10:
             raise ConfigurationSolverInputError("max_candidates must be between 1 and 10")
+
+        goal_ids: set[str] = set()
         for goal in command.goals:
             if not goal.goal_id or goal.goal_id != goal.goal_id.strip():
                 raise ConfigurationSolverInputError("goal_id must be a normalized non-empty string")
+            if goal.goal_id in goal_ids:
+                raise ConfigurationSolverInputError(f"duplicate goal_id: {goal.goal_id}")
+            goal_ids.add(goal.goal_id)
             if goal.target_pokemon_id <= 0:
                 raise ConfigurationSolverInputError("target_pokemon_id must be positive")
             if goal.move_id <= 0:
                 raise ConfigurationSolverInputError("move_id must be positive")
+            if not goal.target_ability_identifier.strip():
+                raise ConfigurationSolverInputError("target_ability_identifier is required")
             if not 1 <= goal.required_turns <= 10:
                 raise ConfigurationSolverInputError("required_turns must be between 1 and 10")
 
@@ -281,9 +332,12 @@ class SolvePokemonConfigurationUseCase:
         ruleset: CalculatorRulesetContext,
         subject: CalculatorPokemonProfile,
         subject_stats: StatValues,
-        subject_preset_key: str,
+        subject_ability: DamageAbility,
+        subject_item: DamageItem,
         level: int,
         goal: ConfigurationGoalCommand,
+        target_ability: DamageAbility,
+        target_item: DamageItem,
         domain_ruleset,
     ) -> ConfigurationGoalResult:
         """用 domain 伤害计算复核一条目标。"""
@@ -305,7 +359,9 @@ class SolvePokemonConfigurationUseCase:
             ):
                 raise ConfigurationSolverInputError("attack goal move is not available for subject")
             attacker_profile, attacker_stats = subject, subject_stats
+            attacker_ability, attacker_item = subject_ability, subject_item
             defender_profile, defender_stats = target, target_stats
+            defender_ability, defender_item = target_ability, target_item
             subject_role = "attacker"
             roll_policy = goal.damage_roll_policy or DamageRollPolicy.MIN
         else:
@@ -316,7 +372,9 @@ class SolvePokemonConfigurationUseCase:
             ):
                 raise ConfigurationSolverInputError("defense goal move is not available for target")
             attacker_profile, attacker_stats = target, target_stats
+            attacker_ability, attacker_item = target_ability, target_item
             defender_profile, defender_stats = subject, subject_stats
+            defender_ability, defender_item = subject_ability, subject_item
             subject_role = "defender"
             roll_policy = goal.damage_roll_policy or DamageRollPolicy.MAX
 
@@ -325,12 +383,16 @@ class SolvePokemonConfigurationUseCase:
             level=level,
             types=attacker_profile.types,
             stats=attacker_stats,
+            ability=attacker_ability,
+            item=attacker_item,
         )
         defender = BattlePokemon(
             name=defender_profile.identifier,
             level=level,
             types=defender_profile.types,
             stats=defender_stats,
+            ability=defender_ability,
+            item=defender_item,
         )
         battle_move = BattleMove(
             name=move.identifier,
@@ -347,7 +409,11 @@ class SolvePokemonConfigurationUseCase:
             .with_ruleset(domain_ruleset)
             .build()
         )
-        selected_damage = damage.min_damage if roll_policy is DamageRollPolicy.MIN else damage.max_damage
+        selected_damage = (
+            damage.min_damage
+            if roll_policy is DamageRollPolicy.MIN
+            else damage.max_damage
+        )
         total_damage = selected_damage * goal.required_turns
         hp_threshold = defender.stats.hp
         if goal.kind is ConfigurationGoalKind.ATTACK:
@@ -374,6 +440,70 @@ class SolvePokemonConfigurationUseCase:
             effective_defense=defensive_stat(defender, battle_move),
             roll_policy=roll_policy,
         )
+
+    def _require_ability(
+        self,
+        *,
+        ruleset_id: str,
+        pokemon_id: int,
+        identifier: str,
+        role: str,
+    ) -> _ResolvedAbility:
+        """校验特性归属，并把未实现特性解析为 no-op domain 值。"""
+        normalized = identifier.strip()
+        options = self._ability_repository.list_pokemon_ability_options(
+            ruleset_id=ruleset_id,
+            pokemon_id=pokemon_id,
+        )
+        option = next(
+            (candidate for candidate in options if candidate.identifier == normalized),
+            None,
+        )
+        if option is None:
+            raise ConfigurationSolverInputError(
+                f"ability is not available for {role} in this ruleset: {normalized}"
+            )
+        return _ResolvedAbility(
+            option=option,
+            domain_value=DamageAbility.from_identifier(option.effect_identifier),
+        )
+
+    @staticmethod
+    def _item_from_identifier(identifier: str | None) -> DamageItem:
+        """把可选道具 identifier 转成 domain 已实现道具。"""
+        normalized = "" if identifier is None else identifier.strip()
+        if not normalized or normalized == "none":
+            return DamageItem.UNKNOWN
+        item = DamageItem.from_identifier(normalized)
+        if item is DamageItem.UNKNOWN:
+            raise ConfigurationSolverInputError(
+                f"unsupported item_identifier: {normalized}"
+            )
+        return item
+
+    @staticmethod
+    def _ability_warnings(
+        *,
+        command: SolvePokemonConfigurationCommand,
+        subject_ability: _ResolvedAbility,
+        goal_abilities: dict[str, _ResolvedAbility],
+    ) -> tuple[str, ...]:
+        """为合法但未实现的特性返回显式降级说明。"""
+        warnings: list[str] = []
+        if not subject_ability.option.implemented:
+            warnings.append(
+                f"待配置 Pokémon 特性“{subject_ability.option.display_name}”尚未实现，"
+                "本次按无特性处理。"
+            )
+        for goal in command.goals:
+            resolved = goal_abilities[goal.goal_id]
+            if resolved.option.implemented:
+                continue
+            role = "攻目标防守方" if goal.kind is ConfigurationGoalKind.ATTACK else "防目标攻击方"
+            warnings.append(
+                f"{role}特性“{resolved.option.display_name}”尚未实现，本次按无特性处理。"
+            )
+        return tuple(warnings)
 
     def _require_ruleset(self, ruleset_id: str) -> CalculatorRulesetContext:
         """读取规则集，不存在时抛出稳定输入错误。"""
@@ -404,7 +534,9 @@ class SolvePokemonConfigurationUseCase:
         if move is None:
             raise ConfigurationSolverInputError(f"unknown move_id: {move_id}")
         if move.power <= 0:
-            raise ConfigurationSolverInputError("moves without fixed positive power are not supported")
+            raise ConfigurationSolverInputError(
+                "moves without fixed positive power are not supported"
+            )
         return move
 
 
