@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from pokeop.api.schemas.calculator import _stats_to_dict
 from pokeop.api.schemas.configuration_solver import (
     ConfigurationGoalRequest,
     GoalVerificationResponse,
@@ -12,12 +13,10 @@ from pokeop.api.schemas.configuration_solver import (
     SolveConfigurationRequest,
     SolverPokemonSummary,
     SolvedConfigurationResponse,
-    StatSpreadRangeResponse,
     _goal_response,
     _pokemon_summary,
     _range_response,
 )
-from pokeop.api.schemas.calculator import _stats_to_dict
 from pokeop.application.use_cases.configuration_speed_goals import (
     ConfigurationSpeedGoalResult,
 )
@@ -125,7 +124,8 @@ def solve_configuration_with_speed_response_from_result(
     """把速度感知的已有配置求解结果转换为 HTTP 响应。
 
     Args:
-        result: application 层已有配置候选及两类目标证据。
+        result: application 层已有配置候选及两类目标证据；为兼容直接调用 router 的旧测试，
+            也允许候选暂时不包含 speed_goal_results，此时按空速度证据处理。
 
     Returns:
         solution_kind 为 preset 的速度感知响应。
@@ -149,7 +149,7 @@ def solve_configuration_with_speed_response_from_result(
                 ],
                 speed_goals=[
                     _speed_goal_response(goal, ruleset_id=ruleset_id)
-                    for goal in candidate.speed_goal_results
+                    for goal in getattr(candidate, "speed_goal_results", ())
                 ],
             )
             for candidate in result.candidates
@@ -160,7 +160,7 @@ def solve_configuration_with_speed_response_from_result(
         ],
         rejected_speed_goals=[
             _speed_goal_response(goal, ruleset_id=ruleset_id)
-            for goal in result.rejected_speed_goal_results
+            for goal in getattr(result, "rejected_speed_goal_results", ())
         ],
         scope=list(result.scope),
         warnings=list(result.warnings),
@@ -173,7 +173,8 @@ def search_configuration_spreads_with_speed_response_from_result(
     """把速度感知的属性反推结果转换为共用 HTTP 响应。
 
     Args:
-        result: application 层带代表分配、区间和两类目标证据的结果。
+        result: application 层带代表分配、区间和两类目标证据的结果；旧属性反推结果缺少
+            速度字段时按空集合处理，以保持无速度目标调用兼容。
 
     Returns:
         solution_kind 为 spread 的速度感知响应。
@@ -216,7 +217,7 @@ def search_configuration_spreads_with_speed_response_from_result(
                 ],
                 speed_goals=[
                     _speed_goal_response(goal, ruleset_id=ruleset_id)
-                    for goal in candidate.speed_goal_results
+                    for goal in getattr(candidate, "speed_goal_results", ())
                 ],
             )
             for candidate in result.candidates
@@ -227,7 +228,7 @@ def search_configuration_spreads_with_speed_response_from_result(
         ],
         rejected_speed_goals=[
             _speed_goal_response(goal, ruleset_id=ruleset_id)
-            for goal in result.rejected_speed_goal_results
+            for goal in getattr(result, "rejected_speed_goal_results", ())
         ],
         scope=list(result.scope),
         warnings=list(result.warnings),
