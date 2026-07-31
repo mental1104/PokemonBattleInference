@@ -7,8 +7,8 @@ beforeEach(() => {
 });
 
 describe('App home tabs', () => {
-  it('keeps calculator default and exposes fixed configuration inference', async () => {
-    /** 默认入口仍是单次伤害计算，第二页签只承载组合选择后的固定配置精确推演。 */
+  it('keeps calculator default and exposes solver before fixed configuration inference', async () => {
+    /** 默认入口仍是单次伤害计算，配置反向求解排在固定配置精确推演之前。 */
     const wrapper = mount(App, {
       global: {
         stubs: {
@@ -23,19 +23,19 @@ describe('App home tabs', () => {
 
     expect(buttons).toHaveLength(3);
     expect(buttons[0].text()).toContain('单次伤害计算');
-    expect(buttons[1].text()).toContain('固定配置精确推演');
-    expect(buttons[2].text()).toContain('配置反向求解');
+    expect(buttons[1].text()).toContain('配置反向求解');
+    expect(buttons[2].text()).toContain('固定配置精确推演');
     expect(wrapper.find('[data-test="damage-page"]').exists()).toBe(true);
     expect(buttons[0].classes()).toContain('home-tab--active');
 
     await buttons[1].trigger('click');
 
-    expect(wrapper.find('[data-test="inference-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="solver-page"]').exists()).toBe(true);
     expect(buttons[1].classes()).toContain('home-tab--active');
 
     await buttons[2].trigger('click');
 
-    expect(wrapper.find('[data-test="solver-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="inference-page"]').exists()).toBe(true);
     expect(buttons[2].classes()).toContain('home-tab--active');
   });
 
@@ -75,7 +75,7 @@ describe('App home tabs', () => {
       },
     });
 
-    await wrapper.findAll('.home-tabs__actions button')[1].trigger('click');
+    await wrapper.findAll('.home-tabs__actions button')[2].trigger('click');
     await wrapper.get('[data-test="inference-page"] button').trigger('click');
 
     expect(wrapper.find('[data-test="job-detail-page"]').text()).toContain('fixed-one-on-one-job-1');
