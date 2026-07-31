@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from pokeop.api.schemas.calculator import (
     BattleItemOptionResponse,
-    CalculateDamageRequest,
     CalculateDamageResponse,
     MoveSearchPageResponse,
     PokemonDetailResponse,
@@ -16,15 +15,23 @@ from pokeop.api.schemas.calculator import (
     pokemon_detail_from_profile,
     pokemon_search_item_from_result,
 )
+from pokeop.api.schemas.calculator_abilities import (
+    BattleAbilityOptionResponse,
+    CalculateDamageWithAbilitiesRequest,
+    ability_option_from_result,
+)
 from pokeop.application.use_cases.calculate_catalog_damage import (
     ATTACKER_PRESETS,
     DEFAULT_RULESET_ID,
     DEFENDER_PRESETS,
-    CalculateCatalogDamageCommand,
-    CalculateCatalogDamageUseCase,
-    CalculateCatalogPokemonCommand,
     CalculatorCatalogRepository,
     CalculatorInputError,
+)
+from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import (
+    CalculateCatalogDamageWithAbilitiesCommand,
+    CalculateCatalogDamageWithAbilitiesUseCase,
+    CalculateCatalogPokemonWithAbilityCommand,
+    CalculatorAbilityRepository,
 )
 from pokeop.application.use_cases.list_calculable_moves import (
     CalculatorMoveCatalogRepository,
@@ -33,7 +40,10 @@ from pokeop.application.use_cases.list_calculable_moves import (
     ListCalculatorMovesQuery,
     ListCalculatorMovesUseCase,
 )
-from pokeop.persistence.calculator import MaterializedViewCalculatorRepository
+from pokeop.persistence.calculator import (
+    MaterializedViewCalculatorAbilityRepository,
+    MaterializedViewCalculatorRepository,
+)
 
 router = APIRouter()
 
@@ -48,11 +58,22 @@ def get_calculator_repository() -> MaterializedViewCalculatorRepository:
     return MaterializedViewCalculatorRepository()
 
 
+def get_calculator_ability_repository() -> MaterializedViewCalculatorAbilityRepository:
+    """创建 version-aware Pokémon 特性读取 repository。"""
+    return MaterializedViewCalculatorAbilityRepository()
+
+
 def get_calculator_use_case(
     repository: CalculatorCatalogRepository = Depends(get_calculator_repository),
-) -> CalculateCatalogDamageUseCase:
-    """创建数据库驱动伤害计算 use case。"""
-    return CalculateCatalogDamageUseCase(repository)
+    ability_repository: CalculatorAbilityRepository = Depends(
+        get_calculator_ability_repository
+    ),
+) -> CalculateCatalogDamageWithAbilitiesUseCase:
+    """创建支持双方必选特性的数据库驱动伤害计算 use case。"""
+    return CalculateCatalogDamageWithAbilitiesUseCase(
+        repository,
+        ability_repository,
+    )
 
 
 def get_calculator_move_use_case(
@@ -85,6 +106,27 @@ async def get_pokemon_detail(
     if profile is None:
         raise HTTPException(status_code=404, detail="pokemon not found in ruleset")
     return pokemon_detail_from_profile(profile, ruleset_id=ruleset_id)
+
+
+@router.get(
+    "/pokemon/{pokemon_id}/abilities",
+    response_model=list[BattleAbilityOptionResponse],
+)
+async def list_pokemon_ability_options(
+    pokemon_id: int,
+    ruleset_id: str = Query(default=DEFAULT_RULESET_ID, description="当前规则集。"),
+    repository: CalculatorAbilityRepository = Depends(
+        get_calculator_ability_repository
+    ),
+) -> list[BattleAbilityOptionResponse]:
+    """返回当前 Pokémon 的合法特性，并标注 domain 是否已经实现。"""
+    return [
+        ability_option_from_result(item)
+        for item in repository.list_pokemon_ability_options(
+            ruleset_id=ruleset_id,
+            pokemon_id=pokemon_id,
+        )
+    ]
 
 
 @router.get("/pokemon/{pokemon_id}/moves", response_model=MoveSearchPageResponse)
@@ -146,24 +188,28 @@ async def list_battle_item_options(
 
 @router.post("/damage", response_model=CalculateDamageResponse)
 async def calculate_damage(
-    request: CalculateDamageRequest,
-    use_case: CalculateCatalogDamageUseCase = Depends(get_calculator_use_case),
+    request: CalculateDamageWithAbilitiesRequest,
+    use_case: CalculateCatalogDamageWithAbilitiesUseCase = Depends(
+        get_calculator_use_case
+    ),
 ) -> CalculateDamageResponse:
-    """执行基础伤害计算，不信任前端传入任何派生战斗资料。"""
+    """执行基础伤害计算，并由服务端校验双方特性是否属于当前 Pokémon。"""
     try:
         result = use_case.execute(
-            CalculateCatalogDamageCommand(
+            CalculateCatalogDamageWithAbilitiesCommand(
                 ruleset_id=request.ruleset_id,
-                attacker=CalculateCatalogPokemonCommand(
+                attacker=CalculateCatalogPokemonWithAbilityCommand(
                     pokemon_id=request.attacker.pokemon_id,
                     level=request.attacker.level,
                     stat_preset=request.attacker.stat_preset,
+                    ability_identifier=request.attacker.ability_identifier,
                     item_identifier=request.attacker.item_identifier,
                 ),
-                defender=CalculateCatalogPokemonCommand(
+                defender=CalculateCatalogPokemonWithAbilityCommand(
                     pokemon_id=request.defender.pokemon_id,
                     level=request.defender.level,
                     stat_preset=request.defender.stat_preset,
+                    ability_identifier=request.defender.ability_identifier,
                     item_identifier=request.defender.item_identifier,
                 ),
                 move_id=request.move_id,
@@ -175,6 +221,7 @@ async def calculate_damage(
 
 
 __all__ = [
+    "get_calculator_ability_repository",
     "get_calculator_move_use_case",
     "get_calculator_repository",
     "get_calculator_use_case",
