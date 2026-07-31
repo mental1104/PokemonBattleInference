@@ -142,8 +142,8 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
 
 <style scoped>
 .move-stage {
-  width: min(800px, 100%);
-  margin: 20px auto 0;
+  width: 100%;
+  margin: 20px 0 0;
 }
 
 .ability-placeholder {
