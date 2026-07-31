@@ -22,7 +22,7 @@ const {
   remember: rememberDefenderPokemon,
 } = useRecentPokemon();
 
-/** 初始化页面所需的服务端模板。 */
+/** 初始化页面所需的服务端模板和战斗道具。 */
 onMounted(() => {
   void calculator.loadPresets();
   void calculator.loadItems();
@@ -74,6 +74,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
         />
         <PokemonSummaryCard :pokemon="calculator.attacker.value" />
         <ItemSelector
+          data-testid="attacker-item"
           title="携带道具"
           :items="calculator.itemOptions.value"
           :selected-identifier="calculator.attackerItemIdentifier.value"
@@ -82,6 +83,7 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="calculator.attackerItemIdentifier.value = $event.identifier"
         />
         <AbilitySelector
+          data-testid="attacker-ability"
           title="特性"
           :abilities="calculator.attackerAbilityOptions.value"
           :selected-identifier="calculator.attackerAbilityIdentifier.value"
@@ -108,7 +110,17 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           @select="selectDefender"
         />
         <PokemonSummaryCard :pokemon="calculator.defender.value" />
+        <ItemSelector
+          data-testid="defender-item"
+          title="携带道具"
+          :items="calculator.itemOptions.value"
+          :selected-identifier="calculator.defenderItemIdentifier.value"
+          :disabled="!calculator.defender.value"
+          :loading="calculator.itemsLoading.value"
+          @select="calculator.defenderItemIdentifier.value = $event.identifier"
+        />
         <AbilitySelector
+          data-testid="defender-ability"
           title="特性"
           :abilities="calculator.defenderAbilityOptions.value"
           :selected-identifier="calculator.defenderAbilityIdentifier.value"
