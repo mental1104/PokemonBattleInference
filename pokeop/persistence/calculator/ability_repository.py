@@ -81,8 +81,7 @@ class MaterializedViewCalculatorAbilityRepository:
                         ) past_ability ON true
                         WHERE pa.pokemon_id = :pokemon_id
                     )
-                    SELECT DISTINCT ON (a.id)
-                           a.id AS ability_id,
+                    SELECT a.id AS ability_id,
                            a.identifier AS ability_identifier,
                            ability_name.name AS ability_name,
                            resolved.slot,
@@ -95,7 +94,7 @@ class MaterializedViewCalculatorAbilityRepository:
                     LEFT JOIN poke_raw.ability_names ability_name
                       ON ability_name.ability_id = a.id
                      AND ability_name.local_language_id = rc.language_id
-                    ORDER BY a.id, resolved.slot, resolved.is_hidden
+                    ORDER BY resolved.slot, resolved.is_hidden, a.id
                     """
                 ),
                 {"ruleset_id": ruleset_id, "pokemon_id": pokemon_id},
