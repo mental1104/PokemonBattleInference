@@ -10,6 +10,7 @@ import {
   type PokemonDetail,
   type PokemonSearchItem,
 } from '../api/calculator';
+import ItemSelector from '../components/ItemSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import DamageCalculatorView from './DamageCalculatorView.vue';
 
@@ -183,11 +184,32 @@ describe('DamageCalculatorView', () => {
     });
   });
 
-  it('places required ability selectors between equipment and stat configuration', async () => {
+  it('keeps independent item selectors in both battle columns', async () => {
     /**
-     * 攻击方选择妙蛙种子、防守方选择皮卡丘后，两栏都必须展示真实特性候选。攻击方特性面板位于携带道具
-     * 下方和攻击配置上方，防守方特性面板位于摘要与耐久配置之间；未实现候选仍可点击，但必须显示禁止符号、
-     * “未实现”标识和按无特性处理的悬浮说明。MoveSelector 继续独立位于双栏之后，防止新增面板破坏主布局。
+     * 攻击方与防守方都必须在 Pokémon 摘要后展示独立 ItemSelector，并共享服务端候选但维护各自的
+     * selectedIdentifier。未选择对应 Pokémon 时两个入口都保持禁用且默认显示不携带道具；该场景保护
+     * 已合入主分支的防守方道具能力不会被特性面板改造覆盖，也保证后续新增选择项时双方状态仍然对称，
+     * MoveSelector 继续只出现在双栏之后而不会被嵌入某一侧配置区域。
+     */
+    const wrapper = mount(DamageCalculatorView);
+    await flushPromises();
+
+    const itemSelectors = wrapper.findAllComponents(ItemSelector);
+    expect(itemSelectors).toHaveLength(2);
+    expect(itemSelectors[0].props('selectedIdentifier')).toBe('none');
+    expect(itemSelectors[1].props('selectedIdentifier')).toBe('none');
+    expect(itemSelectors[0].props('disabled')).toBe(true);
+    expect(itemSelectors[1].props('disabled')).toBe(true);
+    expect(wrapper.get('[data-testid="attacker-item"]').text()).toContain('不携带道具');
+    expect(wrapper.get('[data-testid="defender-item"]').text()).toContain('不携带道具');
+  });
+
+  it('places required ability selectors below equipment and above stat configuration', async () => {
+    /**
+     * 攻击方选择妙蛙种子、防守方选择皮卡丘后，两栏都必须展示真实特性候选，并严格保持“携带道具、特性、
+     * 攻击或耐久配置”的纵向顺序。未实现候选仍可点击，但必须显示禁止符号、“未实现”标识和按无特性处理
+     * 的悬浮说明；隐藏特性继续保留。MoveSelector 独立位于双栏之后，防止新增特性面板破坏现有道具能力、
+     * 攻防等宽布局或招式选择区域的位置。
      */
     const wrapper = mount(DamageCalculatorView);
     await flushPromises();
@@ -201,13 +223,13 @@ describe('DamageCalculatorView', () => {
 
     const attackerColumn = wrapper.get('[data-testid="attacker-column"]');
     const defenderColumn = wrapper.get('[data-testid="defender-column"]');
-    const itemSelector = attackerColumn.get('.item-selector');
-    const attackerAbilitySelector = attackerColumn.get('.ability-selector');
-    const defenderAbilitySelector = defenderColumn.get('.ability-selector');
+    const attackerItemSelector = attackerColumn.get('[data-testid="attacker-item"]');
+    const defenderItemSelector = defenderColumn.get('[data-testid="defender-item"]');
+    const attackerAbilitySelector = attackerColumn.get('[data-testid="attacker-ability"]');
+    const defenderAbilitySelector = defenderColumn.get('[data-testid="defender-ability"]');
     const attackerConfig = attackerColumn.get('[data-testid="attacker-config"]');
     const defenderConfig = defenderColumn.get('[data-testid="defender-config"]');
 
-    expect(itemSelector.text()).toContain('不携带道具');
     expect(attackerAbilitySelector.text()).toContain('茂盛');
     expect(attackerAbilitySelector.text()).toContain('叶绿素');
     expect(attackerAbilitySelector.text()).toContain('⊘ 未实现');
@@ -219,11 +241,15 @@ describe('DamageCalculatorView', () => {
     expect(defenderColumn.find('.move-selector').exists()).toBe(false);
 
     expect(
-      itemSelector.element.compareDocumentPosition(attackerAbilitySelector.element) &
+      attackerItemSelector.element.compareDocumentPosition(attackerAbilitySelector.element) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       attackerAbilitySelector.element.compareDocumentPosition(attackerConfig.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      defenderItemSelector.element.compareDocumentPosition(defenderAbilitySelector.element) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
