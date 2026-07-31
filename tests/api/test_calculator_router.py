@@ -4,9 +4,12 @@ import pytest
 from fastapi import HTTPException
 
 from pokeop.api.routers import calculator
-from pokeop.api.schemas.calculator import CalculateDamageRequest, CalculatorPokemonInput
-from pokeop.application.use_cases.calculate_catalog_damage import (
-    CalculateCatalogDamageUseCase,
+from pokeop.api.schemas.calculator_abilities import (
+    CalculateDamageWithAbilitiesRequest,
+    CalculatorPokemonWithAbilityInput,
+)
+from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import (
+    CalculateCatalogDamageWithAbilitiesUseCase,
 )
 from pokeop.domain.configuration_presets import (
     PokemonBindingKind,
@@ -21,39 +24,49 @@ from tests.application.use_cases.test_calculate_catalog_damage import (
     SYLVEON_ID,
     FakeCalculatorRepository,
 )
+from tests.application.use_cases.test_calculate_catalog_damage_with_abilities import (
+    FakeCalculatorAbilityRepository,
+)
 
 
-def _request() -> CalculateDamageRequest:
-    """创建 API 层计算请求对象。
-
-    该请求只包含用户选择和模板 key，不携带任何前端伪造的派生战斗资料。
-    """
-    return CalculateDamageRequest(
+def _request() -> CalculateDamageWithAbilitiesRequest:
+    """创建包含双方必选特性的 API 层计算请求对象。"""
+    return CalculateDamageWithAbilitiesRequest(
         ruleset_id="pokemon-champion",
-        attacker=CalculatorPokemonInput(
+        attacker=CalculatorPokemonWithAbilityInput(
             pokemon_id=SCIZOR_ID,
             level=50,
             stat_preset="max_atk_neutral",
+            ability_identifier="swarm",
         ),
-        defender=CalculatorPokemonInput(
+        defender=CalculatorPokemonWithAbilityInput(
             pokemon_id=SYLVEON_ID,
             level=50,
             stat_preset="max_hp",
+            ability_identifier="cute-charm",
         ),
         move_id=BULLET_PUNCH_ID,
+    )
+
+
+def _use_case(*, allow_move: bool = True) -> CalculateCatalogDamageWithAbilitiesUseCase:
+    """创建 API 测试使用的特性感知 calculator use case。"""
+    return CalculateCatalogDamageWithAbilitiesUseCase(
+        FakeCalculatorRepository(allow_move=allow_move),
+        FakeCalculatorAbilityRepository(),
     )
 
 
 @pytest.mark.anyio
 async def test_calculator_damage_api_returns_frontend_ready_result():
     """
-    通过 router 函数执行巨钳螳螂、子弹拳、仙子伊布的基础伤害计算。测试断言响应包含
-    前端首屏需要的双方名称、有效攻击/HP/防御、伤害区间、KO 字段和基础模式范围说明。
-    这里直接注入 use case，避免 TestClient 在当前 pytest 插件组合下触发不稳定等待。
+    通过 router 函数执行巨钳螳螂、子弹拳、仙子伊布的基础伤害计算。双方选择数据库合法但尚未实现的
+    虫之预感和迷人之躯，因此应按无特性基线返回前端首屏需要的名称、有效能力、伤害区间、KO 字段和
+    机制范围说明。该测试同时保护 HTTP 请求必须携带 ability_identifier，且未实现特性不会让合法请求失败。
     """
     response = await calculator.calculate_damage(
         _request(),
-        use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository()),
+        use_case=_use_case(),
     )
 
     payload = response.model_dump()
@@ -70,18 +83,20 @@ async def test_calculator_damage_api_returns_frontend_ready_result():
     assert len(payload["damage"]["rolls"]) == 16
     assert "ohko_probability" in payload["ko"]
     assert "动态威力招式" in payload["scope"]["excluded"]
+    assert len(payload["warnings"]) == 2
 
 
 @pytest.mark.anyio
 async def test_calculator_damage_api_returns_400_for_illegal_move_combination():
     """
-    当 application 层拒绝非法宝可梦/招式组合时，router 必须返回 400 和可读错误，
-    而不是把异常泄漏为 500。这个行为让前端可以把过期选择或伪造请求展示成表单错误。
+    当 application 层拒绝非法宝可梦和招式组合时，router 必须返回 400 与稳定错误文本，而不是把异常
+    泄漏成 500。请求中的双方特性仍然合法且完整，确保失败原因只来自 learnset 校验，防止新增特性链路
+    掩盖旧有服务端可信边界，也保证前端能把过期招式选择展示为可恢复的表单错误。
     """
     with pytest.raises(HTTPException) as exc_info:
         await calculator.calculate_damage(
             _request(),
-            use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository(allow_move=False)),
+            use_case=_use_case(allow_move=False),
         )
 
     assert exc_info.value.status_code == 400
@@ -91,9 +106,9 @@ async def test_calculator_damage_api_returns_400_for_illegal_move_combination():
 @pytest.mark.anyio
 async def test_calculator_damage_api_uses_stat_configuration_snapshot():
     """
-    配置预设提交到计算器时不能只保存 CRUD 数据或显示名称。测试把攻击方配置编码为
-    snapshot stat_preset，断言 application 展开其中的 adamant nature、252 Attack EV
-    和 31 IV 后，巨钳螳螂实际攻击从满攻中性 182 提升到极限物攻 200。
+    配置预设提交到计算器时不能只保存 CRUD 数据或显示名称。测试把攻击方配置编码为 snapshot stat_preset，
+    同时保留必选且合法的虫之预感，断言 application 展开 adamant nature、252 Attack EV 和 31 IV 后，
+    巨钳螳螂实际攻击从满攻中性 182 提升到极限物攻 200，证明特性接入没有破坏原配置快照语义。
     """
     request = _request()
     snapshot = StatConfiguration(
@@ -110,7 +125,7 @@ async def test_calculator_damage_api_uses_stat_configuration_snapshot():
 
     response = await calculator.calculate_damage(
         request,
-        use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository()),
+        use_case=_use_case(),
     )
 
     assert response.attacker.effective_attack == 200
@@ -119,13 +134,17 @@ async def test_calculator_damage_api_uses_stat_configuration_snapshot():
 
 @pytest.mark.anyio
 async def test_calculator_damage_api_passes_attacker_item_identifier():
-    """计算请求中的 item_identifier 必须进入 application，并触发已实现道具 modifier。"""
+    """
+    请求同时携带攻击方道具和双方必选特性时，router 必须把各自字段映射到正确 command，不能因为新增
+    ability_identifier 而覆盖或遗漏 item_identifier。这里选择未实现特性保持无特性基线，再用生命宝珠验证
+    伤害上升且 modifier trace 出现 item:life_orb，从而保护两类效果来源可以独立组合。
+    """
     request = _request()
     request.attacker.item_identifier = "life-orb"
 
     response = await calculator.calculate_damage(
         request,
-        use_case=CalculateCatalogDamageUseCase(FakeCalculatorRepository()),
+        use_case=_use_case(),
     )
 
     assert response.damage.min > 99
@@ -134,7 +153,11 @@ async def test_calculator_damage_api_passes_attacker_item_identifier():
 
 @pytest.mark.anyio
 async def test_calculator_items_api_returns_database_mapping_with_sprite_url():
-    """道具枚举 API 必须暴露数据库 ID、PokeAPI identifier、展示名和项目内图标 URL。"""
+    """
+    道具枚举 API 必须继续暴露数据库 ID、PokeAPI identifier、展示名和项目内图标 URL。新增 Pokémon
+    特性 endpoint 与新的 damage request 不能改变既有道具响应合同；显式不携带道具仍无 sprite，生命宝珠
+    仍映射稳定 effect_identifier 和代理图片路径，避免前端能力选择改造意外破坏道具组件。
+    """
     response = await calculator.list_battle_item_options(
         ruleset_id="pokemon-champion",
         repository=FakeCalculatorRepository(),
@@ -146,3 +169,22 @@ async def test_calculator_items_api_returns_database_mapping_with_sprite_url():
     assert response[1].identifier == "life-orb"
     assert response[1].effect_identifier == "life-orb"
     assert response[1].sprite_url == "/api/v1/assets/items/life-orb/sprite"
+
+
+@pytest.mark.anyio
+async def test_calculator_abilities_api_marks_implementation_status():
+    """
+    特性枚举 API 必须返回当前 Pokémon 的全部合法候选，而不是只返回 domain 已实现项。巨钳螳螂的虫之预感
+    应保留并标记 implemented=false，技术高手应标记 true，同时槽位和隐藏特性信息保持不丢失。该测试保护
+    前端能够展示完整真实选择空间，并用禁止样式提示能力缺口，而不是通过过滤列表制造错误的宝可梦数据认知。
+    """
+    response = await calculator.list_pokemon_ability_options(
+        pokemon_id=SCIZOR_ID,
+        ruleset_id="pokemon-champion",
+        repository=FakeCalculatorAbilityRepository(),
+    )
+
+    assert [item.identifier for item in response] == ["swarm", "technician"]
+    assert response[0].implemented is False
+    assert response[1].implemented is True
+    assert response[1].slot == 2

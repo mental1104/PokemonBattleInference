@@ -4,6 +4,7 @@ import {
   calculateDamage,
   getPokemonDetail,
   listBattleItems,
+  listPokemonAbilities,
   listStatPresets,
   type CalculateDamageResponse,
   type MoveSearchItem,
@@ -15,12 +16,14 @@ vi.mock('../api/calculator', () => ({
   calculateDamage: vi.fn(),
   getPokemonDetail: vi.fn(),
   listBattleItems: vi.fn(),
+  listPokemonAbilities: vi.fn(),
   listStatPresets: vi.fn(),
 }));
 
 const calculateDamageMock = vi.mocked(calculateDamage);
 const getPokemonDetailMock = vi.mocked(getPokemonDetail);
 const listBattleItemsMock = vi.mocked(listBattleItems);
+const listPokemonAbilitiesMock = vi.mocked(listPokemonAbilities);
 const listStatPresetsMock = vi.mocked(listStatPresets);
 
 const ATTACKER: PokemonDetail = {
@@ -117,7 +120,7 @@ const DAMAGE_RESPONSE: CalculateDamageResponse = {
   modifiers: [],
   scope: {
     mode: 'basic',
-    included: ['已实现持有道具'],
+    included: ['已实现持有道具', '已实现特性'],
     excluded: [],
   },
   warnings: [],
@@ -126,6 +129,7 @@ const DAMAGE_RESPONSE: CalculateDamageResponse = {
 beforeEach(() => {
   calculateDamageMock.mockReset().mockResolvedValue(DAMAGE_RESPONSE);
   getPokemonDetailMock.mockReset();
+  listPokemonAbilitiesMock.mockReset().mockResolvedValue([]);
   listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
   listBattleItemsMock.mockReset().mockResolvedValue([
     {
@@ -153,17 +157,19 @@ beforeEach(() => {
 });
 
 describe('useDamageCalculator', () => {
-  it('submits independent attacker and defender items and invalidates the result after either changes', async () => {
+  it('submits independent items and required abilities then invalidates changed results', async () => {
     /**
-     * 该场景直接验证单次伤害计算器的状态边界：攻击方和防守方共享服务端返回的道具候选，但必须分别保存
-     * life-orb 与 eviolite 两个选择，并在提交时把它们写入各自的 CalculatorPokemonInput，不能遗漏防守方字段
-     * 或错误复用攻击方值。服务端返回结果后，再修改防守方道具应立刻把旧结果标记为 stale，保证用户不会在
-     * 已更换防守道具的情况下继续把旧伤害区间当作有效结论；该监听语义也必须与攻击方道具保持完全对称。
+     * 该场景验证特性接入不能破坏已合入的双方道具状态：攻击方和防守方分别保存 life-orb 与 eviolite，
+     * 同时必须显式选择 technician 和 static，提交时四个 identifier 都进入各自 CalculatorPokemonInput。
+     * 服务端返回结果后，无论修改防守方道具还是任一特性都应把旧结果标记为 stale；测试先改变防守方道具，
+     * 保护双方道具继续独立，再确认请求中的必选特性没有被默认值、另一侧状态或 UI 实现标记覆盖。
      */
     const calculator = useDamageCalculator();
     calculator.attacker.value = ATTACKER;
     calculator.defender.value = DEFENDER;
     calculator.move.value = MOVE;
+    calculator.attackerAbilityIdentifier.value = 'technician';
+    calculator.defenderAbilityIdentifier.value = 'static';
 
     await calculator.loadItems();
     calculator.attackerItemIdentifier.value = 'life-orb';
@@ -176,12 +182,14 @@ describe('useDamageCalculator', () => {
         pokemon_id: 212,
         level: 50,
         stat_preset: 'max_atk_neutral',
+        ability_identifier: 'technician',
         item_identifier: 'life-orb',
       },
       defender: {
         pokemon_id: 25,
         level: 50,
         stat_preset: 'max_hp',
+        ability_identifier: 'static',
         item_identifier: 'eviolite',
       },
       move_id: 418,
