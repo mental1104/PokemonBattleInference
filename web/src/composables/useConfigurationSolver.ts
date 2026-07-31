@@ -159,36 +159,41 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 设置某条目标中的对手 Pokémon，并并行读取详情与合法特性。
+   * 原子地设置某条目标中的对手 Pokémon，并读取详情与合法特性。
+   *
+   * 网络请求和特性完整性校验全部成功后才替换已确认目标；失败时保留原 Pokémon、招式和机制
+   * 选择，避免更换弹窗尚未成功就破坏列表中的有效对象。
    *
    * @param goal 需要更新的目标草稿或已选目标对象。
    * @param item 搜索选择器返回的 Pokémon。
-   * @returns 详情和特性均加载成功时返回 true；失败时清空目标并返回 false。
+   * @returns 详情和默认特性均加载成功时返回 true；失败时保留原状态并返回 false。
    */
   async function selectGoalTarget(
     goal: EditableSolverGoal,
     item: PokemonSearchItem,
   ): Promise<boolean> {
     error.value = null;
-    goal.move = null;
-    goal.targetAbilityIdentifier = '';
-    goal.targetAbilityOptions = [];
     goal.targetAbilitiesLoading = true;
-    result.value = null;
     try {
       const [detail, abilities] = await Promise.all([
         getPokemonDetail(item.pokemon_id, rulesetId.value),
         listPokemonAbilities(item.pokemon_id, rulesetId.value),
       ]);
-      goal.target = detail;
-      goal.targetAbilityOptions = abilities;
-      goal.targetAbilityIdentifier = abilities[0]?.identifier ?? '';
-      if (!goal.targetAbilityIdentifier) {
+      const defaultAbilityIdentifier = abilities[0]?.identifier ?? '';
+      if (!defaultAbilityIdentifier) {
         error.value = '目标 Pokémon 在当前规则集下没有可选择的特性';
+        return false;
       }
+
+      // 所有依赖均已准备完成后再一次性提交状态，避免旧目标出现半更新。
+      goal.target = detail;
+      goal.move = null;
+      goal.targetAbilityOptions = abilities;
+      goal.targetAbilityIdentifier = defaultAbilityIdentifier;
+      goal.targetItemIdentifier = 'none';
+      result.value = null;
       return true;
     } catch (caught) {
-      goal.target = null;
       error.value = caught instanceof Error ? caught.message : '无法加载目标 Pokémon 资料';
       return false;
     } finally {
