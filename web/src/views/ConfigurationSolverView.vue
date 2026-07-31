@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import type { PokemonSearchItem } from '../api/calculator';
+import AbilitySelector from '../components/AbilitySelector.vue';
+import ItemSelector from '../components/ItemSelector.vue';
 import MoveSelector from '../components/MoveSelector.vue';
 import PokemonSelector from '../components/PokemonSelector.vue';
 import PokemonSummaryCard from '../components/PokemonSummaryCard.vue';
@@ -10,10 +12,12 @@ import { useRecentPokemon } from '../composables/useRecentPokemon';
 
 const solver = useConfigurationSolver();
 const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
+const attackGoals = computed(() => solver.goals.value.filter((goal) => goal.kind === 'attack'));
+const defenseGoals = computed(() => solver.goals.value.filter((goal) => goal.kind === 'defense'));
 
-/** 初始化配置模板。 */
+/** 初始化配置模板与战斗道具目录。 */
 onMounted(() => {
-  void solver.loadPresets();
+  void Promise.all([solver.loadPresets(), solver.loadItems()]);
 });
 
 /**
@@ -59,6 +63,23 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
         />
         <PokemonSummaryCard :pokemon="solver.subject.value" />
 
+        <ItemSelector
+          title="待配置 Pokémon 道具"
+          :items="solver.itemOptions.value"
+          :selected-identifier="solver.subjectItemIdentifier.value"
+          :disabled="!solver.subject.value"
+          :loading="solver.itemsLoading.value"
+          @select="solver.subjectItemIdentifier.value = $event.identifier"
+        />
+        <AbilitySelector
+          title="待配置 Pokémon 特性"
+          :abilities="solver.subjectAbilityOptions.value"
+          :selected-identifier="solver.subjectAbilityIdentifier.value"
+          :disabled="!solver.subject.value"
+          :loading="solver.subjectAbilitiesLoading.value"
+          @select="solver.subjectAbilityIdentifier.value = $event.identifier"
+        />
+
         <StatConfigurationPicker
           title="搜索配置"
           role="attacker"
@@ -72,55 +93,193 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
       <section class="solver-main">
         <div class="solver-panel">
           <div class="panel-heading">
-            <h2>攻防目标</h2>
-            <button type="button" class="secondary-button" @click="solver.addGoal">添加目标</button>
+            <div>
+              <h2>攻防目标</h2>
+              <p class="muted">每条目标独立选择 Pokémon、配置、道具、特性与招式。</p>
+            </div>
           </div>
 
-          <article v-for="goal in solver.goals.value" :key="goal.id" class="goal-editor">
-            <div class="goal-toolbar">
-              <select v-model="goal.kind" aria-label="目标类型">
-                <option value="defense">防守：承受攻击后存活</option>
-                <option value="attack">攻击：指定回合内击倒</option>
-              </select>
-              <select v-model="goal.rollPolicy" aria-label="随机伤害档">
-                <option value="max">最高伤害档</option>
-                <option value="min">最低伤害档</option>
-              </select>
-              <label>
-                次数
-                <input v-model.number="goal.repetitions" type="number" min="1" max="10" />
-              </label>
-              <button type="button" class="icon-button" @click="solver.removeGoal(goal.id)">×</button>
-            </div>
+          <div class="goal-columns">
+            <section class="goal-column" aria-labelledby="attack-goals-title">
+              <header class="goal-column__heading">
+                <div>
+                  <h3 id="attack-goals-title">攻目标</h3>
+                  <small>待配置 Pokémon 在指定次数内击倒目标</small>
+                </div>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  @click="solver.addGoal('attack')"
+                >
+                  添加攻目标
+                </button>
+              </header>
 
-            <div class="goal-grid">
-              <PokemonSelector
-                :title="goal.kind === 'attack' ? '击倒目标' : '攻击来源'"
-                :ruleset-id="solver.rulesetId.value"
-                :selected="goal.target"
-                :recent-pokemon="recentPokemon"
-                @select="selectTarget(goal, $event)"
-              />
-              <MoveSelector
-                :pokemon-id="goal.kind === 'attack'
-                  ? solver.subject.value?.pokemon_id ?? null
-                  : goal.target?.pokemon_id ?? null"
-                :ruleset-id="solver.rulesetId.value"
-                :selected="goal.move"
-                :disabled="goal.kind === 'attack' ? !solver.subject.value : !goal.target"
-                @select="goal.move = $event"
-                @clear-selection="goal.move = null"
-              />
-            </div>
-            <StatConfigurationPicker
-              :title="goal.kind === 'attack' ? '目标耐久配置' : '攻击来源配置'"
-              :role="goal.kind === 'attack' ? 'defender' : 'attacker'"
-              :pokemon-id="goal.target?.pokemon_id ?? null"
-              :pokemon-name="goal.target?.display_name ?? null"
-              :model-value="goal.targetPreset"
-              @update:model-value="goal.targetPreset = $event"
-            />
-          </article>
+              <p v-if="attackGoals.length === 0" class="goal-empty">
+                暂无攻目标，可按需添加。
+              </p>
+
+              <article v-for="goal in attackGoals" :key="goal.id" class="goal-editor">
+                <div class="goal-toolbar">
+                  <select v-model="goal.rollPolicy" aria-label="随机伤害档">
+                    <option value="min">最低伤害档</option>
+                    <option value="max">最高伤害档</option>
+                  </select>
+                  <label>
+                    次数
+                    <input v-model.number="goal.repetitions" type="number" min="1" max="10" />
+                  </label>
+                  <button
+                    type="button"
+                    class="icon-button"
+                    :disabled="solver.goals.value.length === 1"
+                    aria-label="删除攻目标"
+                    @click="solver.removeGoal(goal.id)"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <PokemonSelector
+                  title="防守目标"
+                  :ruleset-id="solver.rulesetId.value"
+                  :selected="goal.target"
+                  :recent-pokemon="recentPokemon"
+                  @select="selectTarget(goal, $event)"
+                />
+                <PokemonSummaryCard :pokemon="goal.target" />
+
+                <div class="goal-mechanics">
+                  <ItemSelector
+                    title="防守方道具"
+                    :items="solver.itemOptions.value"
+                    :selected-identifier="goal.targetItemIdentifier"
+                    :disabled="!goal.target"
+                    :loading="solver.itemsLoading.value"
+                    @select="goal.targetItemIdentifier = $event.identifier"
+                  />
+                  <AbilitySelector
+                    title="防守方特性"
+                    :abilities="goal.targetAbilityOptions"
+                    :selected-identifier="goal.targetAbilityIdentifier"
+                    :disabled="!goal.target"
+                    :loading="goal.targetAbilitiesLoading"
+                    @select="goal.targetAbilityIdentifier = $event.identifier"
+                  />
+                </div>
+
+                <StatConfigurationPicker
+                  title="目标耐久配置"
+                  role="defender"
+                  :pokemon-id="goal.target?.pokemon_id ?? null"
+                  :pokemon-name="goal.target?.display_name ?? null"
+                  :model-value="goal.targetPreset"
+                  @update:model-value="goal.targetPreset = $event"
+                />
+
+                <div class="goal-move-selector">
+                  <MoveSelector
+                    :pokemon-id="solver.subject.value?.pokemon_id ?? null"
+                    :ruleset-id="solver.rulesetId.value"
+                    :selected="goal.move"
+                    :disabled="!solver.subject.value"
+                    @select="goal.move = $event"
+                    @clear-selection="goal.move = null"
+                  />
+                </div>
+              </article>
+            </section>
+
+            <section class="goal-column" aria-labelledby="defense-goals-title">
+              <header class="goal-column__heading">
+                <div>
+                  <h3 id="defense-goals-title">防目标</h3>
+                  <small>待配置 Pokémon 承受指定次数攻击后存活</small>
+                </div>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  @click="solver.addGoal('defense')"
+                >
+                  添加防目标
+                </button>
+              </header>
+
+              <p v-if="defenseGoals.length === 0" class="goal-empty">
+                暂无防目标，可按需添加。
+              </p>
+
+              <article v-for="goal in defenseGoals" :key="goal.id" class="goal-editor">
+                <div class="goal-toolbar">
+                  <select v-model="goal.rollPolicy" aria-label="随机伤害档">
+                    <option value="max">最高伤害档</option>
+                    <option value="min">最低伤害档</option>
+                  </select>
+                  <label>
+                    次数
+                    <input v-model.number="goal.repetitions" type="number" min="1" max="10" />
+                  </label>
+                  <button
+                    type="button"
+                    class="icon-button"
+                    :disabled="solver.goals.value.length === 1"
+                    aria-label="删除防目标"
+                    @click="solver.removeGoal(goal.id)"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <PokemonSelector
+                  title="攻击来源"
+                  :ruleset-id="solver.rulesetId.value"
+                  :selected="goal.target"
+                  :recent-pokemon="recentPokemon"
+                  @select="selectTarget(goal, $event)"
+                />
+                <PokemonSummaryCard :pokemon="goal.target" />
+
+                <div class="goal-mechanics">
+                  <ItemSelector
+                    title="攻击来源道具"
+                    :items="solver.itemOptions.value"
+                    :selected-identifier="goal.targetItemIdentifier"
+                    :disabled="!goal.target"
+                    :loading="solver.itemsLoading.value"
+                    @select="goal.targetItemIdentifier = $event.identifier"
+                  />
+                  <AbilitySelector
+                    title="攻击来源特性"
+                    :abilities="goal.targetAbilityOptions"
+                    :selected-identifier="goal.targetAbilityIdentifier"
+                    :disabled="!goal.target"
+                    :loading="goal.targetAbilitiesLoading"
+                    @select="goal.targetAbilityIdentifier = $event.identifier"
+                  />
+                </div>
+
+                <StatConfigurationPicker
+                  title="攻击来源配置"
+                  role="attacker"
+                  :pokemon-id="goal.target?.pokemon_id ?? null"
+                  :pokemon-name="goal.target?.display_name ?? null"
+                  :model-value="goal.targetPreset"
+                  @update:model-value="goal.targetPreset = $event"
+                />
+
+                <div class="goal-move-selector">
+                  <MoveSelector
+                    :pokemon-id="goal.target?.pokemon_id ?? null"
+                    :ruleset-id="solver.rulesetId.value"
+                    :selected="goal.move"
+                    :disabled="!goal.target"
+                    @select="goal.move = $event"
+                    @clear-selection="goal.move = null"
+                  />
+                </div>
+              </article>
+            </section>
+          </div>
         </div>
 
         <section class="action-band">
@@ -189,13 +348,14 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
   align-items: start;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
 }
 
 .solver-side,
 .solver-main {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .solver-panel {
@@ -206,17 +366,154 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
 }
 
 .solver-panel h2,
+.solver-panel h3,
 .candidate-card h3 {
   margin: 0;
 }
 
 .panel-heading,
-.goal-toolbar {
+.goal-toolbar,
+.goal-column__heading {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
+}
+
+.panel-heading p {
+  margin: 5px 0 0;
+}
+
+.goal-columns {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.goal-column {
+  background: #f8faf8;
+  border: 1px solid #dfe6dc;
+  border-radius: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.goal-column__heading {
+  align-items: flex-start;
+}
+
+.goal-column__heading small {
+  color: #65736b;
+  display: block;
+  margin-top: 4px;
+}
+
+.goal-empty {
+  border: 1px dashed #cbd6cc;
+  border-radius: 8px;
+  color: #65736b;
+  margin: 12px 0 0;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+.goal-editor {
+  background: #fff;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.goal-toolbar {
+  justify-content: flex-start;
+}
+
+.goal-toolbar label {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.goal-toolbar input,
+.goal-toolbar select {
+  min-height: 36px;
+}
+
+.goal-toolbar input {
+  width: 64px;
+}
+
+.goal-toolbar .icon-button {
+  margin-left: auto;
+}
+
+.goal-mechanics {
+  display: grid;
+  gap: 10px;
+}
+
+.goal-move-selector {
+  min-width: 0;
+}
+
+.goal-move-selector :deep(.move-selector) {
+  column-gap: 0;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.goal-move-selector :deep(.move-selector)::before,
+.goal-move-selector :deep(.move-selector)::after {
+  display: none;
+}
+
+.goal-move-selector :deep(.move-selector > .field-title) {
+  font-size: 16px;
+  grid-column: 1;
+  grid-row: 1;
+  padding-right: 0;
+}
+
+.goal-move-selector :deep(.move-selector > .field-title)::after {
+  content: none;
+}
+
+.goal-move-selector :deep(.move-filter-group) {
+  grid-column: 1;
+  grid-row: 2;
+  padding-right: 0;
+}
+
+.goal-move-selector :deep(.move-type-filter) {
+  grid-column: 1;
+  grid-row: 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-right: 0;
+}
+
+.goal-move-selector :deep(.move-selector > .search-input) {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.goal-move-selector :deep(.move-selector > .row-message),
+.goal-move-selector :deep(.move-selector > .option-list.compact) {
+  grid-column: 1;
+  grid-row: 5;
+}
+
+.goal-move-selector :deep(.move-selector > .move-more-button) {
+  grid-column: 1;
+  grid-row: 6;
 }
 
 .preset-grid,
@@ -246,25 +543,6 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
 .evidence-row small {
   display: block;
   margin-top: 4px;
-}
-
-.goal-editor {
-  border-top: 1px solid #e5e9f0;
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding-top: 14px;
-}
-
-.goal-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.goal-toolbar input,
-.goal-toolbar select {
-  min-height: 36px;
 }
 
 .icon-button {
@@ -312,9 +590,14 @@ async function selectTarget(goal: EditableSolverGoal, pokemon: PokemonSearchItem
   padding: 4px 9px;
 }
 
+@media (max-width: 1180px) {
+  .goal-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
-  .solver-layout,
-  .goal-grid {
+  .solver-layout {
     grid-template-columns: 1fr;
   }
 }
