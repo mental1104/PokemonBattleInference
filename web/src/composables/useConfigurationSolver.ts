@@ -58,17 +58,27 @@ export function useConfigurationSolver() {
       subject.value
         && subjectAbilityIdentifier.value
         && goals.value.length > 0
-        && goals.value.every(
-          (goal) =>
-            goal.target
-            && goal.move
-            && goal.targetAbilityIdentifier
-            && goal.repetitions > 0,
-        )
+        && goals.value.every(isGoalComplete)
         && selectedPresetKeys.value.length > 0
         && !loading.value,
     );
   });
+
+  /**
+   * 判断一条目标是否已经包含可提交的 Pokémon、招式和机制选择。
+   *
+   * @param goal 新增或编辑弹窗中的目标草稿。
+   * @returns 所有必填字段完整且次数有效时返回 true。
+   */
+  function isGoalComplete(goal: EditableSolverGoal): boolean {
+    return Boolean(
+      goal.target
+        && goal.move
+        && goal.targetPreset
+        && goal.targetAbilityIdentifier
+        && goal.repetitions > 0,
+    );
+  }
 
   /**
    * 创建一条尚未写入已选列表的目标草稿。
@@ -76,7 +86,7 @@ export function useConfigurationSolver() {
    * @param kind attack 表示待配置 Pokémon 主动攻击，defense 表示待配置 Pokémon 承受攻击。
    * @returns 带对应默认配置和随机伤害档的独立目标对象。
    */
-  function newGoal(kind: ConfigurationGoalKind): EditableSolverGoal {
+  function createGoalDraft(kind: ConfigurationGoalKind): EditableSolverGoal {
     return {
       id: `goal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       kind,
@@ -89,6 +99,27 @@ export function useConfigurationSolver() {
       targetAbilitiesLoading: false,
       targetItemIdentifier: 'none',
       rollPolicy: kind === 'attack' ? 'min' : 'max',
+    };
+  }
+
+  /**
+   * 为编辑弹窗复制一份与已选列表隔离的目标快照。
+   *
+   * @param goal 当前已保存的目标。
+   * @returns 可独立修改的浅层业务快照；数组字段会额外复制，避免取消编辑时污染列表。
+   */
+  function cloneGoal(goal: EditableSolverGoal): EditableSolverGoal {
+    return {
+      ...goal,
+      target: goal.target === null ? null : {
+        ...goal.target,
+        types: [...goal.target.types],
+        type_names: [...goal.target.type_names],
+        base_stats: { ...goal.target.base_stats },
+      },
+      move: goal.move === null ? null : { ...goal.move },
+      targetAbilityOptions: [...goal.targetAbilityOptions],
+      targetAbilitiesLoading: false,
     };
   }
 
@@ -159,12 +190,12 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 原子地设置某条目标中的对手 Pokémon，并读取详情与合法特性。
+   * 原子地设置目标草稿中的 Pokémon，并读取详情与合法特性。
    *
-   * 网络请求和特性完整性校验全部成功后才替换已确认目标；失败时保留原 Pokémon、招式和机制
-   * 选择，避免更换弹窗尚未成功就破坏列表中的有效对象。
+   * 网络请求和特性完整性校验全部成功后才替换草稿内容；失败时保留原 Pokémon、招式和机制
+   * 选择。弹窗保存前不会修改已选列表，因此取消编辑不会产生任何列表副作用。
    *
-   * @param goal 需要更新的目标草稿或已选目标对象。
+   * @param goal 新增或编辑弹窗中的独立目标草稿。
    * @param item 搜索选择器返回的 Pokémon。
    * @returns 详情和默认特性均加载成功时返回 true；失败时保留原状态并返回 false。
    */
@@ -185,13 +216,13 @@ export function useConfigurationSolver() {
         return false;
       }
 
-      // 所有依赖均已准备完成后再一次性提交状态，避免旧目标出现半更新。
+      // 所有依赖均已准备完成后再一次性提交草稿状态，避免旧目标出现半更新。
       goal.target = detail;
       goal.move = null;
       goal.targetAbilityOptions = abilities;
       goal.targetAbilityIdentifier = defaultAbilityIdentifier;
       goal.targetItemIdentifier = 'none';
-      result.value = null;
+      goal.targetPreset = goal.kind === 'attack' ? 'max_hp' : 'max_atk_neutral';
       return true;
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '无法加载目标 Pokémon 资料';
@@ -202,24 +233,30 @@ export function useConfigurationSolver() {
   }
 
   /**
-   * 根据弹窗中已经确认的 Pokémon 新增一条完整目标。
+   * 将完整弹窗草稿保存为列表中的一条紧凑目标。
    *
-   * 未成功读取目标详情时不会把空白对象写入已选目标列表，避免用户把“新增中”误认为
-   * 已经选中的目标。
+   * 相同 id 表示编辑已有目标并执行原子替换；新 id 表示新增。保存时再次复制草稿，保证弹窗关闭后
+   * 不会继续持有列表对象的可变引用。
    *
-   * @param kind attack 放入攻目标列，defense 放入防目标列。
-   * @param item 用户在新增弹窗中确认的 Pokémon。
-   * @returns 新增成功时返回目标对象；加载失败时返回 null。
+   * @param draft 已完成 Pokémon、配置、道具、特性、招式和次数选择的目标草稿。
+   * @returns 保存成功时返回 true；必填字段不完整时返回 false 并设置页面错误。
    */
-  async function addGoalWithTarget(
-    kind: ConfigurationGoalKind,
-    item: PokemonSearchItem,
-  ): Promise<EditableSolverGoal | null> {
-    const goal = newGoal(kind);
-    if (!(await selectGoalTarget(goal, item))) return null;
+  function saveGoalDraft(draft: EditableSolverGoal): boolean {
+    if (!isGoalComplete(draft)) {
+      error.value = '请完成目标 Pokémon、配置、道具、特性和招式选择';
+      return false;
+    }
 
-    goals.value.push(goal);
-    return goal;
+    const savedGoal = cloneGoal(draft);
+    const existingIndex = goals.value.findIndex((goal) => goal.id === draft.id);
+    if (existingIndex < 0) {
+      goals.value.push(savedGoal);
+    } else {
+      goals.value.splice(existingIndex, 1, savedGoal);
+    }
+    result.value = null;
+    error.value = null;
+    return true;
   }
 
   /**
@@ -299,11 +336,14 @@ export function useConfigurationSolver() {
     result,
     canSubmit,
     visibleEvidence,
+    isGoalComplete,
+    createGoalDraft,
+    cloneGoal,
     loadPresets,
     loadItems,
     selectSubject,
     selectGoalTarget,
-    addGoalWithTarget,
+    saveGoalDraft,
     removeGoal,
     submit,
   };
