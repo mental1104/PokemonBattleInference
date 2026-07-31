@@ -1,13 +1,17 @@
 import { computed, ref, watch } from 'vue';
 import {
   calculateDamage,
+  createNeutralBattleStatStages,
   getPokemonDetail,
+  hasNonNeutralBattleStatStages,
   listBattleItems,
   listPokemonAbilities,
   listStatPresets,
   type BattleAbilityOption,
   type BattleItemOption,
+  type BattleStatStages,
   type CalculateDamageResponse,
+  type CalculatorPokemonInput,
   type MoveSearchItem,
   type PokemonDetail,
   type PokemonSearchItem,
@@ -19,7 +23,7 @@ export type CalculatorState = 'EMPTY' | 'ATTACKER_SELECTED' | 'MOVE_SELECTED' | 
 /**
  * 管理基础伤害计算器的双方选择、异步加载、提交请求和旧结果失效语义。
  *
- * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；双方道具与特性状态彼此独立。
+ * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；双方道具、特性与能力等级彼此独立。
  */
 export function useDamageCalculator() {
   const rulesetId = ref('pokemon-champion');
@@ -37,6 +41,8 @@ export function useDamageCalculator() {
   const defenderAbilityOptions = ref<BattleAbilityOption[]>([]);
   const attackerAbilitiesLoading = ref(false);
   const defenderAbilitiesLoading = ref(false);
+  const attackerStatStages = ref<BattleStatStages>(createNeutralBattleStatStages());
+  const defenderStatStages = ref<BattleStatStages>(createNeutralBattleStatStages());
   const attackerPreset = ref('max_atk_neutral');
   const defenderPreset = ref('max_hp');
   const attackerPresets = ref<StatPreset[]>([]);
@@ -110,7 +116,7 @@ export function useDamageCalculator() {
   }
 
   /**
-   * 选择攻击方后并行读取详情和合法特性，并清空依赖旧攻击方的招式与伤害结果。
+   * 选择攻击方后并行读取详情和合法特性，并清空依赖旧攻击方的招式、能力等级与伤害结果。
    *
    * @param item 用户从攻击方选择器选中的 Pokémon 搜索结果。
    * @returns 攻击方详情与特性列表加载完成后 resolve 的 Promise。
@@ -120,6 +126,7 @@ export function useDamageCalculator() {
     move.value = null;
     attackerAbilityIdentifier.value = '';
     attackerAbilityOptions.value = [];
+    attackerStatStages.value = createNeutralBattleStatStages();
     attackerAbilitiesLoading.value = true;
     result.value = null;
     staleResult.value = false;
@@ -143,15 +150,16 @@ export function useDamageCalculator() {
   }
 
   /**
-   * 选择防守方后并行读取详情和合法特性，保留双方其他已经完成的输入。
+   * 选择防守方后并行读取详情和合法特性，并把新 Pokémon 的能力等级重置为中性。
    *
    * @param item 用户从防守方选择器选中的 Pokémon 搜索结果。
-   * @returns 防守方详情与特性列表加载完成后 resolve 的 Promise。
+   * @returns 防守方详情和特性加载完成后 resolve 的 Promise。
    */
   async function selectDefender(item: PokemonSearchItem): Promise<void> {
     error.value = null;
     defenderAbilityIdentifier.value = '';
     defenderAbilityOptions.value = [];
+    defenderStatStages.value = createNeutralBattleStatStages();
     defenderAbilitiesLoading.value = true;
     try {
       const [detail, abilities] = await Promise.all([
@@ -173,7 +181,38 @@ export function useDamageCalculator() {
   }
 
   /**
-   * 提交当前双方 Pokémon、配置、持有道具、必选特性和招式，得到真实 domain 伤害结果。
+   * 构造一侧计算请求；中性能力等级保持兼容旧请求，不额外发送七个零值字段。
+   *
+   * @param pokemon 当前侧已加载的可信 Pokémon 详情。
+   * @param statPreset 当前侧配置模板或持久化快照标识。
+   * @param abilityIdentifier 当前侧必选且属于该 Pokémon 的特性 identifier。
+   * @param itemIdentifier 当前侧道具 identifier；none 会转换成 null。
+   * @param statStages 当前侧七项 -6 到 +6 的战斗能力等级。
+   * @returns 可直接放入 CalculateDamageRequest 的单侧输入。
+   */
+  function buildPokemonInput(
+    pokemon: PokemonDetail,
+    statPreset: string,
+    abilityIdentifier: string,
+    itemIdentifier: string,
+    statStages: BattleStatStages,
+  ): CalculatorPokemonInput {
+    const input: CalculatorPokemonInput = {
+      pokemon_id: pokemon.pokemon_id,
+      level: level.value,
+      stat_preset: statPreset,
+      ability_identifier: abilityIdentifier,
+      item_identifier: itemIdentifier === 'none' ? null : itemIdentifier,
+    };
+    if (hasNonNeutralBattleStatStages(statStages)) {
+      // 复制快照，避免请求序列化期间用户继续操作而改变已提交对象。
+      input.stat_stages = { ...statStages };
+    }
+    return input;
+  }
+
+  /**
+   * 提交当前双方 Pokémon、配置、持有道具、必选特性、能力等级和招式，得到真实 domain 伤害结果。
    *
    * @returns 服务端计算完成后 resolve；任一必填输入不完整时直接结束且不发起请求。
    */
@@ -190,20 +229,20 @@ export function useDamageCalculator() {
     try {
       result.value = await calculateDamage({
         ruleset_id: rulesetId.value,
-        attacker: {
-          pokemon_id: attacker.value.pokemon_id,
-          level: level.value,
-          stat_preset: attackerPreset.value,
-          ability_identifier: attackerAbilityIdentifier.value,
-          item_identifier: attackerItemIdentifier.value === 'none' ? null : attackerItemIdentifier.value,
-        },
-        defender: {
-          pokemon_id: defender.value.pokemon_id,
-          level: level.value,
-          stat_preset: defenderPreset.value,
-          ability_identifier: defenderAbilityIdentifier.value,
-          item_identifier: defenderItemIdentifier.value === 'none' ? null : defenderItemIdentifier.value,
-        },
+        attacker: buildPokemonInput(
+          attacker.value,
+          attackerPreset.value,
+          attackerAbilityIdentifier.value,
+          attackerItemIdentifier.value,
+          attackerStatStages.value,
+        ),
+        defender: buildPokemonInput(
+          defender.value,
+          defenderPreset.value,
+          defenderAbilityIdentifier.value,
+          defenderItemIdentifier.value,
+          defenderStatStages.value,
+        ),
         move_id: move.value.move_id,
       });
       staleResult.value = false;
@@ -226,10 +265,13 @@ export function useDamageCalculator() {
       defenderItemIdentifier,
       attackerAbilityIdentifier,
       defenderAbilityIdentifier,
+      attackerStatStages,
+      defenderStatStages,
     ],
     () => {
       if (result.value) staleResult.value = true;
     },
+    { deep: true },
   );
 
   return {
@@ -248,6 +290,8 @@ export function useDamageCalculator() {
     defenderAbilityOptions,
     attackerAbilitiesLoading,
     defenderAbilitiesLoading,
+    attackerStatStages,
+    defenderStatStages,
     attackerPreset,
     defenderPreset,
     attackerPresets,

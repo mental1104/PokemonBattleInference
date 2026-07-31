@@ -9,6 +9,7 @@ from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import
     CalculateCatalogPokemonWithAbilityCommand,
     CalculatorAbilityOption,
 )
+from pokeop.domain.battle.state import StatStages
 from tests.application.use_cases.test_calculate_catalog_damage import (
     BULLET_PUNCH_ID,
     SCIZOR_ID,
@@ -78,8 +79,20 @@ def ability_command(
     *,
     attacker_ability: str = "swarm",
     defender_ability: str = "cute-charm",
+    attacker_stages: StatStages = StatStages(),
+    defender_stages: StatStages = StatStages(),
 ) -> CalculateCatalogDamageWithAbilitiesCommand:
-    """创建巨钳螳螂使用子弹拳攻击仙子伊布的特性感知命令。"""
+    """创建巨钳螳螂使用子弹拳攻击仙子伊布的特性感知命令。
+
+    Args:
+        attacker_ability: 攻击方选择的合法或待校验特性 identifier。
+        defender_ability: 防守方选择的合法或待校验特性 identifier。
+        attacker_stages: 攻击方当前七项能力等级。
+        defender_stages: 防守方当前七项能力等级。
+
+    Returns:
+        可交给 calculator application use case 的完整命令。
+    """
     return CalculateCatalogDamageWithAbilitiesCommand(
         ruleset_id="pokemon-champion",
         attacker=CalculateCatalogPokemonWithAbilityCommand(
@@ -87,19 +100,25 @@ def ability_command(
             level=50,
             stat_preset="max_atk_neutral",
             ability_identifier=attacker_ability,
+            stat_stages=attacker_stages,
         ),
         defender=CalculateCatalogPokemonWithAbilityCommand(
             pokemon_id=SYLVEON_ID,
             level=50,
             stat_preset="max_hp",
             ability_identifier=defender_ability,
+            stat_stages=defender_stages,
         ),
         move_id=BULLET_PUNCH_ID,
     )
 
 
 def ability_use_case() -> CalculateCatalogDamageWithAbilitiesUseCase:
-    """创建同时注入 catalog 与特性 fake repository 的 use case。"""
+    """创建同时注入 catalog 与特性 fake repository 的 use case。
+
+    Returns:
+        使用内存 fake repository、无需 PostgreSQL 的 calculator use case。
+    """
     return CalculateCatalogDamageWithAbilitiesUseCase(
         FakeCalculatorRepository(),
         FakeCalculatorAbilityRepository(),
@@ -149,3 +168,51 @@ def test_ability_must_belong_to_selected_pokemon() -> None:
         ability_use_case().execute(
             ability_command(attacker_ability="pixilate")
         )
+
+
+def test_battle_stat_stages_change_effective_stats_and_damage() -> None:
+    """
+    单次伤害计算页面选择攻击方攻击提升二级时，50 级满攻中性巨钳螳螂的基础攻击仍应在结果 stats 中保持
+    一百八十二，供用户理解配置模板；真正进入伤害公式的 effective_attack 则应按二倍提升到三百六十四，
+    子弹拳伤害必须明显高于无等级变化的九十九到一百一十七。随后把仙子伊布防御提升二级，防御应从
+    八十五提高到一百七十，并抵消攻击方同样的二级提升，使伤害回到原基线。该测试保护“配置能力值”和
+    “战斗中能力等级”两个概念不会混写，也验证攻防等级在同一倍率下可以正确相消，而不是重复应用或只改展示。
+    """
+    boosted_attack = ability_use_case().execute(
+        ability_command(attacker_stages=StatStages(attack=2))
+    )
+
+    assert boosted_attack.attacker.stats.attack == 182
+    assert boosted_attack.attacker.effective_attack == 364
+    assert boosted_attack.damage.min_damage > 99
+
+    cancelled = ability_use_case().execute(
+        ability_command(
+            attacker_stages=StatStages(attack=2),
+            defender_stages=StatStages(defense=2),
+        )
+    )
+
+    assert cancelled.defender.stats.defense == 85
+    assert cancelled.defender.effective_defense == 170
+    assert (cancelled.damage.min_damage, cancelled.damage.max_damage) == (99, 117)
+
+
+def test_non_damage_stat_stages_are_preserved_with_explicit_warning() -> None:
+    """
+    用户可以在红框区域选择速度、命中和回避等级，但基础单次伤害结果是“招式已经命中后的十六档伤害”，
+    不包含行动顺序或命中概率。因此攻击方速度提升一级、防守方回避提升两级时，请求必须正常完成并保持
+    九十九到一百一十七的伤害基线，同时 warnings 只增加一条清晰说明，告知这些值已被接收但不改变本次
+    伤害。该场景防止前端可选字段被后端直接拒绝，也防止系统偷偷把命中率当作伤害倍率；未来接入命中和
+    行动顺序后，可以在独立结果模型中消费这些字段，而无需改变当前请求合同。
+    """
+    result = ability_use_case().execute(
+        ability_command(
+            attacker_stages=StatStages(speed=1, accuracy=1),
+            defender_stages=StatStages(evasion=2),
+        )
+    )
+
+    assert (result.damage.min_damage, result.damage.max_damage) == (99, 117)
+    assert any("速度、命中和回避等级" in warning for warning in result.warnings)
+    assert "速度/命中/回避对单次伤害值的影响" in result.scope.excluded

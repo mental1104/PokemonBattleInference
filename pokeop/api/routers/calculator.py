@@ -59,7 +59,11 @@ def get_calculator_repository() -> MaterializedViewCalculatorRepository:
 
 
 def get_calculator_ability_repository() -> MaterializedViewCalculatorAbilityRepository:
-    """创建 version-aware Pokémon 特性读取 repository。"""
+    """创建 version-aware Pokémon 特性读取 repository。
+
+    Returns:
+        基于 PostgreSQL 物化视图的特性 repository 实例。
+    """
     return MaterializedViewCalculatorAbilityRepository()
 
 
@@ -69,7 +73,15 @@ def get_calculator_use_case(
         get_calculator_ability_repository
     ),
 ) -> CalculateCatalogDamageWithAbilitiesUseCase:
-    """创建支持双方必选特性的数据库驱动伤害计算 use case。"""
+    """创建支持双方必选特性与能力等级的数据库驱动伤害计算 use case。
+
+    Args:
+        repository: calculator catalog 持久化读取端口。
+        ability_repository: Pokémon 特性归属与实现状态读取端口。
+
+    Returns:
+        已注入两个 repository 的 application use case。
+    """
     return CalculateCatalogDamageWithAbilitiesUseCase(
         repository,
         ability_repository,
@@ -79,7 +91,14 @@ def get_calculator_use_case(
 def get_calculator_move_use_case(
     repository: CalculatorMoveCatalogRepository = Depends(get_calculator_repository),
 ) -> ListCalculatorMovesUseCase:
-    """创建招式复合过滤与分页查询 use case。"""
+    """创建招式复合过滤与分页查询 use case。
+
+    Args:
+        repository: 提供招式读取能力的 calculator repository。
+
+    Returns:
+        已注入 repository 的招式列表 use case。
+    """
     return ListCalculatorMovesUseCase(repository)
 
 
@@ -193,7 +212,7 @@ async def calculate_damage(
         get_calculator_use_case
     ),
 ) -> CalculateDamageResponse:
-    """执行基础伤害计算，并由服务端校验双方特性是否属于当前 Pokémon。"""
+    """执行基础伤害计算，并校验双方特性归属与能力等级范围。"""
     try:
         result = use_case.execute(
             CalculateCatalogDamageWithAbilitiesCommand(
@@ -204,6 +223,7 @@ async def calculate_damage(
                     stat_preset=request.attacker.stat_preset,
                     ability_identifier=request.attacker.ability_identifier,
                     item_identifier=request.attacker.item_identifier,
+                    stat_stages=request.attacker.stat_stages.to_domain(),
                 ),
                 defender=CalculateCatalogPokemonWithAbilityCommand(
                     pokemon_id=request.defender.pokemon_id,
@@ -211,6 +231,7 @@ async def calculate_damage(
                     stat_preset=request.defender.stat_preset,
                     ability_identifier=request.defender.ability_identifier,
                     item_identifier=request.defender.item_identifier,
+                    stat_stages=request.defender.stat_stages.to_domain(),
                 ),
                 move_id=request.move_id,
             )

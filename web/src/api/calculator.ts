@@ -69,12 +69,59 @@ export interface BattleAbilityOption {
   implemented: boolean;
 }
 
+export type BattleStatStageField =
+  | 'attack'
+  | 'defense'
+  | 'special_attack'
+  | 'special_defense'
+  | 'speed'
+  | 'accuracy'
+  | 'evasion';
+
+export interface BattleStatStages {
+  attack: number;
+  defense: number;
+  special_attack: number;
+  special_defense: number;
+  speed: number;
+  accuracy: number;
+  evasion: number;
+}
+
+/**
+ * 创建一份七项均为零的战斗能力等级快照。
+ *
+ * @returns 每次调用都返回新对象，避免攻击方与防守方共享可变引用。
+ */
+export function createNeutralBattleStatStages(): BattleStatStages {
+  return {
+    attack: 0,
+    defense: 0,
+    special_attack: 0,
+    special_defense: 0,
+    speed: 0,
+    accuracy: 0,
+    evasion: 0,
+  };
+}
+
+/**
+ * 判断能力等级快照中是否存在非零变化。
+ *
+ * @param stages 需要检查的七项能力等级。
+ * @returns 任一字段不为零时返回 true；全部中性时返回 false。
+ */
+export function hasNonNeutralBattleStatStages(stages: BattleStatStages): boolean {
+  return Object.values(stages).some((value) => value !== 0);
+}
+
 export interface CalculatorPokemonInput {
   pokemon_id: number;
   level: number;
   stat_preset: string;
   ability_identifier: string;
   item_identifier?: string | null;
+  stat_stages?: BattleStatStages;
 }
 
 export interface CalculateDamageRequest {

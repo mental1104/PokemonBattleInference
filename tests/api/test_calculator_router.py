@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from pokeop.api.routers import calculator
 from pokeop.api.schemas.calculator_abilities import (
+    BattleStatStagesInput,
     CalculateDamageWithAbilitiesRequest,
     CalculatorPokemonWithAbilityInput,
 )
@@ -30,7 +32,11 @@ from tests.application.use_cases.test_calculate_catalog_damage_with_abilities im
 
 
 def _request() -> CalculateDamageWithAbilitiesRequest:
-    """创建包含双方必选特性的 API 层计算请求对象。"""
+    """创建包含双方必选特性和默认零级能力变化的 API 请求。
+
+    Returns:
+        巨钳螳螂使用子弹拳攻击仙子伊布的 Pydantic 请求模型。
+    """
     return CalculateDamageWithAbilitiesRequest(
         ruleset_id="pokemon-champion",
         attacker=CalculatorPokemonWithAbilityInput(
@@ -50,7 +56,14 @@ def _request() -> CalculateDamageWithAbilitiesRequest:
 
 
 def _use_case(*, allow_move: bool = True) -> CalculateCatalogDamageWithAbilitiesUseCase:
-    """创建 API 测试使用的特性感知 calculator use case。"""
+    """创建 API 测试使用的特性感知 calculator use case。
+
+    Args:
+        allow_move: fake catalog repository 是否允许巨钳螳螂使用子弹拳。
+
+    Returns:
+        注入 catalog 与 ability fake repository 的 use case。
+    """
     return CalculateCatalogDamageWithAbilitiesUseCase(
         FakeCalculatorRepository(allow_move=allow_move),
         FakeCalculatorAbilityRepository(),
@@ -149,6 +162,50 @@ async def test_calculator_damage_api_passes_attacker_item_identifier():
 
     assert response.damage.min > 99
     assert any(item.key == "item:life_orb" for item in response.modifiers)
+
+
+@pytest.mark.anyio
+async def test_calculator_damage_api_applies_battle_stat_stages():
+    """
+    前端在宝可梦摘要红框中选择攻击方攻击加二、防守方防御加一后，HTTP schema 必须保留七项字段并由
+    router 转换为显式 StatStages，而不是只把它们作为界面状态。application 应让巨钳螳螂有效攻击从
+    一百八十二变成三百六十四，让仙子伊布有效防御从八十五按三比二向下取整为一百二十七；配置基础
+    stats 仍维持原值。该测试同时断言伤害高于基线，保护 schema、router、command 和 domain 数值链路
+    完整贯通，避免字段名在 special_attack、evasion 等蛇形命名转换中丢失或错位。
+    """
+    request = _request()
+    request.attacker.stat_stages = BattleStatStagesInput(attack=2)
+    request.defender.stat_stages = BattleStatStagesInput(defense=1)
+
+    response = await calculator.calculate_damage(
+        request,
+        use_case=_use_case(),
+    )
+
+    assert response.attacker.stats["attack"] == 182
+    assert response.attacker.effective_attack == 364
+    assert response.defender.stats["defense"] == 85
+    assert response.defender.effective_defense == 127
+    assert response.damage.min > 99
+    assert "攻击/防御/特攻/特防能力等级" in response.scope.included
+
+
+def test_calculator_stat_stage_schema_rejects_values_outside_six_levels() -> None:
+    """
+    战斗能力等级只能在负六到正六之间，前端固定枚举不能成为唯一可信边界。测试直接构造攻击加七和回避
+    减七的 schema 输入，要求 Pydantic 在进入 router 与 application 之前就拒绝，同时确认布尔值不能借助
+    Python 中 bool 继承 int 的规则伪装成一级。该场景保护手工 HTTP 请求、旧客户端和未来批量导入入口，
+    防止非法等级到达倍率公式后产生超出游戏规则的结果；合法边界正六与负六仍应正常保留，保证完整枚举
+    范围不会因为严格类型校验而被误伤。
+    """
+    assert BattleStatStagesInput(attack=6, evasion=-6).attack == 6
+
+    with pytest.raises(ValidationError):
+        BattleStatStagesInput(attack=7)
+    with pytest.raises(ValidationError):
+        BattleStatStagesInput(evasion=-7)
+    with pytest.raises(ValidationError):
+        BattleStatStagesInput(speed=True)
 
 
 @pytest.mark.anyio

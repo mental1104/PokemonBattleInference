@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { PokemonDetail } from '../api/calculator';
+import type { BattleStatStages, PokemonDetail } from '../api/calculator';
+import BattleStatStageSelector from './BattleStatStageSelector.vue';
 import './PokemonSummaryCard.css';
 
 const props = defineProps<{
+  /** 当前已选择的 Pokémon；为空时摘要卡只显示未选择提示。 */
   pokemon: PokemonDetail | null;
+  /** 可选的战斗能力等级；提供时在摘要卡右侧展示七项选择器。 */
+  statStages?: BattleStatStages;
+}>();
+
+const emit = defineEmits<{
+  /** 用户修改战斗能力等级后，把完整新快照交给页面状态。 */
+  'update:statStages': [value: BattleStatStages];
 }>();
 
 const imageFailed = ref(false);
@@ -21,7 +30,7 @@ watch(
 <template>
   <div class="summary-box pokemon-summary-card" data-testid="pokemon-summary-card">
     <template v-if="pokemon">
-      <div class="summary-layout">
+      <div class="summary-layout" :class="{ 'has-stat-stages': statStages }">
         <img
           v-if="!imageFailed"
           class="pokemon-sprite"
@@ -44,6 +53,11 @@ watch(
             <span v-for="type in pokemon.type_names" :key="type" class="type-chip">{{ type }}</span>
           </div>
         </div>
+        <BattleStatStageSelector
+          v-if="statStages"
+          :model-value="statStages"
+          @update:model-value="emit('update:statStages', $event)"
+        />
       </div>
     </template>
     <span v-else class="muted">未选择</span>
