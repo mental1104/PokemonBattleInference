@@ -27,7 +27,7 @@ vi.mock('../api/calculator', () => ({
     accuracy: 0,
     evasion: 0,
   })),
-  hasNonNeutralBattleStatStages: vi.fn((stages) =>
+  hasNonNeutralBattleStatStages: vi.fn((stages: Record<string, number>) =>
     Object.values(stages).some((value) => value !== 0),
   ),
 }));
