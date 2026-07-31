@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
 
 from pokeop.application.use_cases.calculate_catalog_damage import (
     DEFAULT_LEVEL,
     DEFAULT_RULESET_ID,
     CalculatorPokemonProfile,
     CalculatorRulesetContext,
+)
+from pokeop.application.use_cases.calculate_catalog_damage_with_abilities import (
+    CalculatorAbilityRepository,
 )
 from pokeop.application.use_cases.configuration_speed_goals import (
     ConfigurationSpeedGoalCommand,
@@ -25,6 +27,7 @@ from pokeop.application.use_cases.search_configuration_spreads import (
     SearchPokemonStatSpreadsUseCase,
     StatNatureOption,
     StatSpreadRange,
+    _NatureGroup,
     _NATURE_PREFERENCE,
     _PreparedGoal,
     _USEFUL_EV_VALUES,
@@ -104,7 +107,7 @@ class SearchPokemonStatSpreadsWithSpeedResult:
 class _RawCandidateWithSpeed:
     """尚未计算单字段区间的速度感知内部候选。"""
 
-    nature_group: object
+    nature_group: _NatureGroup
     evs: StatSpread
     ivs: StatSpread
     stats: StatValues
@@ -118,7 +121,7 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
     def __init__(
         self,
         repository: ConfigurationSpreadSearchRepository,
-        ability_repository,
+        ability_repository: CalculatorAbilityRepository,
     ) -> None:
         """保存 catalog 与合法特性读取端口。
 
@@ -360,15 +363,17 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
             if speed_ev is None:
                 continue
 
+            fixed_total = attack_ev + special_attack_ev + speed_ev
             for hp_ev in _USEFUL_EV_VALUES:
+                # StatSpread.evs 会立即校验总量，因此必须在构造对象之前过滤超预算组合。
+                if fixed_total + hp_ev > 510:
+                    break
                 base_evs = StatSpread.evs(
                     hp=hp_ev,
                     attack=attack_ev,
                     special_attack=special_attack_ev,
                     speed=speed_ev,
                 )
-                if base_evs.total() > 510:
-                    continue
                 defense_ev = self._minimum_ev_for_subset(
                     subject=subject,
                     subject_ability=subject_ability,
@@ -396,6 +401,11 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
                 if defense_ev is None or special_defense_ev is None:
                     continue
 
+                candidate_total = (
+                    fixed_total + hp_ev + defense_ev + special_defense_ev
+                )
+                if candidate_total > 510:
+                    continue
                 evs = StatSpread.evs(
                     hp=hp_ev,
                     attack=attack_ev,
@@ -404,8 +414,6 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
                     special_defense=special_defense_ev,
                     speed=speed_ev,
                 )
-                if evs.total() > 510:
-                    continue
                 stats = self._calculate_subject_stats(
                     subject=subject,
                     level=level,
@@ -476,6 +484,8 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
         available_values = tuple(
             value for value in _USEFUL_EV_VALUES if value <= available_maximum
         )
+        if not available_values:
+            return None
 
         def satisfies(value: int) -> bool:
             evs = self._replace_spread(
@@ -571,7 +581,7 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
         self,
         goals: tuple[_PreparedGoal, ...],
         speed_goals: tuple[PreparedConfigurationSpeedGoal, ...],
-    ):
+    ) -> tuple[_NatureGroup, ...]:
         """按当前伤害相关能力与 Speed 倍率合并等价性格。"""
         relevant_fields: list[StatField] = []
         for goal in goals:
@@ -589,7 +599,7 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
                 )
             if field not in relevant_fields:
                 relevant_fields.append(field)
-        if speed_goals:
+        if speed_goals and StatField.SPEED not in relevant_fields:
             relevant_fields.append(StatField.SPEED)
 
         grouped: dict[tuple[float, ...], list[NatureDefinition]] = {}
@@ -601,9 +611,7 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
         preference = {
             identifier: index for index, identifier in enumerate(_NATURE_PREFERENCE)
         }
-        nature_groups = []
-        from pokeop.application.use_cases.search_configuration_spreads import _NatureGroup
-
+        nature_groups: list[_NatureGroup] = []
         for definitions in grouped.values():
             ordered = sorted(
                 definitions,
@@ -668,6 +676,10 @@ class SearchPokemonStatSpreadsWithSpeedUseCase(SearchPokemonStatSpreadsUseCase):
                     "required_turns must be between 1 and 10"
                 )
         for goal in command.speed_goals:
+            if not goal.goal_id or goal.goal_id != goal.goal_id.strip():
+                raise ConfigurationSolverInputError(
+                    "speed goal_id must be a normalized non-empty string"
+                )
             if goal.goal_id in goal_ids:
                 raise ConfigurationSolverInputError(f"duplicate goal_id: {goal.goal_id}")
             goal_ids.add(goal.goal_id)
