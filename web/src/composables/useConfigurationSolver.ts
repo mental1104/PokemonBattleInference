@@ -12,8 +12,11 @@ import {
   type StatPreset,
 } from '../api/calculator';
 import {
+  searchConfigurationSpreads,
   solveConfiguration,
   type ConfigurationGoalKind,
+  type ConfigurationGoalRequest,
+  type ConfigurationSearchMode,
   type DamageRollPolicy,
   type GoalVerification,
   type SolveConfigurationResponse,
@@ -35,10 +38,11 @@ export interface EditableSolverGoal {
 
 const DEFAULT_PRESETS = ['max_hp_def_plus', 'max_hp_spdef_plus', 'max_spatk_plus', 'max_atk_plus'];
 
-/** 管理配置反向求解页面的 Pokémon、机制选择、目标列表和提交状态。 */
+/** 管理配置反向求解页面的 Pokémon、机制选择、目标列表、搜索模式和提交状态。 */
 export function useConfigurationSolver() {
   const rulesetId = ref('pokemon-champion');
   const level = ref(50);
+  const searchMode = ref<ConfigurationSearchMode>('preset');
   const subject = ref<PokemonDetail | null>(null);
   const subjectAbilityIdentifier = ref('');
   const subjectAbilityOptions = ref<BattleAbilityOption[]>([]);
@@ -54,12 +58,14 @@ export function useConfigurationSolver() {
   const result = ref<SolveConfigurationResponse | null>(null);
 
   const canSubmit = computed(() => {
+    const searchInputReady = searchMode.value === 'spread'
+      || selectedPresetKeys.value.length > 0;
     return Boolean(
       subject.value
         && subjectAbilityIdentifier.value
         && goals.value.length > 0
         && goals.value.every(isGoalComplete)
-        && selectedPresetKeys.value.length > 0
+        && searchInputReady
         && !loading.value,
     );
   });
@@ -268,34 +274,56 @@ export function useConfigurationSolver() {
     goals.value = goals.value.filter((goal) => goal.id !== goalId);
   }
 
-  /** 提交当前多目标反向求解请求。 */
+  /**
+   * 把页面中的目标快照转换成模板求解和属性反推共用的 API 输入。
+   *
+   * @returns 保留目标 Pokémon、招式、配置、机制和伤害档口径的请求数组。
+   */
+  function goalRequests(): ConfigurationGoalRequest[] {
+    return goals.value.map((goal) => ({
+      goal_id: goal.id,
+      kind: goal.kind,
+      target_pokemon_id: goal.target?.pokemon_id ?? 0,
+      move_id: goal.move?.move_id ?? 0,
+      required_turns: goal.repetitions,
+      target_ability_identifier: goal.targetAbilityIdentifier,
+      target_item_identifier:
+        goal.targetItemIdentifier === 'none' ? null : goal.targetItemIdentifier,
+      target_stat_preset: goal.targetPreset,
+      damage_roll_policy: goal.rollPolicy,
+    }));
+  }
+
+  /**
+   * 按当前全局模式提交模板验证或 EV/IV/性格反推请求。
+   *
+   * 模板模式保持已有配置选择并最多返回三条；反推模式不提交待配置 Pokémon 的模板，
+   * 由服务端在合法 EV、IV 与性格空间中最多返回十条候选。
+   */
   async function submit(): Promise<void> {
     if (!subject.value || !canSubmit.value) return;
     loading.value = true;
     error.value = null;
     try {
-      result.value = await solveConfiguration({
+      const commonRequest = {
         ruleset_id: rulesetId.value,
         subject_pokemon_id: subject.value.pokemon_id,
         subject_ability_identifier: subjectAbilityIdentifier.value,
         subject_item_identifier:
           subjectItemIdentifier.value === 'none' ? null : subjectItemIdentifier.value,
         level: level.value,
-        goals: goals.value.map((goal) => ({
-          goal_id: goal.id,
-          kind: goal.kind,
-          target_pokemon_id: goal.target?.pokemon_id ?? 0,
-          move_id: goal.move?.move_id ?? 0,
-          required_turns: goal.repetitions,
-          target_ability_identifier: goal.targetAbilityIdentifier,
-          target_item_identifier:
-            goal.targetItemIdentifier === 'none' ? null : goal.targetItemIdentifier,
-          target_stat_preset: goal.targetPreset,
-          damage_roll_policy: goal.rollPolicy,
-        })),
-        allowed_stat_presets: selectedPresetKeys.value,
-        max_candidates: 3,
-      });
+        goals: goalRequests(),
+      };
+      result.value = searchMode.value === 'spread'
+        ? await searchConfigurationSpreads({
+          ...commonRequest,
+          max_candidates: 10,
+        })
+        : await solveConfiguration({
+          ...commonRequest,
+          allowed_stat_presets: selectedPresetKeys.value,
+          max_candidates: 3,
+        });
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '求解失败';
     } finally {
@@ -311,7 +339,7 @@ export function useConfigurationSolver() {
   });
 
   watch(
-    [subjectAbilityIdentifier, subjectItemIdentifier, selectedPresetKeys, goals],
+    [searchMode, subjectAbilityIdentifier, subjectItemIdentifier, selectedPresetKeys, goals],
     () => {
       if (result.value) result.value = null;
     },
@@ -321,6 +349,7 @@ export function useConfigurationSolver() {
   return {
     rulesetId,
     level,
+    searchMode,
     subject,
     subjectAbilityIdentifier,
     subjectAbilityOptions,

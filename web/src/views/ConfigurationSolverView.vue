@@ -6,7 +6,16 @@ import type {
   MoveSearchItem,
   PokemonSearchItem,
 } from '../api/calculator';
-import type { ConfigurationGoalKind, DamageRollPolicy } from '../api/configurationSolver';
+import type {
+  ConfigurationGoalKind,
+  DamageRollPolicy,
+  SolvedConfiguration,
+  StatSpreadRange,
+} from '../api/configurationSolver';
+import {
+  createStatConfiguration,
+  type StatSpread,
+} from '../api/statConfigurations';
 import AbilitySelector from '../components/AbilitySelector.vue';
 import ItemSelector from '../components/ItemSelector.vue';
 import MoveSelector from '../components/MoveSelector.vue';
@@ -17,6 +26,24 @@ import { useConfigurationSolver, type EditableSolverGoal } from '../composables/
 import { useRecentPokemon } from '../composables/useRecentPokemon';
 
 type GoalDialogMode = 'create' | 'edit';
+type StatField = keyof StatSpread;
+
+const STAT_FIELDS: StatField[] = [
+  'hp',
+  'attack',
+  'defense',
+  'special_attack',
+  'special_defense',
+  'speed',
+];
+const STAT_LABELS: Record<StatField, string> = {
+  hp: 'HP',
+  attack: 'Attack',
+  defense: 'Defense',
+  special_attack: 'Sp. Atk',
+  special_defense: 'Sp. Def',
+  speed: 'Speed',
+};
 
 const solver = useConfigurationSolver();
 const { items: recentPokemon, remember: rememberPokemon } = useRecentPokemon();
@@ -25,6 +52,10 @@ const defenseGoals = computed(() => solver.goals.value.filter((goal) => goal.kin
 const goalDialogOpen = ref(false);
 const goalDialogMode = ref<GoalDialogMode>('create');
 const goalDialogDraft = ref<EditableSolverGoal | null>(null);
+const selectedCandidateNatures = ref<Record<string, string>>({});
+const savingCandidateId = ref<string | null>(null);
+const savedCandidateIds = ref<string[]>([]);
+const candidateSaveError = ref<string | null>(null);
 
 const goalDialogTitle = computed(() => {
   const draft = goalDialogDraft.value;
@@ -69,12 +100,28 @@ onMounted(() => {
 });
 
 /**
+ * 切换全局求解方式，并清空上一种方式留下的候选保存提示。
+ *
+ * 模板模式要求用户在左侧选择一份既有配置；反推模式只固定 Pokémon、道具和特性，
+ * EV、IV 与性格全部由右侧攻防目标决定。
+ */
+function toggleSearchMode(): void {
+  solver.searchMode.value = solver.searchMode.value === 'preset' ? 'spread' : 'preset';
+  selectedCandidateNatures.value = {};
+  savedCandidateIds.value = [];
+  candidateSaveError.value = null;
+}
+
+/**
  * 选择待配置 Pokémon，并写入最近选择。
  *
  * @param pokemon 用户选中的 Pokémon。
  */
 async function selectSubject(pokemon: PokemonSearchItem): Promise<void> {
   rememberPokemon(pokemon);
+  selectedCandidateNatures.value = {};
+  savedCandidateIds.value = [];
+  candidateSaveError.value = null;
   await solver.selectSubject(pokemon);
 }
 
@@ -228,6 +275,85 @@ function presetName(goal: EditableSolverGoal): string {
 function rollPolicyName(policy: DamageRollPolicy): string {
   return policy === 'max' ? '最高伤害档' : '最低伤害档';
 }
+
+/**
+ * 返回候选当前选中的性格；首次展示时使用后端代表性格。
+ *
+ * @param candidate 一条属性反推候选。
+ * @returns 用户在该卡片选择的性格 identifier。
+ */
+function candidateNature(candidate: SolvedConfiguration): string {
+  return selectedCandidateNatures.value[candidate.stat_preset]
+    ?? candidate.nature_id
+    ?? candidate.nature_options?.[0]?.identifier
+    ?? '';
+}
+
+/**
+ * 更新一条候选准备保存的等价性格。
+ *
+ * @param candidate 当前结果卡片。
+ * @param event 性格下拉框的原生变化事件。
+ */
+function updateCandidateNature(candidate: SolvedConfiguration, event: Event): void {
+  selectedCandidateNatures.value = {
+    ...selectedCandidateNatures.value,
+    [candidate.stat_preset]: (event.target as HTMLSelectElement).value,
+  };
+}
+
+/**
+ * 返回某项 EV 或 IV 的“代表值 · 安全区间”文案。
+ *
+ * @param spread 候选代表分配。
+ * @param ranges 六项独立安全区间。
+ * @param field 当前能力字段。
+ * @returns 用于高密度结果网格的一行摘要。
+ */
+function spreadRangeText(
+  spread: StatSpread | null | undefined,
+  ranges: StatSpreadRange | null | undefined,
+  field: StatField,
+): string {
+  if (!spread || !ranges) return '—';
+  const range = ranges[field];
+  return `${spread[field]} · ${range.minimum}–${range.maximum}`;
+}
+
+/**
+ * 将反推候选保存为当前 Pokémon 专属、攻防双方均可使用的自定义配置。
+ *
+ * 保存内容使用候选代表 EV/IV 和用户在卡片中选择的等价性格；区间只是解释信息，
+ * 不会把一个模糊范围写入持久化配置。保存后可在现有配置管理器中继续重命名和编辑。
+ *
+ * @param candidate 用户准备持久化的属性反推候选。
+ */
+async function saveCandidate(candidate: SolvedConfiguration): Promise<void> {
+  const pokemon = solver.subject.value;
+  const natureId = candidateNature(candidate);
+  if (!pokemon || !candidate.evs || !candidate.ivs || !natureId) return;
+
+  savingCandidateId.value = candidate.stat_preset;
+  candidateSaveError.value = null;
+  try {
+    await createStatConfiguration({
+      name: candidate.stat_preset_label.slice(0, 48),
+      nature_id: natureId,
+      evs: { ...candidate.evs },
+      ivs: { ...candidate.ivs },
+      role: 'both',
+      binding_kind: 'pokemon',
+      pokemon_id: pokemon.pokemon_id,
+    });
+    if (!savedCandidateIds.value.includes(candidate.stat_preset)) {
+      savedCandidateIds.value = [...savedCandidateIds.value, candidate.stat_preset];
+    }
+  } catch (caught) {
+    candidateSaveError.value = caught instanceof Error ? caught.message : '保存专属配置失败';
+  } finally {
+    savingCandidateId.value = null;
+  }
+}
 </script>
 
 <template>
@@ -237,8 +363,35 @@ function rollPolicyName(policy: DamageRollPolicy): string {
         <h1>配置反向求解</h1>
         <p>Champion · 多目标 · Lv.{{ solver.level.value }}</p>
       </div>
-      <div class="state-pill">{{ solver.result.value?.reachable ? 'REACHABLE' : 'TARGETS' }}</div>
+      <div class="state-pill">
+        {{ solver.searchMode.value === 'spread' ? 'SPREAD' : (solver.result.value?.reachable ? 'REACHABLE' : 'TARGETS') }}
+      </div>
     </header>
+
+    <section class="solver-mode-bar" aria-label="全局求解模式">
+      <div>
+        <strong>{{ solver.searchMode.value === 'spread' ? '自动反推配置' : '已有配置验证' }}</strong>
+        <p v-if="solver.searchMode.value === 'spread'">
+          左侧只固定 Pokémon、道具与特性；根据全部攻防目标反推 EV、IV 和性格，最多返回 10 条。
+        </p>
+        <p v-else>
+          从左侧已有配置中选择快照，判断同一套配置是否能同时满足全部目标。
+        </p>
+      </div>
+      <button
+        type="button"
+        class="mode-switch"
+        role="switch"
+        data-testid="spread-mode-toggle"
+        :aria-checked="solver.searchMode.value === 'spread'"
+        @click="toggleSearchMode"
+      >
+        <span class="mode-switch__track" aria-hidden="true">
+          <span class="mode-switch__thumb" />
+        </span>
+        <span>{{ solver.searchMode.value === 'spread' ? '关闭反推' : '开启反推' }}</span>
+      </button>
+    </section>
 
     <section class="solver-layout">
       <aside class="solver-side">
@@ -269,6 +422,7 @@ function rollPolicyName(policy: DamageRollPolicy): string {
         />
 
         <StatConfigurationPicker
+          v-if="solver.searchMode.value === 'preset'"
           title="搜索配置"
           role="attacker"
           :pokemon-id="solver.subject.value?.pokemon_id ?? null"
@@ -276,6 +430,11 @@ function rollPolicyName(policy: DamageRollPolicy): string {
           :model-value="solver.selectedPresetKeys.value[0] ?? ''"
           @update:model-value="solver.selectedPresetKeys.value = [$event]"
         />
+        <section v-else class="spread-input-note" data-testid="spread-input-note">
+          <strong>属性配置由目标反推</strong>
+          <p>无需预先选择性格、努力值或个体值。结果会给出代表分配和单字段安全区间。</p>
+          <small>EV 单项 ≤ 252、总和 ≤ 510；IV 单项 0–31。</small>
+        </section>
       </aside>
 
       <section class="solver-main">
@@ -423,14 +582,21 @@ function rollPolicyName(policy: DamageRollPolicy): string {
             :disabled="!solver.canSubmit.value"
             @click="solver.submit"
           >
-            {{ solver.loading.value ? '求解中' : '开始求解' }}
+            {{ solver.loading.value
+              ? '求解中'
+              : (solver.searchMode.value === 'spread' ? '反推配置' : '开始求解') }}
           </button>
           <p v-if="solver.error.value" class="error">{{ solver.error.value }}</p>
         </section>
 
         <section v-if="solver.result.value" class="solver-panel result-panel">
           <div class="panel-heading">
-            <h2>{{ solver.result.value.reachable ? '可达配置' : '当前不可达' }}</h2>
+            <div>
+              <h2>{{ solver.result.value.reachable ? '可达配置' : '当前不可达' }}</h2>
+              <p v-if="solver.searchMode.value === 'spread'" class="muted">
+                候选按有效 EV 总量排序；每个区间都是“仅调整这一项”的安全范围。
+              </p>
+            </div>
             <span>{{ solver.result.value.ruleset_name }}</span>
           </div>
 
@@ -439,10 +605,70 @@ function rollPolicyName(policy: DamageRollPolicy): string {
               v-for="candidate in solver.result.value.candidates"
               :key="candidate.stat_preset"
               class="candidate-card"
+              :class="{ 'candidate-card--spread': candidate.solution_kind === 'spread' }"
             >
-              <h3>{{ candidate.stat_preset_label }}</h3>
-              <p>{{ candidate.stat_preset_assumption }}</p>
-              <dl class="stats-grid">
+              <div class="candidate-card__heading">
+                <div>
+                  <h3>{{ candidate.stat_preset_label }}</h3>
+                  <p>{{ candidate.stat_preset_assumption }}</p>
+                </div>
+                <span v-if="candidate.solution_kind === 'spread'" class="candidate-rank">
+                  {{ candidate.evs ? `EV ${Object.values(candidate.evs).reduce((sum, value) => sum + value, 0)}` : '' }}
+                </span>
+              </div>
+
+              <template v-if="candidate.solution_kind === 'spread'">
+                <label class="candidate-nature">
+                  <span>可选性格</span>
+                  <select
+                    :value="candidateNature(candidate)"
+                    @change="updateCandidateNature(candidate, $event)"
+                  >
+                    <option
+                      v-for="nature in candidate.nature_options ?? []"
+                      :key="nature.identifier"
+                      :value="nature.identifier"
+                    >
+                      {{ nature.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <div class="spread-range-grid">
+                  <div class="spread-range-grid__heading">
+                    <strong>能力</strong>
+                    <strong>EV 代表 · 区间</strong>
+                    <strong>IV 代表 · 区间</strong>
+                    <strong>实际值</strong>
+                  </div>
+                  <div
+                    v-for="field in STAT_FIELDS"
+                    :key="field"
+                    class="spread-range-grid__row"
+                  >
+                    <span>{{ STAT_LABELS[field] }}</span>
+                    <span>{{ spreadRangeText(candidate.evs, candidate.ev_ranges, field) }}</span>
+                    <span>{{ spreadRangeText(candidate.ivs, candidate.iv_ranges, field) }}</span>
+                    <strong>{{ candidate.stats[field] }}</strong>
+                  </div>
+                </div>
+
+                <div class="candidate-card__actions">
+                  <small>保存后绑定当前 Pokémon，并作为攻防双方均可选择的自定义配置。</small>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    :disabled="savingCandidateId === candidate.stat_preset || savedCandidateIds.includes(candidate.stat_preset)"
+                    @click="saveCandidate(candidate)"
+                  >
+                    {{ savedCandidateIds.includes(candidate.stat_preset)
+                      ? '已添加到专属配置'
+                      : (savingCandidateId === candidate.stat_preset ? '保存中' : '添加到专属配置') }}
+                  </button>
+                </div>
+              </template>
+
+              <dl v-else class="stats-grid">
                 <template v-for="(value, key) in candidate.stats" :key="key">
                   <dt>{{ key }}</dt>
                   <dd>{{ value }}</dd>
@@ -450,6 +676,8 @@ function rollPolicyName(policy: DamageRollPolicy): string {
               </dl>
             </article>
           </div>
+
+          <p v-if="candidateSaveError" class="error">{{ candidateSaveError }}</p>
 
           <div class="evidence-list">
             <article
@@ -608,6 +836,65 @@ function rollPolicyName(policy: DamageRollPolicy): string {
 </template>
 
 <style scoped>
+.solver-mode-bar {
+  align-items: center;
+  background: linear-gradient(135deg, #f7faf7, #edf4ef);
+  border: 1px solid #cfdbd1;
+  border-radius: 12px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.solver-mode-bar p,
+.candidate-card p,
+.spread-input-note p {
+  color: #5c6d63;
+  margin: 4px 0 0;
+}
+
+.mode-switch {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #b9c9bc;
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 9px;
+  min-height: 40px;
+  padding: 5px 12px 5px 7px;
+}
+
+.mode-switch__track {
+  background: #cbd5cd;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 24px;
+  padding: 3px;
+  transition: background 0.18s ease;
+  width: 44px;
+}
+
+.mode-switch__thumb {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(26, 45, 34, 0.25);
+  height: 18px;
+  transform: translateX(0);
+  transition: transform 0.18s ease;
+  width: 18px;
+}
+
+.mode-switch[aria-checked="true"] .mode-switch__track {
+  background: #214f3c;
+}
+
+.mode-switch[aria-checked="true"] .mode-switch__thumb {
+  transform: translateX(20px);
+}
+
 .solver-layout {
   align-items: start;
   display: grid;
@@ -620,6 +907,19 @@ function rollPolicyName(policy: DamageRollPolicy): string {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.spread-input-note {
+  background: #f3f8f4;
+  border: 1px dashed #9eb6a4;
+  border-radius: 9px;
+  padding: 14px;
+}
+
+.spread-input-note small {
+  color: #67766d;
+  display: block;
+  margin-top: 8px;
 }
 
 .solver-panel {
@@ -636,7 +936,9 @@ function rollPolicyName(policy: DamageRollPolicy): string {
 }
 
 .panel-heading,
-.goal-column__heading {
+.goal-column__heading,
+.candidate-card__heading,
+.candidate-card__actions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -876,7 +1178,6 @@ function rollPolicyName(policy: DamageRollPolicy): string {
   padding-top: 14px;
 }
 
-.preset-grid,
 .candidate-list,
 .evidence-list {
   display: grid;
@@ -884,7 +1185,6 @@ function rollPolicyName(policy: DamageRollPolicy): string {
   margin-top: 12px;
 }
 
-.preset-grid button,
 .candidate-card,
 .evidence-row {
   border: 1px solid #d8dee8;
@@ -893,25 +1193,83 @@ function rollPolicyName(policy: DamageRollPolicy): string {
   text-align: left;
 }
 
-.preset-grid button.selected {
-  border-color: #2454d6;
-  box-shadow: inset 0 0 0 1px #2454d6;
+.candidate-card--spread {
+  border-color: #a9c4b1;
+  box-shadow: inset 4px 0 0 #315f49;
+  padding: 16px;
 }
 
-.preset-grid span,
-.evidence-row span,
-.evidence-row small {
-  display: block;
-  margin-top: 4px;
+.candidate-rank {
+  background: #e8f2eb;
+  border-radius: 999px;
+  color: #27503b;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 9px;
 }
 
-.icon-button {
-  min-height: 36px;
-  width: 36px;
+.candidate-nature {
+  align-items: center;
+  background: #f5f8f5;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px;
 }
 
-.secondary-button {
-  min-height: 36px;
+.candidate-nature span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.candidate-nature select {
+  min-height: 34px;
+  min-width: 180px;
+}
+
+.spread-range-grid {
+  border: 1px solid #dbe4dd;
+  border-radius: 9px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.spread-range-grid__heading,
+.spread-range-grid__row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(72px, 0.8fr) repeat(3, minmax(110px, 1fr));
+  padding: 9px 12px;
+}
+
+.spread-range-grid__heading {
+  background: #edf4ef;
+  color: #405248;
+  font-size: 12px;
+}
+
+.spread-range-grid__row + .spread-range-grid__row {
+  border-top: 1px solid #e4eae5;
+}
+
+.spread-range-grid__row span:nth-child(2),
+.spread-range-grid__row span:nth-child(3) {
+  color: #53645b;
+  font-variant-numeric: tabular-nums;
+}
+
+.candidate-card__actions {
+  border-top: 1px solid #e1e8e2;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.candidate-card__actions small {
+  color: #66756c;
+  max-width: 560px;
 }
 
 .stats-grid {
@@ -928,6 +1286,12 @@ function rollPolicyName(policy: DamageRollPolicy): string {
 .stats-grid dd {
   margin: 0;
   text-align: right;
+}
+
+.evidence-row span,
+.evidence-row small {
+  display: block;
+  margin-top: 4px;
 }
 
 .evidence-row.failed {
@@ -950,6 +1314,15 @@ function rollPolicyName(policy: DamageRollPolicy): string {
   padding: 4px 9px;
 }
 
+.icon-button {
+  min-height: 36px;
+  width: 36px;
+}
+
+.secondary-button {
+  min-height: 36px;
+}
+
 @media (max-width: 1180px) {
   .goal-columns,
   .goal-dialog__content {
@@ -964,6 +1337,29 @@ function rollPolicyName(policy: DamageRollPolicy): string {
 @media (max-width: 900px) {
   .solver-layout {
     grid-template-columns: 1fr;
+  }
+
+  .solver-mode-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mode-switch {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .spread-range-grid__heading {
+    display: none;
+  }
+
+  .spread-range-grid__row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .spread-range-grid__row strong {
+    text-align: right;
   }
 }
 
@@ -998,6 +1394,12 @@ function rollPolicyName(policy: DamageRollPolicy): string {
 
   .goal-summary-row__edit {
     display: none;
+  }
+
+  .candidate-nature,
+  .candidate-card__actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 </style>
