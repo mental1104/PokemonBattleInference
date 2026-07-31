@@ -13,7 +13,13 @@ from pokeop.application.use_cases.calculate_catalog_damage import (
 from pokeop.application.use_cases.solve_configuration_targets import (
     ConfigurationSolverInputError,
 )
-from pokeop.domain.battle.stats import StatValues, calculate_actual_stats
+from pokeop.domain.battle.stats import (
+    NatureModifier,
+    StatProfile,
+    StatValues,
+    calculate_actual_stats,
+)
+from pokeop.domain.models.pokemon_fields import StatField
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +111,7 @@ def prepare_configuration_speed_goals(
                 f"unknown speed target pokemon_id: {goal.target_pokemon_id}"
             )
         target_stats = calculate_actual_stats(
-            stat_profile_from_preset(goal.target_stat_preset, target.base_stats),
+            _speed_target_profile(goal.target_stat_preset, target.base_stats),
             level=level,
         )
         prepared.append(
@@ -160,6 +166,30 @@ def configuration_speed_goals_satisfied(
         全部目标均满足时返回 True；空集合也返回 True。
     """
     return all(subject_stats.speed > goal.target_stats.speed for goal in goals)
+
+
+def _speed_target_profile(preset_key: str, base_stats: StatValues) -> StatProfile:
+    """把速度目标配置转换为 domain StatProfile。
+
+    Args:
+        preset_key: 配置管理中的内置 key 或不可变配置快照。
+        base_stats: 参照 Pokémon 的六项种族值。
+
+    Returns:
+        可交给现代能力值公式计算的完整配置。
+
+    Raises:
+        ConfigurationSolverInputError: 配置 key 或快照不合法时由现有转换逻辑抛出。
+    """
+    if preset_key == "max_speed_plus":
+        # 配置管理已经公开“极限速度”，但旧伤害模板集合不包含它；速度目标在边界处
+        # 显式展开，避免为了比较 Speed 扩大原伤害计算器的模板语义。
+        return StatProfile(
+            base_stats=base_stats,
+            evs=StatValues(speed=252),
+            nature_modifier=NatureModifier.increase(StatField.SPEED),
+        )
+    return stat_profile_from_preset(preset_key, base_stats)
 
 
 __all__ = [
