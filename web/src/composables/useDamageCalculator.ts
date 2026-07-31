@@ -16,7 +16,11 @@ import {
 
 export type CalculatorState = 'EMPTY' | 'ATTACKER_SELECTED' | 'MOVE_SELECTED' | 'READY' | 'CALCULATING' | 'RESULT';
 
-/** 管理基础伤害计算器的选择状态、加载状态和结果失效语义。 */
+/**
+ * 管理基础伤害计算器的双方选择、异步加载、提交请求和旧结果失效语义。
+ *
+ * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；双方道具与特性状态彼此独立。
+ */
 export function useDamageCalculator() {
   const rulesetId = ref('pokemon-champion');
   const level = ref(50);
@@ -24,6 +28,7 @@ export function useDamageCalculator() {
   const defender = ref<PokemonDetail | null>(null);
   const move = ref<MoveSearchItem | null>(null);
   const attackerItemIdentifier = ref('none');
+  const defenderItemIdentifier = ref('none');
   const itemOptions = ref<BattleItemOption[]>([]);
   const itemsLoading = ref(false);
   const attackerAbilityIdentifier = ref('');
@@ -78,27 +83,37 @@ export function useDamageCalculator() {
     }
   }
 
-  /** 初始化当前规则集可选择的已实现战斗持有道具。 */
+  /**
+   * 初始化当前规则集可选择的已实现战斗持有道具，并修正双方已经失效的选择。
+   *
+   * @returns 道具列表请求完成后 resolve；请求失败时双方都回退为不携带道具。
+   */
   async function loadItems(): Promise<void> {
     itemsLoading.value = true;
     try {
       itemOptions.value = await listBattleItems(rulesetId.value);
+      const fallbackIdentifier = itemOptions.value[0]?.identifier ?? 'none';
       if (!itemOptions.value.some((item) => item.identifier === attackerItemIdentifier.value)) {
-        attackerItemIdentifier.value = itemOptions.value[0]?.identifier ?? 'none';
+        attackerItemIdentifier.value = fallbackIdentifier;
+      }
+      if (!itemOptions.value.some((item) => item.identifier === defenderItemIdentifier.value)) {
+        defenderItemIdentifier.value = fallbackIdentifier;
       }
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : '无法加载道具列表';
       itemOptions.value = [];
       attackerItemIdentifier.value = 'none';
+      defenderItemIdentifier.value = 'none';
     } finally {
       itemsLoading.value = false;
     }
   }
 
   /**
-   * 选择攻击方后读取详情和合法特性，并清空依赖旧攻击方的输入与结果。
+   * 选择攻击方后并行读取详情和合法特性，并清空依赖旧攻击方的招式与伤害结果。
    *
    * @param item 用户从攻击方选择器选中的 Pokémon 搜索结果。
+   * @returns 攻击方详情与特性列表加载完成后 resolve 的 Promise。
    */
   async function selectAttacker(item: PokemonSearchItem): Promise<void> {
     error.value = null;
@@ -127,7 +142,12 @@ export function useDamageCalculator() {
     }
   }
 
-  /** 选择防守方后读取详情和合法特性，并默认选中第一个特性。 */
+  /**
+   * 选择防守方后并行读取详情和合法特性，保留双方其他已经完成的输入。
+   *
+   * @param item 用户从防守方选择器选中的 Pokémon 搜索结果。
+   * @returns 防守方详情与特性列表加载完成后 resolve 的 Promise。
+   */
   async function selectDefender(item: PokemonSearchItem): Promise<void> {
     error.value = null;
     defenderAbilityIdentifier.value = '';
@@ -152,7 +172,11 @@ export function useDamageCalculator() {
     }
   }
 
-  /** 提交当前选择，得到真实 domain 伤害结果。 */
+  /**
+   * 提交当前双方 Pokémon、配置、持有道具、必选特性和招式，得到真实 domain 伤害结果。
+   *
+   * @returns 服务端计算完成后 resolve；任一必填输入不完整时直接结束且不发起请求。
+   */
   async function submit(): Promise<void> {
     if (
       !attacker.value ||
@@ -178,6 +202,7 @@ export function useDamageCalculator() {
           level: level.value,
           stat_preset: defenderPreset.value,
           ability_identifier: defenderAbilityIdentifier.value,
+          item_identifier: defenderItemIdentifier.value === 'none' ? null : defenderItemIdentifier.value,
         },
         move_id: move.value.move_id,
       });
@@ -198,6 +223,7 @@ export function useDamageCalculator() {
       attackerPreset,
       defenderPreset,
       attackerItemIdentifier,
+      defenderItemIdentifier,
       attackerAbilityIdentifier,
       defenderAbilityIdentifier,
     ],
@@ -213,6 +239,7 @@ export function useDamageCalculator() {
     defender,
     move,
     attackerItemIdentifier,
+    defenderItemIdentifier,
     itemOptions,
     itemsLoading,
     attackerAbilityIdentifier,
