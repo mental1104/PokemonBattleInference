@@ -6,6 +6,7 @@ import {
   listBattleItems,
   listPokemonAbilities,
   listStatPresets,
+  type MoveSearchItem,
   type PokemonDetail,
 } from '../api/calculator';
 import ConfigurationSolverView from './ConfigurationSolverView.vue';
@@ -46,6 +47,16 @@ const TARGET: PokemonDetail = {
   },
 };
 
+const MOVE: MoveSearchItem = {
+  move_id: 418,
+  identifier: 'bullet-punch',
+  display_name: '子弹拳',
+  type: 'steel',
+  type_name: '钢',
+  category: 'physical',
+  power: 40,
+};
+
 const PokemonSelectorStub = defineComponent({
   name: 'PokemonSelector',
   props: {
@@ -75,12 +86,31 @@ const PokemonSummaryCardStub = defineComponent({
     pokemon: { type: Object, default: null },
   },
   setup(props) {
-    /** 只展示目标名称，便于断言确认后卡片已经进入已选列表。 */
+    /** 只展示 Pokémon 名称，便于区分弹窗草稿和紧凑摘要行。 */
     return () => h(
       'div',
       { class: 'pokemon-summary-card-stub' },
       (props.pokemon as PokemonDetail | null)?.display_name ?? '未选择',
     );
+  },
+});
+
+const MoveSelectorStub = defineComponent({
+  name: 'MoveSelector',
+  emits: ['select', 'clearSelection'],
+  setup(_props, { emit }) {
+    /** 渲染显式招式选择按钮，使保存按钮从不完整转为可用。 */
+    return () => h('section', { class: 'move-selector-stub' }, [
+      h(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'choose-target-move',
+          onClick: () => emit('select', MOVE),
+        },
+        '选择子弹拳',
+      ),
+    ]);
   },
 });
 
@@ -102,15 +132,17 @@ beforeEach(() => {
     effect_identifier: null,
     sprite_url: null,
   }]);
-  listStatPresetsMock.mockReset().mockResolvedValue({ attacker: [], defender: [] });
+  listStatPresetsMock.mockReset().mockResolvedValue({
+    attacker: [{ key: 'max_atk_neutral', label: '满攻', assumption: 'Attack 252' }],
+    defender: [{ key: 'max_hp', label: '满 HP', assumption: 'HP 252' }],
+  });
 });
 
-describe('ConfigurationSolverView goal dialog', () => {
-  it('keeps pending Pokémon out of the selected list until confirmation', async () => {
+describe('ConfigurationSolverView goal detail dialog', () => {
+  it('keeps all detailed parameters in the dialog and one compact row in the list', async () => {
     /**
-     * 点击“添加攻目标”后只能出现独立弹窗，攻目标列仍为空；在弹窗中选择并确认后，
-     * 才生成包含目标摘要的卡片。已选卡片内部不再渲染 Pokémon 搜索器，避免待选列表
-     * 与已经确认的对象出现在同一视觉层级。
+     * 新增攻目标时，Pokémon、次数、随机档、道具、特性、配置与招式必须全部位于弹窗。
+     * 保存前列表为空；完成全部必填项后只生成一条紧凑摘要，列表中不能继续渲染详细选择器。
      */
     const wrapper = mount(ConfigurationSolverView, {
       global: {
@@ -120,28 +152,76 @@ describe('ConfigurationSolverView goal dialog', () => {
           ItemSelector: { template: '<section class="item-selector-stub" />' },
           AbilitySelector: { template: '<section class="ability-selector-stub" />' },
           StatConfigurationPicker: { template: '<section class="stat-picker-stub" />' },
-          MoveSelector: { template: '<section class="move-selector-stub" />' },
+          MoveSelector: MoveSelectorStub,
         },
       },
     });
     await flushPromises();
 
-    expect(wrapper.findAll('.goal-editor')).toHaveLength(0);
-
     await wrapper.get('[data-testid="open-attack-goal-dialog"]').trigger('click');
 
-    expect(wrapper.find('[data-testid="goal-dialog-backdrop"]').exists()).toBe(true);
-    expect(wrapper.findAll('.goal-editor')).toHaveLength(0);
+    const dialog = wrapper.get('[data-testid="goal-dialog-backdrop"]');
+    expect(dialog.find('.item-selector-stub').exists()).toBe(true);
+    expect(dialog.find('.ability-selector-stub').exists()).toBe(true);
+    expect(dialog.find('.stat-picker-stub').exists()).toBe(true);
+    expect(dialog.find('.move-selector-stub').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="goal-summary-row"]')).toHaveLength(0);
 
-    await wrapper
-      .get('[data-testid="goal-dialog-backdrop"] [data-testid="choose-target-pokemon"]')
-      .trigger('click');
+    await dialog.get('[data-testid="choose-target-pokemon"]').trigger('click');
+    await flushPromises();
+    await dialog.get('[data-testid="choose-target-move"]').trigger('click');
     await wrapper.get('[data-testid="confirm-goal-dialog"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.find('[data-testid="goal-dialog-backdrop"]').exists()).toBe(false);
-    expect(wrapper.findAll('.goal-editor')).toHaveLength(1);
-    expect(wrapper.get('.goal-editor .pokemon-summary-card-stub').text()).toBe('仙子伊布');
-    expect(wrapper.get('.goal-column').find('.pokemon-selector-stub').exists()).toBe(false);
+    expect(wrapper.findAll('[data-testid="goal-summary-row"]')).toHaveLength(1);
+    const summary = wrapper.get('[data-testid="goal-summary-row"]');
+    expect(summary.text()).toContain('仙子伊布');
+    expect(summary.text()).toContain('子弹拳');
+    expect(summary.text()).toContain('1 次');
+    expect(wrapper.get('.goal-column').find('.item-selector-stub').exists()).toBe(false);
+    expect(wrapper.get('.goal-column').find('.ability-selector-stub').exists()).toBe(false);
+    expect(wrapper.get('.goal-column').find('.stat-picker-stub').exists()).toBe(false);
+    expect(wrapper.get('.goal-column').find('.move-selector-stub').exists()).toBe(false);
+  });
+
+  it('opens the compact row for isolated detail editing and applies changes only after save', async () => {
+    /**
+     * 点击摘要行后应重新打开完整参数弹窗。修改次数时列表仍显示旧值；点击保存修改后，
+     * 同一目标行原子更新为新次数，避免弹窗输入过程直接污染已选列表。
+     */
+    const wrapper = mount(ConfigurationSolverView, {
+      global: {
+        stubs: {
+          PokemonSelector: PokemonSelectorStub,
+          PokemonSummaryCard: PokemonSummaryCardStub,
+          ItemSelector: { template: '<section class="item-selector-stub" />' },
+          AbilitySelector: { template: '<section class="ability-selector-stub" />' },
+          StatConfigurationPicker: { template: '<section class="stat-picker-stub" />' },
+          MoveSelector: MoveSelectorStub,
+        },
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="open-defense-goal-dialog"]').trigger('click');
+    await wrapper.get('[data-testid="choose-target-pokemon"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="choose-target-move"]').trigger('click');
+    await wrapper.get('[data-testid="confirm-goal-dialog"]').trigger('click');
+    await flushPromises();
+
+    const summaryButton = wrapper.get('.goal-summary-row__main');
+    expect(summaryButton.text()).toContain('1 次');
+    await summaryButton.trigger('click');
+
+    const repetitions = wrapper.get('.goal-condition-panel input');
+    await repetitions.setValue('3');
+    expect(wrapper.get('.goal-summary-row__main').text()).toContain('1 次');
+
+    await wrapper.get('[data-testid="confirm-goal-dialog"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('.goal-summary-row__main').text()).toContain('3 次');
+    expect(wrapper.findAll('[data-testid="goal-summary-row"]')).toHaveLength(1);
   });
 });
