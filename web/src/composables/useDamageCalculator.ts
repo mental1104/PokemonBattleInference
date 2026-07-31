@@ -3,7 +3,9 @@ import {
   calculateDamage,
   getPokemonDetail,
   listBattleItems,
+  listPokemonAbilities,
   listStatPresets,
+  type BattleAbilityOption,
   type BattleItemOption,
   type CalculateDamageResponse,
   type MoveSearchItem,
@@ -17,7 +19,7 @@ export type CalculatorState = 'EMPTY' | 'ATTACKER_SELECTED' | 'MOVE_SELECTED' | 
 /**
  * 管理基础伤害计算器的双方选择、异步加载、提交请求和旧结果失效语义。
  *
- * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；攻击方与防守方道具状态彼此独立。
+ * @returns 页面可直接绑定的响应式状态、派生状态和计算器操作函数；双方道具与特性状态彼此独立。
  */
 export function useDamageCalculator() {
   const rulesetId = ref('pokemon-champion');
@@ -29,6 +31,12 @@ export function useDamageCalculator() {
   const defenderItemIdentifier = ref('none');
   const itemOptions = ref<BattleItemOption[]>([]);
   const itemsLoading = ref(false);
+  const attackerAbilityIdentifier = ref('');
+  const defenderAbilityIdentifier = ref('');
+  const attackerAbilityOptions = ref<BattleAbilityOption[]>([]);
+  const defenderAbilityOptions = ref<BattleAbilityOption[]>([]);
+  const attackerAbilitiesLoading = ref(false);
+  const defenderAbilitiesLoading = ref(false);
   const attackerPreset = ref('max_atk_neutral');
   const defenderPreset = ref('max_hp');
   const attackerPresets = ref<StatPreset[]>([]);
@@ -41,13 +49,28 @@ export function useDamageCalculator() {
   const state = computed<CalculatorState>(() => {
     if (loading.value) return 'CALCULATING';
     if (result.value && !staleResult.value) return 'RESULT';
-    if (attacker.value && move.value && defender.value) return 'READY';
+    if (
+      attacker.value &&
+      move.value &&
+      defender.value &&
+      attackerAbilityIdentifier.value &&
+      defenderAbilityIdentifier.value
+    ) {
+      return 'READY';
+    }
     if (attacker.value && move.value) return 'MOVE_SELECTED';
     if (attacker.value) return 'ATTACKER_SELECTED';
     return 'EMPTY';
   });
 
-  const canCalculate = computed(() => Boolean(attacker.value && defender.value && move.value && !loading.value));
+  const canCalculate = computed(() => Boolean(
+    attacker.value &&
+      defender.value &&
+      move.value &&
+      attackerAbilityIdentifier.value &&
+      defenderAbilityIdentifier.value &&
+      !loading.value,
+  ));
 
   /** 初始化配置模板；失败只影响模板按钮，计算前仍会由服务端校验。 */
   async function loadPresets(): Promise<void> {
@@ -87,38 +110,81 @@ export function useDamageCalculator() {
   }
 
   /**
-   * 选择攻击方后读取详情，并清空依赖旧攻击方的招式和伤害结果。
+   * 选择攻击方后并行读取详情和合法特性，并清空依赖旧攻击方的招式与伤害结果。
    *
    * @param item 用户从攻击方选择器选中的 Pokémon 搜索结果。
-   * @returns 攻击方详情加载完成后 resolve 的 Promise。
+   * @returns 攻击方详情与特性列表加载完成后 resolve 的 Promise。
    */
   async function selectAttacker(item: PokemonSearchItem): Promise<void> {
     error.value = null;
-    attacker.value = await getPokemonDetail(item.pokemon_id, rulesetId.value);
-    // 招式列表由 MoveSelector 按新攻击方重新分页读取，旧选择不能继续提交。
     move.value = null;
+    attackerAbilityIdentifier.value = '';
+    attackerAbilityOptions.value = [];
+    attackerAbilitiesLoading.value = true;
     result.value = null;
     staleResult.value = false;
+    try {
+      const [detail, abilities] = await Promise.all([
+        getPokemonDetail(item.pokemon_id, rulesetId.value),
+        listPokemonAbilities(item.pokemon_id, rulesetId.value),
+      ]);
+      attacker.value = detail;
+      attackerAbilityOptions.value = abilities;
+      attackerAbilityIdentifier.value = abilities[0]?.identifier ?? '';
+      if (!attackerAbilityIdentifier.value) {
+        error.value = '攻击方在当前规则集下没有可选择的特性';
+      }
+    } catch (caught) {
+      attacker.value = null;
+      error.value = caught instanceof Error ? caught.message : '无法加载攻击方资料';
+    } finally {
+      attackerAbilitiesLoading.value = false;
+    }
   }
 
   /**
-   * 选择防守方后读取详情，保留双方其他已经完成的输入。
+   * 选择防守方后并行读取详情和合法特性，保留双方其他已经完成的输入。
    *
    * @param item 用户从防守方选择器选中的 Pokémon 搜索结果。
-   * @returns 防守方详情加载完成后 resolve 的 Promise。
+   * @returns 防守方详情与特性列表加载完成后 resolve 的 Promise。
    */
   async function selectDefender(item: PokemonSearchItem): Promise<void> {
     error.value = null;
-    defender.value = await getPokemonDetail(item.pokemon_id, rulesetId.value);
+    defenderAbilityIdentifier.value = '';
+    defenderAbilityOptions.value = [];
+    defenderAbilitiesLoading.value = true;
+    try {
+      const [detail, abilities] = await Promise.all([
+        getPokemonDetail(item.pokemon_id, rulesetId.value),
+        listPokemonAbilities(item.pokemon_id, rulesetId.value),
+      ]);
+      defender.value = detail;
+      defenderAbilityOptions.value = abilities;
+      defenderAbilityIdentifier.value = abilities[0]?.identifier ?? '';
+      if (!defenderAbilityIdentifier.value) {
+        error.value = '防守方在当前规则集下没有可选择的特性';
+      }
+    } catch (caught) {
+      defender.value = null;
+      error.value = caught instanceof Error ? caught.message : '无法加载防守方资料';
+    } finally {
+      defenderAbilitiesLoading.value = false;
+    }
   }
 
   /**
-   * 提交当前双方 Pokémon、配置、持有道具和招式选择，得到真实 domain 伤害结果。
+   * 提交当前双方 Pokémon、配置、持有道具、必选特性和招式，得到真实 domain 伤害结果。
    *
-   * @returns 服务端计算完成后 resolve；输入不完整时直接结束且不发起请求。
+   * @returns 服务端计算完成后 resolve；任一必填输入不完整时直接结束且不发起请求。
    */
   async function submit(): Promise<void> {
-    if (!attacker.value || !defender.value || !move.value) return;
+    if (
+      !attacker.value ||
+      !defender.value ||
+      !move.value ||
+      !attackerAbilityIdentifier.value ||
+      !defenderAbilityIdentifier.value
+    ) return;
     loading.value = true;
     error.value = null;
     try {
@@ -128,12 +194,14 @@ export function useDamageCalculator() {
           pokemon_id: attacker.value.pokemon_id,
           level: level.value,
           stat_preset: attackerPreset.value,
+          ability_identifier: attackerAbilityIdentifier.value,
           item_identifier: attackerItemIdentifier.value === 'none' ? null : attackerItemIdentifier.value,
         },
         defender: {
           pokemon_id: defender.value.pokemon_id,
           level: level.value,
           stat_preset: defenderPreset.value,
+          ability_identifier: defenderAbilityIdentifier.value,
           item_identifier: defenderItemIdentifier.value === 'none' ? null : defenderItemIdentifier.value,
         },
         move_id: move.value.move_id,
@@ -156,6 +224,8 @@ export function useDamageCalculator() {
       defenderPreset,
       attackerItemIdentifier,
       defenderItemIdentifier,
+      attackerAbilityIdentifier,
+      defenderAbilityIdentifier,
     ],
     () => {
       if (result.value) staleResult.value = true;
@@ -172,6 +242,12 @@ export function useDamageCalculator() {
     defenderItemIdentifier,
     itemOptions,
     itemsLoading,
+    attackerAbilityIdentifier,
+    defenderAbilityIdentifier,
+    attackerAbilityOptions,
+    defenderAbilityOptions,
+    attackerAbilitiesLoading,
+    defenderAbilitiesLoading,
     attackerPreset,
     defenderPreset,
     attackerPresets,
