@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import ConfigurationSpeedGoalFeature from './components/ConfigurationSpeedGoalFeature.vue';
+import { provideConfigurationSolver } from './composables/useConfigurationSolver';
 import DamageCalculatorView from './views/DamageCalculatorView.vue';
 import BattleInferenceView from './views/BattleInferenceView.vue';
 import ConfigurationSolverView from './views/ConfigurationSolverView.vue';
@@ -11,6 +13,9 @@ type AppView = 'home' | 'inference-job';
 const activeTab = ref<HomeTab>('calculator');
 const currentView = ref<AppView>(initialView());
 const activeJobId = ref<string | null>(initialJobId());
+
+// 主页面和 Teleport 速度目标组件必须共享同一组目标与结果状态。
+provideConfigurationSolver();
 
 const showJobDetail = computed(
   () => currentView.value === 'inference-job' && activeJobId.value !== null,
@@ -28,19 +33,31 @@ function selectTab(tab: HomeTab): void {
   window.history.pushState({}, '', '/');
 }
 
-/** 返回任务详情入口的初始视图。 */
+/**
+ * 返回任务详情入口的初始视图。
+ *
+ * @returns URL 包含有效任务参数时返回 inference-job，否则返回 home。
+ */
 function initialView(): AppView {
   const params = new URLSearchParams(window.location.search);
   return params.get('view') === 'inference-job' && params.get('job_id') ? 'inference-job' : 'home';
 }
 
-/** 返回 URL 中可恢复的任务 ID。 */
+/**
+ * 返回 URL 中可恢复的任务 ID。
+ *
+ * @returns 当前为任务详情入口时返回 job_id，否则返回 null。
+ */
 function initialJobId(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('view') === 'inference-job' ? params.get('job_id') : null;
 }
 
-/** 打开后台任务详情，并把稳定 job_id 写入 URL。 */
+/**
+ * 打开后台任务详情，并把稳定 job_id 写入 URL。
+ *
+ * @param jobId 后台推演任务的稳定标识。
+ */
 function openInferenceJob(jobId: string): void {
   currentView.value = 'inference-job';
   activeJobId.value = jobId;
@@ -48,7 +65,7 @@ function openInferenceJob(jobId: string): void {
   window.history.pushState({}, '', `/?${params.toString()}`);
 }
 
-/** 从任务详情返回固定配置推演页。 */
+/** 从任务详情返回固定配置推演页，并清理 URL 中的任务参数。 */
 function backToInference(): void {
   currentView.value = 'home';
   activeJobId.value = null;
@@ -99,6 +116,9 @@ function backToInference(): void {
       <BattleInferenceView v-else-if="activeTab === 'inference'" @open-job="openInferenceJob" />
       <ConfigurationSolverView v-else />
     </KeepAlive>
+    <ConfigurationSpeedGoalFeature
+      v-if="!showJobDetail && activeTab === 'solver'"
+    />
   </div>
 </template>
 
