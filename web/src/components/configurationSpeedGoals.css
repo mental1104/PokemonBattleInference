@@ -1,3 +1,7 @@
+body .solver-main .goal-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .speed-goal-column {
   background: #f8faf8;
   border: 1px solid #dfe6dc;
@@ -109,6 +113,12 @@
 
 .speed-goal-column .goal-summary-row__delete {
   align-self: center;
+}
+
+@media (max-width: 1180px) {
+  body .solver-main .goal-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
