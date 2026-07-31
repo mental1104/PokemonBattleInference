@@ -72,7 +72,11 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           :recent-pokemon="attackerRecentPokemon"
           @select="selectAttacker"
         />
-        <PokemonSummaryCard :pokemon="calculator.attacker.value" />
+        <PokemonSummaryCard
+          :pokemon="calculator.attacker.value"
+          :stat-stages="calculator.attackerStatStages.value"
+          @update:stat-stages="calculator.attackerStatStages.value = $event"
+        />
         <ItemSelector
           data-testid="attacker-item"
           title="携带道具"
@@ -109,7 +113,11 @@ async function selectDefender(pokemon: PokemonSearchItem): Promise<void> {
           :recent-pokemon="defenderRecentPokemon"
           @select="selectDefender"
         />
-        <PokemonSummaryCard :pokemon="calculator.defender.value" />
+        <PokemonSummaryCard
+          :pokemon="calculator.defender.value"
+          :stat-stages="calculator.defenderStatStages.value"
+          @update:stat-stages="calculator.defenderStatStages.value = $event"
+        />
         <ItemSelector
           data-testid="defender-item"
           title="携带道具"
