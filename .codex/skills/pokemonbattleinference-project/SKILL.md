@@ -30,6 +30,61 @@ Validate -> Plan -> Implement -> Validate
 
 Repair is an edge decision, not a node. A gap analysis or standards audit stops after `Validate` unless the Human explicitly requests planning or grants a repair scope.
 
+## Graph Architecture Overview
+
+Mermaid diagrams are derived architecture views for Human/AI navigation. Router, Node, Standard and repository implementation definitions remain authoritative if a diagram becomes stale or conflicts with them.
+
+### Graph Topology & Progressive Loading
+
+```mermaid
+flowchart LR
+    Human[Human Request] --> Router[SKILL.md Router]
+    Router --> Validate[Validate Node]
+    Validate -->|mandatory FAIL and planning requested or pre-approved scope| Plan[Plan Node]
+    Validate -->|no mandatory FAIL or validation-only| StopV[Stop]
+    Plan -->|planning-only or awaiting approval| StopP[Stop]
+    Plan -->|approved plan items| Implement[Implement Node]
+    Implement -->|same standards| Validate
+
+    Validate -. loads on entry .-> ValidateFile[nodes/validate.md]
+    Validate -. loads relevant definitions .-> Standards[standards/local-first-testability.md]
+    Plan -. consumes .-> ValidateResult[ValidateResult]
+    Plan -. loads on entry .-> PlanFile[nodes/plan.md]
+    Implement -. consumes approved .-> ImplementationPlan[ImplementationPlan]
+    Implement -. loads on entry .-> ImplementFile[nodes/implement.md]
+
+    Standards -. defines correctness, not a graph node .-> Validate
+```
+
+### Local-first Testability Runtime Architecture
+
+```mermaid
+flowchart TD
+    Entry[make test / pytest] --> Portable[portable core tests]
+    Entry --> Integration[PostgreSQL integration tests]
+
+    Portable --> Domain[pokeop/domain]
+    Portable --> Application[pokeop/application]
+    Portable -. no Docker or PostgreSQL required .-> LocalResult[local unit validation]
+
+    Integration --> Contract{POKEOP_TEST_POSTGRES_URL exists?}
+    Contract -->|yes| External[external PostgreSQL environment]
+    Contract -->|no on macOS| MacSkip[pytest SKIP]
+    Contract -->|no on Linux| DockerProvider[Docker PostgreSQL provider]
+
+    DockerProvider --> Detect[docker capability check]
+    Detect --> Provision[provision minimal PostgreSQL]
+    Provision --> Ready[wait for SQL connection readiness]
+    External --> ReadyEnvironment[ready PostgreSQL environment]
+    Ready --> ReadyEnvironment
+
+    ReadyEnvironment --> CommonTests[common repository integration tests]
+    CommonTests --> SchemaLifecycle[schema and test-data lifecycle]
+    SchemaLifecycle --> Owned{environment owned by pytest?}
+    Owned -->|yes| Cleanup[cleanup provisioned environment]
+    Owned -->|no| KeepExternal[keep external environment]
+```
+
 ## Progressive Loading
 
 - Initial load: read only this `SKILL.md`.
