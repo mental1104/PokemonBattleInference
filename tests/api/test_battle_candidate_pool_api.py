@@ -10,12 +10,13 @@ from pokeop.api.schemas.battle_candidate_pool import battle_candidate_pool_respo
 
 def test_candidate_pool_route_is_registered_under_configuration_router() -> None:
     """候选池入口必须与任务接口共享 `/v1/inference` router。"""
-    route_paths = {
-        child.path
-        for route in router.routes
-        for child in getattr(getattr(route, "original_router", route), "routes", ())
-        if hasattr(child, "path")
-    }
+    route_paths: set[str] = set()
+    for route in router.routes:
+        nested_router = getattr(route, "original_router", None)
+        candidates = getattr(nested_router, "routes", None) or (route,)
+        for candidate in candidates:
+            route_paths.add(getattr(candidate, "path", ""))
+
     assert "/candidate-pools/{pokemon_id}" in route_paths
 
 

@@ -72,7 +72,7 @@ test:
 	pytest
 
 coverage:
-	pytest --cov=pokemon_battle_inference --cov-report=term-missing
+	pytest --cov=pokeop/domain --cov=pokeop/application --cov-report=term-missing
 
 setup:
 	# 1) 创建虚拟环境

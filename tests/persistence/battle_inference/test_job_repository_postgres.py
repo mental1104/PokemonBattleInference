@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -32,13 +31,6 @@ from pokeop.persistence.battle_inference.job_repository import (
     TransactionFactory,
 )
 from pokeop.persistence.runtime_schema import create_runtime_tables
-
-
-_POSTGRES_URL = os.environ.get("POKEOP_TEST_POSTGRES_URL")
-pytestmark = pytest.mark.skipif(
-    not _POSTGRES_URL,
-    reason="set POKEOP_TEST_POSTGRES_URL to run PostgreSQL integration tests",
-)
 
 
 def _case(index: int) -> BattleInferenceCaseDefinition:
@@ -78,15 +70,17 @@ def _command(job_id: str, case_count: int) -> CreateBattleInferenceJob:
     )
 
 
-@pytest.fixture(scope="module")
-def postgres_engine() -> Iterator[Engine]:
-    """创建隔离的 poke_runtime schema，并在模块结束后清理。
+@pytest.fixture
+def postgres_engine(postgres_test_environment) -> Iterator[Engine]:
+    """为单个测试创建隔离的 poke_runtime schema，并在测试结束后清理。
+
+    Args:
+        postgres_test_environment: 已经 resolve/provision 并完成 ready 检查的 PostgreSQL 环境。
 
     Yields:
-        可被多个并发 Session 共享的 SQLAlchemy PostgreSQL engine。
+        可被当前测试内多个并发 Session 共享的 SQLAlchemy PostgreSQL engine。
     """
-    assert _POSTGRES_URL is not None
-    engine = create_engine(_POSTGRES_URL, pool_pre_ping=True)
+    engine = create_engine(postgres_test_environment.url, pool_pre_ping=True)
     with engine.begin() as connection:
         connection.execute(text("DROP SCHEMA IF EXISTS poke_runtime CASCADE"))
     create_runtime_tables(engine)
