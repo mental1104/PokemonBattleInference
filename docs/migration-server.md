@@ -48,6 +48,8 @@
 
 独立复现入口为 `bash tools/migration/validate-go-knowledge.sh`，不依赖 C++ 编译。`validate-go-server.sh` 也已改为调用真实 Go 初始化器，后续全链回归不再使用 Python 初始化夹具。早期解析拒绝、字段语义不一致及原生并行编辑期间的混合构建失败记录均保留在上述证据根，未覆盖为成功日志。
 
+`catalog.Store.Inference` 已补齐任务创建所需的完整只读资料端口：精确 ruleset/version group、全部合法招式（含变化/变化威力/未支持项）、历史特性去重、受控道具、原形态/进化和属性矩阵，在同一 repeatable-read 事务中冻结。`inference-knowledge-first/` 保存七只 Pokémon 的完整 **416,820 bytes** 产物；与原 Python owning repository 同一独占 PG 的全部字段/原 capability status/reason 严格差分 **1/1 PASS**，Go 知识/读取 **7/7 race PASS、零 SKIP** 与 vet 通过。查询还实测拒绝错误版本轴、缺失对象及 ctx 取消。端口不预先删除 unsupported 合法候选，不做 effect factory 对账、严格准入、组合或权重求解；原任务创建仍须后续正式 Core 合同接入。
+
 ## 剩余范围
 
 1. 原任务创建/配置结果 HTTP API：补齐严格 admission、version-aware 候选快照与配置 Core ABI 组装，再交给已验证的 PG coordinator/真实子进程 daemon。持久任务入口必须拒绝旧规则声明为 partial 的机制；旧同步推演的允许 partial 并返回 coverage 策略不能混用。
