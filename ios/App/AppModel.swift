@@ -6,6 +6,19 @@ import PokemonCore
 /// 四个已实现的主入口；没有连接实际能力的任务入口不显示为假按钮。
 enum AppTab: Hashable { case catalog, calculator, configurations, settings }
 
+/// 成功计算的实际执行来源；只在请求完成后记录，失败的在线请求不会标成离线成功。
+enum CalculationSource: Sendable {
+    case offline
+    case server(URL)
+    /// 返回可读来源；服务器只显示主机和端口，不输出地址中的其他内容。
+    var displayName: String {
+        switch self {
+        case .offline: "本机离线"
+        case .server(let url): "服务器 \(url.host ?? "")\(url.port.map { ":\($0)" } ?? "")"
+        }
+    }
+}
+
 /// 应用 actor 的完整集合，可从后台初始化安全交给 MainActor 持有。
 private struct AppServices: Sendable {
     let knowledge: KnowledgeStore
@@ -22,6 +35,8 @@ private struct AppServices: Sendable {
     @Published private(set) var natures: [NatureDetails] = []
     @Published private(set) var saved: [StoredConfiguration] = []
     @Published private(set) var result: CalculationResult?
+    @Published private(set) var calculationSource: CalculationSource?
+    @Published private(set) var calculationMessage = ""
     @Published private(set) var dataVersion = ""
     @Published private(set) var busy = false
     @Published private(set) var ready = false
@@ -79,7 +94,7 @@ private struct AppServices: Sendable {
     func calculate(online: Bool) {
         guard !busy, !knowledgeUpdateBusy, let calculator, let configurations else { return }
         let input = configuration
-        busy = true; result = nil; savedMessage = ""
+        busy = true; result = nil; calculationSource = nil; calculationMessage = ""; savedMessage = ""
         calculationTask = Task {
             defer { busy = false; calculationTask = nil }
             do {
@@ -89,17 +104,23 @@ private struct AppServices: Sendable {
                 try Task.checkCancellation()
                 try await configurations.saveCalculation(configurationId: input.id, request: value.request, response: value.response,
                     engineVersion: value.engineVersion, rulesVersion: value.rulesVersion, knowledgeVersion: value.knowledgeVersion)
+                calculationSource = server.map(CalculationSource.server) ?? .offline
                 result = value
-            } catch is CancellationError { }
-            catch { present(error) }
+            } catch {
+                if Task.isCancelled || error is CancellationError { calculationMessage = "计算已取消。" }
+                else { present(error) }
+            }
         }
     }
 
     /// 将取消传给原生令牌或 URLSession，等待实际任务结束后由 defer 恢复界面。
     func cancelCalculation() { calculationTask?.cancel() }
 
+    /// 返回SQLite中已保存的服务地址供真实在线任务使用；未保存的编辑文字不会改变任务目标。
+    func savedServerURL() async throws -> URL? { try await configurations?.serverURL() }
+
     /// 输入编辑后移除旧快照结果，避免把旧输入的数值显示成新配置的结果。
-    func invalidateResult() { result = nil; savedMessage = "" }
+    func invalidateResult() { result = nil; calculationSource = nil; calculationMessage = ""; savedMessage = "" }
 
     /// 保存当前完整配置及版本；另存为才创建新稳定 ID。
     func saveConfiguration(asNew: Bool = false) async {
@@ -115,7 +136,7 @@ private struct AppServices: Sendable {
     }
 
     /// 选择已有记录继续编辑，保持同一 ID，不复制或重新计算原始参数。
-    func open(_ value: StoredConfiguration) { configuration = value.configuration; result = nil; savedMessage = ""; tab = .calculator }
+    func open(_ value: StoredConfiguration) { configuration = value.configuration; invalidateResult(); tab = .calculator }
 
     /// 删除记录保留 tombstone/变更队列，界面刷新实际 SQLite 查询结果。
     func delete(_ value: StoredConfiguration) async {
@@ -223,6 +244,7 @@ private struct AppServices: Sendable {
     /// 将稳定错误类别转换为用户可处理的信息，不把 SQL/C ABI 实现细节放进交互流程。
     func present(_ error: Error) {
         switch error {
+        case is URLError: errorMessage = "无法连接服务器或网络连接已中断。请检查服务器地址和网络后重试；本地配置仍已保留。"
         case KnowledgeUpdateFailure.invalidEndpoint: errorMessage = "请输入完整的 http 或 https 清单文件地址，不能包含用户名、密码、查询参数或片段。"
         case KnowledgeUpdateFailure.httpStatus(let status): errorMessage = "知识下载失败（HTTP \(status)），请检查清单地址后重试。"
         case KnowledgeUpdateFailure.responseTooLarge: errorMessage = "知识文件超过允许大小，已停止下载。原有版本仍可使用。"

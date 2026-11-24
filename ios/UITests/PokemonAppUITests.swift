@@ -99,7 +99,7 @@ final class PokemonAppUITests: XCTestCase {
         reveal(app.buttons["save-configuration"]); app.buttons["save-configuration"].tap()
         reveal(app.staticTexts["configuration-save-status"])
         XCTAssertTrue(app.staticTexts["configuration-save-status"].waitForExistence(timeout: 10))
-        selectTab("配置"); metric("open-synchronization").tap()
+        configurationsRoot(); metric("open-synchronization").tap()
         XCTAssertEqual(metric("sync-pending-count").value as? String, "1")
         app.buttons["synchronize-now"].tap()
         XCTAssertTrue(app.alerts.staticTexts["请先在设置中保存服务器地址和同步账户。"].waitForExistence(timeout: 10))
@@ -139,6 +139,121 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertEqual(app.textFields["knowledge-manifest-url"].value as? String, "http://127.0.0.1:41107/packs/manifest.json")
         capture("knowledge-update-source-after-restart")
     }
+    /// 实际App保存动态Go地址并调用正式Core子进程；来源/精确结果/三个版本均来自真实完成响应。
+    @MainActor func testLiveGoOnlineCalculationMatchesOffline() throws {
+        let services = try liveServices()
+        launchCleanApp(); configureLiveConnection(services)
+        selectTab("计算")
+        reveal(app.buttons["calculate-offline"]); app.buttons["calculate-offline"].tap()
+        reveal(metric("calculation-source")); waitForValue(metric("calculation-source"), value: "本机离线")
+        XCTAssertEqual(metric("damage-range").value as? String, "99–117")
+        XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
+        reveal(app.buttons["calculate-online"], upward: false); app.buttons["calculate-online"].tap()
+        reveal(metric("calculation-source"))
+        let origin = "服务器 \(services.serverURL.host ?? "")\(services.serverURL.port.map { ":\($0)" } ?? "")"
+        waitForValue(metric("calculation-source"), value: origin)
+        XCTAssertEqual(metric("damage-range").value as? String, "99–117")
+        XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
+        reveal(metric("calculation-engine-version")); XCTAssertEqual(metric("calculation-engine-version").value as? String, services.engineVersion)
+        reveal(metric("calculation-rules-version")); XCTAssertEqual(metric("calculation-rules-version").value as? String, services.rulesVersion)
+        reveal(metric("calculation-knowledge-version")); XCTAssertEqual(metric("calculation-knowledge-version").value as? String, services.knowledgeVersion)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("live-go-online-calculation")
+    }
+
+    /// 真实App→Go→独立PG；iPad先拉取iPhone已提交配置，再各自保存/同步/重启恢复，不能用内存队列替代。
+    @MainActor func testLiveGoSyncBetweenPhoneAndPadAndRestart() throws {
+        let services = try liveServices()
+        launchCleanApp(); configureLiveConnection(services)
+        selectTab("配置"); metric("open-synchronization").tap()
+        app.buttons["synchronize-now"].tap()
+        reveal(app.staticTexts["synchronization-status"])
+        XCTAssertTrue(app.staticTexts["synchronization-status"].waitForExistence(timeout: 20))
+        waitForValue(metric("sync-pending-count"), value: "0")
+        configurationsRoot()
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            let pulled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "saved-configuration-")).firstMatch
+            XCTAssertTrue(pulled.waitForExistence(timeout: 15), "iPad must pull the configuration previously uploaded by the real iPhone App")
+            capture("ipad-pulled-iphone-configuration")
+        }
+        selectTab("计算"); reveal(app.buttons["save-configuration"]); app.buttons["save-configuration"].tap()
+        reveal(app.staticTexts["configuration-save-status"])
+        XCTAssertTrue(app.staticTexts["configuration-save-status"].waitForExistence(timeout: 10))
+        configurationsRoot(); metric("open-synchronization").tap()
+        waitForValue(metric("sync-pending-count"), value: "1")
+        app.buttons["synchronize-now"].tap(); waitForValue(metric("sync-pending-count"), value: "0")
+        XCTAssertTrue(app.staticTexts["synchronization-status"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("live-go-sync-uploaded")
+        app.terminate(); app.launchArguments = ["--ui-testing"]; app.launch()
+        configurationsRoot(); metric("open-synchronization").tap()
+        waitForValue(metric("sync-pending-count"), value: "0")
+        app.buttons["synchronize-now"].tap()
+        XCTAssertTrue(app.staticTexts["synchronization-status"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("live-go-sync-after-restart")
+    }
+
+    /// 实际App通过原POST合同提交默认单配置对，观察正式daemon终态和完整精确结果，不提交CoreJSON演示。
+    @MainActor func testLiveGoTaskSubmissionAndExactResult() throws {
+        let services = try liveServices()
+        launchCleanApp(); configureLiveConnection(services)
+        configurationsRoot(); metric("open-configuration-jobs").tap()
+        reveal(app.buttons["submit-configuration-job"]); app.buttons["submit-configuration-job"].tap()
+        reveal(metric("configuration-job-id"), upward: false)
+        XCTAssertTrue(metric("configuration-job-id").waitForExistence(timeout: 20), "Original job API must return a real job ID")
+        XCTAssertFalse(metric("configuration-job-id").label.isEmpty)
+        reveal(metric("configuration-job-phase")); waitForValue(metric("configuration-job-phase"), value: "已完成", timeout: 60)
+        capture("live-go-task-completed")
+        let result = metric("configuration-job-case-0")
+        reveal(result); XCTAssertTrue(result.waitForExistence(timeout: 10)); result.tap()
+        waitForValue(metric("job-result-attacker-win"), value: "0")
+        XCTAssertEqual(metric("job-result-defender-win").value as? String, "1")
+        XCTAssertEqual(metric("job-result-draw").value as? String, "0")
+        XCTAssertEqual(metric("job-result-expected-turns").value as? String, "5/1")
+        reveal(metric("job-result-engine")); XCTAssertEqual(metric("job-result-engine").value as? String, services.engineVersion)
+        reveal(metric("job-result-rules")); XCTAssertEqual(metric("job-result-rules").value as? String, services.rulesVersion)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("live-go-task-exact-result")
+    }
+
+    /// 使用正式Go已验证的75case候选池留出真实取消窗口；只在UI填入合法命令，不注入延迟或演示结果。
+    @MainActor func testLiveGoTaskCancellation() throws {
+        let services = try liveServices()
+        launchCleanApp(); configureLiveConnection(services)
+        configurationsRoot(); metric("open-configuration-jobs").tap()
+        let moves = app.textFields["job-attacker-moves"]
+        reveal(moves); moves.tap(); moves.typeText(",17,806,814,851\n")
+        XCTAssertEqual(moves.value as? String, "404,17,806,814,851")
+        let defender = app.textFields["job-defender-moves"]
+        reveal(defender); defender.tap(); defender.typeText(",17,21,56,401,406\n")
+        XCTAssertEqual(defender.value as? String, "337,17,21,56,401,406")
+        reveal(app.buttons["submit-configuration-job"]); app.buttons["submit-configuration-job"].tap()
+        let cancel = app.buttons["cancel-configuration-job"]
+        reveal(cancel, upward: false)
+        XCTAssertTrue(cancel.waitForExistence(timeout: 20), "A real submitted task must expose server cancellation")
+        cancel.tap()
+        reveal(metric("configuration-job-phase"), upward: false)
+        waitForValue(metric("configuration-job-phase"), value: "已取消", timeout: 60)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("live-go-task-cancelled")
+    }
+
+    /// 测试资源由验收脚本通过真实回环Go/PG环境生成；缺失即失败，不能把实际网络验收静默跳过。
+    @MainActor private func liveServices() throws -> LiveServices {
+        let url = try XCTUnwrap(Bundle(for: PokemonAppUITests.self).url(forResource: "online-services", withExtension: "json"), "Run validate-apple-app.sh to supply real Go and PostgreSQL services")
+        return try JSONDecoder().decode(LiveServices.self, from: Data(contentsOf: url))
+    }
+    /// services包含本轮自有服务和同步账户；通过实际设置控件写入SQLite，不注入App内部网络状态。
+    @MainActor private func configureLiveConnection(_ services: LiveServices) {
+        selectTab("设置")
+        let address = app.textFields["server-address"], identity = app.textFields["sync-user"]
+        address.tap(); address.typeText(services.serverURL.absoluteString)
+        identity.tap(); identity.typeText(services.syncUser + "\n")
+        reveal(app.buttons["save-server"]); app.buttons["save-server"].tap()
+        reveal(app.staticTexts["settings-save-status"])
+        XCTAssertTrue(app.staticTexts["settings-save-status"].waitForExistence(timeout: 10))
+    }
     /// name 为四个公开入口的中文名称；iPhone 底部TabBar和iPad顶部浮动按钮都保留相同可见标签。
     @MainActor private func tab(_ name: String) -> XCUIElement { app.buttons.matching(NSPredicate(format: "label == %@", name)).firstMatch }
     /// name 为实际入口名称；点击真实可见按钮，不通过 launch 参数或内部状态跳过业务导航。
@@ -147,10 +262,20 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertTrue(button.waitForExistence(timeout: 30), "Application navigation entry must exist")
         button.tap()
     }
-    /// element 为真实开关或结果行，value 为严格预期值；等待异步更新但不接受其他值。
-    @MainActor private func waitForValue(_ element: XCUIElement, value: String) {
+    /// Tab切换保留NavigationStack；实际点返回按钮回配置列表，不能假设重选tab会自动回根页面。
+    @MainActor private func configurationsRoot() {
+        selectTab("配置")
+        if !metric("open-synchronization").waitForExistence(timeout: 2) {
+            let back = app.navigationBars.buttons.firstMatch
+            XCTAssertTrue(back.exists && back.isHittable, "Configuration detail must provide a real back button")
+            back.tap()
+        }
+        XCTAssertTrue(metric("open-synchronization").waitForExistence(timeout: 10), "Configuration root must appear")
+    }
+    /// element 为真实开关或结果行，value 为严格预期值；timeout为异步操作的等待秒数，不接受其他值。
+    @MainActor private func waitForValue(_ element: XCUIElement, value: String, timeout: TimeInterval = 15) {
         let expected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
-        let status = XCTWaiter.wait(for: [expected], timeout: 15)
+        let status = XCTWaiter.wait(for: [expected], timeout: timeout)
         if status != .completed { capture("unexpected-control-value") }
         XCTAssertEqual(status, .completed, "Actual accessibility value must match the expected value")
         XCTAssertEqual(element.value as? String, value)
@@ -174,4 +299,13 @@ final class PokemonAppUITests: XCTestCase {
         let hierarchy = XCTAttachment(string: app.debugDescription); hierarchy.name = "\(name)-hierarchy"; hierarchy.lifetime = .keepAlways
         add(hierarchy)
     }
+}
+
+/// 仅测试bundle持有的本轮动态回环环境与实际Core探测版本，不进入App产品或生产配置。
+private struct LiveServices: Decodable {
+    let serverURL: URL
+    let syncUser: String
+    let engineVersion: String
+    let rulesVersion: String
+    let knowledgeVersion: String
 }

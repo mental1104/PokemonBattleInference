@@ -40,6 +40,10 @@ jobs:
         shell: bash
         run: |
           brew install boost googletest nlohmann-json cmake xcodegen jq
+          # 复用runner已有完整PG工具；仅libpq客户端不足以提供真实独立UI验收数据库。
+          p4_pg_bin=""
+          if command -v pg_config >/dev/null; then p4_pg_bin="$(pg_config --bindir)"; fi
+          if [[ -z "$p4_pg_bin" || ! -x "$p4_pg_bin/initdb" || ! -x "$p4_pg_bin/pg_ctl" ]]; then brew install postgresql@16; fi
           python -m pip install -r requirements.txt
       - name: Record actual toolchains
         shell: bash

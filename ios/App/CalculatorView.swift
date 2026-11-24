@@ -44,8 +44,9 @@ import PokemonAppSupport
                         ProgressView("计算中")
                         Button("取消计算", role: .cancel) { model.cancelCalculation() }
                     }
+                    if !model.calculationMessage.isEmpty { Text(model.calculationMessage).accessibilityIdentifier("calculation-status") }
                 }
-                if let result = model.result { CalculationResultView(result: result) }
+                if let result = model.result { CalculationResultView(result: result, source: model.calculationSource) }
                 Section("保存") {
                     Button("保存配置") { Task { await model.saveConfiguration() } }.accessibilityIdentifier("save-configuration").disabled(model.busy)
                     Button("另存为新配置") { Task { await model.saveConfiguration(asNew: true) } }.disabled(model.busy)
@@ -112,9 +113,11 @@ import PokemonAppSupport
 /// 原样呈现 Core 精确分数与离散伤害；min/max 仅归纳返回的伤害数组用于显示。
 @MainActor private struct CalculationResultView: View {
     let result: CalculationResult
+    let source: CalculationSource?
     /// result 是一次完整实际调用的不可变结果，展开内容包含能力和计算版本。
     var body: some View {
         Section("计算结果") {
+            if let source { metric("计算来源", value: source.displayName, identifier: "calculation-source") }
             metric("伤害", value: "\(result.damage.rolls.min() ?? 0)–\(result.damage.rolls.max() ?? 0)", identifier: "damage-range")
             metric("一击 KO", value: result.damage.ohko.text, identifier: "ohko-probability")
             metric("两击 KO", value: result.damage.twoHit.text, identifier: "two-hit-probability")
@@ -123,7 +126,9 @@ import PokemonAppSupport
             DisclosureGroup("全部伤害分布") { Text(result.damage.rolls.map(String.init).joined(separator: ", ")).font(.caption).textSelection(.enabled) }
             DisclosureGroup("攻击方能力") { StatSummary(values: result.attackerStats) }
             DisclosureGroup("防御方能力") { StatSummary(values: result.defenderStats) }
-            Text("引擎 \(result.engineVersion) · 规则 \(result.rulesVersion)").font(.caption).foregroundStyle(.secondary)
+            metric("引擎版本", value: result.engineVersion, identifier: "calculation-engine-version")
+            metric("规则版本", value: result.rulesVersion, identifier: "calculation-rules-version")
+            metric("知识版本", value: result.knowledgeVersion, identifier: "calculation-knowledge-version")
         }
     }
     /// title 为指标名称，value 为 Core 结果的精确展示，identifier 是稳定控件标识。

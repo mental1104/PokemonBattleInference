@@ -36,6 +36,7 @@ import PokemonCore
         NavigationStack {
             List {
                 Section {
+                    NavigationLink("在线推演任务") { ConfigurationJobsView(model: model) }.accessibilityIdentifier("open-configuration-jobs")
                     NavigationLink { SynchronizationView(model: model) } label: {
                         Label("同步配置（待提交 \(model.pendingSyncCount) 项）", systemImage: "arrow.triangle.2.circlepath")
                     }.accessibilityIdentifier("open-synchronization")
