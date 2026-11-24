@@ -118,3 +118,22 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 - `sanitizer.log`：独立新模块 ASan/UBSan/leak **5/5 GoogleTest PASS**（3 毫秒），没有借用前面候选或 job 批次的 sanitizer 结果。
 
 本切片五个新文件仍未登记 CMake、版本或 ABI，按主 agent 指示独立冻结；尚未纳入正式在线/离线链路。冻结校验清单为同证据根 `frozen-sources.sha256`。
+
+## 完整模板目标求解与实际 WithSpeed 入口（2026-11-24，待主 agent .8 公共注册）
+
+`configuration_goals.hpp/.cpp` 迁移原完整模板搜索，并作为后续 EV 搜索的同一目标求值基础。它复用既有基础能力/伤害公式，按原默认十模板顺序或显式用户顺序去重逐项计算；同一候选必须满足全部目标。达到原 max_candidates 后立即停止，不先算完整空间再截列表。无解返回第一失败模板的完整目标证据；攻击要求总伤害 `>= HP`，防守要求 `< HP`，失败防守的剩余 HP 可以为负。没有新增原需求外的求值次数预算或统计 API，求值器使用只读 const 接口和共享取消。
+
+读取实际 `configuration_solver.py` 后确认 `/solve` 和 `/search-spreads` 均已使用 WithSpeed 派生用例。因此本切片同时覆盖 damage-only、speed-only 与混合目标：比较候选实际 Speed 严格大于目标实际 Speed，同速失败；不加入原未纳入的状态、道具、天气或能力速度修正。两类目标共享唯一 ID 空间，无解保留首个失败模板的伤害与速度证据，不被后面的模板覆盖。仅有速度目标时也能真实求解，不伪造一个伤害目标。
+
+原目标使用无实时 HP 的静态 DamageContext。Multiscale 只实现动态 `modify_battle_damage`、InnerFocus 只处理畏缩，在原静态上下文不修改伤害；本切片在 Core 内显式保持此语义，不改变既有 `damage` 默认拒绝合同或真实 fixed_battle 回合的动态行为。模板或不可变 snapshot 的完整 EV/IV/五轴性格在输入组装阶段提供，实际能力、选档、阈值、速度比较与候选选择全部由 Core 完成。
+
+专属正式 codec `configuration_goals_contract.hpp/.cpp` 提供 `ConfigurationTemplatesRequest`、`ReadConfigurationTemplatesRequest` 与 `EvaluateConfigurationTemplates`，操作名 `configuration_templates`；差分 runner 的模板路径直接调用该 codec，不另写第二套演示计算协议。输入保留 subject_base、原模板快照、原 allowed 顺序、已准备伤害/速度参照、规则策略与完整所需相克知识；输出包含 kind、可达性、候选实际能力、全部目标/完整伤害证据和双类拒绝证据。独立三项正式 golden 在 `tests/vectors/configuration-templates.v1.json`，不修改 .7 已冻结的十九项公共数学向量。
+
+证据根 `configuration-goals-20261124/`：
+
+- `registered-native.log/xml`：新六项目标测试与全部既有 Core/ABI/C 头 **83/83 CTest PASS**（1.89 秒）。
+- `registered-differential.log/xml`：正式 codec 路径 **3/3 pytest PASS**（0.62 秒），含 **65** 个原基础公开 Solve（64 随机 + 自定义 snapshot）、**32** 个真实原 prepared 静态能力目标、**64** 个实际 `SolvePokemonConfigurationWithSpeedUseCase.execute`（纯伤害/纯速度/混合、同速、模板顺序/上限与双类首失败）。逐项目标比较全部数值、方向、原角色和完整伤害 roll/trace/KO，不用 C++ 结果推导预期。
+- `registered-sanitizer.log/xml`：注册新纯源后的全部 **64/64** 纯 Core ASan/UBSan/leak CTest PASS（3.13 秒）。
+- 三个正式 golden 各自在写入前再次通过原公开 WithSpeed 用例和完整伤害 oracle：damage-only、严格同速不可达、混合自定义速度 snapshot；不是从未经对照的 C++ 输出直接冻结。
+
+纯源、专属 codec、runner 与原生测试已登记 CMake；公共 `abi.cpp` Operation/dispatch、.8 engine/rules 和 Go/Swift 由主 agent 统一接入，未冒称 .7 已可调用该新操作。完整 EV/IV/性格反推与事件分析继续迁移，不能以本模板搜索替代真正 EV 搜索。冻结源文件清单见本证据根 `frozen-sources.sha256`。
