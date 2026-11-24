@@ -99,7 +99,7 @@ func (spec ExecutionSpec) Validate() error {
 }
 
 // CaseDefinition 保存原稳定配置身份和招式列表，不依赖当前运行中的内存注册表。
-// CoreRequest 为空仅允许使用 Definition 的共享 CoreTemplate，避免每 case 重复属性矩阵。
+// CoreRequest 为空仅允许共享 CoreTemplate 或明确 PreparationFailure，避免复制属性矩阵或伪造失败配置。
 type CaseDefinition struct {
 	PairID        string          `json:"configuration_pair_id"`
 	AttackerID    string          `json:"attacker_configuration_id"`
@@ -110,16 +110,17 @@ type CaseDefinition struct {
 }
 
 // Definition 是已由应用层完成知识与机制准入的完整任务，不直接暴露为 HTTP 输入。
-// CoreTemplate/Admission 是可选拥有值；省略时保持旧定义 JSON 与幂等哈希兼容。
+// CoreTemplate/Admission/PreparationFailure 是可选拥有值；省略时保持旧定义 JSON 与幂等哈希兼容。
 type Definition struct {
-	ID             string               `json:"job_id"`
-	RulesetID      string               `json:"ruleset_id"`
-	VersionGroupID int                  `json:"version_group_id"`
-	Revision       string               `json:"calculation_revision"`
-	Spec           ExecutionSpec        `json:"execution"`
-	Cases          []CaseDefinition     `json:"cases"`
-	CoreTemplate   *FixedBattleTemplate `json:"core_request_template,omitempty"`
-	Admission      json.RawMessage      `json:"admission,omitempty"`
+	ID                 string               `json:"job_id"`
+	RulesetID          string               `json:"ruleset_id"`
+	VersionGroupID     int                  `json:"version_group_id"`
+	Revision           string               `json:"calculation_revision"`
+	Spec               ExecutionSpec        `json:"execution"`
+	Cases              []CaseDefinition     `json:"cases"`
+	CoreTemplate       *FixedBattleTemplate `json:"core_request_template,omitempty"`
+	Admission          json.RawMessage      `json:"admission,omitempty"`
+	PreparationFailure *PreparationFailure  `json:"preparation_failure,omitempty"`
 }
 
 // Validate 检查任务身份、预算和有序用例唯一性；不执行战斗合法性推断。
@@ -130,6 +131,15 @@ func (definition Definition) Validate() error {
 	if err := definition.Spec.Validate(); err != nil {
 		return err
 	}
+	// 准备失败与两种可执行请求严格互斥；旧定义省略此字段时 JSON/幂等哈希完全不变。
+	if definition.PreparationFailure != nil {
+		if definition.CoreTemplate != nil {
+			return errors.New("preparation failure and Core template cannot be mixed")
+		}
+		if err := definition.PreparationFailure.Validate(); err != nil {
+			return err
+		}
+	}
 	if len(definition.Admission) > 0 && (len(definition.Admission) > 8<<20 || !json.Valid(definition.Admission)) {
 		return errors.New("bounded complete admission JSON is required")
 	}
@@ -138,7 +148,11 @@ func (definition Definition) Validate() error {
 		if strings.TrimSpace(item.PairID) == "" || strings.TrimSpace(item.AttackerID) == "" || strings.TrimSpace(item.DefenderID) == "" || seen[item.PairID] {
 			return errors.New("case identities must be nonempty and unique")
 		}
-		if definition.CoreTemplate == nil {
+		if definition.PreparationFailure != nil {
+			if len(item.CoreRequest) != 0 {
+				return errors.New("preparation failure and Core requests cannot be mixed")
+			}
+		} else if definition.CoreTemplate == nil {
 			if len(item.CoreRequest) > 8<<20 || !json.Valid(item.CoreRequest) {
 				return errors.New("bounded immutable Core request is required")
 			}

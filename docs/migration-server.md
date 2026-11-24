@@ -73,6 +73,12 @@ PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,41
 
 原 Python 同 PG 差分已验证完整202与同 key 重提、null/明确none、含HTML标点的合法key，以及原 partial/未知选择/跨四招块失败的完整422详情；全部 **44,100** 个实际持久化 case 与原公开 iterator + case_definition 逐字段相同，包含 canonical pair、双方 SHA、具体招式顺序，bulk job ID 也与原应用 SHA 相同。实际 source/ABI 为已验证的 `root-job-none7`；没有编译正在开发的后续 ABI 来混淆证据。最初 daemon 配置不相容导致未消费、测试客户端不接受非ASCII header 的失败均保留原日志，未记成服务通过。
 
-扩大的负向场景还暴露三项明确兼容差异：原缺 Pokémon/错误版本因未捕获 `BattleCandidatePoolNotFound` 返回500，新入口在写入前返回422；原未知 stat_profile_id 会返回202、留到旧 worker 准备时报错，新入口在冻结完整能力模板时返回422。测试单独断言并保存两端原始响应，不把这些差异算成等价通过。未知 ruleset 则已恢复原工厂轴不匹配的完整422文案。若需要复现未知模板的旧202→异步失败时机，应增加明确的冻结准备失败合同，不能伪造能力或交付占位战斗结果。
+扩大的负向场景保留两项原缺陷修复差异：原缺 Pokémon/错误版本因未捕获 `BattleCandidatePoolNotFound` 返回500，新入口在写入前返回422；测试单独断言并保存两端原始响应，不把差异算成逐字等价。未知 ruleset 已恢复原工厂轴不匹配的完整422文案。早期未知 stat_profile_id 被提前422拒绝的证据仍留存，后续已按下段修复原异步合同。
+
+`PreparationFailure` 与共享 template/逐case完整请求三种模式互斥；该可选字段省略时不改变旧 JSON/哈希。原 inference 只接受七项 PRESETS 加合法 snapshot，静态 calculator 的 `no_investment`/`max_spatk_*` 不能借用到任务准备。未知模板仍通过原严格机制准入并返回202，冻结精确准备失败事实；真实 Worker 领取后逐case写 `failed/invalid_configuration`、零节点/边/预算，概率/期望/说明为空，不构造假能力或启动原生计算。最后任务为 `completed_with_failures`（原公开状态partial），header last_failure 两字段仍null，而不是协调器级failed。
+
+`submission-preparation/` 中真实 Go daemon 与原公开 `RunBattleInferenceWorkerUseCase` + repository-backed preparer 对照 **5/5 PASS、零 SKIP（2.61秒）**：unknown-profile、no_investment、max_spatk_plus、max_spatk_neutral、损坏snapshot，每个五case。两端完整状态除任务ID/时刻外相同，全部结果逐字段相同，包含原 `ConfigurationSpaceError` 精确诊断；参考库克隆同一固定知识，运行时单独隔离，避免两个真实coordinator互相抢任务。模型层另有真实 PG **7/7 jobs race/vet PASS**，验证往返、幂等、改变失败事实冲突与模式混用拒绝。P4改用原七模板后又独立 **25/25、零SKIP** 通过真实计算/同步/任务，证明原样本841节点/16095边/期望5回合，旧 no_investment 新成功日志保留但不计原兼容证据。
+
+最终复现 `preparation-final/` 又从空 PG 完整导入后运行全部链路：有效原模板 `max_atk_neutral` 的实际44,100提交 **202/8.536307秒**，共享定义 **25,824,669 bytes**；新增未知性格snapshot一例，全部原HTTP/原协调器差分 **16/16 PASS、零SKIP（10.30秒）**，其中14项等价验证、2项原资料缺失500→新422的明确缺陷修复对照。`preparation-go-all/` 完整 Go 包实际PG/child/daemon **50 PASS + 1专用Swift服务fixture SKIP**，额外停机恢复 **10/10轮 PASS**，race与vet通过；不把重复10轮当成新增测试能力。两套脚本均exit0并清理自有实例。
 
 复现入口 `tools/migration/accept-go-job-submission.sh` 使用已声明 maintenance、自有空 PG、完整 CSV、原合同202、独立 daemon 成功结果、实际44100创建/运行取消、同库原 Python 差分，退出精确清理。生产服务不受影响。

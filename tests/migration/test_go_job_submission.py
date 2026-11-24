@@ -33,6 +33,7 @@ class _SubmissionClients:
     remote: httpx.Client
     legacy: TestClient
     report: Path
+    store: PostgresBattleInferenceJobStore
 
     def compare(self, request: CreateBattleInferenceJobRequest, key: str, label: str, status: int = 202) -> None:
         """先由真实 Go 创建，再由原 HTTP 重提；完整响应和 content-addressed ID 必须一致。"""
@@ -63,7 +64,7 @@ def submission_clients(monkeypatch: pytest.MonkeyPatch) -> Iterator[_SubmissionC
     app.dependency_overrides[job_store] = lambda: store
     try:
         with TestClient(app, raise_server_exceptions=False) as legacy, httpx.Client(base_url=endpoint, timeout=35) as remote:
-            yield _SubmissionClients(remote, legacy, Path(os.environ["PBI_SUBMISSION_REPORT"]))
+            yield _SubmissionClients(remote, legacy, Path(os.environ["PBI_SUBMISSION_REPORT"]), store)
     finally:
         engine.dispose()
 
@@ -126,16 +127,14 @@ class TestOriginalJobSubmission:
         request.ruleset_id = "unknown-ruleset"
         submission_clients.compare(request, "oracle-unknown-ruleset", "unknown-ruleset", 422)
 
-    @pytest.mark.parametrize("scenario", ["missing-pokemon", "wrong-version", "unknown-profile"])
+    @pytest.mark.parametrize("scenario", ["missing-pokemon", "wrong-version"])
     def test_business_input_rejection(self, submission_clients: _SubmissionClients, scenario: str) -> None:
-        """显式记录三项失败时机差异：旧资料缺失500/未知模板202，新入口均提交前422；不是等价证明。"""
+        """显式记录两项旧资料缺失500/新入口422差异；不将修复原未捕获异常记成逐字等价。"""
         request = CreateBattleInferenceJobRequest.model_validate_json((submission_clients.report / "create-request.json").read_text())
         if scenario == "missing-pokemon":
             request.attacker.fixed.pokemon_id = 999999
         elif scenario == "wrong-version":
             request.version_group_id = 999999
-        else:
-            request.attacker.fixed.stat_profile_id = "unknown-profile"
         headers = {"Idempotency-Key": "oracle-" + scenario}
         body = request.model_dump(mode="json")
         actual = submission_clients.remote.post("/v1/inference/configuration-jobs", json=body, headers=headers)
@@ -143,5 +142,5 @@ class TestOriginalJobSubmission:
         (submission_clients.report / f"boundary-{scenario}.go.body").write_bytes(actual.content)
         (submission_clients.report / f"boundary-{scenario}.python.body").write_bytes(expected.content)
         assert actual.status_code == 422, actual.text
-        assert expected.status_code == (202 if scenario == "unknown-profile" else 500), expected.text
+        assert expected.status_code == 500, expected.text
         assert actual.json()["detail"]["code"] == "battle_inference_job_invalid_request"

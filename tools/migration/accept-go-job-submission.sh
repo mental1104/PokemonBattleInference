@@ -25,6 +25,8 @@ compose run --rm --no-deps -e CGO_LDFLAGS="-L$core_directory" -e GOCACHE=/build/
 postgres_id="$(compose run --rm --no-deps -d --name "$postgres_name" pokemon-go-postgres)"
 for attempt in {1..30}; do if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop > /dev/null 2>&1; then break; fi; sleep .2; done
 compose run --rm --no-deps -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" pokemon-validation /build/p3/submission/pbi-db-init --csv-root /source/submodules/pokeapi/data/v2/csv > "$POKEOP_REPORT_ROOT/initialization.json" 2> "$POKEOP_REPORT_ROOT/initialization.log"
+# 原准备失败oracle使用相同知识的独占参考库，防止真实Go/Python coordinator互相领取任务；仍无生产连接。
+docker exec "$postgres_id" psql -U pokeop -d postgres -c 'CREATE DATABASE pokeop_reference TEMPLATE pokeop' > "$POKEOP_REPORT_ROOT/reference-database.log"
 server_id="$(compose run --rm --no-deps -d --name "$server_name" --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 -e PBI_MIGRATE=1 -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" pokemon-validation /build/p3/submission/pbi-server)"
 readonly endpoint="http://$(docker port "$server_id" 41105/tcp)"
 for attempt in {1..30}; do if curl -fsS "$endpoint/healthz" > "$POKEOP_REPORT_ROOT/health.json" 2>/dev/null; then break; fi; sleep .2; done
@@ -73,7 +75,7 @@ from pathlib import Path
 directory = Path(sys.argv[1])
 request = json.loads((directory / 'create-request.json').read_text())
 for side, identifier in (('attacker', 184), ('defender', 183)):
-    request[side]['fixed'].update(pokemon_id=identifier, stat_profile_id='no_investment', ability_identifier='thick-fat')
+    request[side]['fixed'].update(pokemon_id=identifier, stat_profile_id='max_atk_neutral', ability_identifier='thick-fat')
     request[side]['candidate_move_ids'] = [21, 33, 55, 56, 304, 401, 802, 851, 861, 885]
 request['execution'].update(max_nodes_per_pair=1000, max_edges_per_pair=5000, max_turns=20)
 (directory / 'bulk-request.json').write_text(json.dumps(request, ensure_ascii=True))
@@ -110,7 +112,7 @@ PY
 [[ "$bulk_id" =~ ^battle-inference-idempotent-[0-9a-f]{64}$ ]]
 docker exec "$postgres_id" psql -U pokeop -d pokeop -Atc "SELECT definition_json::text FROM poke_runtime.go_job_definitions WHERE job_id='$bulk_id'" > "$POKEOP_REPORT_ROOT/bulk-definition.json"
 docker exec "$postgres_id" psql -U pokeop -d pokeop -Atc "SELECT octet_length(definition_json::text),pg_column_size(definition_json),json_array_length(definition_json->'cases'),octet_length((definition_json->'core_request_template')::text),octet_length((definition_json->'admission')::text) FROM poke_runtime.go_job_definitions WHERE job_id='$bulk_id'" > "$POKEOP_REPORT_ROOT/bulk-definition-size.tsv"
-compose run --rm --no-deps -e PBI_TEST_GO_CALCULATOR_POSTGRES_URL="postgresql+psycopg://pokeop@$postgres_name:5432/pokeop" -e PBI_TEST_GO_CALCULATOR_URL="http://$server_name:41105" -e PBI_SUBMISSION_REPORT=/reports pokemon-validation python -m pytest -v -o cache_dir=/build/p3/submission-pytest-cache /source/tests/migration/test_go_job_submission.py > "$POKEOP_REPORT_ROOT/oracle.log" 2>&1
+compose run --rm --no-deps -e PBI_TEST_GO_CALCULATOR_POSTGRES_URL="postgresql+psycopg://pokeop@$postgres_name:5432/pokeop" -e PBI_TEST_PREPARATION_REFERENCE_DSN="postgresql+psycopg://pokeop@$postgres_name:5432/pokeop_reference" -e PBI_TEST_GO_CALCULATOR_URL="http://$server_name:41105" -e PBI_SUBMISSION_REPORT=/reports pokemon-validation python -m pytest -v -o cache_dir=/build/p3/submission-pytest-cache /source/tests/migration/test_go_job_submission.py /source/tests/migration/test_go_job_preparation.py > "$POKEOP_REPORT_ROOT/oracle.log" 2>&1
 printf 'Actual HTTP job submission completed. Reports: %s\n' "$POKEOP_REPORT_ROOT"
 if [[ "${PBI_JOB_VALIDATION_HOLD:-0}" == 1 ]]; then
  touch "$POKEOP_REPORT_ROOT/hold"

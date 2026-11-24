@@ -393,7 +393,13 @@ func (handler jobSubmissionHandler) prepare(ctx context.Context, request jobSubm
 		}
 		offset = page.Next
 	}
-	definition.CoreTemplate, err = handler.template(ctx, request, snapshot, sides)
+	// 原 strict 不校验 stat profile；未知模板保留原202，在worker领取各case后才落准备失败。
+	profiles, preparation := jobProfiles([]jobSelection{request.Attacker, request.Defender})
+	if preparation != nil {
+		definition.PreparationFailure = preparation
+		return definition, nil, definition.Validate()
+	}
+	definition.CoreTemplate, err = handler.template(ctx, request, snapshot, sides, profiles)
 	if err != nil {
 		return jobs.Definition{}, nil, err
 	}
@@ -438,14 +444,12 @@ func submissionJobID(request jobSubmissionRequest, key string) (string, error) {
 }
 
 // template 由Core配置能力实际计算结果构造一次共享初始状态；不计算任何伤害/能力/权重公式。
-func (handler jobSubmissionHandler) template(ctx context.Context, request jobSubmissionRequest, snapshot catalog.InferenceSnapshot, sides []jobSideFacts) (*jobs.FixedBattleTemplate, error) {
+// profiles 是同一请求按原 inference 七项模板/snapshot 解析后的两侧值；ctx 取消终止原生子进程。
+func (handler jobSubmissionHandler) template(ctx context.Context, request jobSubmissionRequest, snapshot catalog.InferenceSnapshot, sides []jobSideFacts, profiles []calculatorProfile) (*jobs.FixedBattleTemplate, error) {
 	operations := []any{}
 	selections := []jobSelection{request.Attacker, request.Defender}
 	for index, selection := range selections {
-		profile, err := readCalculatorProfile(selection.Fixed.Profile)
-		if err != nil {
-			return nil, err
-		}
+		profile := profiles[index]
 		nature := make([]float64, 5)
 		for axis := range nature {
 			nature[axis] = float64(profile.Nature[axis+1]) / 10

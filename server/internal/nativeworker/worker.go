@@ -232,13 +232,19 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 					cancel()
 					return errors.New("claimed case has no frozen input")
 				}
-				request, projectionErr := projector.request(frozen)
-				if projectionErr != nil {
-					cancel()
-					return projectionErr
+				var request []byte
+				phase := "preparing_battle"
+				if definition.PreparationFailure == nil {
+					var projectionErr error
+					request, projectionErr = projector.request(frozen)
+					if projectionErr != nil {
+						cancel()
+						return projectionErr
+					}
+					phase = "executing-core"
 				}
 				if _, err = worker.store.RecordProgress(query, id, item.Definition.PairID, worker.options.Owner, definition.Revision, now,
-					jobs.Progress{Phase: "executing-core"}); err != nil {
+					jobs.Progress{Phase: phase}); err != nil {
 					cancel()
 					return err
 				}
@@ -250,7 +256,13 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 				// request 只读借用持久化副本；完成消息缓冲足够容纳本轮所有子进程，关闭时也不会阻塞发送。
 				go func() {
 					defer waiting.Done()
-					result := worker.execute(child, request, func(frame corebridge.Progress) { process.latest.Store(&frame) })
+					var result jobs.Result
+					if preparation := definition.PreparationFailure; preparation != nil {
+						// 原异步准备异常逐case落failed，保留零资源/空概率，不构造假状态或启动原生计算。
+						result = failure(jobs.Failed, preparation.Code, preparation.Diagnostic)
+					} else {
+						result = worker.execute(child, request, func(frame corebridge.Progress) { process.latest.Store(&frame) })
+					}
 					// 失败也保留已经真实观察到的构图资源，不把中断后的成本伪造为零。
 					if frame := process.latest.Load(); result.Status != jobs.Succeeded && frame != nil {
 						result.Nodes, result.Edges = int64(frame.Nodes), int64(frame.Edges)
