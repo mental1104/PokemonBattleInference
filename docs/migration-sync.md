@@ -37,6 +37,16 @@ Swift 整包 13/13、零失败、零跳过（已提供 `PBI_SYNC_TEST_URL`），
 
 本次验收日志保存在 NAS HDD 的 `/volume1/homes/mental1104/Backup/PokemonBattleInference/migration-p5-sync-20261124/`：`go-sync.log`、`go-sync-vet.log`、`go-swift-server.log`、`swift-real-postgres.log`。
 
-## 仍待完成
+## 后续成熟验收
 
-当前交付不等于产品 P5/P6 全部验收：App 尚需接入同步用户标识、同步操作/状态和冲突选择界面；真实 iPhone/iPad 双设备、后台断网/恢复体验仍需 Apple 环境验证。互联网使用前需实际身份认证，不能把可任意设置的 header 当成安全边界。冲突历史已有存储但未有历史恢复界面；同步日志和 tombstone 尚无压缩/保留策略，避免过早清理破坏离线恢复。旧 Vue 配置模型与此完整原生配置协议的互通需要单独明确迁移合同。
+`event-abi9-20261124/swift-live/swift-live.log`使用正式0.9双语言Core、独立Go/PG，整包 **25/25、零SKIP（16.613秒）**：三项同步、三项真实HTTP知识更新与两项真实在线计算全部通过。在线/离线核对三组完整输入的全部字段、版本及请求/响应原始字节；404明确失败无离线回退。更新测试实际截断连接、取消、损坏/404/超大/重定向后核对旧指针逐字节不变、旧库可查询、完整用户配置及待提交队列保留；真实断点请求`Range: bytes=65536-`获得206并安装成功。
+
+`p5-keep-remote-20261124/swift-sync.log`随后补齐现有`keepRemote`分支，两个独立真实SQLite经Go/PG离线冲突，**同步4/4、零SKIP（0.476秒）**，新增分支0.185秒。采用远端之前，完整本地B与远端A配置、各自knowledge/engine版本、被冻结队列baseRevision1及cursor2均跨重启保留；采用后完整A落地、队列及未决冲突为空，两库再次打开和同步后cursor仍为2，没有回声提交产生新revision。SQLite已解决历史仍保留完整B本地值与A远端值。该次仅运行同步4项，不把它与前次25项相加冒称整包新增通过。
+
+App已接入身份/服务设置、手动同步/状态、冲突双方展示与明确选择。固定`c0b048e`的Apple CI实际iPhone **9/9**、iPad **9/9** UI通过，包括iPhone上传→iPad拉取、同步后重启及在线离线计算。证据`apple-results-c0b048e-20261124/github-native-45404217482.log`；这是两模拟器的真实App/Go/PG链路，未把SDK测试替代为UI验收，也未声称已自动点击App冲突双方选择。
+
+## 范围边界与 HUMAN_PENDING
+
+物理真机的签名、安装与人工体验仍为HUMAN_PENDING；后台被系统终止、断电或安装提交瞬间SIGKILL未实测，不能把已验证的HTTP截断/Task取消扩称这些故障也已通过。冲突两种选择已由真实SDK/SQLite/Go/PG验证，App冲突选择UI尚无独立XCUITest。互联网身份认证仍须由实际可信网关提供，开发header不是认证。
+
+冲突历史已保存，但没有历史恢复界面；同步日志与tombstone尚不压缩或清理，以保留离线恢复资料。旧Vue配置模型与此原生完整配置协议的互通没有在上述同步验收中证明。以上边界不影响已实测的离线修改、双客户端收敛、重复、冲突恢复、删除、中断更新保护及同Core在线离线一致结果；也不代表生产迁移已执行。

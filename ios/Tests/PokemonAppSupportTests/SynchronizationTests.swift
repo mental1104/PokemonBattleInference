@@ -82,4 +82,74 @@ final class SynchronizationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(aDeleted.isEmpty); XCTAssertTrue(bDeleted.isEmpty); XCTAssertTrue(aQueue.isEmpty); XCTAssertTrue(bQueue.isEmpty)
         let aCursor = try await a.syncCursor(), bCursor = try await b.syncCursor(); XCTAssertEqual(aCursor, bCursor); XCTAssertEqual(aCursor, 4)
     }
+
+    /// 两个真实SQLite离线写冲突后采用远端；保留已解决双方副本，重启收敛且不制造回声revision。
+    func testKeepRemoteConflictConvergesAgainstRealPostgreSQL() async throws {
+        guard let address = ProcessInfo.processInfo.environment["PBI_SYNC_TEST_URL"], let server = URL(string: address) else {
+            throw XCTSkip("PBI_SYNC_TEST_URL is required for real PostgreSQL sync acceptance")
+        }
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let aURL = root.appendingPathComponent("device-a.sqlite"), bURL = root.appendingPathComponent("device-b.sqlite")
+        let a = try ConfigurationStore(url: aURL), b = try ConfigurationStore(url: bURL)
+        let transport = try HTTPSyncTransport(serverURL: server, userId: "swift-keep-remote-\(UUID().uuidString.lowercased())")
+        let aClient = SyncClient(store: a, transport: transport), bClient = SyncClient(store: b, transport: transport)
+        var initial = BattleConfiguration.example(); initial.name = "initial remote recovery"
+        try await a.save(initial, knowledgeVersion: "initial-knowledge", engineVersion: "0.9.0")
+        _ = try await aClient.synchronize(); _ = try await bClient.synchronize()
+
+        // 两侧只改自己的真实用户库；A先上线成为revision2，B保留完整本地参数与不同版本信息。
+        var editA = initial, editB = initial
+        editA.name = "remote device A"; editA.attacker.level = 73
+        editB.name = "local device B"; editB.attacker.level = 22; editB.critical = true
+        try await a.save(editA, knowledgeVersion: "remote-knowledge-2", engineVersion: "0.9.0")
+        try await b.save(editB, knowledgeVersion: "local-knowledge-3", engineVersion: "0.9.1")
+        let uploaded = try await aClient.synchronize(); XCTAssertEqual(uploaded.accepted, 1)
+        let rejected = try await bClient.synchronize(); XCTAssertEqual(rejected.conflicts, 1)
+
+        // 冲突与被冻结的未确认队列跨重启保留，不能先覆盖B再只保留一条错误提示。
+        let reopenedB = try ConfigurationStore(url: bURL)
+        let before = try await reopenedB.all(), conflicts = try await reopenedB.syncConflicts()
+        let pending = try await reopenedB.pendingChanges(), cursorBefore = try await reopenedB.syncCursor()
+        XCTAssertEqual(before.first?.configuration, editB); XCTAssertEqual(conflicts.count, 1)
+        XCTAssertEqual(conflicts.first?.local.configuration, editB); XCTAssertEqual(conflicts.first?.remote?.configuration, editA)
+        XCTAssertEqual(conflicts.first?.local.knowledgeVersion, "local-knowledge-3")
+        XCTAssertEqual(conflicts.first?.local.engineVersion, "0.9.1")
+        XCTAssertEqual(conflicts.first?.remote?.knowledgeVersion, "remote-knowledge-2")
+        XCTAssertEqual(conflicts.first?.remote?.engineVersion, "0.9.0")
+        XCTAssertEqual(conflicts.first?.remote?.revision, 2)
+        XCTAssertEqual(pending.count, 1); XCTAssertEqual(pending.first?.configuration, editB)
+        XCTAssertEqual(pending.first?.baseRevision, 1); XCTAssertEqual(cursorBefore, 2)
+
+        // 采用远端只移除该实体的旧本地操作并使用完整远端快照，不发新的upsert或增加服务端revision。
+        try await reopenedB.resolveConflict(entityId: initial.id, resolution: .keepRemote)
+        let after = try await reopenedB.all(), queueAfter = try await reopenedB.pendingChanges()
+        let unresolved = try await reopenedB.syncConflicts()
+        XCTAssertEqual(after.first?.configuration, editA); XCTAssertEqual(after.first?.serverRevision, 2)
+        XCTAssertEqual(after.first?.knowledgeVersion, "remote-knowledge-2"); XCTAssertEqual(after.first?.engineVersion, "0.9.0")
+        XCTAssertTrue(queueAfter.isEmpty); XCTAssertTrue(unresolved.isEmpty)
+        let resumed = try await SyncClient(store: reopenedB, transport: transport).synchronize()
+        XCTAssertEqual(resumed.accepted, 0); XCTAssertEqual(resumed.conflicts, 0)
+        _ = try await aClient.synchronize()
+
+        // 两个库再次打开后逐字段收敛；各自本地序号可不同，完整配置/远端版本/游标和空队列必须一致。
+        let finalA = try ConfigurationStore(url: aURL), finalB = try ConfigurationStore(url: bURL)
+        let aRows = try await finalA.all(), bRows = try await finalB.all()
+        XCTAssertEqual(aRows.count, 1); XCTAssertEqual(bRows.count, 1)
+        XCTAssertEqual(aRows.first?.configuration, editA); XCTAssertEqual(aRows.first?.configuration, bRows.first?.configuration)
+        XCTAssertEqual(aRows.first?.serverRevision, bRows.first?.serverRevision); XCTAssertEqual(bRows.first?.serverRevision, 2)
+        XCTAssertEqual(aRows.first?.knowledgeVersion, bRows.first?.knowledgeVersion)
+        XCTAssertEqual(aRows.first?.engineVersion, bRows.first?.engineVersion)
+        let aQueue = try await finalA.pendingChanges(), bQueue = try await finalB.pendingChanges()
+        let aCursor = try await finalA.syncCursor(), bCursor = try await finalB.syncCursor()
+        XCTAssertTrue(aQueue.isEmpty); XCTAssertTrue(bQueue.isEmpty); XCTAssertEqual(aCursor, bCursor); XCTAssertEqual(bCursor, 2)
+
+        // 已解决历史仍保留完整B本地值和A远端值，用户选择不能悄悄销毁冲突恢复资料。
+        let connection = try SQLiteConnection(url: bURL, readOnly: true)
+        let history = try connection.rows("SELECT local,remote,resolved FROM sync_conflicts") { row in
+            (try ContractJSON.decoder().decode(StoredConfiguration.self, from: row.data(0)),
+             try ContractJSON.decoder().decode(SyncSnapshot?.self, from: row.data(1)), try row.integer(2))
+        }
+        XCTAssertEqual(history.count, 1); XCTAssertEqual(history.first?.0.configuration, editB)
+        XCTAssertEqual(history.first?.1?.configuration, editA); XCTAssertEqual(history.first?.2, 1)
+    }
 }
