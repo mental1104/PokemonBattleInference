@@ -37,7 +37,7 @@ bash tools/migration/validate-nas.sh all
 
 `all` 为每次运行创建专用 PostgreSQL 16，只连接该唯一容器名称；退出时停止该容器，`run --rm` 移除。它不发布数据库端口、不挂载生产数据、不改变 HomeLab 常驻服务。构建在 `/volume2/docker/pokemon-migration-validation/build`，报告在用户 Backup；可以通过 `POKEOP_BUILD_ROOT`、`POKEOP_REPORT_ROOT` 显式指定已有职责范围内的输出目录。
 
-直接运行 pytest 时，如果没有配置 runner 且默认位置尚未构建，四个差分测试会说明构建步骤并 SKIP；显式配置但不可执行则 FAIL。`make test` 始终先构建，不能靠缺失二进制跳过差分。PostgreSQL 的 macOS/Linux 合同仍由原 fixture 管理；Core 单测和差分不请求该 fixture。
+直接运行 pytest 时，如果没有配置 runner 且默认位置尚未构建，七个差分测试会说明构建步骤并 SKIP；显式配置但不可执行则 FAIL。`make test` 始终先构建，不能靠缺失二进制跳过差分。PostgreSQL 的 macOS/Linux 合同仍由原 fixture 管理；Core 单测和差分不请求该 fixture。
 
 ## 数值与行为合同
 

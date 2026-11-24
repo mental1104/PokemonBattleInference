@@ -7,7 +7,7 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级、直接伤害/部分代际策略与精确 KO；新伤害在 Linux 通过，首批已通过 macOS，新批次 Apple CI 待验证。速度状态、完整战斗/图推演仍待迁移。 |
+| P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级、直接伤害/部分代际策略与精确 KO；Linux/macOS 测试和 iPhoneOS/Simulator 构建已通过。速度状态、完整战斗/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
 | P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
@@ -96,13 +96,16 @@
 - ASan/UBSan/leak **18/18 PASS**（21.14 秒），含新伤害错误/预算/快照与并发、取消、循环释放，日志 `sanitizer.log`。
 - 独立 NAS curl 验收当前实际 Go 服务：HTTP **200** 完整六操作响应一致；未知操作 **422** 无部分结果。证据在 `http/`，自有容器与随机回环端口退出清理，不触碰生产。
 - 新实测：`python -m tests.migration.test_core_damage --runner /build/core/pbi_abi_vectors --count 10000 --repeats 5 --output /reports/damage-benchmark.json`，每次全部结果核对后记录。Python 中位 **0.468292 秒**；C++ 进程 **0.528825 秒**，后者额外包含 JSON、精确 KO、进程与 IPC；不宣称纯函数/全引擎提速。报告在 `docs/benchmarks/core-damage-20261124.json`，原始在 `final/`。
-- 本批 Apple/macOS CI 尚待提交后实际运行；不能用先前 `738919a` 的绿灯替代新批验证。
+- 本批代码提交 **`7b9f4a4bfacc896ea98cd47c59c3aca2957feaec`**，已推送 Ready PR #138；[Native Core 45349703813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813) **PASS**：macOS CTest **18/18**，差分/Go/Swift 委托 **9/9、无跳过**（66.66 秒）；iPhoneOS/Simulator archive、Swift module、XCFramework 实际构建成功。工具链仍为 Xcode 16.4/Swift 6.1.2/AppleClang 17/Go 1.23.12/CMake 4.5.0。
+- [Main Gate 45349703635](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703635) **PASS**：原 Python **571 passed / 9 skipped**（该旧 job 不构建 native，三个新增伤害差分也跳过；均已在上项 native job 实际执行），Web **95/95**、构建 PASS。两个实际 job 的完整日志分别保存在证据根 `github-apple-45349703813.log`、`github-main-45349703635.log`。
+- 已下载并独立核验 [Apple 产物 14899787064](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813/artifacts/14899787064)：ZIP SHA-256 **`14b2eef09d7891876c643314178fbd2eeb17fa74db87fc1791f4f752d069fe99`** 与 GitHub digest 一致；每个平台 archive 含 calculations/damage/ABI 三个实际 arm64 Mach-O 对象，其 LC_BUILD_VERSION 分别为 **2（iOS）**、**7（iOS Simulator）**。共享 C 头与当前仓库完全一致，均含 compute 导出；Swift 模块分别 22,236/22,256 字节；JUnit 9 tests、零错误/失败/跳过。ZIP、工具链与可复跑核验脚本/JSON 保存在同一证据根。
+- 以上仍只证明 Core/桥接及 SDK 构建，不代表 SwiftUI App、模拟器运行、双设备使用、离线库或同步已实现。P1–P6 的完整目标与 Human 验收要求保持不变，Goal 继续 active。
 
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-先完成本批伤害的 Apple CI，再迁移速度状态效果与不可变状态，继续回合/动态效果/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
+本批伤害的 Apple CI 与产物核验均已完成；下一步迁移速度状态效果与不可变状态，继续回合/动态效果/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。已读实际状态源：StateKey 排除绝对回合号/展示名，BattlerState 保留 PP/禁用/讲究锁招/道具消耗/首次回合/完整状态；当前旧行动排序只用能力等级，麻痹 helper 尚未接入该排序路径，迁移须保留并明确此合同而不能悄悄改行为。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
 
 ## 恢复提示
 

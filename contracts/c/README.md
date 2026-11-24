@@ -61,17 +61,17 @@ v1 资源上限声明在头文件：8 MiB 请求、4,096 操作、单操作 65,5
 
 `pbi_v1_cancel_token_create` 创建单向原子令牌，cancel 可与 compute 并发。令牌允许多个计算只读借用，取消影响所有借用者；不能重置。所有调用返回且所有并发 cancel 结束后，创建者才可 destroy。空令牌表示本次不提供取消。
 
-Core 在解析前、操作解码/执行之间及结果提交前检查取消。JSON 解析和单个 bounded KO 的排序不会被强制中断；取消属于协作式，不能承诺瞬时抢占。取消与最后提交检查竞争时，已完成的调用允许返回 OK。独立输入/输出可并发调用，无共享可变计算状态。
+Core 在解析前、操作解码/执行之间及结果提交前检查取消。JSON 解析和单个有界 KO/直接伤害计算不会被强制中断；取消属于协作式，不能承诺瞬时抢占。取消与最后提交检查竞争时，已完成的调用允许返回 OK。独立输入/输出可并发调用，无共享可变计算状态。
 
 Go 在每次调用内拥有令牌、C 输入副本和结果。监视 context 的 goroutine 完全退出后才 destroy，避免 use-after-free。Swift 用强引用和 withExtendedLifetime 保持令牌，calculateAsync 在 detached task 执行并传播 Task 取消，计算不占 MainActor。
 
 ## 实际验证与入口
 
-- Linux C/C++：13 项 CTest，含真正的 C 编译器调用、完整共享向量、非法输入/预算、循环释放、32 并发及实际运行中取消。ASan/UBSan/leak 检查同样 13/13 通过。
+- Linux C/C++：18 项 CTest，含直接伤害、真正的 C 编译器调用、完整共享向量、非法输入/预算、循环释放、32 并发及实际运行中取消。ASan/UBSan/leak 检查同样 18/18 通过。
 - Go：3 项桥接测试加 1 项回环 HTTP 测试，`-race` 与 `go vet` 通过。外部静态库不参与 Go 缓存跟踪，所以测试/交付构建使用 `-a`。
 - Swift 6 Linux：4 项 XCTest，通过实际 Core 静态库；完整结果/版本、错误/释放、32 并发、Task 运行中取消均已执行。Swift scratch 以两个原生 archive 的 SHA-256 区分，避免增量缓存链接旧库。
 - 独立 NAS curl 到实际 Go 服务容器：200 完整共享向量匹配，未知操作 422 且无部分结果；临时服务和随机回环端口已清理。
 
 本地统一入口：`make test` 或 `make test-native`。仅缺少未显式配置的 Go/Swift 工具时，pytest 会说明能力缺失并 SKIP；显式工具/库配置错误必须 FAIL。NAS 的 `validate-nas.sh bindings` 委托两个声明的 maintenance 工具环境，弥补 Python 镜像未含 Swift 的能力；不是把其跳过结果算成通过。
 
-macOS/iOS 已由用户授权的 [GitHub Ready-PR CI 45343368822](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822) 实际验证：macOS CTest 13/13、差分和双语言委托 6/6 无跳过；arm64 iPhoneOS/Simulator archive、Swift 模块和 C ABI XCFramework 均构建成功。下载的 ZIP 校验值、两个平台与共享头已独立核验，证据见 `docs/migration-progress.md`。Apple SDK 编译不需要登录或签名，不安装 App、不执行签名、不代表模拟器运行或 iPhone/iPad 真机验收。
+macOS/iOS 已由用户授权的 [GitHub Ready-PR CI 45349703813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813) 实际验证：macOS CTest 18/18、差分和双语言委托 9/9 无跳过；arm64 iPhoneOS/Simulator archive、Swift 模块和 C ABI XCFramework 均构建成功。下载的 ZIP 校验值、两个平台的实际 Mach-O 对象与共享头已独立核验，证据见 `docs/migration-progress.md`。Apple SDK 编译不需要登录或签名，不安装 App、不执行签名、不代表模拟器运行或 iPhone/iPad 真机验收。
