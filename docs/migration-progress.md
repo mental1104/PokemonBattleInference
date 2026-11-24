@@ -9,7 +9,7 @@
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 能力值/直接伤害/精确 KO、不可变状态/StateKey/PP/锁招及独立状态修正已通过 Linux/macOS/Apple SDK；新增完整性格 profile 已通过 Linux 差分。完整回合/动态效果/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
-| P3 Go 服务端 | IN_PROGRESS | 原 16/41 API、原物化视图及独立原生子进程已真实 PG/HTTP 验证；任务生命周期和其余 API 继续迁移，生产仍为 Python。 |
+| P3 Go 服务端 | IN_PROGRESS | 原 19/41 API、原物化视图、任务仓库和独立原生子进程已真实 PG/HTTP 验证；完整推演/coordinator 和其余 API 继续迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 首批未签名 device App 构建成功，iPhone 中文查询通过；其余 UI 测试存在首轮失败，已修后待重跑。新增同步界面仍待 Apple 实测，真机未验收。 |
 | P5 数据同步 | IN_PROGRESS | 版本化知识 SQLite 与失败恢复已有真实验证；独立用户库/本地队列已实测，PG/双设备同步仍在开发，尚未验证收敛。 |
 | P6 部署与回归 | IN_PROGRESS | 已加入统一原生测试入口与隔离验证；用户已授权 GitHub macOS/iOS CI。旧部署/数据库保持原状，未切换生产。 |
@@ -139,6 +139,9 @@
 - 首轮产物 [14905627832](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690/artifacts/14905627832) ZIP SHA-256 **01ab38260cb4f812b1e9030c2e5f921139c3684e789aa80891e77d5b1f70d3d2** 与 GitHub digest 一致；完整日志、xcresult/ZIP 在 `Backup/PokemonBattleInference/app-20261124/`。测试结束的 final screenshot 是主屏幕，不能用来证明失败时 App 内状态。
 - 已将指标改成明确无障碍名称/精确值并保持原冻结数值断言；保存测试增加懒加载行滚动，仍待下一轮验证其失败原因。测试脚本即使某机型失败也继续独立执行另一机型，并导出 xcresult 附件，最终仍返回失败。
 - 新增 App 手动同步/取消、真实待提交项、完整冲突双方参数/删除状态/版本比较和明确选择。连接设置在 SQLite 事务保存，禁止沿用其他服务器/用户的同步空间；注入身份写失败时 URL/账户一起回滚，重启、非法地址和范围保护实测。修改后的 AppSupport **4/4 PASS**（0.179 秒），UI/UITest Swift 语法与 shell 检查通过；Apple UI 运行未验证，证据 `Backup/PokemonBattleInference/app-sync-20261124/`。
+- **8049ddc**：图/合法行动正式 C ABI 及 Go/Swift 冻结向量已扩展至十一操作，引擎 **0.5.0 / calculation-rules.v5**，ABI/schema 仍 v1。纯域新增结构化事件/条件权重、分支合并与注入回合转移器的不可变 BFS 图构建；完整旧回合器尚未迁完，不以自定义回调测试代替。新域/runner **14/14 CTest**、图与 builder **5/5 Python 差分**（1.41 秒，新增 106 组），新纯域 ASan/UBSan/leak **32/32 PASS**（1.58 秒）。P2 图 ABI 另有 50 拓扑、行动 ABI 256 情况的精确差分；全量 CTest **46/46 PASS**。新正式 ABI 的全量 sanitizer 原进程仍运行，未记为 PASS。
+- **f04a552**：新增旧通用任务列表/详情/幂等取消，进度 **19/41**；真实 PG 仓库验证稳定 fingerprint/重复提交、租约/心跳/过期恢复、进度守恒、取消和结果分页。独立重建 .5 Core 后 CTest **46/46**，Go 所有包 **18 PASS / 1 专用 Swift 服务 fixture SKIP**、race/vet 通过，外部 curl 六条 HTTP 200；测试实例已清理。证据 `p3-server-20261124/jobs-final/`。任务创建/复杂推演/完整 coordinator 仍未完成，原生 CSV 初始化正在另批开发，未纳入该检查点。
+- **e248d3b**：计算通过一个 actor 调用读取宝可梦/招式/性格/属性表及 manifest 的不可变快照，避免知识安装插入多次 await 导致混用版本。两个真实 SQLite 包、16 次安装和 64 次读取竞争，所有输入字段与版本保持整版一致，旧快照不变。实际 Swift→Go HTTP 完整 .5 请求/响应仍一致，整包 **17 tests / 1 skipped**（仅未配置 P5 专用服务 URL），零失败（2.721 秒）；证据 `migration-p2-snapshot-online-20261124/`。
 
 ## 下一步
 
