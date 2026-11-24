@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "engine_version": "0.5.0",
-  "rules_version": "calculation-rules.v5",
+  "engine_version": "0.6.0",
+  "rules_version": "calculation-rules.v6",
   "results": [
     {
       "kind": "hp",
@@ -639,6 +639,495 @@
           }
         }
       ]
+    },
+    {
+      "kind": "battle_turn",
+      "transitions": [
+        {
+          "probability": {
+            "numerator": "1",
+            "denominator": "1"
+          },
+          "state": {
+            "attacker": {
+              "spec": {
+                "pokemon_id": 212,
+                "name": "scizor",
+                "pokemon": {
+                  "level": 50,
+                  "types": [
+                    7,
+                    9
+                  ],
+                  "stats": {
+                    "hp": 177,
+                    "attack": 182,
+                    "defense": 120,
+                    "special_attack": 67,
+                    "special_defense": 100,
+                    "speed": 85
+                  },
+                  "ability": "none",
+                  "item": "none",
+                  "can_evolve": false,
+                  "grounding": null
+                },
+                "moves": [
+                  {
+                    "move_id": 1,
+                    "name": "bullet-punch",
+                    "move": {
+                      "type": 9,
+                      "category": "physical",
+                      "power": 40
+                    },
+                    "max_pp": 1,
+                    "priority": 3,
+                    "accuracy": 100,
+                    "effect_identifier": null
+                  }
+                ]
+              },
+              "current_hp": 1,
+              "move_slots": [
+                {
+                  "move_id": 1,
+                  "current_pp": 0,
+                  "max_pp": 1,
+                  "disabled": false,
+                  "locked": false,
+                  "slot_id": 9001
+                }
+              ],
+              "stages": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "status": {
+                "major": null,
+                "volatile": []
+              },
+              "last_move_id": 1,
+              "choice_lock_move_id": null,
+              "item_consumed": false,
+              "is_first_turn": false
+            },
+            "defender": {
+              "spec": {
+                "pokemon_id": 700,
+                "name": "sylveon",
+                "pokemon": {
+                  "level": 50,
+                  "types": [
+                    18
+                  ],
+                  "stats": {
+                    "hp": 202,
+                    "attack": 76,
+                    "defense": 85,
+                    "special_attack": 130,
+                    "special_defense": 150,
+                    "speed": 80
+                  },
+                  "ability": "none",
+                  "item": "none",
+                  "can_evolve": false,
+                  "grounding": null
+                },
+                "moves": [
+                  {
+                    "move_id": 101,
+                    "name": "bullet-punch",
+                    "move": {
+                      "type": 9,
+                      "category": "physical",
+                      "power": 40
+                    },
+                    "max_pp": 1,
+                    "priority": 0,
+                    "accuracy": 100,
+                    "effect_identifier": null
+                  }
+                ]
+              },
+              "current_hp": 0,
+              "move_slots": [
+                {
+                  "move_id": 101,
+                  "current_pp": 1,
+                  "max_pp": 1,
+                  "disabled": false,
+                  "locked": false,
+                  "slot_id": 9101
+                }
+              ],
+              "stages": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "status": {
+                "major": null,
+                "volatile": []
+              },
+              "last_move_id": null,
+              "choice_lock_move_id": null,
+              "item_consumed": false,
+              "is_first_turn": false
+            },
+            "rules": {
+              "ruleset_id": "pokemon-champion",
+              "version_group_id": 25,
+              "level": 50,
+              "battle_format": "one-on-one-singles",
+              "switching_policy": "disabled",
+              "allow_terastallization": false,
+              "allow_mega_evolution": false,
+              "allow_dynamax": false,
+              "max_turns": 100,
+              "repetition_resolution": "declare-draw",
+              "cycle_resolution": "declare-draw",
+              "damage_policy": {
+                "terrain_boost_multiplier": 1.3,
+                "misty_terrain_dragon_multiplier": 0.5,
+                "weather_boost_multiplier": 1.5,
+                "weather_weaken_multiplier": 0.5,
+                "sandstorm_rock_spdef_multiplier": 1.5,
+                "snow_ice_defense_multiplier": 1.5,
+                "hail_ice_defense_multiplier": null,
+                "screen_single_target_multiplier": 0.5,
+                "screen_multi_target_multiplier": 0.6666666666666666,
+                "aurora_veil_single_target_multiplier": 0.5,
+                "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                "critical_hit_multiplier": 1.5,
+                "spread_move_multiplier": 0.75,
+                "protect_damage_multiplier": 0.25,
+                "same_type_attack_bonus_multiplier": 1.5,
+                "technician_base_power_threshold": 60,
+                "technician_base_power_multiplier": 1.5,
+                "adaptability_stab_multiplier": 2.0,
+                "thick_fat_damage_multiplier": 0.5,
+                "filter_damage_multiplier": 0.75,
+                "sniper_critical_multiplier": 1.5,
+                "multiscale_damage_multiplier": 0.5,
+                "life_orb_damage_multiplier": 1.3,
+                "choice_item_attack_multiplier": 1.5,
+                "expert_belt_damage_multiplier": 1.2,
+                "eviolite_defense_multiplier": 1.5,
+                "burn_physical_attack_multiplier": 0.5,
+                "random_damage_multipliers": [
+                  1.0
+                ]
+              },
+              "move_execution_policy": {
+                "accuracy_denominator": 100,
+                "consume_pp_on_miss": true,
+                "consume_pp_when_action_blocked": false,
+                "consume_pp_when_before_move_stops": false,
+                "struggle_power": 50,
+                "struggle_recoil_fraction": {
+                  "numerator": "1",
+                  "denominator": "4"
+                }
+              }
+            },
+            "turn_number": 1,
+            "field": {
+              "weather": "none",
+              "terrain": "none",
+              "attacker_side": {
+                "reflect": false,
+                "light_screen": false,
+                "aurora_veil": false
+              },
+              "defender_side": {
+                "reflect": false,
+                "light_screen": false,
+                "aurora_veil": false
+              }
+            },
+            "phase": "terminal"
+          },
+          "paths": [
+            {
+              "events": [
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:turn-started:none:none:none:none:none:none:none",
+                  "outcome_id": "turn-started",
+                  "numeric_value": null,
+                  "battle_kind": "turn-started",
+                  "turn_number": 1,
+                  "actor": null,
+                  "target": null,
+                  "move_id": null,
+                  "source_identifier": null,
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:move-selected:attacker:defender:1:move:none:none:none",
+                  "outcome_id": "move-selected",
+                  "numeric_value": null,
+                  "battle_kind": "move-selected",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "move",
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:move-selected:defender:attacker:101:move:none:none:none",
+                  "outcome_id": "move-selected",
+                  "numeric_value": null,
+                  "battle_kind": "move-selected",
+                  "turn_number": 1,
+                  "actor": "defender",
+                  "target": "attacker",
+                  "move_id": 101,
+                  "source_identifier": "move",
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:action-ordered:attacker:defender:1:move:none:none:1",
+                  "outcome_id": "action-ordered",
+                  "numeric_value": "1",
+                  "battle_kind": "action-ordered",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "move",
+                  "value": "1",
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:action-ordered:defender:attacker:101:move:none:none:2",
+                  "outcome_id": "action-ordered",
+                  "numeric_value": "2",
+                  "battle_kind": "action-ordered",
+                  "turn_number": 1,
+                  "actor": "defender",
+                  "target": "attacker",
+                  "move_id": 101,
+                  "source_identifier": "move",
+                  "value": "2",
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:move-used:attacker:defender:1:move:none:none:none",
+                  "outcome_id": "move-used",
+                  "numeric_value": null,
+                  "battle_kind": "move-used",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "move",
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:pp-changed:attacker:none:1:move-use:1:0:-1",
+                  "outcome_id": "pp-changed",
+                  "numeric_value": "-1",
+                  "battle_kind": "pp-changed",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": null,
+                  "move_id": 1,
+                  "source_identifier": "move-use",
+                  "value": "-1",
+                  "before": "1",
+                  "after": "0"
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:hit:attacker:defender:1:accuracy:none:none:none",
+                  "outcome_id": "hit",
+                  "numeric_value": null,
+                  "battle_kind": "hit",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "accuracy",
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "random",
+                  "event_type": "damage_roll",
+                  "event_id": "turn-1-attacker-move-1-damage",
+                  "outcome_id": "roll-0",
+                  "numeric_value": "117"
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:damage:attacker:defender:1:move:none:none:1",
+                  "outcome_id": "damage",
+                  "numeric_value": "1",
+                  "battle_kind": "damage",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "move",
+                  "value": "1",
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:hp-changed:attacker:defender:1:move:1:0:-1",
+                  "outcome_id": "hp-changed",
+                  "numeric_value": "-1",
+                  "battle_kind": "hp-changed",
+                  "turn_number": 1,
+                  "actor": "attacker",
+                  "target": "defender",
+                  "move_id": 1,
+                  "source_identifier": "move",
+                  "value": "-1",
+                  "before": "1",
+                  "after": "0"
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:fainted:defender:none:none:move:none:none:none",
+                  "outcome_id": "fainted",
+                  "numeric_value": null,
+                  "battle_kind": "fainted",
+                  "turn_number": 1,
+                  "actor": "defender",
+                  "target": null,
+                  "move_id": null,
+                  "source_identifier": "move",
+                  "value": null,
+                  "before": null,
+                  "after": null
+                },
+                {
+                  "kind": "battle",
+                  "event_type": "custom",
+                  "event_id": "turn-1:turn-ended:none:none:none:none:none:none:none",
+                  "outcome_id": "turn-ended",
+                  "numeric_value": null,
+                  "battle_kind": "turn-ended",
+                  "turn_number": 1,
+                  "actor": null,
+                  "target": null,
+                  "move_id": null,
+                  "source_identifier": null,
+                  "value": null,
+                  "before": null,
+                  "after": null
+                }
+              ],
+              "probability": {
+                "numerator": "1",
+                "denominator": "1"
+              }
+            }
+          ],
+          "source_key": "damage.random-roll"
+        }
+      ],
+      "phases": [
+        "turn-start",
+        "action-selection",
+        "action-order",
+        "before-move",
+        "accuracy-check",
+        "before-damage",
+        "damage",
+        "after-damage",
+        "after-move",
+        "faint-check",
+        "turn-end"
+      ],
+      "unsupported_aspects": []
+    },
+    {
+      "status": "solved",
+      "win": {
+        "numerator": "1",
+        "denominator": "1"
+      },
+      "loss": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "draw": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "closed_cycle": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "expected_turns": {
+        "status": "finite",
+        "value": {
+          "numerator": "1",
+          "denominator": "1"
+        }
+      },
+      "kind": "fixed_battle",
+      "observer": "attacker",
+      "statistics": {
+        "nodes": 2,
+        "edges": 1,
+        "max_turn_number": 1,
+        "closed_cycles": 0,
+        "terminal_reachable_cycles": 0,
+        "terminal_counts": {
+          "attacker_wins": 1,
+          "defender_wins": 0,
+          "draws": 0,
+          "non_terminal": 1,
+          "unknown": 0
+        }
+      },
+      "truncations": [],
+      "unsupported_aspects": [],
+      "graph": null
     }
   ]
 }

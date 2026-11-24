@@ -9,10 +9,18 @@
 #define PBI_V1_MAX_OPERATIONS 4096u
 #define PBI_V1_MAX_ROLLS 65536u
 #define PBI_V1_MAX_TOTAL_ROLLS (1024u * 1024u)
-/// 图节点/边是批次合计预算；精确消元单图至多 128 瞬态节点，DAG 不受消元预算限制。
+/// 显式 JSON 拓扑的批次输入预算；该 graph 操作单图消元至多 128 瞬态节点，DAG 不受此限。
 #define PBI_V1_MAX_GRAPH_NODES 65536u
 #define PBI_V1_MAX_GRAPH_EDGES 262144u
 #define PBI_V1_MAX_EQUATION_NODES 128u
+#define PBI_V1_MAX_RESULT_BYTES (32u * 1024u * 1024u)
+/// 生成图任务沿用原在线能力上限，与显式 JSON 拓扑输入预算分开。
+#define PBI_V1_MAX_GENERATED_NODES 2000000u
+#define PBI_V1_MAX_GENERATED_EDGES 8000000u
+/// 结果输出保护不改变领域概率；超限明确整批失败，不把保护截断算作数学平局。
+#define PBI_V1_MAX_RESULT_EVENT_PATHS (1024u * 1024u)
+#define PBI_V1_MAX_RESULT_EVENTS (1024u * 1024u)
+#define PBI_V1_MAX_INFERENCE_TURNS 10000u
 
 #ifdef __cplusplus
 #define PBI_NOEXCEPT noexcept
@@ -41,6 +49,28 @@ typedef struct pbi_buffer_v1 {
 /// 单向取消令牌；创建者拥有，所有借用它的 compute 返回后才能销毁。
 typedef struct pbi_cancel_token_v1 pbi_cancel_token_v1;
 
+/// 真实构图进度的两个稳定阶段；不把线程启动或心跳当成节点进展。
+typedef enum pbi_progress_phase_v1 {
+  PBI_PROGRESS_BUILDING_V1 = 0,
+  PBI_PROGRESS_BUILT_V1 = 1
+} pbi_progress_phase_v1;
+
+/// 一次实际构图观察帧；所有计数均来自同一次调用，不包含指向 Core 状态的指针。
+typedef struct pbi_progress_v1 {
+  uint32_t struct_size;
+  uint32_t operation_index;
+  pbi_progress_phase_v1 phase;
+  uint64_t nodes;
+  uint64_t edges;
+  uint64_t expanded;
+  uint64_t frontier;
+} pbi_progress_v1;
+
+/// 回调在 compute 的调用线程同步执行；frame 仅借用至本次回调返回，不可保留其指针。
+/// user_data 是调用者原样传入的数值句柄；Core 不解引用、不取得所有权。
+/// 回调不得抛 C++ 异常、语言异常或长时间阻塞；需要持久化时先复制帧再交给外部循环。
+typedef void (*pbi_progress_callback_v1)(const pbi_progress_v1* frame, uintptr_t user_data);
+
 /// @return 静态 ABI 版本 1；无所有权转移，可并发调用。
 uint32_t pbi_v1_abi_version(void) PBI_NOEXCEPT;
 
@@ -66,6 +96,17 @@ void pbi_v1_cancel_token_destroy(pbi_cancel_token_v1* token) PBI_NOEXCEPT;
 /// 独立 output/输入可并发调用；调用者取消与最后一次提交检查竞争时，已完成结果可为 OK。
 pbi_status_v1 pbi_v1_compute(const uint8_t* request, size_t request_size,
                             const pbi_cancel_token_v1* cancellation,
+                            pbi_buffer_v1* output) PBI_NOEXCEPT;
+
+/// 与 pbi_v1_compute 相同的正式批次，额外允许观察真实 fixed_battle 构图进度。
+/// @param request 只读 UTF-8 请求，借用至函数返回；@param request_size 实际字节数，不含结束符。
+/// @param cancellation 可空共享令牌；取消仍撤销整批，已经报告的进度不代表成功。
+/// @param progress 可空同步回调；没有构图的操作不会制造进度帧，回调次数可以为零。
+/// @param user_data 调用者拥有的数值上下文，必须在 compute 和全部同步回调返回后才销毁。
+/// @param output 零初始化输出；@return 与 compute 相同的错误及拥有结果，不改变 ABI/schema 版本。
+pbi_status_v1 pbi_v1_compute_with_progress(const uint8_t* request, size_t request_size,
+                            const pbi_cancel_token_v1* cancellation,
+                            pbi_progress_callback_v1 progress, uintptr_t user_data,
                             pbi_buffer_v1* output) PBI_NOEXCEPT;
 
 /// @param buffer Core 返回的拥有型缓冲区，可为 NULL；释放后清零，可重复释放。

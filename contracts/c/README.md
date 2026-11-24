@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入，也没有任务 ID、进度或持久化副作用。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.5.0`，规则集合标识为 `calculation-rules.v5`；原计算数学语义保持，新增完整性格 profile、合法行动和显式概率拓扑/SCC 求解。C ABI/schema 仍为 v1。不表示完整宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.6.0`，规则集合标识为 `calculation-rules.v6`；已接入正式结构化回合和由真实回合驱动的固定战斗，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -37,6 +37,8 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | status_modifiers | status、speed、generation_id、category、base_multiplier、burn_multiplier；可选 paralysis_multiplier | 独立麻痹速度、精确灼伤修正与切换清理，详见 [状态合同](state.v1.md) |
 | legal_actions | state、side、policy | 合法行动、完整 slot_id 与精确选招分布，详见 [图与行动合同](graph.v1.md) |
 | graph | nodes、edges、root、observer、truncations；可选 max_equation_nodes | 全部 SCC 与精确胜负/平局/闭环概率及有限/无限/不可用期望，详见 [图与行动合同](graph.v1.md) |
+| battle_turn | state、type_chart、selection；可选 turn_limits | 正式十一阶段、完整后继/状态/概率/条件事件路径，详见 [回合与固定战斗](turn.v1.md) |
+| fixed_battle | state、type_chart、attacker_policy、defender_policy、observer；可选保护/完整图开关 | 真实构图/精确解/实际统计/保护未知与可选完整图，详见 [回合与固定战斗](turn.v1.md) |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 

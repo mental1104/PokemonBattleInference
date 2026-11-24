@@ -1,7 +1,9 @@
 #include "pbi_core.h"
+#include "../src/turn_contract.hpp"
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include <chrono>
+#include <array>
 #include <fstream>
 #include <future>
 #include <iterator>
@@ -22,6 +24,23 @@ struct OwnedBuffer {
 
 /// 一次调用的独立结果，正文已复制，不借用 C 的任何内存。
 struct CallResult { pbi_status_v1 status; Json body; };
+
+/// C 回调测试拥有固定大小帧副本；cancel 非空时在首个真实进度中同步请求取消。
+struct ProgressCapture {
+  std::array<pbi_progress_v1, 8> frames{};
+  std::size_t count = 0;
+  bool overflow = false;
+  pbi_cancel_token_v1* cancel = nullptr;
+};
+
+/// @param frame 同步借用 C 栈帧；@param context 指向当前调用拥有的捕获器，返回后不保留 frame 指针。
+/// 固定数组复制不分配、不抛异常，令牌取消不销毁借用中的资源。
+void CaptureProgress(const pbi_progress_v1* frame, std::uintptr_t context) noexcept {
+  auto& capture = *reinterpret_cast<ProgressCapture*>(context);
+  if (capture.count < capture.frames.size()) capture.frames[capture.count++] = *frame;
+  else capture.overflow = true;
+  if (capture.cancel) pbi_v1_cancel_request(capture.cancel);
+}
 
 /// @param name 共享向量文件名；@return 完整文件内容，打开失败抛出异常使测试失败。
 std::string Fixture(const char* name) {
@@ -49,7 +68,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.5.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.6.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
@@ -89,6 +108,91 @@ TEST(CAbi, ResourceLimits) {
   for (int i = 0; i < 17; ++i) request["operations"].push_back(maximum_rolls);
   EXPECT_EQ(Call(request.dump()).status, PBI_RESOURCE_LIMIT_V1);
   EXPECT_EQ(Call(R"({"schema_version":1,"operations":[{"kind":"stage","value":9223372036854775807,"stage":6}]})").status, PBI_RESOURCE_LIMIT_V1);
+}
+
+/// 旧在线任务的最大生成图预算仍可提交；显式拓扑输入预算不应错误拒绝合法固定战斗。
+TEST(CAbi, FixedBattleLegacyBudgetsAndUnboundedEquations) {
+  auto operation = FixtureOperation("fixed_battle");
+  operation["graph_limits"] = {{"max_nodes", 2000000}, {"max_edges", 8000000}, {"max_turns", 10000}};
+  operation["max_equation_nodes"] = nullptr;
+  auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({FixtureOperation("graph"), operation})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][1]["status"], "solved");
+  EXPECT_EQ(result.body["results"][1]["statistics"]["nodes"], 2);
+  // 属性合同直接验证 None 被原样交给 Core，不能只在小图上碰巧与 128 得到相同数值。
+  const auto decoded = pbi::contract::ReadFixedBattleRequest(operation, PBI_V1_MAX_TOTAL_ROLLS,
+      PBI_V1_MAX_GENERATED_NODES, PBI_V1_MAX_GENERATED_EDGES);
+  EXPECT_FALSE(decoded.options.max_equation_nodes.has_value());
+  operation.erase("graph_limits"); operation.erase("max_equation_nodes");
+  const auto defaults = pbi::contract::ReadFixedBattleRequest(operation, PBI_V1_MAX_TOTAL_ROLLS,
+      PBI_V1_MAX_GENERATED_NODES, PBI_V1_MAX_GENERATED_EDGES);
+  EXPECT_EQ(defaults.options.graph_limits.max_nodes, 20000);
+  EXPECT_EQ(defaults.options.graph_limits.max_edges, 80000);
+  EXPECT_FALSE(defaults.options.graph_limits.max_turns.has_value());
+  EXPECT_FALSE(defaults.options.max_equation_nodes.has_value());
+  operation["graph_limits"] = {{"max_nodes", 2000001}};
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
+  EXPECT_EQ(result.status, PBI_RESOURCE_LIMIT_V1);
+  EXPECT_FALSE(result.body.contains("results"));
+}
+
+/// 构图保护得到 unknown，完整图确有全部节点/事件，未知机制和显式回合预算整批失败。
+TEST(CAbi, TurnAndFixedBattleResultSemantics) {
+  auto fixed = FixtureOperation("fixed_battle");
+  fixed["include_graph"] = true;
+  auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({fixed})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][0]["graph"]["nodes"].size(), 2);
+  EXPECT_EQ(result.body["results"][0]["graph"]["edges"].size(), 1);
+  EXPECT_FALSE(result.body["results"][0]["graph"]["edges"][0]["paths"][0]["events"].empty());
+  fixed["graph_limits"]["max_nodes"] = 1;
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({fixed})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][0]["status"], "incomplete-graph");
+  EXPECT_TRUE(result.body["results"][0]["win"].is_null());
+  EXPECT_EQ(result.body["results"][0]["statistics"]["terminal_counts"]["unknown"], 1);
+  EXPECT_EQ(result.body["results"][0]["graph"]["nodes"][0]["reason"], "max-nodes");
+  auto turn = FixtureOperation("battle_turn");
+  turn["state"]["attacker"]["spec"]["moves"][0]["effect_identifier"] = "unsupported-effect";
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({turn})}}.dump());
+  EXPECT_EQ(result.status, PBI_UNSUPPORTED_V1);
+  turn = FixtureOperation("battle_turn");
+  turn["state"]["rules"]["damage_policy"]["random_damage_multipliers"] = Json::array({0.85, 1.0});
+  turn["turn_limits"] = {{"max_branches", 1}, {"max_event_paths", 1}};
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({FixtureOperation("hp"), turn})}}.dump());
+  EXPECT_EQ(result.status, PBI_RESOURCE_LIMIT_V1);
+  EXPECT_FALSE(result.body.contains("results"));
+}
+
+/// 回调复制帧后仍可核对计数；首帧中同步取消会撤销包括之前成功操作在内的整个批次。
+TEST(CAbi, ActualProgressBorrowingAndCancellation) {
+  const auto input = Fixture("abi-calculations.v1.request.json");
+  OwnedBuffer output;
+  ProgressCapture capture;
+  auto status = pbi_v1_compute_with_progress(reinterpret_cast<const std::uint8_t*>(input.data()), input.size(), nullptr,
+      CaptureProgress, reinterpret_cast<std::uintptr_t>(&capture), &output.value);
+  ASSERT_EQ(status, PBI_OK_V1);
+  ASSERT_GE(capture.count, 2);
+  EXPECT_FALSE(capture.overflow);
+  EXPECT_EQ(capture.frames[0].phase, PBI_PROGRESS_BUILDING_V1);
+  const auto& final = capture.frames[capture.count - 1];
+  EXPECT_EQ(final.struct_size, sizeof(pbi_progress_v1));
+  EXPECT_EQ(final.phase, PBI_PROGRESS_BUILT_V1);
+  const auto response = Json::parse(output.value.data, output.value.data + output.value.size);
+  EXPECT_EQ(final.nodes, response["results"][final.operation_index]["statistics"]["nodes"]);
+  EXPECT_EQ(final.edges, response["results"][final.operation_index]["statistics"]["edges"]);
+  pbi_v1_buffer_release(&output.value);
+  const std::unique_ptr<pbi_cancel_token_v1, decltype(&pbi_v1_cancel_token_destroy)> token(pbi_v1_cancel_token_create(), pbi_v1_cancel_token_destroy);
+  ASSERT_NE(token, nullptr);
+  ProgressCapture cancelled;
+  cancelled.cancel = token.get();
+  status = pbi_v1_compute_with_progress(reinterpret_cast<const std::uint8_t*>(input.data()), input.size(), token.get(),
+      CaptureProgress, reinterpret_cast<std::uintptr_t>(&cancelled), &output.value);
+  EXPECT_EQ(status, PBI_CANCELLED_V1);
+  const auto rejection = Json::parse(output.value.data, output.value.data + output.value.size);
+  EXPECT_FALSE(rejection.contains("results"));
+  ASSERT_GE(cancelled.count, 1);
+  EXPECT_EQ(cancelled.frames[0].phase, PBI_PROGRESS_BUILDING_V1);
 }
 
 /// 图输入守恒/拓扑/枚举/方程预算明确失败；未知和封闭循环保留不同数学语义。

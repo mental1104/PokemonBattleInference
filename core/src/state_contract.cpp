@@ -206,14 +206,6 @@ Json BattlerJson(const BattlerState& value) {
       {"last_move_id", state.last_move_id ? Json(*state.last_move_id) : Json(nullptr)}, {"choice_lock_move_id", state.choice_lock_move_id ? Json(*state.choice_lock_move_id) : Json(nullptr)},
       {"item_consumed", state.item_consumed}, {"is_first_turn", state.is_first_turn}};
 }
-/// @param value 完整节点对象；@return 已验证的不可变 Core 状态。
-BattleState ReadState(const Json& value) {
-  RequireSchema(value, {"attacker", "defender", "rules"}, {"turn_number", "field", "phase"});
-  return BattleState{{ReadBattler(value.at("attacker")), ReadBattler(value.at("defender")), ReadRules(value.at("rules")),
-      value.contains("turn_number") ? ReadInteger(value.at("turn_number")) : 1,
-      value.contains("field") ? ReadField(value.at("field")) : BattleFieldState{},
-      value.contains("phase") ? ReadEnum<BattlePhase>(value.at("phase"), phases) : BattlePhase::action_selection}};
-}
 /// @param value 完整更新指令；@return 有限 variant，不保留动态 JSON 给领域执行。
 StateUpdate ReadUpdate(const Json& value) {
   const auto kind = value.at("kind").get<std::string>();
@@ -272,12 +264,27 @@ BattleState ApplyUpdate(const BattleState& state, const StateUpdate& update) {
 }
 } // namespace
 
+BattleState ReadBattleStateValue(const Json& value) {
+  RequireSchema(value, {"attacker", "defender", "rules"}, {"turn_number", "field", "phase"});
+  return BattleState{{ReadBattler(value.at("attacker")), ReadBattler(value.at("defender")), ReadRules(value.at("rules")),
+      value.contains("turn_number") ? ReadInteger(value.at("turn_number")) : 1,
+      value.contains("field") ? ReadField(value.at("field")) : BattleFieldState{},
+      value.contains("phase") ? ReadEnum<BattlePhase>(value.at("phase"), phases) : BattlePhase::action_selection}};
+}
+
+Json StateJson(const BattleState& state) {
+  const auto& data = state.View();
+  return {{"attacker", BattlerJson(data.attacker)}, {"defender", BattlerJson(data.defender)},
+      {"rules", RulesJson(data.rules)}, {"turn_number", data.turn_number}, {"field", FieldJson(data.field)},
+      {"phase", phases.at(static_cast<std::size_t>(data.phase))}};
+}
+
 std::pair<BattleStateRequest, std::size_t> ReadBattleStateRequest(const Json& value, std::size_t remaining_rolls) {
   RequireSchema(value, {"kind", "state", "updates"}, {"compare_to", "damage_query"});
   const auto& updates = value.at("updates");
   if (!updates.is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "state updates must be an array");
   if (updates.size() > 256) throw RequestError(PBI_RESOURCE_LIMIT_V1, "state update budget exceeded");
-  auto state = ReadState(value.at("state"));
+  auto state = ReadBattleStateValue(value.at("state"));
   std::size_t consumed = state.View().rules.View().damage_policy.random_damage_multipliers.size();
   std::vector<StateUpdate> changes;
   for (const auto& update : updates) {
@@ -286,7 +293,7 @@ std::pair<BattleStateRequest, std::size_t> ReadBattleStateRequest(const Json& va
     changes.push_back(std::move(change));
   }
   std::optional<BattleState> reference;
-  if (value.contains("compare_to") && !value.at("compare_to").is_null()) { reference = ReadState(value.at("compare_to")); consumed += reference->View().rules.View().damage_policy.random_damage_multipliers.size(); }
+  if (value.contains("compare_to") && !value.at("compare_to").is_null()) { reference = ReadBattleStateValue(value.at("compare_to")); consumed += reference->View().rules.View().damage_policy.random_damage_multipliers.size(); }
   std::optional<StateDamageQuery> damage;
   if (value.contains("damage_query") && !value.at("damage_query").is_null()) {
     const auto& query = value.at("damage_query");
@@ -316,8 +323,7 @@ Json EvaluateBattleState(const BattleStateRequest& request) {
     const auto& query = *request.damage;
     damage = DamageJson(CalculateDamage(state.DamageInputFor(query.side, query.move_id, query.policy), query.knowledge), query.generation);
   }
-  return {{"kind", "battle_state"}, {"state", {{"attacker", BattlerJson(data.attacker)}, {"defender", BattlerJson(data.defender)},
-          {"rules", RulesJson(data.rules)}, {"turn_number", data.turn_number}, {"field", FieldJson(data.field)}, {"phase", phases.at(static_cast<std::size_t>(data.phase))}}},
+  return {{"kind", "battle_state"}, {"state", StateJson(state)},
       {"same_key_as_input", state.Key() == request.state.Key()}, {"same_key_as_reference", request.reference ? Json(state.Key() == request.reference->Key()) : Json(nullptr)},
       {"attacker_speed", EffectiveActionSpeed(data.attacker)}, {"defender_speed", EffectiveActionSpeed(data.defender)}, {"damage", std::move(damage)}};
 }

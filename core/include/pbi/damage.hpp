@@ -176,6 +176,18 @@ struct DamageResult {
   std::vector<DamageTrace> trace;
 };
 
+/// 未施加 STAB、环境、道具或随机倍率的单一基础公式输入，供普通伤害与挣扎共用。
+struct BaseDamageInput {
+  std::int32_t level;
+  std::int64_t power;
+  std::int64_t attack;
+  std::int64_t defense;
+};
+/// 保留原 Python binary64 除法与逐层 floor，不在回合器复制第二套基础伤害公式。
+/// @param input 只读基础参数，defense 必须正数；中间乘积使用任意精度整数。
+/// @return int64 基础伤害；非法防御或输出越界明确抛异常。
+[[nodiscard]] std::int64_t CalculateBaseDamage(const BaseDamageInput& input);
+
 /// @param generation 1…9 的原有兼容 profile；@return 对应的新策略，未知代际抛出 UnsupportedRule。
 [[nodiscard]] DamagePolicy DamagePolicyForGeneration(std::int32_t generation);
 /// @param policy 只读完整策略；非法倍率/空随机档位抛 invalid_argument，不执行计算。

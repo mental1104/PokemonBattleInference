@@ -17,6 +17,14 @@ struct LegalActionsRequest {
   BattleSide side;
   ActionPolicy policy;
 };
+/// @param value 完整且只读的行动对象；@return 已验证类型化身份，未知种类返回 UNSUPPORTED。
+[[nodiscard]] BattleAction ReadActionValue(const Json& value);
+/// @param value 已验证行动；@return 类型专属完整身份，不编码虚构的可空招式字段。
+[[nodiscard]] Json ActionJson(const BattleAction& value);
+/// @param components 只读 SCC 列表；@param stop 可空协作取消；@return 全部分量固定投影。
+[[nodiscard]] Json ComponentsJson(std::span<const StrongComponent> components, CancellationToken stop = {});
+/// @param solution 只读正式精确结果；@return 概率和期望固定投影，资源/取消仍是整批错误。
+[[nodiscard]] Json GraphSolutionJson(const GraphSolution& solution);
 /// @param value 完整图操作；@param available_nodes 本批余下节点预算。
 /// @param available_edges 本批余下边预算；@param stop 协作取消，解析期间也检查。
 /// @return 已验证且独占拓扑的请求；字段/数值/资源错误按正式 ABI 错误码抛出。

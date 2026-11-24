@@ -6,6 +6,7 @@
 #include "json_contract.hpp"
 #include "state_contract.hpp"
 #include "graph_contract.hpp"
+#include "turn_contract.hpp"
 
 #include <nlohmann/json.hpp>
 #include "pbi/cancellation.hpp"
@@ -47,7 +48,7 @@ struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
 struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
 /// 完整能力配置复用领域性格选择和能力公式。
 struct ProfileRequest { pbi::StatProfile input; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest>;
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest, TurnRequest, FixedBattleRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
@@ -108,13 +109,25 @@ DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
 /// 解码单条计算，并限制实际批次伤害槽位总量。
 /// @param object 只读 JSON 操作；@param remaining_rolls 尚可拥有的槽位预算。
 /// @param remaining_nodes 本批余下图节点；@param remaining_edges 本批余下图边；@param stop 协作取消。
+/// @param generated_nodes 生成图任务节点配额；@param generated_edges 生成图任务边配额，与显式拓扑分开。
 /// @return 类型化操作和消耗的槽位数；不修改调用方预算。
 std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t remaining_rolls,
-    std::size_t remaining_nodes, std::size_t remaining_edges, pbi::CancellationToken stop) {
+    std::size_t remaining_nodes, std::size_t remaining_edges,
+    std::size_t generated_nodes, std::size_t generated_edges, pbi::CancellationToken stop) {
   if (!object.is_object() || !object.contains("kind") || !object.at("kind").is_string()) {
     throw RequestError(PBI_INVALID_INPUT_V1, "operation kind must be a string");
   }
   const auto kind = object.at("kind").get<std::string>();
+  if (kind == "battle_turn") {
+    auto request = ReadTurnRequest(object, remaining_rolls);
+    const auto consumed = request.state.View().rules.View().damage_policy.random_damage_multipliers.size();
+    return {std::move(request), consumed};
+  }
+  if (kind == "fixed_battle") {
+    auto request = ReadFixedBattleRequest(object, remaining_rolls, generated_nodes, generated_edges);
+    const auto consumed = request.initial.View().rules.View().damage_policy.random_damage_multipliers.size();
+    return {std::move(request), consumed};
+  }
   if (kind == "graph") return {ReadGraphRequest(object, remaining_nodes, remaining_edges, stop), 0};
   if (kind == "legal_actions") {
     auto request = ReadLegalActionsRequest(object, remaining_rolls);
@@ -201,8 +214,38 @@ Json Evaluate(const LegalActionsRequest& request) { return EvaluateLegalActions(
 
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v5"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v6"}};
 }
+
+/// 按操作编码完整结果并限制整批内存；失败前不提交外部字节，也不积累所有图的 JSON 树。
+class ResultAccumulator {
+public:
+  /// @param value 单条完整结果，只读借用；超限时 output 仍为空，不截断后伪造成功。
+  void Append(const Json& value) {
+    const auto encoded = value.dump();
+    constexpr auto maximum = static_cast<std::size_t>(PBI_V1_MAX_RESULT_BYTES);
+    // 分开检查减法防止 size_t 下溢，为分隔符和结束括号保留空间。
+    if (encoded.size() > maximum || bytes_.size() > maximum - encoded.size() || maximum - encoded.size() - bytes_.size() < 2)
+      throw RequestError(PBI_RESOURCE_LIMIT_V1, "result byte budget exceeded");
+    if (count_++) bytes_.push_back(',');
+    bytes_ += encoded;
+  }
+  /// @return 规范 key 排序的完整成功信封，转移拥有字节；信封超限仍整批失败。
+  [[nodiscard]] std::string Finish() {
+    bytes_.push_back(']');
+    auto response = Envelope();
+    response["results"] = nullptr;
+    auto encoded = response.dump();
+    const auto marker = encoded.find("\"results\":null");
+    // 信封由本函数唯一构造，只替换固定 null，避免重新解析累计的整个结果树。
+    encoded.replace(marker + sizeof("\"results\":") - 1, 4, bytes_);
+    if (encoded.size() > PBI_V1_MAX_RESULT_BYTES) throw RequestError(PBI_RESOURCE_LIMIT_V1, "result byte budget exceeded");
+    return encoded;
+  }
+private:
+  std::string bytes_ = "[";
+  std::size_t count_ = 0;
+};
 
 /// @param code 稳定错误枚举；@return 静态 ASCII 名称，无所有权转移。
 const char* StatusName(pbi_status_v1 code) {
@@ -259,8 +302,9 @@ void pbi_v1_buffer_release(pbi_buffer_v1* buffer) noexcept {
   }
 }
 
-pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_size,
+pbi_status_v1 pbi_v1_compute_with_progress(const std::uint8_t* request, std::size_t request_size,
                             const pbi_cancel_token_v1* cancellation,
+                            pbi_progress_callback_v1 progress, std::uintptr_t user_data,
                             pbi_buffer_v1* output) noexcept {
   // 不覆盖未释放结果；调用者始终保持原 buffer 的所有权。
   if (!output || output->data || output->size) return PBI_INVALID_INPUT_V1;
@@ -286,29 +330,46 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     std::size_t remaining_rolls = kMaxTotalRolls;
     std::size_t remaining_nodes = PBI_V1_MAX_GRAPH_NODES;
     std::size_t remaining_edges = PBI_V1_MAX_GRAPH_EDGES;
+    std::size_t generated_nodes = PBI_V1_MAX_GENERATED_NODES;
+    std::size_t generated_edges = PBI_V1_MAX_GENERATED_EDGES;
     const auto stop = cancellation ? cancellation->source.Token() : pbi::CancellationToken{};
     for (const auto& operation : operations) {
       CheckCancelled(cancellation);
-      auto [value, consumed] = ReadOperation(operation, remaining_rolls, remaining_nodes, remaining_edges, stop);
+      auto [value, consumed] = ReadOperation(operation, remaining_rolls, remaining_nodes, remaining_edges, generated_nodes, generated_edges, stop);
       remaining_rolls -= consumed;
       if (const auto* graph = std::get_if<GraphRequest>(&value)) {
         remaining_nodes -= graph->graph.Nodes().size();
         remaining_edges -= graph->graph.Edges().size();
+      } else if (const auto* fixed = std::get_if<FixedBattleRequest>(&value)) {
+        // 对生成图预留请求中的有限上限，多个推演不能各自占用完整批次配额。
+        generated_nodes -= *fixed->options.graph_limits.max_nodes;
+        generated_edges -= *fixed->options.graph_limits.max_edges;
       }
       typed.push_back(std::move(value));
     }
-    auto results = Json::array();
-    for (const auto& operation : typed) {
+    ResultAccumulator results;
+    for (std::size_t index = 0; index < typed.size(); ++index) {
+      const auto& operation = typed[index];
       CheckCancelled(cancellation);
       // 图遍历/消元持有同一共享原子状态的只读令牌，不创建轮询线程或忽略长图取消。
-      results.push_back(std::visit([stop](const auto& value) {
+      results.Append(std::visit([stop, progress, user_data, index](const auto& value) {
         if constexpr (std::is_same_v<std::decay_t<decltype(value)>, GraphRequest>) return EvaluateGraph(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, TurnRequest>) return EvaluateTurn(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, FixedBattleRequest>) {
+          pbi::GraphProgressObserver observer;
+          if (progress) observer = [progress, user_data, index](const pbi::GraphBuildProgress& current) {
+            // 帧只在 C 同步回调期间借用；userdata 原样转发，不保存外部对象指针。
+            const pbi_progress_v1 frame{sizeof(pbi_progress_v1), static_cast<std::uint32_t>(index),
+                current.phase == pbi::GraphBuildPhase::building ? PBI_PROGRESS_BUILDING_V1 : PBI_PROGRESS_BUILT_V1,
+                current.nodes, current.edges, current.expanded, current.frontier};
+            progress(&frame, user_data);
+          };
+          return EvaluateFixedBattle(value, observer, stop);
+        }
         else return Evaluate(value);
       }, operation));
     }
-    auto response = Envelope();
-    response["results"] = std::move(results);
-    const auto encoded = response.dump();
+    const auto encoded = results.Finish();
     // 最后一次检查是批次提交点；取消不向调用方交付部分 results。
     CheckCancelled(cancellation);
     WriteBuffer(encoded, output);
@@ -319,6 +380,12 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     return WriteError(PBI_INVALID_INPUT_V1, "invalid JSON request", output);
   } catch (const pbi::UnsupportedRule& error) {
     return WriteError(PBI_UNSUPPORTED_V1, error.what(), output);
+  } catch (const pbi::TurnResourceLimit& error) {
+    return WriteError(PBI_RESOURCE_LIMIT_V1, error.what(), output);
+  } catch (const pbi::TurnCancelled&) {
+    return WriteError(PBI_CANCELLED_V1, "calculation cancelled", output);
+  } catch (const pbi::GraphBuildCancelled&) {
+    return WriteError(PBI_CANCELLED_V1, "calculation cancelled", output);
   } catch (const std::invalid_argument& error) {
     return WriteError(PBI_INVALID_INPUT_V1, error.what(), output);
   } catch (const std::overflow_error&) {
@@ -328,4 +395,10 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
   } catch (...) {
     return WriteError(PBI_INTERNAL_ERROR_V1, "native calculation failed", output);
   }
+}
+
+pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_size,
+                            const pbi_cancel_token_v1* cancellation,
+                            pbi_buffer_v1* output) noexcept {
+  return pbi_v1_compute_with_progress(request, request_size, cancellation, nullptr, 0, output);
 }

@@ -13,7 +13,7 @@ struct TransitionEventData {
   TransitionEventType type;
   std::string event_id;
   std::string outcome_id;
-  std::optional<Integer> numeric_value;
+  std::optional<Integer> numeric_value = std::nullopt;
   /// @param other 只读事件；@return 全部来源和结果字段是否一致。
   bool operator==(const TransitionEventData& other) const = default;
 };
@@ -36,13 +36,13 @@ enum class BattleEventKind { turn_started, move_selected, action_ordered, move_u
 struct BattleEventData {
   BattleEventKind kind;
   std::int64_t turn_number;
-  std::optional<BattleSide> actor;
-  std::optional<BattleSide> target;
-  std::optional<std::int64_t> move_id;
-  std::optional<std::string> source_identifier;
-  std::optional<Integer> value;
-  std::optional<Integer> before;
-  std::optional<Integer> after;
+  std::optional<BattleSide> actor = std::nullopt;
+  std::optional<BattleSide> target = std::nullopt;
+  std::optional<std::int64_t> move_id = std::nullopt;
+  std::optional<std::string> source_identifier = std::nullopt;
+  std::optional<Integer> value = std::nullopt;
+  std::optional<Integer> before = std::nullopt;
+  std::optional<Integer> after = std::nullopt;
   /// @param other 只读事件；@return 所有显式业务字段是否相同。
   bool operator==(const BattleEventData& other) const = default;
 };

@@ -1,6 +1,6 @@
 # P1 Core 迁移检查点
 
-P1 仍为 **IN_PROGRESS**。已验证的能力不能替代尚未迁移的完整回合、动态效果、固定战斗和配置搜索。
+P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗已有真实差分；配置候选生成正在独立验收，配置目标搜索及事件条件分析仍待迁移。正式 C ABI、跨语言链路与 Apple 构建各以对应真实验收为准。
 
 ## 合法行动与有限概率图（2026-11-24）
 
@@ -32,7 +32,7 @@ P1 仍为 **IN_PROGRESS**。已验证的能力不能替代尚未迁移的完整�
 
 ## 剩余依赖
 
-下一条真实计算链为：带条件权重的事件/概率转移 → 不可变战斗图构建 → 正式回合器/动态效果 → fixed_battle/graph/step → 配置空间搜索及事件分析。回合阶段、资源截断、PP/状态/道具效果与 Python 行为都必须继续实际差分；未支持机制必须明确失败，不能用无伤害回合或假的完成状态顶替。
+现有事件/概率转移、不可变战斗图、正式回合器/动态效果与固定战斗的证据见下文。剩余链路为完整配置目标搜索、流式配置结果聚合、事件查询及反事实分析；各自仍需实际对照原调用链，不以已有图/SCC 能力推定这些业务算法已经迁移。
 
 ## Apple 标准库取消兼容修复（待本批复测）
 
@@ -42,4 +42,39 @@ P1 仍为 **IN_PROGRESS**。已验证的能力不能替代尚未迁移的完整�
 
 新增三项原生测试覆盖空值、幂等请求、副本/移动、源销毁后生命周期及 16 读者/8 请求者并发。该修复与尚未完成的正式回合器分开；回合器新文件未注册到 CMake，未完成基础公式改动保存为私有 `core-graph-20261124/turn-in-progress.patch`，没有带入修复验证。
 
-本批 Linux、Swift 重链与 ASan 证据正在 `portable-cancellation-20261124/` 生成；实际 Apple 修复结果仍需后续 GitHub CI，未提前标记 PASS。
+本批 `portable-cancellation-20261124/` 已实测：GCC14 与 Swift 工具镜像 GCC13 各 **49/49 CTest PASS**；`linux-final.log` 迁移 **23 passed / 1 skipped**（32.10 秒，仅工具镜像没有 Swift，含实际 Go `-a -race` 和 vet）；`swift-final.log` **20 tests / 3 explicit skip / 0 failure**（2.496 秒，跳过为未配置独立在线/同步测试 URL），含 Engine 运行中 Task 取消与真实知识 HTTP 更新；ASan/UBSan/leak **49/49 PASS**（433.29 秒，原大规模 GraphBatchNodeBudget 未跳过/缩减/重启）。首次 Go/Swift 委托分别遇到并行开发的缺失 reader 文件与 HTTP 夹具启动失败，原始日志保留，未把编辑期失败报告为全绿。Apple 修复仍由后续实际 GitHub CI 判定。
+
+## 正式结构化回合与固定战斗（2026-11-24，待 P2 .6 接入）
+
+新增 `turn.hpp/.cpp`，直接迁移实际 `BattleEventStandardMoveTurnResolver` 调用链，保留十一阶段、双侧行动身份、PP/上一招、命中/未命中、优先级与等级后速度、同速随机、直接伤害、挣扎最大 HP 反伤、濒死短路与回合末畏缩清理。`CalculateBaseDamage` 从原伤害链抽为同一纯 Core helper，挣扎复用该公式；静态直接伤害的所有原差分继续通过。
+
+真实动态机制包括 ChoiceBand 选招锁定、FakeOut 首次出场限制/畏缩、Multiscale 实时满 HP 修正和 InnerFocus 畏缩免疫。静态 `damage` 入口仍明确拒绝需要实时状态的后两项，未将它们悄悄降为无效果。原尚未支持的 IcePunch 冰冻追加、BrickBreak 破壁、InnerFocus 威吓免疫，以及原默认回合管线未接入的主要状态/混乱/迷恋门禁和残余伤害，通过 `unsupported_aspects` 明确列出；不擅自加入官方规则、LifeOrb 反伤或原未执行的能力等级伤害修正。
+
+`Expand` 组合原两种玩家策略与正式回合分布，每条路径保留原 `application.joint-action-probability` 的精确选择/随机概率元数据。`InferFixedBattle` 真实串联正式回合、BFS、SCC 和精确求解，返回拥有完整状态/事件图及有限/无限/不可用解。回合分支/事件历史超预算明确失败，不截断后重新归一；图节点/边/回合预算仍保留 unknown/incomplete，取消使用可移植共享原子令牌。
+
+证据根 `turn-20261124/`：
+
+- `native.log`：纯 Core **41/41 CTest PASS**，含新增六项正式回合测试。验证最后一点 PP、真实 FakeOut/InnerFocus/Multiscale、挣扎同时濒死、正式固定战斗胜率/期望、未知保护、预算/取消/未知机制。
+- `differential-final.log` / `turn-tests-final.xml`：**7/7 pytest PASS**（3.94 秒）。**96** 个显式联合行动、**32** 个完整玩家策略展开，全状态、原阶段顺序、随机/业务事件全部字段与精确条件路径逐项一致；**4** 个真实固定战斗与保护场景对照原正式 expander/BFS/SCC/solver，比较完整图、每条边/代表路径/事件和全部概率/期望。旧 builder 两项及原静态 damage 三项同时通过，没有复制原算法作为 oracle。
+- 首次随机场景因测试夹具写错 `BattleFieldState` 参数名而未进入比较；修正为原 `attacker_side_conditions`/`defender_side_conditions` 后，保留全部原断言并重跑通过，首次日志 `differential.log` 保留。
+- `full-roll-differential.log` / `full-roll-turn-tests.xml`：正式回合差分 **3/3 PASS**（3.62 秒），在上述随机/固定场景之外增加 **12** 个完整 16 档显式场景，核对同速、FakeOut 首/非首次、InnerFocus、Multiscale 满 HP/差 1 HP、挣扎、最后 PP、75% 命中、濒死 Pass 和普通属性攻击幽灵免疫下的全部事件路径。
+- `sanitizer.log`：本批纯 Core ASan/UBSan/leak **41/41 PASS**（2.26 秒），没有因无关旧大型 ABI 预算测试再次执行七分钟整套 sanitizer。正式 C ABI/Go/Swift .6 及 Apple 构建结果由 P2 后续实际验证，未用先前 .5 的绿灯替代。
+- `fixed-battle-benchmark.json`：五个小型合成领域场景全部实际完整求解，分别覆盖优先 KO、同速 KO、挣扎互 KO、FakeOut 封闭循环和 75% 命中后挣扎；节点数 `[2,3,2,2,7]`、边数 `[1,2,1,2,6]`，五次采样每次完整精确结果一致。Python 中位 **0.062558 秒**，C++ 实际进程中位 **0.025591 秒**；包含 Python 模型投影与 C++ 进程/JSON/IPC，不外推到纯函数或完整配置空间。复跑入口 `python -m tests.migration.benchmark_core_turn --runner build/core/pbi_turn_vectors --repeats 5 --output /tmp/fixed-battle-benchmark.json`，固定证据副本 `docs/benchmarks/core-fixed-battle-20261124.json`。
+
+## 标准四维配置候选与精确权重（2026-11-24，独立模块待注册）
+
+新增 `configuration_stats`、`configuration_moves`、`configuration_space` 三个纯类型模块；Go/Swift 不负责组合、过滤、等价归并或权重。输入为 version-aware 合法原候选、完整能力快照和原命令；输出是真正经过过滤、归并与保护校验的完整空间，不能用预先构造战斗状态的笛卡尔积代替。
+
+能力维度按命令字段顺序、排序后的 EV 值和性格输入顺序惰性枚举；非负 EV 前缀超过 510 后直接跳过整段非法组合，只有合法原始 profile 消耗 `max_raw_profiles`。以实际六项能力值归并，保留第一个 EV/IV/性格代表和原标签；完整五轴 binary64 性格兼容旧预设仅提高单项 1.1、没有下降项的语义，不擅自替换成二轴性格。复用已有 HP/中性能力基础公式，再按原性格乘法 floor；概率与成员数仍为精确整数/有理数。预设或不可变用户快照的读取和解析仍属于输入组装。
+
+招式维度区分命令排除、repository 可执行性和当前 factory 覆盖，保留每个合法候选的完整原因。支持候选按完整 MoveSpec 行为和 effect 归并，重复 projection 保留乘数；不同 projection 的同一招式 ID 不得占两个槽。默认少于四招取全量，达到四招仅枚举无序四招，显式模式保留 1..4 槽组合；原始组合成员数超过预算时整次失败。无附加 effect 的状态招式不会伪装成已实现。
+
+特性/道具维度采用原 PokemonChampion factory 规则；未知机制和原声明 PARTIAL 的 InnerFocus 不进入标准生成空间。命令明确指定的无道具和受控道具按规范顺序枚举，不自动扩张全游戏道具表。保留原 generator 的整体支持判断；IcePunch/BrickBreak 的尚缺子能力仍可由较新的严格任务准入独立拒绝，不能混淆这两个旧入口。
+
+单侧和双侧预算均按归并前原始成员计算。最终类按原 `repr(behavior_signature)` 排序，保留旧类索引和第一代表；原始成员均匀权重为 `member_count/raw_pair_count`，等价类均匀权重为 `1/unique_pair_count`，两种假设明确分开并验证精确总和为一。空支持维度、规则轴不匹配、超预算和取消整体失败，不重新归一化剩余子集。
+
+证据根 `configuration-stats-20261124/`：初批三个模块 **11/11 原生测试 PASS**（独立编译），`space-differential.log/xml` **6/6 pytest PASS**（0.91 秒）：121 组原 `StatDimensionProvider`（120 随机受控 + 七个内置 preset 同组）、160 组原 `MoveSetDimensionProvider`、36 组双方真实候选各两种权重共 72 组完整原 `GenerateConfigurationSpaceUseCase` 对照，以及各层原始成员预算拒绝。逐字段比较完整行为键、首代表 EV/IV/性格、标签、招式名称、每项 coverage 字段/原因/顺序、每个配置对成员和精确分数；不复制原枚举/归并算法作为 oracle。初批 ASan/UBSan/leak **11/11 PASS**（6 毫秒），记录 `sanitizer.log`。最终 `space-final-differential.log/xml` **7/7 pytest PASS**（0.93 秒），额外完整对照 **40** 组原任意有限性格倍率（负值、正负零、非标准分数和小指数）对应的 binary64 floor 与原代表标签；没有以 25 种标准性格缩减旧输入范围。
+
+最后追加非有限/输出溢出边界测试及性格去重从二次扫描改为有序集合后，单独重编译最终 stats 源并以 ASan/UBSan/leak **5/5 PASS**（2 毫秒），记录 `stats-final-sanitizer.log`；初批整包 11 项和本次 5 项各有独立运行记录，不冒称另跑了一套 12 项 CTest。冻结源文件校验清单为 `frozen-sources.sha256`。
+
+本批仅迁移真实默认四维，未声称旧运行时自定义 provider 插件、目标 EV 搜索、配置求解批量聚合或事件查询已经完成。三个新模块当前未注册 CMake，也未公开正式 ABI；先与 P2 的 .6 正式回合协议保持独立，再由主 agent 统一检查点和登记。

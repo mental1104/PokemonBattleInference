@@ -14,7 +14,7 @@ from typing import Annotated, Literal
 import pytest
 from pydantic import BaseModel, ConfigDict, Field
 
-from pokeop.application.solver.models import GraphTruncationReason, StateGraphLimits
+from pokeop.application.solver.models import GraphTruncationReason, StateGraphBuildResult, StateGraphLimits
 from pokeop.application.solver.state_graph import StateGraphBuilder
 from pokeop.domain.battle.battle_events import BattleEvent, BattleEventKind
 from pokeop.domain.battle.inference_outcome import BattleSide, TerminationReason
@@ -196,6 +196,11 @@ class _BuildOracle:
     def expected(cls, case: _BuildCase) -> BuildReply:
         """case 为相同初始状态和扩展输入；返回原正式 StateGraphBuilder 的完整图投影。"""
         graph = StateGraphBuilder(_ScriptedExpander(case.mode), case.limits).build(case.state)
+        return cls.graph(graph)
+
+    @classmethod
+    def graph(cls, graph: StateGraphBuildResult) -> BuildReply:
+        """graph 为原正式构图结果；只做完整字段投影，供脚本输入与真实回合共用同一比较边界。"""
         nodes = tuple(NodeReply(id=int(node.node_id), state=_StateOracle.snapshot(node.state), outcome=node.outcome,
             reason=node.termination_reason, predecessor_node=node.predecessor_node_id, predecessor_edge=node.predecessor_edge_id,
             path=tuple(int(value) for value in graph.representative_path(node.node_id))) for node in graph.nodes)

@@ -156,12 +156,7 @@ public:
       Apply(DamageSource::eviolite, DamageStage::defense_stat, policy.eviolite_defense_multiplier,
             "Eviolite boosts Defense and Special Defense when the holder can evolve.");
     }
-    if (defense_ <= 0) throw std::invalid_argument("defense must be greater than 0");
-    const auto level_factor = FloorInteger((2.0 * input_.attacker.level) / 5.0 + 2.0);
-    const Integer product = Integer{level_factor} * power_ * attack_;
-    // Python 的中间 floor 返回任意精度整数，scaled 可以超出 int64 而最终伤害仍合法。
-    const Integer scaled{std::floor(IntegerRatioAsDouble(product, Integer{defense_}))};
-    base_ = FloorInteger(IntegerRatioAsDouble(scaled, Integer{50})) + 2;
+    base_ = CalculateBaseDamage({input_.attacker.level, power_, attack_, defense_});
   }
 
   /// @param knowledge 借用的属性相克快照；先 STAB，再逐属性累乘，免疫仍保留其余 trace。
@@ -279,6 +274,18 @@ private:
 } // namespace
 
 void ValidateDamagePolicy(const DamagePolicy& policy) { ValidatePolicy(policy); }
+
+std::int64_t CalculateBaseDamage(const BaseDamageInput& input) {
+  if (input.defense <= 0) throw std::invalid_argument("defense must be greater than 0");
+  const auto level_factor = FloorInteger((2.0 * input.level) / 5.0 + 2.0);
+  const Integer product = Integer{level_factor} * input.power * input.attack;
+  // 原中间 floor 返回任意精度整数，scaled 可以超出 int64 而最终基础伤害仍合法。
+  const Integer scaled{std::floor(IntegerRatioAsDouble(product, Integer{input.defense}))};
+  const Integer result = Integer{FloorInteger(IntegerRatioAsDouble(scaled, Integer{50}))} + 2;
+  if (result < std::numeric_limits<std::int64_t>::min() || result > std::numeric_limits<std::int64_t>::max())
+    throw std::overflow_error("base damage exceeds int64 range");
+  return result.convert_to<std::int64_t>();
+}
 
 TypeChartSnapshot::TypeChartSnapshot(std::vector<TypeEfficacy> entries) : entries_(std::move(entries)) {
   for (std::size_t i = 0; i < entries_.size(); ++i) {

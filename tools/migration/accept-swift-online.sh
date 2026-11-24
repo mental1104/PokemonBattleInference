@@ -31,10 +31,11 @@ cleanup() {
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/p2-online/go-tmp"
 compose run --rm --no-deps -e "CGO_LDFLAGS=-L$go_core" -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path \
   -e GOTMPDIR=/build/p2-online/go-tmp pokemon-validation sh -c \
-  'cd server && go build -a -o /build/p2-online/pbi-server ./cmd/pbi-server' \
+  'cd server && go build -a -o /build/p2-online/pbi-server ./cmd/pbi-server && go build -a -o /build/p2-online/pbi-core-worker ./cmd/pbi-core-worker' \
   > "$POKEOP_REPORT_ROOT/server-build.log" 2>&1
 container_id="$(compose run --rm --no-deps -d --name "$server_name" \
-  --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 pokemon-validation /build/p2-online/pbi-server)"
+  --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 -e PBI_CORE_WORKER_PATH=/build/p2-online/pbi-core-worker \
+  pokemon-validation /build/p2-online/pbi-server)"
 trap cleanup EXIT
 # 使用宿主已声明的 curl 探测回环健康；工具镜像无需临时安装 HTTP CLI。
 endpoint="http://$(docker port "$container_id" 41105/tcp)"

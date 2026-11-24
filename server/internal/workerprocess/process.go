@@ -77,22 +77,27 @@ func Execute(ctx context.Context, executable string, request []byte) ([]byte, er
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
-		code := exit.ExitCode()
-		kinds := map[int]string{1: "invalid_input", 2: "unsupported", 3: "resource_limit", 4: "cancelled", 5: "internal_error"}
-		kind, exists := kinds[code]
-		var envelope struct {
-			Error *struct {
-				Code string `json:"code"`
-			} `json:"error"`
-			Results json.RawMessage `json:"results"`
-		}
-		if !exists || json.Unmarshal(result, &envelope) != nil || envelope.Error == nil || envelope.Error.Code != kind || len(envelope.Results) != 0 {
-			kind = "worker_crash"
-		}
-		return result, &Failure{Code: kind, ExitCode: code}
+		return result, classifyExit(exit.ExitCode(), result)
 	}
 	if errors.Is(err, io.ErrShortWrite) {
 		return result, ErrOutputLimit
 	}
 	return nil, err
+}
+
+// classifyExit 保留两种进程协议相同的错误校验；code 必须与完整 result 的明确错误类别一致。
+// 结果缺失、原生 runtime fatal 或额外 results 都归类 worker_crash，不能只按退出数字猜测业务拒绝。
+func classifyExit(code int, result []byte) *Failure {
+	kinds := map[int]string{1: "invalid_input", 2: "unsupported", 3: "resource_limit", 4: "cancelled", 5: "internal_error"}
+	kind, exists := kinds[code]
+	var envelope struct {
+		Error *struct {
+			Code string `json:"code"`
+		} `json:"error"`
+		Results json.RawMessage `json:"results"`
+	}
+	if !exists || json.Unmarshal(result, &envelope) != nil || envelope.Error == nil || envelope.Error.Code != kind || len(envelope.Results) != 0 {
+		kind = "worker_crash"
+	}
+	return &Failure{Code: kind, ExitCode: code}
 }

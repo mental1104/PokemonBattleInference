@@ -26,7 +26,22 @@ std::size_t ReadIndex(const Json& value) {
   }
   return static_cast<std::size_t>(number);
 }
-/// @param value 单个已验证领域行动；@return 类型专属的完整身份，不制造可空 move_id。
+} // namespace
+
+BattleAction ReadActionValue(const Json& value) {
+  if (!value.is_object() || !value.contains("kind") || !value.at("kind").is_string()) throw RequestError(PBI_INVALID_INPUT_V1, "action kind must be a string");
+  const auto kind = value.at("kind").get<std::string>();
+  if (kind == "use-move") {
+    RequireFields(value, {"kind", "side", "move_id", "priority", "slot_id"});
+    return ValidateAction(UseMoveAction{ReadEnum<BattleSide>(value.at("side"), sides), ReadInteger(value.at("move_id")),
+        ReadInt32(value.at("priority")), ReadInteger(value.at("slot_id"))});
+  }
+  if (kind != "struggle" && kind != "pass") throw RequestError(PBI_UNSUPPORTED_V1, "unsupported action kind");
+  RequireFields(value, {"kind", "side"});
+  const auto side = ReadEnum<BattleSide>(value.at("side"), sides);
+  return kind == "struggle" ? BattleAction{StruggleAction{side}} : BattleAction{PassAction{side}};
+}
+
 Json ActionJson(const BattleAction& value) {
   // 根据互斥行动类型构造对应字段，完整保留身份而不读取不存在的招式字段。
   return std::visit([](const auto& action) -> Json {
@@ -41,7 +56,6 @@ Json ActionJson(const BattleAction& value) {
     }
   }, value);
 }
-} // namespace
 
 GraphRequest ReadGraphRequest(const Json& value, std::size_t available_nodes,
     std::size_t available_edges, pbi::CancellationToken stop) {
@@ -91,11 +105,9 @@ LegalActionsRequest ReadLegalActionsRequest(const Json& value, std::size_t remai
   return {std::move(state.state), ReadEnum<BattleSide>(value.at("side"), sides), ReadEnum<ActionPolicy>(value.at("policy"), policies)};
 }
 
-Json EvaluateGraph(const GraphRequest& request, pbi::CancellationToken stop) {
+Json ComponentsJson(std::span<const StrongComponent> values, CancellationToken stop) {
   auto component_values = Json::array();
-  // Core 的迭代 SCC 遍历会检查同一个令牌；取消异常必须转为正式 CANCELLED 而不是 INTERNAL_ERROR。
-  try {
-    for (const auto& component : AnalyzeComponents(request.graph, stop)) {
+    for (const auto& component : values) {
       CheckGraphCancelled(stop);
       auto nodes = Json::array();
       auto outgoing = Json::array();
@@ -104,14 +116,12 @@ Json EvaluateGraph(const GraphRequest& request, pbi::CancellationToken stop) {
       component_values.push_back({{"id", component.id.value}, {"nodes", std::move(nodes)},
           {"kind", components.at(static_cast<std::size_t>(component.kind))}, {"outgoing", std::move(outgoing)},
           {"reaches_terminal", component.reaches_terminal}});
-    }
-  } catch (const std::runtime_error&) {
-    CheckGraphCancelled(stop);
-    throw;
   }
-  const auto solution = SolveGraph(request.graph, request.observer, request.max_equation_nodes, stop);
-  CheckGraphCancelled(stop);
-  Json result{{"kind", "graph"}, {"components", std::move(component_values)}};
+  return component_values;
+}
+
+Json GraphSolutionJson(const GraphSolution& solution) {
+  auto result = Json::object();
   if (const auto* solved = std::get_if<SolvedGraph>(&solution)) {
     result["status"] = "solved";
     result["win"] = FractionJson(solved->win);
@@ -136,6 +146,22 @@ Json EvaluateGraph(const GraphRequest& request, pbi::CancellationToken stop) {
     result["diagnostics"] = unavailable.diagnostics;
   }
   return result;
+}
+
+Json EvaluateGraph(const GraphRequest& request, pbi::CancellationToken stop) {
+  // Core 的迭代 SCC 遍历会检查同一个令牌；取消异常必须转为正式 CANCELLED 而不是 INTERNAL_ERROR。
+  try {
+    const auto values = AnalyzeComponents(request.graph, stop);
+    const auto solution = SolveGraph(request.graph, request.observer, request.max_equation_nodes, stop);
+    CheckGraphCancelled(stop);
+    auto result = GraphSolutionJson(solution);
+    result["kind"] = "graph";
+    result["components"] = ComponentsJson(values, stop);
+    return result;
+  } catch (const std::runtime_error&) {
+    CheckGraphCancelled(stop);
+    throw;
+  }
 }
 
 Json EvaluateLegalActions(const LegalActionsRequest& request) {
