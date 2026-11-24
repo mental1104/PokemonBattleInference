@@ -9,8 +9,9 @@ import (
 	"strconv"
 )
 
-// registerCatalog 绑定已迁移的六条知识查询 API，沿用旧规则集与分页默认值。
+// registerCatalog 绑定六条calculator知识查询及独立候选池，沿用各原入口的规则轴与分页合同。
 func registerCatalog(mux *http.ServeMux, db *sql.DB) {
+	registerCandidatePools(mux, db)
 	store := catalog.New(db)
 	mux.HandleFunc("GET /v1/calculator/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		limit, ok := queryInt(w, r, "limit", 20, 1, 50)
