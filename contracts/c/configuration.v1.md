@@ -91,7 +91,7 @@ raw 预算均作用于归并前合法原始成员，而不是归并后的类数�
 
 ## 0.8 模板目标与完整 EV 搜索
 
-`configuration_templates` 和 `configuration_spread_search` 均接收 `kind` 与完整 `input` 快照，不读取数据库或在Go/Swift计算能力值。完整请求/结果的权威示例分别为 `tests/vectors/configuration-templates.v1.json`、`configuration-spread-search.v1.json`，其 expected 由原公开 WithSpeed 用例与完整伤害链逐例生成，再追加到三语言共享向量；既有19项输入/数学结果保持不变。
+`configuration_templates` 和 `configuration_spread_search` 采用扁平操作对象：`kind`、`generation_id`、`subject_base`、`type_chart` 及各自的模板/性格、伤害/速度目标字段，不使用嵌套 `input` 字段。它们不读取数据库或在Go/Swift计算能力值。完整请求/结果的权威示例分别为 `tests/vectors/configuration-templates.v1.json`、`configuration-spread-search.v1.json`，其 expected 由原公开 WithSpeed 用例与完整伤害链逐例生成，再追加到三语言共享向量；既有19项输入/数学结果保持不变。
 
 模板操作保留原模板顺序、显式模板去重、原 max_candidates 提前停止及首个失败的完整伤害/速度证据。速度目标使用原严格大于，同速不满足；伤害和速度目标共用原ID空间，支持单类与混合目标，不擅自添加状态或道具速度修正。
 

@@ -1,6 +1,6 @@
 # 架构迁移进度
 
-本文件是长程迁移的恢复入口。目标保持 P0–P6 全部范围；任何 Linux 验证均不能替代 macOS、Xcode 或双设备人工验收。顶部状态表与“0.6 检查点”反映最新范围，下方早期记录保留当时的结果与限制，不作为新提交已通过的证据。
+本文件是长程迁移的恢复入口。目标保持 P0–P6 全部范围；任何 Linux 验证均不能替代 macOS、Xcode 或双设备人工验收。顶部状态表与“0.8 检查点”反映最新范围，下方早期记录保留当时的结果与限制，不作为新提交已通过的证据。
 
 ## 当前状态（2026-11-24）
 
@@ -9,11 +9,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、四维候选、全部44,100具体case与1,024严格准入差分已通过；结果聚合独立成熟待登记。完整目标/EV搜索、事件分析仍在迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | 0.7正式19操作、77/77 CTest、8/8新增ABI差分、Go14项race/vet、Swift17 PASS/3 SKIP通过；新ABI选定5项ASan通过，未冒称77全ASan。Apple仍须实际复验。 |
-| P3 Go 服务端 | IN_PROGRESS | 原23/41完整API加一个受限calculator；新增四查询36/36同PG差分，所有Go包46 PASS/1专用fixture SKIP、race/vet及取消恢复10轮通过。实际创建/共享冻结模板及其余计算API仍待补。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 未签名 device App 与两 SDK 构建成功；最近 iPhone 3/4 UI 测试通过，麻痹切换及 iPad 导航定位失败已修，尚待新 CI。在线复杂任务 UI 和真机未验收。 |
-| P5 数据同步 | IN_PROGRESS | Go HTTP/PG 与两个独立 SQLite 客户端的离线队列、幂等重试、显式冲突、删除与 cursor 收敛 13/13 通过；知识下载/Range 续传/原子安装有实际 HTTP 测试。完整 App 更新 UI 与真机双设备仍待验收。 |
+| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、四维候选及44,100具体case已差分；完整WithSpeed模板、EV搜索及结果聚合已登记，.8全量92/92 CTest通过。事件/反事实仍待公共接入；新搜索运行中取消的错误码边界已发现，待修复复验。 |
+| P2 跨语言集成 | IN_PROGRESS | .8正式25操作，Linux92/92 CTest、迁移52 PASS/52外部环境SKIP、Swift17 PASS/3无URL SKIP；所选4项ABI ASan通过。.7 Apple/Main全绿、两SDK与device App成功，.8须新CI复验。 |
+| P3 Go 服务端 | IN_PROGRESS | 原25/41完整API加一个受限calculator；真实任务创建/幂等/进度/取消/分页、候选、共享冻结模板与异步准备失败已验。合法7类preset的44,100任务实际202耗时8.536秒；solver/fixed/graph等API仍待迁移。 |
+| P4 iOS/iPadOS | IN_PROGRESS | .7 Apple iPhone与iPad各5/5 UI PASS；新增真实任务表单/进度/取消/结果及Mac Go/PG测试服务已提交，待新Apple CI。Linux真实Swift→Go→PG→daemon/Core25/25通过；真机HUMAN_PENDING。 |
+| P5 数据同步 | IN_PROGRESS | 两个独立SQLite客户端与真实Go/PG的队列/幂等/冲突/删除/收敛已验；整包真实在线/同步/任务25/25零SKIP通过，真实HTTP中断/Range/原子更新也在其中。新增App双模拟器同步/更新UI仍待新CI，真机未验收。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、真实 Chromium 原 Vue 计算、Docker 健康故障恢复、两个 Go 镜像回退和独立 PG 备份恢复已实测；原 BYTEA 图片初始化、复杂任务完整 Web 与正式生产升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
@@ -29,7 +29,7 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | IN_PROGRESS | GitHub macOS/Xcode 已实测通过 0.5 原生及 SDK/device App 构建；0.6 新提交仍须实际验证，模拟器最近仍有 UI 失败，真机未验收。 |
+| macOS / Xcode 构建 | IN_PROGRESS | .7 GitHub macOS/Xcode、两SDK、未签名device App及iPhone/iPad各5项UI全部通过；.8和新增在线任务/双模拟器同步仍须新CI复验，真机未验收。 |
 | Apple 登录、Team、签名 | HUMAN_PENDING | Human 在 Xcode 登录 Apple Account、选择 Signing Team；不购买资格。 |
 | iPhone/iPad 安装及验收 | HUMAN_PENDING | 工程可构建后，由 Human 连接设备、信任、启用 Developer Mode 并按固定向量验收。 |
 | HomeLab 生产切换、正式备份、最终合并 | HUMAN_PENDING | 只在替代能力完成验证并获得明确授权后执行。 |
@@ -168,11 +168,22 @@
 - **1534d5f** 固定树最终 `make test-native CORE_BUILD_DIR=/build/root-fixture-core6`：**70 CTest、35 pytest PASS / 16 SKIP**（52.71秒），七个已登记配置差分现全部实际执行。跳过是14个未提供独立calculator URL的场景、一个未提供PG快照和一个工具镜像无Swift；独立Swift **17 PASS / 3 SKIP**已实跑，不能把环境缺失称通过。
 - 正式任务创建联调修复原受控道具 `item_identifier:"none"`：关联事实为无效果，原 canonical 字符串及其与 null 不同的身份完整保留，不在Go改写。独立新库 `/build/root-job-none7` **77/77 CTest PASS**（1.92秒），正式job ABI **5/5差分 PASS**（3.90秒），新增断言直接对照原case/side SHA身份。首次手动命令漏runner变量导致五项明确SKIP，记录保留；补齐变量后只重跑相关差分得到上述实际PASS，未重复无变化的C++全构建。
 
+## 0.8 检查点与实际在线闭环（2026-11-24 21:00）
+
+- **aa498cb** 的 [Main Gate 45386798790](https://github.com/mental1104/PokemonBattleInference/actions/runs/45386798790) 与 [Native/Core/App 45386798406](https://github.com/mental1104/PokemonBattleInference/actions/runs/45386798406) **均PASS**。Native首次attempt的job尚无steps即被取消；终态后重试的attempt2真实完成。macOS Core、Go/Swift、两SDK及未签名device App通过，iPhone **5/5 UI PASS**（206.387秒）、iPad **5/5 UI PASS**（197.272秒），包含中文查询、严格伤害/麻痹速度、保存重启和设置入口。新增在线任务UI不在该提交内，不能套用此结果。
+- 已归档实际attempt2完整日志及 [artifact 14921070881](https://github.com/mental1104/PokemonBattleInference/actions/runs/45386798406/artifacts/14921070881) 到 `apple-abi7-success-20261124/`；ZIP实测SHA-256 **cb886803ab45bf0f6e416e44ce2ab86e55e77f6d9527dc8df6d20f694dbcb69f** 与GitHub digest一致。
+- **58d04d7 / 1d73d65**：正式 **0.8.0 / calculation-rules.v8**，登记完整WithSpeed模板目标、EV搜索及纯结果聚合；公共新增 `configuration_templates`、`configuration_spread_search` 使用扁平操作快照。三语言共享冻结向量为25操作：原19项数学输入/输出保持不变，新增3个原模板与3个原EV oracle。目标阈值、严格速度大于、原排序/去重/提前停止及精确概率均由Core执行，不在Go/Swift复制。
+- `templates-abi8-20261124/native-spreads.log`：完整 **92/92 CTest PASS**（2.77秒），迁移pytest **52 PASS / 52 SKIP**（65.08秒）。跳过为36个未设置独立任务查询服务URL、14个calculator URL、1个PG快照及工具镜像缺Swift；相应真实服务均另有独立证据，不把SKIP计为通过。`swift-spreads.log`为 **17 PASS / 3无服务URL SKIP**（2.921秒）；`abi-sanitizer.log`的共享25操作、ownership/release、并发及取消选定 **4/4 ASan/UBSan/leak PASS**（20.94秒），不是92项全量ASan。正在修复另外发现的模板/EV运行中取消异常错误映射，不能据通用取消通过宣称这些新路径已完备。
+- **427dc15 / bce5d6f / 87c7c28**：真实HTTP任务创建通过strict Core准入，按case保存规范身份，完整战斗模板仅冻结一次，worker每次认领后投影对应招式/slot；不将44,100份完整快照物化进定义。最终原合法7类job preset实测：**44,100 case HTTP202耗时8.536307秒，定义25,824,669字节**，运行中取消及终态守恒已验。原`no_investment`/`max_spatk_*`属于静态calculator而非job preset；任务仍按原202后逐case准备失败，零资源/NULL概率，全部失败头为completed_with_failures，无伪造数值。
+- `p3-server-20261124/preparation-final/`：两个真实原/新coordinator、各自新库的准备合同 **16/16 PASS**（10.30秒），14项完整等价、2项原未捕获500修为显式422已记录；旧失败日志保留。全部Go包 **50 PASS / 1专用Swift serve测试SKIP**、race/vet通过。Root nativeworker实际PG/child/daemon **9项加1个投影单测PASS**（4.096秒），另父取消/Commit恢复 **10/10 PASS**。**7354a7f**实际候选API同PG原Python完整字段差分 **13/13 PASS**（1.94秒）。
+- **f3d6e98** 新增原生在线任务表单、typed客户端、实际提交/进度/幂等取消/分页结果与来源版本；Mac脚本启动独占本地Go/PG/daemon服务，Swift真实联网后继续iPhone/iPad UI与跨模拟器同步，等待新CI。`p4-jobs-75-legacy7-20261124/`已实测完整Swift **25/25 PASS，零SKIP**（6.330秒）：合法原7类preset单case实际完成2.782秒，win=0/loss=1/draw=0、expected_turns=5/1、841nodes/16095edges；合法5×6招式池产生75case，运行中取消0.541秒后75个均取消并完成计数。旧no_investment成功执行记录不再当成原job兼容证明。
+- 21:00仍未达到本轮P1–P3/P5全完成门槛。三条并行任务继续收口事件/反事实、fixed/graph领域投影、solver/search真实HTTP；P4/P6基本链已形成，新增App UI及上述新代码仍须实际CI。总体Goal保持active，原全目标/Human要求不变。
+
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-推送本批稳定提交及 App 导航/真实开关修复，执行新一轮 Apple CI；继续配置目标搜索/结果聚合/事件分析、Go 任务准入/其余计算 API、App 在线复杂任务和真实更新 UI，以及完整部署/Web/回滚验收。P1–P6 全部要求和 Human 双设备验收均仍保留，不能因当前切片通过而标记阶段 PASS。
+推送已验证的0.8公共能力、真实任务创建与App在线/双模拟器同步批次，执行新Apple CI；修复新搜索运行中取消错误码，继续事件/反事实公共接入、Go solver/fixed/graph及其余API、原BYTEA图片初始化和完整Web回归。P1–P6全部要求和Human双设备验收均仍保留，不能因当前切片通过而标记阶段PASS。
 
 ## 恢复提示
 
