@@ -137,8 +137,8 @@ class DamageEnvelope(_Contract):
     """成功批次必须给出版本和每个完整响应；错误不能伪装成成功结果。"""
 
     schema_version: Literal[1]
-    engine_version: Literal["0.4.0"]
-    rules_version: Literal["calculation-rules.v4"]
+    engine_version: Literal["0.5.0"]
+    rules_version: Literal["calculation-rules.v5"]
     results: tuple[DamageResponse, ...]
 
 
@@ -147,7 +147,7 @@ class DamageBenchmark(_Contract):
 
     schema_version: Literal[1] = 1
     workload: Literal["scizor-sylveon-direct-damage"] = "scizor-sylveon-direct-damage"
-    engine_version: Literal["0.4.0"] = "0.4.0"
+    engine_version: Literal["0.5.0"] = "0.5.0"
     case_count: int
     repeats: int
     platform: str

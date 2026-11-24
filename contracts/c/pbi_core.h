@@ -9,6 +9,10 @@
 #define PBI_V1_MAX_OPERATIONS 4096u
 #define PBI_V1_MAX_ROLLS 65536u
 #define PBI_V1_MAX_TOTAL_ROLLS (1024u * 1024u)
+/// 图节点/边是批次合计预算；精确消元单图至多 128 瞬态节点，DAG 不受消元预算限制。
+#define PBI_V1_MAX_GRAPH_NODES 65536u
+#define PBI_V1_MAX_GRAPH_EDGES 262144u
+#define PBI_V1_MAX_EQUATION_NODES 128u
 
 #ifdef __cplusplus
 #define PBI_NOEXCEPT noexcept

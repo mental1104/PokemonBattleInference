@@ -42,7 +42,7 @@ func TestSharedFixture(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("response mismatch: %s", actual)
 	}
-	if EngineVersion() != "0.4.0" {
+	if EngineVersion() != "0.5.0" {
 		t.Fatal("unexpected engine version")
 	}
 }

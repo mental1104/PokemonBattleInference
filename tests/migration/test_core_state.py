@@ -325,8 +325,8 @@ class Batch(_Contract):
 class Envelope(_Contract):
     """成功结果的完整固定合同，错误对象不能被当作成功。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.4.0"]
-    rules_version: Literal["calculation-rules.v4"]
+    engine_version: Literal["0.5.0"]
+    rules_version: Literal["calculation-rules.v5"]
     results: tuple[Annotated[StateResponse | StatusResponse, Field(discriminator="kind")], ...]
 
 

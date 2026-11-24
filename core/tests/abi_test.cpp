@@ -49,7 +49,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.4.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.5.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
@@ -89,6 +89,104 @@ TEST(CAbi, ResourceLimits) {
   for (int i = 0; i < 17; ++i) request["operations"].push_back(maximum_rolls);
   EXPECT_EQ(Call(request.dump()).status, PBI_RESOURCE_LIMIT_V1);
   EXPECT_EQ(Call(R"({"schema_version":1,"operations":[{"kind":"stage","value":9223372036854775807,"stage":6}]})").status, PBI_RESOURCE_LIMIT_V1);
+}
+
+/// 图输入守恒/拓扑/枚举/方程预算明确失败；未知和封闭循环保留不同数学语义。
+TEST(CAbi, GraphBoundariesAndUnavailableSemantics) {
+  const auto baseline = FixtureOperation("graph");
+  std::vector<std::pair<Json, pbi_status_v1>> failures;
+  auto graph = baseline;
+  graph["nodes"][0]["outcome"] = "future-outcome";
+  failures.push_back({graph, PBI_UNSUPPORTED_V1});
+  graph = baseline; graph["root"] = -1;
+  failures.push_back({graph, PBI_INVALID_INPUT_V1});
+  graph = baseline; graph["edges"][0]["target"] = true;
+  failures.push_back({graph, PBI_INVALID_INPUT_V1});
+  graph = baseline; graph["edges"][0]["probability"] = {{"numerator", "0"}, {"denominator", "1"}};
+  failures.push_back({graph, PBI_INVALID_INPUT_V1});
+  graph = baseline; graph["max_equation_nodes"] = PBI_V1_MAX_EQUATION_NODES + 1;
+  failures.push_back({graph, PBI_RESOURCE_LIMIT_V1});
+  graph = baseline; graph["max_equation_nodes"] = 0;
+  failures.push_back({graph, PBI_INVALID_INPUT_V1});
+  graph = baseline; graph["nodes"].push_back(graph["nodes"][0]);
+  graph["edges"] = Json::array({{{"source", 0}, {"target", 2}, {"probability", {{"numerator", "1"}, {"denominator", "1"}}}},
+      {{"source", 2}, {"target", 0}, {"probability", {{"numerator", "1"}, {"denominator", "2"}}}},
+      {{"source", 2}, {"target", 1}, {"probability", {{"numerator", "1"}, {"denominator", "2"}}}}});
+  graph["max_equation_nodes"] = 1;
+  failures.push_back({graph, PBI_RESOURCE_LIMIT_V1});
+  for (const auto& [input, expected] : failures) {
+    const auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({FixtureOperation("hp"), input})}}.dump());
+    EXPECT_EQ(result.status, expected);
+    EXPECT_FALSE(result.body.contains("results"));
+  }
+  graph = baseline;
+  graph["nodes"] = Json::array({{{"outcome", "unknown"}, {"cycle_resolution", "declare-draw"}}});
+  graph["edges"] = Json::array(); graph["truncations"] = Json::array({"max-nodes"});
+  const auto incomplete = Call(Json{{"schema_version", 1}, {"operations", Json::array({graph})}}.dump());
+  ASSERT_EQ(incomplete.status, PBI_OK_V1);
+  EXPECT_EQ(incomplete.body["results"][0]["status"], "incomplete-graph");
+  EXPECT_TRUE(incomplete.body["results"][0]["win"].is_null());
+  EXPECT_EQ(incomplete.body["results"][0]["expected_turns"]["status"], "unavailable");
+  graph = baseline;
+  graph["nodes"].erase(1);
+  graph["edges"] = Json::array({{{"source", 0}, {"target", 0}, {"probability", {{"numerator", "1"}, {"denominator", "1"}}}}});
+  const auto closed = Call(Json{{"schema_version", 1}, {"operations", Json::array({graph})}}.dump());
+  ASSERT_EQ(closed.status, PBI_OK_V1);
+  EXPECT_EQ(closed.body["results"][0]["closed_cycle"]["numerator"], "1");
+  EXPECT_EQ(closed.body["results"][0]["draw"]["numerator"], "1");
+  EXPECT_EQ(closed.body["results"][0]["expected_turns"]["status"], "infinite");
+}
+
+/// 图节点预算跨操作累计；不能每个图各自占用一份完整批次配额。
+TEST(CAbi, GraphBatchNodeBudget) {
+  auto graph = FixtureOperation("graph");
+  graph["nodes"] = std::vector<Json>(PBI_V1_MAX_GRAPH_NODES / 2 + 1, Json{{"outcome", "draw"}, {"cycle_resolution", "declare-draw"}});
+  graph["edges"] = Json::array();
+  const auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({graph, graph})}}.dump());
+  EXPECT_EQ(result.status, PBI_RESOURCE_LIMIT_V1);
+  EXPECT_FALSE(result.body.contains("results"));
+}
+
+/// 合法行动保留 slot_id，策略选择不修改 PP；无 PP 与濒死分别是 Struggle 和 Pass。
+TEST(CAbi, LegalActionsPolicyAndFallbacks) {
+  auto operation = FixtureOperation("legal_actions");
+  operation["policy"] = "first-legal-action";
+  auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][0]["actions"].size(), 4);
+  EXPECT_EQ(result.body["results"][0]["selections"].size(), 1);
+  EXPECT_EQ(result.body["results"][0]["selections"][0]["action"]["slot_id"], 1001);
+  for (auto& slot : operation["state"]["attacker"]["move_slots"]) slot["current_pp"] = 0;
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][0]["actions"][0]["kind"], "struggle");
+  operation["state"]["attacker"]["current_hp"] = 0;
+  result = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body["results"][0]["actions"][0]["kind"], "pass");
+}
+
+/// 确认大图调用仍在运行后取消；同一个 C 令牌覆盖图解析、SCC 与消元，不返回部分结果。
+TEST(CAbi, RunningGraphCancellation) {
+  auto graph = FixtureOperation("graph");
+  constexpr std::size_t count = 128;
+  graph["nodes"] = std::vector<Json>(count, Json{{"outcome", "non-terminal"}, {"cycle_resolution", "solve-absorption-probability"}});
+  graph["nodes"].push_back({{"outcome", "attacker-win"}, {"cycle_resolution", "declare-draw"}});
+  graph["edges"] = Json::array();
+  for (std::size_t source = 0; source < count; ++source) {
+    for (std::size_t target = 0; target <= count; ++target) {
+      graph["edges"].push_back({{"source", source}, {"target", target}, {"probability", {{"numerator", "1"}, {"denominator", "129"}}}});
+    }
+  }
+  const auto encoded = Json{{"schema_version", 1}, {"operations", Json::array({graph})}}.dump();
+  const std::unique_ptr<pbi_cancel_token_v1, decltype(&pbi_v1_cancel_token_destroy)> token(pbi_v1_cancel_token_create(), pbi_v1_cancel_token_destroy);
+  ASSERT_NE(token, nullptr);
+  auto future = std::async(std::launch::async, [&encoded, &token] { return Call(encoded, token.get()); });
+  ASSERT_EQ(future.wait_for(std::chrono::milliseconds(30)), std::future_status::timeout);
+  pbi_v1_cancel_request(token.get());
+  const auto result = future.get();
+  EXPECT_EQ(result.status, PBI_CANCELLED_V1);
+  EXPECT_FALSE(result.body.contains("results"));
 }
 
 /// 伤害协议对未知机制/缺失知识与非法字段做精确分类，任一失败都撤销整批结果。

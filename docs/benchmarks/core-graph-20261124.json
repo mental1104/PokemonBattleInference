@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "graph_count": 240,
+  "node_count": 2770,
+  "edge_count": 6740,
+  "repeats": 5,
+  "seed": 94061,
+  "input_sha256": "1b640cc5aa8a987cd1a38c6380dd16d55b77e391e0e96b9a099b1faf5c65cb08",
+  "runner_sha256": "2c23818fd1317dfdbc3eb1cdf3a9b242ca0dc2abe92394f641b3c501b66e507a",
+  "python_version": "3.11.17",
+  "platform": "Linux-5.10.55+-x86_64-with-glibc2.41",
+  "python": {
+    "samples_seconds": [
+      0.4954864270002872,
+      0.6180017420010699,
+      0.7673410509996756,
+      0.7316415989989764,
+      0.5362491899977613
+    ],
+    "median_seconds": 0.6180017420010699
+  },
+  "cpp_process": {
+    "samples_seconds": [
+      0.06887743400147883,
+      0.06296471600217046,
+      0.08899847900102031,
+      0.09629980200043065,
+      0.08711671899800422
+    ],
+    "median_seconds": 0.08711671899800422
+  },
+  "all_results_equal": true,
+  "scope": "Finite topology SCC and exact absorption only. Python includes domain input projection and output models; C++ includes process, JSON parse/output and IPC. Not a pure-function or complete battle benchmark."
+}

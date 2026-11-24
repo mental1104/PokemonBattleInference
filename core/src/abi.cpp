@@ -5,9 +5,10 @@
 #include "pbi/profile.hpp"
 #include "json_contract.hpp"
 #include "state_contract.hpp"
+#include "graph_contract.hpp"
 
 #include <nlohmann/json.hpp>
-#include <atomic>
+#include <stop_token>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -19,11 +20,12 @@
 #include <string>
 #include <string_view>
 #include <variant>
+#include <type_traits>
 #include <vector>
 
-/// 原子取消标记，无共享计算状态；生命周期由 C ABI 调用者管理。
+/// 单向线程安全取消源，无共享计算状态；不透明布局由 C ABI 独占。
 struct pbi_cancel_token_v1 {
-  std::atomic_bool cancelled{false};
+  std::stop_source source;
 };
 
 namespace {
@@ -45,11 +47,11 @@ struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
 struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
 /// 完整能力配置复用领域性格选择和能力公式。
 struct ProfileRequest { pbi::StatProfile input; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest>;
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
-  if (token && token->cancelled.load(std::memory_order_relaxed)) {
+  if (token && token->source.stop_requested()) {
     throw RequestError(PBI_CANCELLED_V1, "calculation cancelled");
   }
 }
@@ -105,12 +107,20 @@ DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
 
 /// 解码单条计算，并限制实际批次伤害槽位总量。
 /// @param object 只读 JSON 操作；@param remaining_rolls 尚可拥有的槽位预算。
+/// @param remaining_nodes 本批余下图节点；@param remaining_edges 本批余下图边；@param stop 协作取消。
 /// @return 类型化操作和消耗的槽位数；不修改调用方预算。
-std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t remaining_rolls) {
+std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t remaining_rolls,
+    std::size_t remaining_nodes, std::size_t remaining_edges, std::stop_token stop) {
   if (!object.is_object() || !object.contains("kind") || !object.at("kind").is_string()) {
     throw RequestError(PBI_INVALID_INPUT_V1, "operation kind must be a string");
   }
   const auto kind = object.at("kind").get<std::string>();
+  if (kind == "graph") return {ReadGraphRequest(object, remaining_nodes, remaining_edges, stop), 0};
+  if (kind == "legal_actions") {
+    auto request = ReadLegalActionsRequest(object, remaining_rolls);
+    const auto consumed = request.state.View().rules.View().damage_policy.random_damage_multipliers.size();
+    return {std::move(request), consumed};
+  }
   if (kind == "profile") {
     RequireFields(object, {"kind", "base", "ivs", "evs", "level", "decreased_stat_id", "increased_stat_id"});
     return {ProfileRequest{{ReadBattleStats(object.at("base")), ReadBattleStats(object.at("ivs")), ReadBattleStats(object.at("evs")),
@@ -186,10 +196,12 @@ Json Evaluate(const BattleStateRequest& request) { return EvaluateBattleState(re
 Json Evaluate(const StatusModifiersRequest& request) { return EvaluateStatusModifiers(request); }
 /// @param request 只读完整配置；@return 同一 Core 计算的六项实际能力。
 Json Evaluate(const ProfileRequest& request) { return {{"kind", "profile"}, {"stats", BattleStatsJson(pbi::CalculateStats(request.input))}}; }
+/// @param request 只读状态和策略；@return 同 Core 生成的完整合法行动与精确选择概率。
+Json Evaluate(const LegalActionsRequest& request) { return EvaluateLegalActions(request); }
 
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v4"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v5"}};
 }
 
 /// @param code 稳定错误枚举；@return 静态 ASCII 名称，无所有权转移。
@@ -231,9 +243,13 @@ pbi_status_v1 WriteError(pbi_status_v1 code, const char* message, pbi_buffer_v1*
 
 std::uint32_t pbi_v1_abi_version() noexcept { return 1; }
 const char* pbi_v1_engine_version() noexcept { return PBI_ENGINE_VERSION; }
-pbi_cancel_token_v1* pbi_v1_cancel_token_create() noexcept { return new (std::nothrow) pbi_cancel_token_v1; }
+/// @return 拥有的未取消令牌；对象或 stop_state 分配失败均返回 nullptr，不越过 C 边界抛异常。
+pbi_cancel_token_v1* pbi_v1_cancel_token_create() noexcept {
+  // stop_source 的内部状态分配也可能失败；nothrow new 不会捕获构造函数异常。
+  try { return new pbi_cancel_token_v1; } catch (...) { return nullptr; }
+}
 void pbi_v1_cancel_request(pbi_cancel_token_v1* token) noexcept {
-  if (token) token->cancelled.store(true, std::memory_order_relaxed);
+  if (token) token->source.request_stop();
 }
 void pbi_v1_cancel_token_destroy(pbi_cancel_token_v1* token) noexcept { delete token; }
 void pbi_v1_buffer_release(pbi_buffer_v1* buffer) noexcept {
@@ -268,16 +284,27 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     std::vector<Operation> typed;
     typed.reserve(operations.size());
     std::size_t remaining_rolls = kMaxTotalRolls;
+    std::size_t remaining_nodes = PBI_V1_MAX_GRAPH_NODES;
+    std::size_t remaining_edges = PBI_V1_MAX_GRAPH_EDGES;
+    const auto stop = cancellation ? cancellation->source.get_token() : std::stop_token{};
     for (const auto& operation : operations) {
       CheckCancelled(cancellation);
-      auto [value, consumed] = ReadOperation(operation, remaining_rolls);
+      auto [value, consumed] = ReadOperation(operation, remaining_rolls, remaining_nodes, remaining_edges, stop);
       remaining_rolls -= consumed;
+      if (const auto* graph = std::get_if<GraphRequest>(&value)) {
+        remaining_nodes -= graph->graph.Nodes().size();
+        remaining_edges -= graph->graph.Edges().size();
+      }
       typed.push_back(std::move(value));
     }
     auto results = Json::array();
     for (const auto& operation : typed) {
       CheckCancelled(cancellation);
-      results.push_back(std::visit([](const auto& value) { return Evaluate(value); }, operation));
+      // 图遍历/消元借用原 C 令牌的 stop_token，不创建轮询线程，也不在长图操作中忽略取消。
+      results.push_back(std::visit([stop](const auto& value) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(value)>, GraphRequest>) return EvaluateGraph(value, stop);
+        else return Evaluate(value);
+      }, operation));
     }
     auto response = Envelope();
     response["results"] = std::move(results);
