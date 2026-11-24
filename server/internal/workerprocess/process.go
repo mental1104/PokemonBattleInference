@@ -4,6 +4,7 @@ package workerprocess
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ func (buffer *limitedBuffer) Write(data []byte) (int, error) {
 
 // Execute 用绝对 executable 执行一份 request；ctx 取消会杀死并回收子进程。
 // 返回 stdout 的独立副本及稳定 Failure；没有 shell、任意附加参数或 Python fallback。
-// 原生状态 1..5 保留 ABI 分类，其他退出或信号记为 worker_crash。
+// 只有退出码与完整 ABI 错误正文一致时保留分类；Go runtime 的原生 fatal 也可能 exit=2。
 func Execute(ctx context.Context, executable string, request []byte) ([]byte, error) {
 	if !filepath.IsAbs(executable) {
 		return nil, errors.New("worker executable must be absolute")
@@ -79,7 +80,13 @@ func Execute(ctx context.Context, executable string, request []byte) ([]byte, er
 		code := exit.ExitCode()
 		kinds := map[int]string{1: "invalid_input", 2: "unsupported", 3: "resource_limit", 4: "cancelled", 5: "internal_error"}
 		kind, exists := kinds[code]
-		if !exists {
+		var envelope struct {
+			Error *struct {
+				Code string `json:"code"`
+			} `json:"error"`
+			Results json.RawMessage `json:"results"`
+		}
+		if !exists || json.Unmarshal(result, &envelope) != nil || envelope.Error == nil || envelope.Error.Code != kind || len(envelope.Results) != 0 {
 			kind = "worker_crash"
 		}
 		return result, &Failure{Code: kind, ExitCode: code}

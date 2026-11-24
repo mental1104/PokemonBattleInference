@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -25,20 +26,31 @@ func run() int {
 		return 3
 	}
 	response, err := corebridge.Compute(ctx, body)
+	status := 0
+	if err != nil {
+		status = 5
+		var failure *corebridge.Failure
+		if errors.As(err, &failure) {
+			status = int(failure.Status)
+		} else if errors.Is(err, context.Canceled) {
+			status = 4
+		}
+		if len(response) == 0 {
+			codes := map[int]string{1: "invalid_input", 2: "unsupported", 3: "resource_limit", 4: "cancelled", 5: "internal_error"}
+			// 空缓冲区错误同样输出明确帧，父进程不会把 runtime exit=2 混同于合法拒绝。
+			response, _ = json.Marshal(struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}{Error: struct {
+				Code string `json:"code"`
+			}{codes[status]}})
+		}
+	}
 	if len(response) > 0 {
 		if _, writeErr := os.Stdout.Write(response); writeErr != nil {
 			return 5
 		}
 	}
-	if err == nil {
-		return 0
-	}
-	var failure *corebridge.Failure
-	if errors.As(err, &failure) {
-		return int(failure.Status)
-	}
-	if errors.Is(err, context.Canceled) {
-		return 4
-	}
-	return 5
+	return status
 }

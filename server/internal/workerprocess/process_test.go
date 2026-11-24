@@ -82,3 +82,19 @@ func TestWorkerCrashIsolation(t *testing.T) {
 		t.Fatalf("signal isolation failed: %v", err)
 	}
 }
+
+// TestCGOSegmentationIsolation 验证真实 CGO SIGSEGV 被 Go runtime 转为 exit=2 时仍分类为崩溃。
+func TestCGOSegmentationIsolation(t *testing.T) {
+	executable := os.Getenv("PBI_TEST_CRASH_WORKER")
+	if executable == "" {
+		t.Skip("PBI_TEST_CRASH_WORKER is required for actual CGO signal integration")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := workerprocess.Execute(ctx, executable, []byte(`{}`))
+	var failure *workerprocess.Failure
+	if !errors.As(err, &failure) || failure.Code != "worker_crash" {
+		t.Fatalf("CGO signal was misclassified: %v", err)
+	}
+	t.Logf("actual CGO SIGSEGV isolated with exit=%d", failure.ExitCode)
+}
