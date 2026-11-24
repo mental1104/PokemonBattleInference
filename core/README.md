@@ -1,6 +1,6 @@
 # C++ Core（P1 进行中）
 
-当前可运行切片是现代能力值、能力等级、直接伤害及给定伤害档位的 KO 概率。`pbi_core` 是纯 C++20 静态库；不依赖数据库、HTTP、UI、CSV 或平台服务，不修改输入，状态只存在于调用栈和局部值中。
+当前可运行切片是现代能力值、能力等级、直接伤害/KO、不可变战斗状态与独立麻痹/灼伤修正。`pbi_core` 是纯 C++20 静态库；不依赖数据库、HTTP、UI、CSV 或平台服务，不修改输入，状态只存在于调用栈和局部值中。
 
 ## 构建与统一验证
 
@@ -37,7 +37,7 @@ bash tools/migration/validate-nas.sh all
 
 `all` 为每次运行创建专用 PostgreSQL 16，只连接该唯一容器名称；退出时停止该容器，`run --rm` 移除。它不发布数据库端口、不挂载生产数据、不改变 HomeLab 常驻服务。构建在 `/volume2/docker/pokemon-migration-validation/build`，报告在用户 Backup；可以通过 `POKEOP_BUILD_ROOT`、`POKEOP_REPORT_ROOT` 显式指定已有职责范围内的输出目录。
 
-直接运行 pytest 时，如果没有配置 runner 且默认位置尚未构建，七个差分测试会说明构建步骤并 SKIP；显式配置但不可执行则 FAIL。`make test` 始终先构建，不能靠缺失二进制跳过差分。PostgreSQL 的 macOS/Linux 合同仍由原 fixture 管理；Core 单测和差分不请求该 fixture。
+直接运行 pytest 时，如果没有配置 runner 且默认位置尚未构建，十一个差分测试会说明构建步骤并 SKIP；显式配置但不可执行则 FAIL。`make test` 始终先构建，不能靠缺失二进制跳过差分。PostgreSQL 的 macOS/Linux 合同仍由原 fixture 管理；Core 单测和差分不请求该 fixture。
 
 ## 数值与行为合同
 
@@ -64,4 +64,4 @@ bash tools/migration/validate-nas.sh all
 PYTHONPATH=submodules/common/python:. python tools/migration/benchmark_calculations.py --runner build/core/pbi_core_vectors --output /tmp/pbi-calculations-benchmark.json
 ```
 
-速度状态效果、完整规则集/动态伤害效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。首批 C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux/macOS 验证，详见 `contracts/c/README.md`；首批 iPhoneOS/Simulator 的 Core/Swift 静态产物和 XCFramework 也已通过真实 GitHub CI 构建及产物核验。新伤害批次的验证记录见 `docs/migration-progress.md`。尚无 App/模拟器运行或真机验收，P1/P2 仍均为 IN_PROGRESS。
+不可变战斗状态、StateKey、PP/锁招更新及独立麻痹/灼伤修正已迁移；完整规则集/动态伤害效果、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析仍待迁移。状态合同与原排序边界见 `contracts/c/state.v1.md`。首批 C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux/macOS 验证，详见 `contracts/c/README.md`；首批 iPhoneOS/Simulator 的 Core/Swift 静态产物和 XCFramework 也已通过真实 GitHub CI 构建及产物核验。新伤害批次的验证记录见 `docs/migration-progress.md`。尚无 App/模拟器运行或真机验收，P1/P2 仍均为 IN_PROGRESS。

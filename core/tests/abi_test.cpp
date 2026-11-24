@@ -5,6 +5,7 @@
 #include <fstream>
 #include <future>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,6 +30,13 @@ std::string Fixture(const char* name) {
   return {std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
 }
 
+/// @param kind 共享文件内唯一操作种类；@return 拥有的冻结输入，缺失立即使测试失败。
+Json FixtureOperation(const char* kind) {
+  const auto fixture = Json::parse(Fixture("abi-calculations.v1.request.json"));
+  for (const auto& operation : fixture.at("operations")) if (operation.at("kind") == kind) return operation;
+  throw std::runtime_error("required operation is missing from the shared fixture");
+}
+
 /// @param input 完整 JSON 文本；@param token 可空借用令牌；@return 释放 C 内存后的结果副本。
 CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nullptr) {
   OwnedBuffer output;
@@ -41,7 +49,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.2.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.3.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
@@ -85,8 +93,7 @@ TEST(CAbi, ResourceLimits) {
 
 /// 伤害协议对未知机制/缺失知识与非法字段做精确分类，任一失败都撤销整批结果。
 TEST(CAbi, DamageKnowledgeRulesAndValidation) {
-  const auto fixture = Json::parse(Fixture("abi-calculations.v1.request.json"));
-  const auto baseline = fixture.at("operations").back();
+  const auto baseline = FixtureOperation("damage");
   std::vector<std::pair<Json, pbi_status_v1>> failures;
   auto input = baseline;
   input["type_chart"] = Json::array();
@@ -134,6 +141,85 @@ TEST(CAbi, DamageKnowledgeRulesAndValidation) {
   Json request{{"schema_version", 1}, {"operations", Json::array()}};
   for (int index = 0; index < 17; ++index) request["operations"].push_back(input);
   EXPECT_EQ(Call(request.dump()).status, PBI_RESOURCE_LIMIT_V1);
+}
+
+/// 状态更新的非法节点、未知机制与预算均精确分类；先前合法更新不能作为部分结果泄漏。
+TEST(CAbi, StateValidationAtomicUpdatesAndBudgets) {
+  auto baseline = FixtureOperation("battle_state");
+  baseline["updates"] = Json::array();
+  std::vector<std::pair<Json, pbi_status_v1>> failures;
+  auto input = baseline; input["state"]["attacker"]["current_hp"] = -1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["move_slots"][0]["current_pp"] = 31;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["stages"][0] = 7;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["spec"]["pokemon"]["types"] = {9, 9};
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["choice_lock_move_id"] = 1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["status"]["major"] = {{"kind", "burn"}, {"toxic_counter", 2}};
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["state"]["attacker"]["status"]["major"] = {{"kind", "future_status"}};
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["state"]["rules"]["allow_mega_evolution"] = true;
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["state"]["rules"]["move_execution_policy"]["consume_pp_on_miss"] = false;
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["updates"] = Json::array({{{"kind", "future_update"}}});
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["updates"] = Json::array({{{"kind", "hp"}, {"side", "attacker"}, {"value", 140}},
+                                                  {{"kind", "pp"}, {"side", "attacker"}, {"move_id", 1}, {"value", 31}}});
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["updates"] = Json::array();
+  for (int index = 0; index < 256; ++index) input["updates"].push_back({{"kind", "next_turn"}});
+  const auto maximum = Call(Json{{"schema_version", 1}, {"operations", Json::array({input})}}.dump());
+  ASSERT_EQ(maximum.status, PBI_OK_V1);
+  EXPECT_EQ(maximum.body.at("results")[0].at("state").at("turn_number"), 257);
+  EXPECT_TRUE(maximum.body.at("results")[0].at("same_key_as_input").get<bool>());
+  input["updates"].push_back({{"kind", "next_turn"}});
+  failures.push_back({input, PBI_RESOURCE_LIMIT_V1});
+  for (const auto& [operation, status] : failures) {
+    const auto actual = Call(Json{{"schema_version", 1}, {"operations", Json::array({baseline, operation, baseline})}}.dump());
+    EXPECT_EQ(actual.status, status); EXPECT_FALSE(actual.body.contains("results"));
+  }
+  // 每项 2*65536 槽位、总输入不足 8MiB，精确验证组合策略预算而非只命中字节限制。
+  input = baseline;
+  input["state"]["rules"]["damage_policy"]["random_damage_multipliers"] = std::vector<int>(65536, 1);
+  input["compare_to"] = input["state"];
+  Json request{{"schema_version", 1}, {"operations", Json::array()}};
+  for (int index = 0; index < 9; ++index) request["operations"].push_back(input);
+  const auto encoded = request.dump(); ASSERT_LT(encoded.size(), PBI_V1_MAX_REQUEST_BYTES);
+  EXPECT_EQ(Call(encoded).status, PBI_RESOURCE_LIMIT_V1);
+}
+
+/// 精确分数字符串支持十进制规范化并拒绝零分母/非法状态/数字超限，错误不会降成近似值。
+TEST(CAbi, StatusExactFractionBoundaries) {
+  const auto baseline = FixtureOperation("status_modifiers");
+  auto input = baseline; input["base_multiplier"] = {{"numerator", "0001"}, {"denominator", "-0003"}};
+  const auto normalized = Call(Json{{"schema_version", 1}, {"operations", Json::array({input})}}.dump());
+  ASSERT_EQ(normalized.status, PBI_OK_V1);
+  EXPECT_EQ(normalized.body.at("results")[0].at("adjusted_multiplier"), (Json{{"numerator", "-1"}, {"denominator", "3"}}));
+  std::vector<std::pair<Json, pbi_status_v1>> failures;
+  input = baseline; input["base_multiplier"]["denominator"] = "0";
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["base_multiplier"]["numerator"] = "1.0";
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["base_multiplier"]["numerator"] = 1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["base_multiplier"]["numerator"] = std::string(1025, '1');
+  failures.push_back({input, PBI_RESOURCE_LIMIT_V1});
+  input = baseline; input["speed"] = -1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["generation_id"] = 10;
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["speed"] = std::numeric_limits<std::int64_t>::max();
+  input["paralysis_multiplier"] = {{"numerator", "2"}, {"denominator", "1"}};
+  failures.push_back({input, PBI_RESOURCE_LIMIT_V1});
+  for (const auto& [operation, status] : failures) {
+    const auto actual = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
+    EXPECT_EQ(actual.status, status); EXPECT_FALSE(actual.body.contains("results"));
+  }
 }
 
 /// 每次成功和失败均释放并清零；非空输出不允许被覆盖，避免泄漏原结果。

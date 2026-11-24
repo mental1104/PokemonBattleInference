@@ -7,7 +7,7 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级、直接伤害/部分代际策略与精确 KO；Linux/macOS 测试和 iPhoneOS/Simulator 构建已通过。速度状态、完整战斗/图推演仍待迁移。 |
+| P1 C++ Core | IN_PROGRESS | 能力值/性格/等级、直接伤害/部分代际策略与精确 KO 已通过 Linux/macOS/Apple SDK；新增不可变状态/StateKey/PP/锁招及独立速度/灼伤修正已通过 Linux，状态批次 Apple CI 待执行。完整回合/动态效果/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
 | P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
@@ -101,11 +101,26 @@
 - 已下载并独立核验 [Apple 产物 14899787064](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813/artifacts/14899787064)：ZIP SHA-256 **`14b2eef09d7891876c643314178fbd2eeb17fa74db87fc1791f4f752d069fe99`** 与 GitHub digest 一致；每个平台 archive 含 calculations/damage/ABI 三个实际 arm64 Mach-O 对象，其 LC_BUILD_VERSION 分别为 **2（iOS）**、**7（iOS Simulator）**。共享 C 头与当前仓库完全一致，均含 compute 导出；Swift 模块分别 22,236/22,256 字节；JUnit 9 tests、零错误/失败/跳过。ZIP、工具链与可复跑核验脚本/JSON 保存在同一证据根。
 - 以上仍只证明 Core/桥接及 SDK 构建，不代表 SwiftUI App、模拟器运行、双设备使用、离线库或同步已实现。P1–P6 的完整目标与 Human 验收要求保持不变，Goal 继续 active。
 
+## 不可变状态与独立状态修正（2026-11-24）
+
+证据根：`/volume1/homes/mental1104/Backup/PokemonBattleInference/state-20261124/`。
+
+- 新增纯 Core `status.hpp/.cpp`、`state.hpp/.cpp`：完整主/临时状态、StatStages、MoveSlotState、MoveSpec/PokemonSpec、推演规则与执行策略、BattlerState/BattleState；所有外部视图只读，更新返回新快照并验证 HP/PP/槽位/讲究锁招不变量。祖先/兄弟节点不受更新影响。
+- StateKey 排除名称和绝对回合号，完整保存其余未来相关字段，包括策略和运行时 slot_id；临时状态规范为集合。内部有长度前缀的完整语义编码避免分隔符碰撞，标准库哈希只用于进程内索引；实际 unordered_set 去重与浮点 +0/-0 一致性已测试。键不是网络/同步 ID。
+- 独立麻痹 helper 保留原 1…6 代 1/4、7…9 代 1/2；灼伤倍率为精确分数。原行动排序仍只使用能力等级，未悄悄叠加独立麻痹 helper。原切换清理仅清除混乱/迷恋，保留主状态和畏缩，也按参考行为保留。
+- 新增 `battle_state` 和 `status_modifiers` C ABI 操作，复用同一 JSON 字段/整数/策略边界与完整伤害编码。状态更新后可通过实际 PP/禁用/锁招检查、方向/屏障和已消耗道具转换执行同一伤害 Core；不复制计算规则。完整协议在 `contracts/c/state.v1.md`。
+- 引擎 `0.3.0` / `calculation-rules.v3`，ABI/schema 仍 v1。共享向量扩为八操作，新增 Python 参考生成的独立状态修正及完整状态更新冻结响应；Go/Swift 实际链接调用并比较全部字段。
+- Python/C++ 差分：1,024 组生成状态更新、全静态/动态字段/策略的键敏感性矩阵、完整状态更新后实际伤害，以及 1,146 个独立状态修正样本（含自定义 200 位分母）。预期来自旧 Python 公开模型/StateKey/行动排序/状态 helper；不复制 C++ 键编码，不放宽精确断言。
+- `validate-nas.sh all` PASS：C/C++ **27/27**；Python **583 passed / 1 skipped**（34.45 秒，缺 Swift 的工具镜像明确跳过），真实临时 PostgreSQL 回归通过；Go race/vet PASS；专用 Swift **4/4 PASS**（1.176 秒），Web **95/95** 和构建通过。日志 `final/`。
+- ASan/UBSan/leak **27/27 PASS**（31.45 秒），日志 `sanitizer.log`；独立 NAS curl 访问实际 Go 服务，八操作 HTTP **200** 与冻结响应完整一致，未知操作 **422** 无部分结果，证据 `http/`，实例退出清理。
+- 边界测试曾捕获负分母输入导致 INTERNAL_ERROR（`vectors/core-regression.log`）；在交给有理数构造前统一分母符号后，原 **0001/-0003 → -1/3** 精确断言通过。分数输入每个分子/分母最多 1024 位；每状态最多 256 更新，所有原始/参考/更新策略槽位共同计入批次预算，超限显式失败。
+- 已知边界：effect 标识支持原 ASCII 规范化，非 ASCII 机制标识明确 UNSUPPORTED；中文展示名/来源正常保留。multiscale/inner_focus 可完整存入状态，动态效果执行仍待迁移，直接伤害入口保持明确 UNSUPPORTED。完整回合、状态图与 App/同步尚未完成；本批 Apple CI 待提交后实际验证。
+
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-本批伤害的 Apple CI 与产物核验均已完成；下一步迁移速度状态效果与不可变状态，继续回合/动态效果/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。已读实际状态源：StateKey 排除绝对回合号/展示名，BattlerState 保留 PP/禁用/讲究锁招/道具消耗/首次回合/完整状态；当前旧行动排序只用能力等级，麻痹 helper 尚未接入该排序路径，迁移须保留并明确此合同而不能悄悄改行为。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
+先完成状态批次 Apple CI。为尽早形成设备可用闭环，将已验证查询/计算能力接入真实 SwiftUI App 与离线 SQLite；同时保留并继续推进完整合法行动、回合/动态效果/图/SCC/搜索/事件分析及 Go API/Worker 迁移。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
 
 ## 恢复提示
 

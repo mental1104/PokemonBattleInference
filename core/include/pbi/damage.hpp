@@ -17,8 +17,8 @@ enum class PokemonType {
 };
 /// 直接伤害分类；变化招式必须由回合/效果层处理，不能返回虚构伤害。
 enum class DamageCategory { physical, special, status };
-/// 当前直接伤害支持的特性；实时 HP/畏缩等效果留在战斗状态层。
-enum class DamageAbility { none, technician, adaptability, thick_fat, filter, solid_rock, sniper };
+/// 战斗快照已识别的特性；直接伤害入口对仍需动态 HP/畏缩处理的特性明确报 unsupported。
+enum class DamageAbility { none, technician, adaptability, thick_fat, filter, solid_rock, sniper, multiscale, inner_focus };
 /// 当前直接伤害支持的道具；锁招和道具消耗不属于本次纯计算。
 enum class DamageItem { none, life_orb, choice_band, choice_specs, expert_belt, eviolite };
 /// 环境状态；none 表示明确没有天气或场地，不是未知值回退。
@@ -38,10 +38,10 @@ enum class DamageSource { technician, adaptability, thick_fat, filter, solid_roc
                           reflect, light_screen, aurora_veil, random };
 
 /// 明确不支持的规则或缺少知识，交给 ABI 映射为 UNSUPPORTED；不默认为中性。
-class UnsupportedDamageRule final : public std::invalid_argument {
+class UnsupportedRule final : public std::invalid_argument {
 public:
   /// @param message 固定 ASCII 规则错误；异常拥有一份副本。
-  explicit UnsupportedDamageRule(const char* message) : std::invalid_argument(message) {}
+  explicit UnsupportedRule(const char* message) : std::invalid_argument(message) {}
 };
 
 /// 六项已计算能力快照；只消费数据，不持有物种库/数据库句柄。
@@ -52,6 +52,8 @@ struct BattleStats {
   std::int32_t special_attack;
   std::int32_t special_defense;
   std::int32_t speed;
+  /// @param other 只读六项能力；@return 全部字段是否相同。
+  bool operator==(const BattleStats& other) const = default;
 };
 
 /// 一侧进入直接计算的不可变快照（通过 const 借用），与配置/当前 HP 状态分离。
@@ -63,6 +65,8 @@ struct DamagePokemon {
   DamageItem item = DamageItem::none;
   bool can_evolve = false;
   std::optional<Grounding> grounding;
+  /// @param other 只读快照；@return 所有会影响战斗的字段是否相同。
+  bool operator==(const DamagePokemon& other) const = default;
 };
 
 /// 招式知识快照，保留分类/属性/固定威力，不在 Core 查询数据源。
@@ -70,6 +74,8 @@ struct DamageMove {
   PokemonType type;
   DamageCategory category;
   std::int32_t power;
+  /// @param other 只读招式；@return 属性、分类与威力是否相同。
+  bool operator==(const DamageMove& other) const = default;
 };
 
 /// 防守侧屏障。旧链允许屏障和极光幕叠加，迁移不擅自改成官方互斥规则。
@@ -77,6 +83,8 @@ struct DamageScreens {
   bool reflect = false;
   bool light_screen = false;
   bool aurora_veil = false;
+  /// @param other 只读边侧；@return 三种屏障是否相同。
+  bool operator==(const DamageScreens& other) const = default;
 };
 
 /// 全部现有 Python DamagePolicy 字段的值快照。
@@ -112,6 +120,8 @@ struct DamagePolicy {
   std::vector<double> random_damage_multipliers{
       0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92,
       0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0};
+  /// @param other 只读完整策略；@return 所有倍率、阈值与随机槽位是否相同。
+  bool operator==(const DamagePolicy& other) const = default;
 };
 
 /// 单条属性相克知识；Core 不内置与数据库脱节的另一套属性表。
@@ -126,7 +136,7 @@ class TypeChartSnapshot {
 public:
   /// @param entries 转移拥有权的相克条目；负倍率、未知属性或重复键抛出 invalid_argument。
   explicit TypeChartSnapshot(std::vector<TypeEfficacy> entries);
-  /// @param attacking 招式属性；@param defending 目标属性；@return 百分制倍率，缺失抛出 UnsupportedDamageRule。
+  /// @param attacking 招式属性；@param defending 目标属性；@return 百分制倍率，缺失抛出 UnsupportedRule。
   [[nodiscard]] std::int32_t Efficacy(PokemonType attacking, PokemonType defending) const;
 private:
   std::vector<TypeEfficacy> entries_;
@@ -166,13 +176,15 @@ struct DamageResult {
   std::vector<DamageTrace> trace;
 };
 
-/// @param generation 1…9 的原有兼容 profile；@return 对应的新策略，未知代际抛出 UnsupportedDamageRule。
+/// @param generation 1…9 的原有兼容 profile；@return 对应的新策略，未知代际抛出 UnsupportedRule。
 [[nodiscard]] DamagePolicy DamagePolicyForGeneration(std::int32_t generation);
+/// @param policy 只读完整策略；非法倍率/空随机档位抛 invalid_argument，不执行计算。
+void ValidateDamagePolicy(const DamagePolicy& policy);
 /// @param version_group PokeAPI 固定版本组；@return 原 resolver 的代际，未知版本组明确失败。
 [[nodiscard]] std::int32_t GenerationForVersionGroup(std::int32_t version_group);
-/// @param value 只读修正来源；@return 协议使用的静态名称，未知枚举抛出 UnsupportedDamageRule。
+/// @param value 只读修正来源；@return 协议使用的静态名称，未知枚举抛出 UnsupportedRule。
 [[nodiscard]] std::string_view DamageSourceName(DamageSource value);
-/// @param value 只读阶段；@return 协议使用的静态名称，未知枚举抛出 UnsupportedDamageRule。
+/// @param value 只读阶段；@return 协议使用的静态名称，未知枚举抛出 UnsupportedRule。
 [[nodiscard]] std::string_view DamageStageName(DamageStage value);
 /// @param input 只读战斗/策略快照；@param knowledge 完整所需相克知识，不保留引用。
 /// @return 完整随机档位与 trace；非法输入/不支持规则明确失败，非有限或越界输出抛出 overflow_error。

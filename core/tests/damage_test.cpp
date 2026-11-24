@@ -57,14 +57,14 @@ TEST(Damage, OrderedScreensCriticalAndCustomRandom) {
 TEST(Damage, ExplicitFailuresAndNumericBudgets) {
   auto input = Reference();
   const TypeChartSnapshot chart{{{PokemonType::steel, PokemonType::fairy, 200}}};
-  EXPECT_THROW(static_cast<void>(CalculateDamage(input, TypeChartSnapshot{{}})), UnsupportedDamageRule);
+  EXPECT_THROW(static_cast<void>(CalculateDamage(input, TypeChartSnapshot{{}})), UnsupportedRule);
   EXPECT_THROW(static_cast<void>(TypeChartSnapshot({{PokemonType::steel, PokemonType::fairy, 100},
                                                     {PokemonType::steel, PokemonType::fairy, 200}})), std::invalid_argument);
   input.move.category = DamageCategory::status;
-  EXPECT_THROW(static_cast<void>(CalculateDamage(input, chart)), UnsupportedDamageRule);
+  EXPECT_THROW(static_cast<void>(CalculateDamage(input, chart)), UnsupportedRule);
   input.move.category = DamageCategory::physical;
   input.attacker.ability = static_cast<DamageAbility>(99);
-  EXPECT_THROW(static_cast<void>(CalculateDamage(input, chart)), UnsupportedDamageRule);
+  EXPECT_THROW(static_cast<void>(CalculateDamage(input, chart)), UnsupportedRule);
   input.attacker.ability = DamageAbility::none;
   input.policy.random_damage_multipliers = {};
   EXPECT_THROW(static_cast<void>(CalculateDamage(input, chart)), std::invalid_argument);
@@ -93,7 +93,7 @@ TEST(Damage, GenerationAndVersionGroupProfiles) {
   for (std::size_t index = 0; index < expected.size(); ++index) {
     EXPECT_EQ(GenerationForVersionGroup(static_cast<std::int32_t>(index + 1)), expected[index]);
   }
-  EXPECT_THROW(static_cast<void>(GenerationForVersionGroup(32)), UnsupportedDamageRule);
-  EXPECT_THROW(static_cast<void>(DamagePolicyForGeneration(0)), UnsupportedDamageRule);
+  EXPECT_THROW(static_cast<void>(GenerationForVersionGroup(32)), UnsupportedRule);
+  EXPECT_THROW(static_cast<void>(DamagePolicyForGeneration(0)), UnsupportedRule);
 }
 } // namespace pbi

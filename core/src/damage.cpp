@@ -14,7 +14,7 @@ template <class T> void RequireEnum(T value, T first, T last) {
   using Underlying = std::underlying_type_t<T>;
   if (static_cast<Underlying>(value) < static_cast<Underlying>(first) ||
       static_cast<Underlying>(value) > static_cast<Underlying>(last)) {
-    throw UnsupportedDamageRule("unsupported damage enum value");
+    throw UnsupportedRule("unsupported damage enum value");
   }
 }
 
@@ -278,6 +278,8 @@ private:
 };
 } // namespace
 
+void ValidateDamagePolicy(const DamagePolicy& policy) { ValidatePolicy(policy); }
+
 TypeChartSnapshot::TypeChartSnapshot(std::vector<TypeEfficacy> entries) : entries_(std::move(entries)) {
   for (std::size_t i = 0; i < entries_.size(); ++i) {
     const auto& entry = entries_[i];
@@ -296,11 +298,11 @@ std::int32_t TypeChartSnapshot::Efficacy(PokemonType attacking, PokemonType defe
   for (const auto& entry : entries_) {
     if (entry.attacking == attacking && entry.defending == defending) return entry.percent;
   }
-  throw UnsupportedDamageRule("type efficacy knowledge is missing");
+  throw UnsupportedRule("type efficacy knowledge is missing");
 }
 
 DamagePolicy DamagePolicyForGeneration(std::int32_t generation) {
-  if (generation < 1 || generation > 9) throw UnsupportedDamageRule("unsupported generation");
+  if (generation < 1 || generation > 9) throw UnsupportedRule("unsupported generation");
   DamagePolicy result;
   result.terrain_boost_multiplier = generation >= 8 ? 1.3 : generation >= 6 ? 1.5 : 1.0;
   if (generation <= 3) result.sandstorm_rock_spdef_multiplier.reset();
@@ -313,7 +315,7 @@ std::int32_t GenerationForVersionGroup(std::int32_t version_group) {
   constexpr std::array generations{1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 3, 3, 5, 6, 6,
                                    7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 1, 1, 9, 9};
   if (version_group < 1 || static_cast<std::size_t>(version_group) > generations.size()) {
-    throw UnsupportedDamageRule("unsupported version group");
+    throw UnsupportedRule("unsupported version group");
   }
   return generations[static_cast<std::size_t>(version_group - 1)];
 }
@@ -346,7 +348,7 @@ DamageResult CalculateDamage(const DamageInput& input, const TypeChartSnapshot& 
   RequireEnum(input.move.category, DamageCategory::physical, DamageCategory::status);
   RequireEnum(input.weather, DamageWeather::none, DamageWeather::snow);
   RequireEnum(input.terrain, DamageTerrain::none, DamageTerrain::misty);
-  if (input.move.category == DamageCategory::status) throw UnsupportedDamageRule("status moves do not deal direct damage");
+  if (input.move.category == DamageCategory::status) throw UnsupportedRule("status moves do not deal direct damage");
   if (input.move.power <= 0) throw std::invalid_argument("damaging moves must have positive power");
   Calculation calculation(input);
   calculation.Base();

@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入，也没有任务 ID、进度或持久化副作用。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.2.0`，规则集合标识为 `calculation-rules.v2`；原四种计算不改变数学语义，新版本增加直接伤害。C ABI/schema 仍为 v1。不表示完整宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.3.0`，规则集合标识为 `calculation-rules.v3`；原计算数学语义保持，新版本增加不可变战斗状态与独立状态修正。C ABI/schema 仍为 v1。不表示完整宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -32,6 +32,8 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | stage | value：int64，stage：int32 且 -6…6 | value：int64，至少 1；原 value 必须正数 |
 | ko | defender_hp：正 int32，rolls：非空 int32 数组 | ohko、two_hit：精确分子/分母字符串；guaranteed_ohko、guaranteed_two_hit：布尔值 |
 | damage | generation_id、attacker、defender、move、type_chart；可选策略/环境/标志详见下文 | int64 rolls、base_damage、defender_hp、完整 trace、精确 KO 和 damage_ruleset_id |
+| battle_state | state、updates；可选 compare_to/damage_query | 完整新状态、键等价、原行动速度及可选真实伤害，详见 [状态合同](state.v1.md) |
+| status_modifiers | status、speed、generation_id、category、base_multiplier、burn_multiplier；可选 paralysis_multiplier | 独立麻痹速度、精确灼伤修正与切换清理，详见 [状态合同](state.v1.md) |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 
@@ -39,7 +41,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 ### 直接伤害输入与版本边界
 
-共享六操作向量的最后一项是完整最小请求。`attacker`/`defender` 必填 `level`、`types`（PokeAPI 1…18）和 `stats`（hp/attack/defense/special_attack/special_defense/speed）；可选 `ability`、`item`、`can_evolve`、`grounding`。未填效果表示明确无效果；显式名称必须是以下支持项，未知名称不回退：
+共享八操作向量中的 damage 项是完整最小请求。`attacker`/`defender` 必填 `level`、`types`（PokeAPI 1…18）和 `stats`（hp/attack/defense/special_attack/special_defense/speed）；可选 `ability`、`item`、`can_evolve`、`grounding`。未填效果表示明确无效果；显式名称必须是以下支持项，未知名称不回退：
 
 - ability：none、technician、adaptability、thick_fat、filter、solid_rock、sniper。
 - item：none、life_orb、choice_band、choice_specs、expert_belt、eviolite。
