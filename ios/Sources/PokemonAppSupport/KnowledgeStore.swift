@@ -57,6 +57,13 @@ public actor KnowledgeStore {
     /// 返回当前实际打开的版本，不使用远端推荐版本冒充已经安装。
     public func version() -> KnowledgeManifest { installed.manifest }
 
+    /// attackerId/defenderId/moveId 为明确知识 ID；返回同一连接、同一 manifest 的拥有值快照。
+    /// 方法体不含 await，install 无法插入中间查询；缺失任何知识直接抛错，不返回部分输入。
+    public func calculationSnapshot(attackerId: Int64, defenderId: Int64, moveId: Int64) throws -> CalculationKnowledgeSnapshot {
+        CalculationKnowledgeSnapshot(attacker: try pokemon(attackerId), defender: try pokemon(defenderId),
+            move: try move(moveId), natures: try natures(), typeChart: try typeChart(), version: installed.manifest)
+    }
+
     /// candidate 为完整候选包；成功原子切换，任何验证/复制失败均保留当前版本和独立用户库。
     public func install(_ candidate: KnowledgePack) throws {
         let next = try Self.install(candidate, directory: directory)

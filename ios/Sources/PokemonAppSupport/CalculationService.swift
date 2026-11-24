@@ -60,22 +60,21 @@ public actor CalculationService {
     /// configuration 为完整用户输入；server 为 null 使用本机 Core，否则调用用户指定服务。
     /// 返回全部实际结果；重计算通过 Engine.calculateAsync 离开主线程，任务取消自然传播。
     public func calculate(_ configuration: BattleConfiguration, server: URL? = nil) async throws -> CalculationResult {
-        let first = try await knowledge.pokemon(configuration.attacker.pokemonId)
-        let second = try await knowledge.pokemon(configuration.defender.pokemonId)
-        let move = try await knowledge.move(configuration.moveId)
-        let natures = try await knowledge.natures()
-        let profiles = try [Self.profile(configuration.attacker, pokemon: first, natures: natures), Self.profile(configuration.defender, pokemon: second, natures: natures)]
+        // 一次 actor 调用取得全部输入；等待远端 profile 时即使更新知识包，也不能混用不同版本。
+        let snapshot = try await knowledge.calculationSnapshot(attackerId: configuration.attacker.pokemonId,
+            defenderId: configuration.defender.pokemonId, moveId: configuration.moveId)
+        let first = snapshot.attacker, second = snapshot.defender, move = snapshot.move
+        let profiles = try [Self.profile(configuration.attacker, pokemon: first, natures: snapshot.natures), Self.profile(configuration.defender, pokemon: second, natures: snapshot.natures)]
         let profileRequest = try ContractJSON.encoder().encode(Batch(operations: profiles))
         let profileData = try await call(profileRequest, server: server)
         let profileReply = try ContractJSON.decoder().decode(Reply<ProfileResult>.self, from: profileData)
         try validate(profileReply.schemaVersion, profileReply.engineVersion)
         guard profileReply.results.count == 2, profileReply.results.allSatisfy({ $0.kind == "profile" }) else { throw CalculationFailure.invalidResponse }
         let firstStats = profileReply.results[0].stats, secondStats = profileReply.results[1].stats
-        let chart = try await knowledge.typeChart()
         let input = DamageInput(generationId: configuration.generationId,
             attacker: PokemonInput(configuration: configuration.attacker, pokemon: first, stats: firstStats),
             defender: PokemonInput(configuration: configuration.defender, pokemon: second, stats: secondStats),
-            move: MoveInput(type: move.typeId, category: move.category, power: move.power ?? 0), typeChart: chart,
+            move: MoveInput(type: move.typeId, category: move.category, power: move.power ?? 0), typeChart: snapshot.typeChart,
             weather: configuration.weather, terrain: configuration.terrain, critical: configuration.critical)
         let finalRequest = try ContractJSON.encoder().encode(Batch(operations: [FinalOperation.damage(input),
             .status(StatusInput(configuration: configuration.attacker, stats: firstStats, generation: configuration.generationId)),
@@ -85,7 +84,7 @@ public actor CalculationService {
         try validate(result.schemaVersion, result.engineVersion)
         guard result.rulesVersion == profileReply.rulesVersion, result.results.count == 3,
               case .damage(let damage) = result.results[0], case .status(let firstSpeed) = result.results[1], case .status(let secondSpeed) = result.results[2] else { throw CalculationFailure.invalidResponse }
-        let version = await knowledge.version()
+        let version = snapshot.version
         let archive = ArchivedInput(configuration: configuration, knowledgeVersion: version.dataVersion, profileRequest: profileRequest, finalRequest: finalRequest)
         return CalculationResult(attackerStats: firstStats, defenderStats: secondStats, attackerSpeed: firstSpeed.speed, defenderSpeed: secondSpeed.speed,
             damage: damage, engineVersion: result.engineVersion, rulesVersion: result.rulesVersion, knowledgeVersion: version.dataVersion,

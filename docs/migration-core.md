@@ -28,7 +28,7 @@ P1 仍为 **IN_PROGRESS**。已验证的能力不能替代尚未迁移的完整�
 
 纯 Core `PBI_BUILD_ABI=OFF` 的新增 **6/6** 测试已通过，含运行中取消与全部主要不变量；日志 `transitions-native.log`。真实 Python builder/事件差分与前项拓扑差分合计 **5/5 PASS**（1.41 秒），图/行动/转移/事件域 **14/14 CTest PASS**；证据为 `battle-graph-differential-final.log` 与 `battle-graph-tests.xml`。新增 **106** 组构图输入完整对照原 `StateGraphBuilder`，逐项比较全部状态字段、前驱/代表路径、每条边/随机与业务事件/条件权重、SCC、三类预算保护和统计。独立适配器初次因缺少 `contracts/c` include path 编译失败，修正 target include 路径后通过，首次日志保留在 `battle-graph-differential.log`。
 
-测试脚本只提供可重放分支输入，不能当作 Pokémon 回合规则已迁移；正式固定战斗仍需要真实回合器。新的转移/构图 ASan 批次正在独立执行，不将前项 36 测试的旧 sanitizer 结果挪作本批证据。
+测试脚本只提供可重放分支输入，不能当作 Pokémon 回合规则已迁移；正式固定战斗仍需要真实回合器。新批独立 `PBI_BUILD_ABI=OFF` 的 ASan/UBSan/leak **32/32 PASS**（1.58 秒），含新增六项转移/事件/构图测试；实际日志 `transitions-sanitizer.log`，未挪用旧 36 测试的 sanitizer 结果。
 
 ## 剩余依赖
 
