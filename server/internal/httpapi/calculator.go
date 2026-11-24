@@ -311,39 +311,51 @@ var errCalculatorWorkerUnavailable = errors.New("isolated calculation worker is 
 // batch 将 operations 发送到绝对路径单请求 Worker，返回与输入等长的独立 JSON 结果。
 // ctx 是整个业务请求的共享截止；错误时不使用部分 results。
 func (handler calculatorHandler) batch(ctx context.Context, operations []any) ([]json.RawMessage, error) {
+	result, err := handler.batchEnvelope(ctx, operations)
+	return result.Results, err
+}
+
+// businessCoreBatch 保留业务准备所需的完整原生版本和逐项结果，供冻结 admission 证据使用。
+type businessCoreBatch struct {
+	Version       int               `json:"schema_version"`
+	EngineVersion string            `json:"engine_version"`
+	RulesVersion  string            `json:"rules_version"`
+	Results       []json.RawMessage `json:"results"`
+}
+
+// batchEnvelope 与 batch 共享唯一子进程传输边界；ctx 控制整个业务请求，无任何进程内计算 fallback。
+// operations 为完整 ABI 值，返回版本和所有结果；失败时不发布部分成功。
+func (handler calculatorHandler) batchEnvelope(ctx context.Context, operations []any) (businessCoreBatch, error) {
+	var result businessCoreBatch
 	if !filepath.IsAbs(handler.worker) {
-		return nil, errCalculatorWorkerUnavailable
+		return result, errCalculatorWorkerUnavailable
 	}
 	info, err := os.Stat(handler.worker)
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
-		return nil, errCalculatorWorkerUnavailable
+		return result, errCalculatorWorkerUnavailable
 	}
 	body, err := json.Marshal(struct {
 		Version    int   `json:"schema_version"`
 		Operations []any `json:"operations"`
 	}{1, operations})
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	response, err := workerprocess.Execute(ctx, handler.worker, body)
 	if err != nil {
 		var failure *workerprocess.Failure
 		if errors.As(err, &failure) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, workerprocess.ErrOutputLimit) {
-			return nil, err
+			return result, err
 		}
-		return nil, errCalculatorWorkerUnavailable
-	}
-	var result struct {
-		Version int               `json:"schema_version"`
-		Results []json.RawMessage `json:"results"`
+		return result, errCalculatorWorkerUnavailable
 	}
 	if err = json.Unmarshal(response, &result); err != nil {
-		return nil, err
+		return businessCoreBatch{}, err
 	}
 	if result.Version != 1 || len(result.Results) != len(operations) {
-		return nil, errors.New("invalid native result count")
+		return businessCoreBatch{}, errors.New("invalid native result count")
 	}
-	return result.Results, nil
+	return result, nil
 }
 
 // scalarOperation 为旧单项性格模板保留 hp/stat ABI 的精确输入；不在 Go 计算任何能力公式。

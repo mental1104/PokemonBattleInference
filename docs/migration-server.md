@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **23 项配置/知识/图片及任务查询取消 API**，并接入 P5 同步处理器；另有第 24 项原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。正式业务推演创建与其余计算 API 尚未接齐。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **24 项配置/知识/图片及任务创建、查询取消 API**，并接入 P5 同步处理器；另有原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。原合同任务创建已经过真实 PG、独立 daemon 和 Swift 客户端验收，其余计算 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -11,8 +11,9 @@
 | P5 接线 | NewServer(db) 挂 GET/POST /v1/sync；主进程显式迁移时调用 syncstore.Migrate；本轮真实 PG 重跑 P5 三项事务/并发/HTTP 测试通过。Swift 测试专用服务入口缺少 PBI_SYNC_TEST_SERVE_ADDR 时有一个预期 SKIP，不能记成跨语言 PASS；P5 另有独立跨语言验收。 |
 | 子进程边界 | pbi-core-worker 从 stdin 接收单批 JSON，stdout 输出完整 Core ABI 响应。所有 Core HTTP 请求统一使用绝对路径子进程，缺失时 503，绝不回退进程内 CGO；原生进度和实际 PG daemon 另见 [native-worker.md](native-worker.md)。 |
 | 受限静态计算器 | POST /v1/calculator/damage 从单个 repeatable-read 快照读取原规则集、双方种族值/合法历史特性、version-aware 招式及完整属性表；Core 子进程执行 hp/stat、stage、damage 三个依赖批次。旧单轴 plus 模板不降低其他轴；快照完整 paired nature/EV/IV 保留。合法未实现特性沿旧入口返回原中文 warning。InnerFocus/Multiscale 当前静态 Core 明确 422，而旧静态入口为 200，仍属兼容缺口，不用 Go 静默抹掉机制或补倍率。 |
-| 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。真实 graph/fixed-battle coordinator/daemon 和 NDJSON 进度已在独立切片接入，见 [native-worker.md](native-worker.md)；原业务创建 HTTP 的严格准入与配置候选组装尚未接齐。 |
+| 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。真实 graph/fixed-battle coordinator/daemon 和 NDJSON 进度见 [native-worker.md](native-worker.md)。 |
 | 配置任务查询 4 项 | GET configuration-jobs 状态/results/issues、POST cancel，保持原独立 DTO、粗粒度状态、精确概率/期望回合、微秒时间、错误码过滤及 sequence 分页。结果和总数同一 repeatable-read 快照，无 N+1 查询；旧 Python 数据没有 Go definition 也可查询，结果分页不依赖 execution spec。原任意非空 explanation 读兼容保留，HTTP 非对象/损坏 JSON 仍为 null；新结果写入继续严格验证 JSON。 |
+| 原任务创建 1 项 | POST configuration-jobs 保留原 one-on-one-move-pool.v1 DTO 与 202、原内容寻址 Idempotency-Key；同一 PG repeatable-read 快照交 Core strict/factory reconciliation，收齐全部失败后才分页取得原具体 canonical case。全部能力计算、严格准入、组合、SHA/权重均由 Core 完成；单个共享 template/admission 与轻量 case 原子冻结，daemon 领取后只投影招式与槽。没有任意 Core JSON 入队入口，也不删除不支持项缩小候选池。 |
 
 ## 运行边界
 
@@ -55,9 +56,23 @@
 
 ## 剩余范围
 
-1. 原任务创建/候选池与单配置完整图 HTTP API：补齐严格 admission、version-aware 候选快照与配置 Core ABI 组装，再交给已验证的 PG coordinator/真实子进程 daemon。持久任务入口必须拒绝旧规则声明为 partial 的机制；旧同步推演的允许 partial 并返回 coverage 策略不能混用。44,100 case 提交还须共享冻结知识模板，不能每 case 重复整张属性矩阵。
+1. 原候选池与单配置完整图 HTTP API：复用已用于真实任务创建的严格 admission/同快照知识/正式 Core 编排，保持各入口原有边界。持久任务入口已拒绝旧规则声明为 partial 的机制；旧同步推演允许 partial 并返回 coverage 的策略不能混用。44,100 case 已采用共享模板，不重复属性矩阵。
 2. 原 damage、configuration solve/search、fixed-one-on-one/step/graph、graph 导航/重算、candidate pool/move combinations/winning paths 等 HTTP 适配；静态 calculator 的两项动态特性差异仍需正式 Core 合同解决。真实固定战斗、图/SCC 和 typed 配置候选能力已有独立 Core 验证，配置公开 ABI 由 P1/P2 接入；Go 仅负责知识/请求组装，不重复枚举、权重或战斗规则。
 3. 生产发布编排、知识版本升级/历史库接管、Vue 全 API 兼容验收、旧新全 API 差分与真实业务升级回滚。纯 Go 数据镜像与五个真实二进制的 scratch 镜像、原生 daemon 的恢复/停机，以及独立 P6 预览/健康/镜像回退证据，不等于已完成生产迁移。
-4. 所有 Core HTTP 已统一独立 child，正式推演创建/完整配置与图交互 API 仍需接通；子进程工具和 graph/fixed daemon 通过不等于 41 项旧业务整体完成。
+4. 所有 Core HTTP 已统一独立 child，原配置任务创建已接通；完整配置与图交互 API 仍需迁移。子进程工具和 graph/fixed daemon 通过不等于 41 项旧业务整体完成；空库完整网页交付还缺旧 BYTEA sprites 导入，目录与计算通过不代表图片数据已交付。
 
-本检查点不合并、不切生产，不将 23/41 误写为 P3 完成。
+本检查点不合并、不切生产，不将 24/41 误写为 P3 完成。
+
+## 原合同任务创建的真实闭环
+
+`submission-final/` 保存纯 Go 全量 CSV 初始化、原 HTTP 请求、202、进度和真实终态。Scizor212/Dragonite149 同50级、单候选，实际 daemon 完成 **841 nodes / 16,095 edges**，给出精确概率和期望回合；独立 Swift 客户端随后在同一已修 none 边界的服务 **5/5、零 SKIP** 通过创建/幂等重提/完成/results/issues/终态取消，以及先观察 running 再取消。Swift 证据另存 `p4-jobs-p3-none7-20261124/jobs/`。
+
+实际最大双十招池（Azumarill184/Marill183，原 supported_only）创建 **44,100** 对，HTTP **202 / 8.347426 秒**。默认 daemon lease120秒/DB调用10秒；API 和 daemon 均实限 **1 GiB**。运行51对后真实取消并收口为 **51 truncated + 44,049 cancelled = 44,100**，pending/running均0；截断没有填入成功概率或数学平局。原取消 HTTP 200/0.002364秒只表示接受取消，后续终态另行轮询验证。
+
+PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,416 bytes**、admission **22,794 bytes** 各一份，44,100 case 没有 CoreRequest。此前每 case 复制18,025-byte请求的 **794,902,500 bytes** 是旧方案序列化估算，非实测运行峰值；PG `pg_column_size=3,728,431` 是数据库压缩存储值，也不能当作进程内存峰值。采样RSS/容器统计另存原资源报告。
+
+原 Python 同 PG 差分已验证完整202与同 key 重提、null/明确none、含HTML标点的合法key，以及原 partial/未知选择/跨四招块失败的完整422详情；全部 **44,100** 个实际持久化 case 与原公开 iterator + case_definition 逐字段相同，包含 canonical pair、双方 SHA、具体招式顺序，bulk job ID 也与原应用 SHA 相同。实际 source/ABI 为已验证的 `root-job-none7`；没有编译正在开发的后续 ABI 来混淆证据。最初 daemon 配置不相容导致未消费、测试客户端不接受非ASCII header 的失败均保留原日志，未记成服务通过。
+
+扩大的负向场景还暴露三项明确兼容差异：原缺 Pokémon/错误版本因未捕获 `BattleCandidatePoolNotFound` 返回500，新入口在写入前返回422；原未知 stat_profile_id 会返回202、留到旧 worker 准备时报错，新入口在冻结完整能力模板时返回422。测试单独断言并保存两端原始响应，不把这些差异算成等价通过。未知 ruleset 则已恢复原工厂轴不匹配的完整422文案。若需要复现未知模板的旧202→异步失败时机，应增加明确的冻结准备失败合同，不能伪造能力或交付占位战斗结果。
+
+复现入口 `tools/migration/accept-go-job-submission.sh` 使用已声明 maintenance、自有空 PG、完整 CSV、原合同202、独立 daemon 成功结果、实际44100创建/运行取消、同库原 Python 差分，退出精确清理。生产服务不受影响。
