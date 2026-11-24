@@ -300,9 +300,12 @@ describe('ConfigurationSolverView goal detail dialog', () => {
     const wrapper = mountView();
     await flushPromises();
     await wrapper.get('[data-testid="open-defense-goal-dialog"]').trigger('click');
-    await wrapper.get('[data-testid="choose-target-pokemon"]').trigger('click');
+    // 页面主体也有同名选择按钮，必须在目标弹窗内选择，才能完成防守目标草稿。
+    const dialog = wrapper.get('[data-testid="goal-dialog-backdrop"]');
+    await dialog.get('[data-testid="choose-target-pokemon"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="choose-target-move"]').trigger('click');
+    await dialog.get('[data-testid="choose-target-move"]').trigger('click');
+    expect(dialog.get('[data-testid="confirm-goal-dialog"]').attributes('disabled')).toBeUndefined();
     await wrapper.get('[data-testid="confirm-goal-dialog"]').trigger('click');
     await flushPromises();
 
