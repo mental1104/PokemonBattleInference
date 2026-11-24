@@ -12,7 +12,7 @@
 | P3 Go 服务端 | IN_PROGRESS | 原 19/41 完整 API 加一个受限 calculator 入口、纯 Go 全 CSV/原 MV 初始化、HTTP 全原生进程隔离及 PG Worker 已实测。固定战斗进度/结果、取消/停机恢复 7 项通过；任务创建、其余计算/图 API 与 Web 闭环仍待补。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 未签名 device App 与两 SDK 构建成功；最近 iPhone 3/4 UI 测试通过，麻痹切换及 iPad 导航定位失败已修，尚待新 CI。在线复杂任务 UI 和真机未验收。 |
 | P5 数据同步 | IN_PROGRESS | Go HTTP/PG 与两个独立 SQLite 客户端的离线队列、幂等重试、显式冲突、删除与 cursor 收敛 13/13 通过；知识下载/Range 续传/原子安装有实际 HTTP 测试。完整 App 更新 UI 与真机双设备仍待验收。 |
-| P6 部署与回归 | IN_PROGRESS | 无 Python/shell/编译器的 scratch API/数据镜像已实际构建并黑盒验收；完整四角色部署、Web 接入、健康检查周期和升级回滚仍待补。旧生产与数据库保持原状。 |
+| P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、真实 Chromium 原 Vue 计算、Docker 健康故障恢复、两个 Go 镜像回退和独立 PG 备份恢复已实测；原 BYTEA 图片初始化、复杂任务完整 Web 与正式生产升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
 
@@ -159,6 +159,8 @@
 - **4637deb** 新 `/v1/calculator/damage` 通过同 PG 原 FastAPI 的 **14/14** 验收（1.50 秒），其中 **12 项完全等价、两项明确记录已知差异**：旧静态入口的 InnerFocus/Multiscale 为 200，新静态 Core 为 unsupported 422。因此记 **19 个完整 API + 1 个受限 API**，不称 20 个完整迁移。实际 hp/stat→stage→damage 三批独立 child、不可变配置软删快照、原错误和全部 JSON/null 字段已对照；11 个严格输入子场景 race 与 vet 通过。
 - 已推 **4995551** 的 [Main Gate 45380518072](https://github.com/mental1104/PokemonBattleInference/actions/runs/45380518072) **PASS**；[Native 45380518035](https://github.com/mental1104/PokemonBattleInference/actions/runs/45380518035) **FAIL**：macOS Core **58/58 PASS**（6.44 秒）、迁移 pytest **28 PASS / 1 FAIL**，三个 Swift 知识 HTTP fixture 均未就绪且 stderr 为空，SDK/device App/模拟器未执行。产物 **14914260663** ZIP SHA-256 **39e50c2d92e902e060cfbdb1668300a5b13deae6baa7cbc77aba3dda862f9d9e** 已独立匹配，原日志/ZIP 在 `knowledge-ready-20261124/`。Linux 的 ready 窗口不作为本次 Mac 启动失败已证实原因；补丁额外直接选择父测试的真实 Python、去除回环夹具反向 DNS 依赖并记录启动阶段，等待 Apple 实证。修后 Linux Swift **17 PASS / 3 explicit SKIP**（2.270 秒），三个实际更新测试均通过。
 - **4a4f0c0** 保存完整推演知识只读端口；七只 Pokémon 的全字段 416,820 字节快照与原 repository 同 PG 差分通过，Go **7/7 race、零跳过**及 vet 通过，详见 `migration-server.md`。新 **b040471** 的 [Main Gate 45382143497](https://github.com/mental1104/PokemonBattleInference/actions/runs/45382143497) **FAIL** 于收集新 calculator 测试：`ModuleNotFoundError: httpx`。原因是 0.28.1 只在工具 Dockerfile 安装，未进入 CI 使用的公共 requirements。已将相同实测版本加入 `requirements.txt`、移除工具层重复来源；从空 venv 仅安装公共依赖后 **624 项测试完整收集成功**（2.66 秒），不是宣称这 624 项已经执行。证据 `main-dependencies-20261124/`，后续由新 Main/Native CI 验证。
+- **74c75e1** 的 [Main Gate 45383272271](https://github.com/mental1104/PokemonBattleInference/actions/runs/45383272271) **PASS**，缺失 httpx 修复已由实际 CI 验证。[Native 45383272152](https://github.com/mental1104/PokemonBattleInference/actions/runs/45383272152) **FAIL**：macOS **70/70 CTest PASS**（6.83 秒），HTTP fixture 已正常启动，Swift 三个更新方法中取消/边界通过，首次截断没有实际收到字节，故 Range 续传三条严格断言失败。产物 **14914788001** ZIP SHA-256 **4871c342d90eb03a170c37b333a1931c50c9e6ad485d24a9b8578f8e1e2aae34** 已匹配，证据 `drop-control-20261124/`。**1534d5f** 让测试在观察到真实至少 8192 字节后，经独立 HTTP 控制请求断开 TCP，再验证磁盘前缀/206/重启/旧数据；未改生产下载算法或放宽断言。同时 Makefile 显式传递已经注册的配置 runner，避免其七项纯域差分在统一 Native 入口因缺环境被跳过。
+- 四角色验收 `stack-20261124/explicit-network/` **PASS**：原 Vue/Nginx→Go→Core 真实浏览器计算 **114–135**、390px 布局无溢出、13-op 完整向量；Docker STOP 后 unhealthy/CONT 后 healthy；公开 HTTP 配置经两个不同 Go image 回退和 PG dump→独立库恢复后完整 JSON 不变。详细 image/备份摘要及作用边界见 `go-stack-validation.md`。Worker 在栈中启动但本场景没有伪造缺失的任务创建接口；截图暴露的图片缺失与原 BYTEA sprite 初始化明确列入剩余范围。所有自有实例/网络均已精确清理。
 
 ## 下一步
 
