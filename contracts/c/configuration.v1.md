@@ -77,6 +77,8 @@ admission 为 `{ruleset_id,version_group_id,calculation_revision,candidates:[Fac
 
 分页逐条调用原 CaseAt 并检查取消/字节预算，避免先缓存整个笛卡尔空间。输出超限明确 RESOURCE_LIMIT，不把已生成页前缀当成成功页面，也不改变全局 case_count。
 
+固定道具允许原受控标识精确字符串 `"none"`：其关联事实必须使用 `effect_identifier:null`、`mechanism_identifier:"none"` 和原允许无效果路径。原 canonical 命令仍保留该字符串，因此其身份与 `item_identifier:null` 不同；ABI 不将两者改写成同一任务，也不扩大为空白或大小写别名。
+
 ## 预算、错误与取消
 
 raw 预算均作用于归并前合法原始成员，而不是归并后的类数；保持上述原默认，显式正整数允许调用方提高预算（限平台 size_t/int64 范围）。不引入额外任意固定类数上限。超预算整次 `RESOURCE_LIMIT`，不裁剪后重新归一化权重。空可执行维度是 `INVALID_INPUT`，不会返回假成功的部分空间；先用 coverage 操作收集准入事实。

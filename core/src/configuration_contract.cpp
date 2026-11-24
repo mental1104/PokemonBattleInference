@@ -218,12 +218,15 @@ void ValidateJobFacts(const JobMovePool& pool, const std::vector<JobAdmissionFac
         throw RequestError(PBI_INVALID_INPUT_V1, "job move cannot use the no-effect admission path");
     } else {
       if (fact.move_id || fact.move) throw RequestError(PBI_INVALID_INPUT_V1, "non-move admission fact contains a move");
+      // 原任务用精确字符串"none"选择无道具，canonical仍保留该字符串；仅效果关联视为null。
+      const bool no_item = value.source == ConfigurationEffectSource::item &&
+          (!selection.fixed.item_identifier || *selection.fixed.item_identifier == "none");
       const auto expected = value.source == ConfigurationEffectSource::ability
           ? NormalizeConfigurationEffectIdentifier(selection.fixed.ability_identifier)
-          : NormalizeConfigurationEffectIdentifier(selection.fixed.item_identifier);
+          : no_item ? std::nullopt : NormalizeConfigurationEffectIdentifier(selection.fixed.item_identifier);
       if (effect != expected || NormalizeConfigurationEffectIdentifier(value.mechanism_identifier) != expected.value_or("none"))
         throw RequestError(PBI_INVALID_INPUT_V1, "job admission effect does not match the fixed command");
-      if (value.allow_no_effect && (value.source == ConfigurationEffectSource::ability || selection.fixed.item_identifier || effect))
+      if (value.allow_no_effect && (value.source == ConfigurationEffectSource::ability || !no_item || effect))
         throw RequestError(PBI_INVALID_INPUT_V1, "job effect cannot use the no-effect admission path");
     }
   }

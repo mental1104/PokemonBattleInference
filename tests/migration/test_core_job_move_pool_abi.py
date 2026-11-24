@@ -213,6 +213,32 @@ class TestCoreJobMovePoolABI:
             total += len(value.cases)
         assert total == 44100
 
+    def test_explicit_none_item_keeps_original_canonical_identity(self, damage_runner: Path) -> None:
+        """damage_runner运行正式ABI；原'none'选择无效果事实，同时完整保留与null不同的canonical身份。"""
+        baseline = _Oracle.command(2, 2)
+        command = replace(
+            baseline,
+            attacker=replace(baseline.attacker, fixed=replace(baseline.attacker.fixed, item_identifier="none")),
+            defender=replace(baseline.defender, fixed=replace(baseline.defender.fixed, item_identifier="none")),
+        )
+        operation = _ABI.operation(command, 0, 10)
+        # 原受控repository的'none'候选effect为None，不能从原始命令字符串猜成实际道具效果。
+        candidates = tuple(
+            fact.model_copy(update={"effect_identifier": None, "allow_no_effect": True})
+            if fact.source is EffectSourceKind.ITEM else fact
+            for fact in operation.input.admission.candidates
+        )
+        snapshot = operation.input.admission.model_copy(update={"candidates": candidates})
+        operation = operation.model_copy(update={"input": operation.input.model_copy(update={"admission": snapshot})})
+        line = _ABI.lines(damage_runner, (Batch(operations=(operation,)),))[0]
+        envelope = Envelope.model_validate_json(line)
+        result = envelope.results[0]
+        assert isinstance(result, JobResult)
+        expected = _Oracle.job(OriginalJob(command=command, offset=0, limit=10))
+        assert _ABI.project(result) == expected
+        original_null = _Oracle.job(OriginalJob(command=baseline, offset=0, limit=10))
+        assert result.cases[0].configuration_pair_id != original_null.cases[0].configuration_pair_id
+
     def test_complete_strict_collection_uses_original_composition(self, damage_runner: Path) -> None:
         """raw/reconciled和两个真实factory的全部strict字段，包含透明PARTIAL与no_effect。"""
         originals = tuple(OriginalAdmission(source=source, factory=factory, repository_mode=repository,

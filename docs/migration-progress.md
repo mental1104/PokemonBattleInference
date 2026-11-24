@@ -166,6 +166,7 @@
 - **fc03956**：正式 **0.7.0 / calculation-rules.v7**，统一19操作向量，原13项输入/数学结果不变；新配置stats/moves/space、两模式coverage及严格job_move_pool均通过真实C ABI。最终 **77/77 CTest**（3.20秒）、新增ABI **8/8差分**（5.97秒，含完整44,100身份/关联准入/32MiB分页边界）、Go bridge/process **14项race/vet**；Swift **17 PASS / 3 explicit SKIP**。新ABI、19golden、真实配置运行取消及ownership/concurrent选定 **5/5 ASan/UBSan/leak PASS**（39.62秒），这是新路径选择集，不是77项全量。P1纯域完整58项sanitizer证据另列。报告与20个P2冻结源摘要在 `configuration-abi-20261124/`，九个P1纯源摘要在 `job-move-pool-20261124/`。
 - **79c325e**：原四个configuration-jobs查询/取消/results/issues真实同PG差分 **36/36 PASS**（30完整JSON+6 schema状态），支持过滤前分页、last query值、历史非JSON说明、原Python创建而无GoDefinition的任务。API计数 **23/41完整+1受限calculator**。全部Go包 **46 PASS / 1专用Swift服务fixture SKIP**、race/vet通过；另Daemon父取消恢复 **10/10 PASS**（24.198秒），包含root对取消/SQL Commit竞态的明确错误归一。原负cursor导致500按已记录缺陷单独修为422。报告在 `p3-server-20261124/configuration-jobs-final3/`、`configuration-jobs-go-all7/`，早期真实失败均保留。
 - **1534d5f** 固定树最终 `make test-native CORE_BUILD_DIR=/build/root-fixture-core6`：**70 CTest、35 pytest PASS / 16 SKIP**（52.71秒），七个已登记配置差分现全部实际执行。跳过是14个未提供独立calculator URL的场景、一个未提供PG快照和一个工具镜像无Swift；独立Swift **17 PASS / 3 SKIP**已实跑，不能把环境缺失称通过。
+- 正式任务创建联调修复原受控道具 `item_identifier:"none"`：关联事实为无效果，原 canonical 字符串及其与 null 不同的身份完整保留，不在Go改写。独立新库 `/build/root-job-none7` **77/77 CTest PASS**（1.92秒），正式job ABI **5/5差分 PASS**（3.90秒），新增断言直接对照原case/side SHA身份。首次手动命令漏runner变量导致五项明确SKIP，记录保留；补齐变量后只重跑相关差分得到上述实际PASS，未重复无变化的C++全构建。
 
 ## 下一步
 
