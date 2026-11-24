@@ -154,3 +154,30 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 - 三个专属 golden 在写入前逐例通过原完整公开搜索与伤害 oracle：严格速度、攻击与速度混合、最大速度同速不可达。
 
 该批纯源、专属 codec、runner 和测试已登记 CMake，公共 ABI Operation/dispatch 和版本由主 agent 统一接入。事件查询/产品图/反事实和配置事件聚合仍在迁移，不能将本批证据解释成 P1 全部完成。
+
+## 完整事件历史、独立反事实与配置事件加权（2026-11-24，待公共 v9 注册）
+
+`event_analysis.hpp/.cpp` 迁移原 `BattleEventAnalyzer` 的完整产品自动机，不把单边命中概率求和当作全历史概率。原图每条边的每条替代事件路径按“边绝对概率 × 路径条件权重”分别展开；独立分析状态包含原节点、饱和次数、首次回合、范围命中和下一回合桶，不修改战斗 StateKey。次数与回合桶使用任意精度整数，保留 ANY/FIRST 回合语义、整条历史 min/max 次数限制和 never/overflow 分布。产品图与二分类属性图直接复用既有 SCC/精确吸收求解器，封闭循环保留无限历史；unknown、截断或不能精确求解的图整体拒绝。
+
+输出完整基线胜负平、事件概率、事件与观察方获胜联合概率、正反条件胜率、首次/次数分布、结构化路径组覆盖、关键事件身份与实际产品图规模/求解次数。零条件概率显式为 undefined-zero-condition，没有以零代替不可定义。事件谓词使用完整结构化字段 AND 语义，不解析展示文字。元数据覆盖保持原先“先按完整事件去重、再按摘要身份计数”的顺序，数值不同的同身份事件不会被提前合并；这些覆盖计数不冒充随机概率。
+
+`event_analysis_batch.hpp/.cpp` 同时迁移两个原公开领域入口：`AnalyzeCounterfactualEvents` 强制执行两次独立 runner，验证不同 revision、返回 revision 一致以及不同 run ID，然后对两套完整图分别分析并计算对照减基线的三个精确差值；原合同的 exact_solver_runs 统计两个事件分析，不推测 runner 内部额外求解。原源码只有规则覆盖/推演 runner 端口，没有通用规则键到机制的映射，因此没有发明映射或接收两份旧图伪称重算。原生集成中的 runner 每次真正调用 InferFixedBattle，覆盖标准回合、BFS、图投影与事件分析；Python 反事实差分另明确使用原端口夹具，不能将夹具视为公开生产操作。
+
+`AggregateConfigurationEvents` 保留原完整配置分母和输入组顺序，配置数量/可能配置数量、配置权重覆盖、未解析权重与加权战斗概率分开。失败/截断/未分析的权重不重新归一化；重复身份、不同 observer/query 或已分析与未解析权重不精确和为一时整体失败。正式 `event_analysis_contract` 与 `event_analysis_batch_contract` 分别读取 event_analysis / configuration_event_analysis，后者逐组真正分析原图后再调用同一纯聚合器，不从外部接受预计算概率。紧凑图输入只投影原结果、拓扑、完整事件路径及 root 实际回合；从完整图拆字段不涉及任何概率或分组业务计算。专属三项 golden 为 `tests/vectors/event-analysis.v1.json`。
+
+证据根 `event-analysis-20261124/`：
+
+- 首轮单图原完整差分 48 个 DAG/开放循环/封闭循环全部通过；补充同身份不同数值、百位次数/回合后共 **51 个完整单图案例**，另有 **32** 组原配置事件聚合与 **16** 组原反事实完整双结果对照。
+- 四个活动 metadata 文件复制前后 SHA 一致；Core、C ABI、头文件和向量冻结到 `/build/p1-event-frozen-source`，完整输入清单为 `frozen-build-inputs.sha256`。fresh Release `frozen-normal-ctest.log` 为 **103/103 CTest PASS**（2.85 秒），包含新增九项事件原生检查、两个正式运行中取消回归及全部旧接口。
+- `frozen-differential.log`：模板/EV 回归和上述事件完整差分 **10/10 pytest PASS**（32.47 秒），不是抽样单一概率或浮点容差检查。
+- `frozen-pure-san-ctest.log`：完整纯 Core ASan/UBSan/leak **82/82 PASS**（7.01 秒）；`frozen-selected-abi-san-ctest.log`：完整 fixture、进度、原 256 次 ownership、32 并发调用及两个运行中取消 **6/6 PASS**（70.31 秒），没有缩短旧检查预算。
+- `frozen-event-codec-san-differential.log`：真实 sanitizer 编译的正式事件 codec 对照原完整实现 **5/5 pytest PASS**（3.15 秒），覆盖读取、业务事件身份验证、产品求解和完整输出。
+- 首轮活动目录增量构建的四项旧完整 fixture 调用 SIGSEGV 保留在 `registered-ctest.log`；它们在同一冻结输入 fresh 构建的正常和 sanitizer 检查中全部不复现。本批结论以冻结检查为准，没有强行推断旧增量二进制的精确失败原因。
+
+14 个事件源/测试/codec/golden 的冻结清单为同证据根 `frozen-sources.sha256`。纯源、正式 codec、runner 和九项原生测试已登记 CMake；公共 ABI v9 注册仍由主 agent 统一完成，测试端口 counterfactual_fixture 不属于公开 ABI。
+
+## v8 模板/EV 运行中取消错误码修复（2026-11-24）
+
+新增独立公共 C ABI 回归使用合法 20 个目标与最大合法随机档，先确认 pbi_v1_compute 已运行 30 毫秒，再从另一线程取消。修复前模板和 EV 均实际返回 PBI_INTERNAL_ERROR / internal_error，而非 cancelled；`configuration-cancellation-20261124/red-valid.log` 保存两个真实 RED，另一个准备错误的早期输入保留历史日志但没有计为有效复现。
+
+两个自有 codec 现在捕获纯求值器的 runtime_error 后重新检查同一取消令牌，将实际取消转换为既有 RequestError(PBI_CANCELLED_V1)，非取消异常保持原语义。模板输出候选时也检查取消。没有修改 abi.cpp、版本或共享 golden。冻结 fresh 的 103 项正常检查及选定六项 ABI sanitizer 均包含这两个真实运行中取消 GREEN；批次前面已经完成的 hp 结果也整批撤销，不发布部分 results。两 codec 与新 `configuration_cancellation_test.cpp` 的三源清单见该取消证据根 `frozen-sources.sha256`。
