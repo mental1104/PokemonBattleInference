@@ -77,7 +77,7 @@ class BattleGraph;
 /// @return 原子完成的图；每节点超预算时整体保留为 unknown，不添加半套出边。
 /// @throws GraphBuildCancelled 已请求取消；其他异常包括非法分布和扩展器自身错误。
 [[nodiscard]] BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expand, GraphLimits limits = {},
-    const GraphProgressObserver& progress = {}, std::size_t progress_interval = 100, std::stop_token stop = {});
+    const GraphProgressObserver& progress = {}, std::size_t progress_interval = 100, pbi::CancellationToken stop = {});
 
 /// 完整拥有 BFS 图/路径/事件，只有正式构建器能创建，不泄露可写图视图。
 class BattleGraph {
@@ -97,7 +97,7 @@ public:
   /// @param target 合法目标节点；@return 首次发现的根到目标路径；越界抛 invalid_argument。
   [[nodiscard]] std::vector<GraphNodeId> RepresentativePath(GraphNodeId target) const;
 private:
-  friend BattleGraph BuildBattleGraph(BattleState, const TransitionExpander&, GraphLimits, const GraphProgressObserver&, std::size_t, std::stop_token);
+  friend BattleGraph BuildBattleGraph(BattleState, const TransitionExpander&, GraphLimits, const GraphProgressObserver&, std::size_t, pbi::CancellationToken);
   /// @param nodes 完整拥有节点；@param edges 完整拥有边；@param components SCC 元数据。
   /// @param statistics 真实统计；@param truncations 有序去重保护原因，仅构建器创建。
   BattleGraph(std::vector<BattleGraphNode> nodes, std::vector<BattleGraphEdge> edges, std::vector<StrongComponent> components,

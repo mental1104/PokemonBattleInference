@@ -97,7 +97,7 @@ TEST(Graph, DeepIterativeTraversalAndCancellation) {
   EXPECT_EQ(solved.win, Rational{1});
   EXPECT_EQ(std::get<FiniteExpectedTurns>(solved.expected_turns).value, Rational{Integer{size - 1}});
   EXPECT_EQ(AnalyzeComponents(graph).size(), size);
-  std::stop_source source; source.request_stop();
-  EXPECT_EQ(std::get<UnavailableGraph>(SolveGraph(graph, BattleSide::attacker, {}, source.get_token())).status, GraphSolveStatus::cancelled);
+  pbi::CancellationSource source; source.Request();
+  EXPECT_EQ(std::get<UnavailableGraph>(SolveGraph(graph, BattleSide::attacker, {}, source.Token())).status, GraphSolveStatus::cancelled);
 }
 } // namespace pbi

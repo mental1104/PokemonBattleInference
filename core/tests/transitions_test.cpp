@@ -133,9 +133,9 @@ TEST(BattleGraph, CyclesEmptyActionsAndRunningCancellation) {
   EXPECT_TRUE(std::holds_alternative<InfiniteExpectedTurns>(std::get<SolvedGraph>(SolveGraph(cyclic.Topology())).expected_turns));
   const auto no_action = BuildBattleGraph(initial, [](const BattleState&) { return std::vector<BattleTransition>{}; });
   EXPECT_EQ(no_action.Nodes()[0].outcome, GraphOutcome::draw); EXPECT_TRUE(no_action.Edges().empty());
-  std::stop_source cancellation;
+  pbi::CancellationSource cancellation;
   EXPECT_THROW(static_cast<void>(BuildBattleGraph(initial, Decrement, {}, [&](const GraphBuildProgress& frame) {
-    if (frame.expanded == 1) cancellation.request_stop();
-  }, 1, cancellation.get_token())), GraphBuildCancelled);
+    if (frame.expanded == 1) cancellation.Request();
+  }, 1, cancellation.Token())), GraphBuildCancelled);
 }
 } // namespace pbi

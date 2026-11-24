@@ -15,7 +15,7 @@ public:
 /// 精确方程找不到非零主元；不把奇异结果近似成浮点解。
 struct SingularSignal {};
 /// @param stop 借用取消令牌；请求取消时抛出内部信号，不修改任何调用方数据。
-void CheckStop(std::stop_token stop) { if (stop.stop_requested()) throw CancelledSignal{}; }
+void CheckStop(pbi::CancellationToken stop) { if (stop.Requested()) throw CancelledSignal{}; }
 /// @param outcome 稳定节点类别；@return 是否为确定胜负或显式平局。
 bool IsTerminal(GraphOutcome outcome) {
   return outcome == GraphOutcome::attacker_win || outcome == GraphOutcome::defender_win || outcome == GraphOutcome::draw;
@@ -25,7 +25,7 @@ struct GraphIndex {
   std::vector<std::vector<std::size_t>> outgoing;
   std::vector<std::vector<std::size_t>> incoming;
   /// @param graph 只读合法图；@param stop 取消令牌；只创建辅助索引。
-  GraphIndex(const ProbabilityGraph& graph, std::stop_token stop)
+  GraphIndex(const ProbabilityGraph& graph, pbi::CancellationToken stop)
       : outgoing(graph.Nodes().size()), incoming(graph.Nodes().size()) {
     for (std::size_t id = 0; id < graph.Edges().size(); ++id) {
       CheckStop(stop);
@@ -37,7 +37,7 @@ struct GraphIndex {
 };
 /// @param graph 只读图；@param index 边索引；@param stop 取消令牌。
 /// @return Kosaraju 第一遍显式 DFS 完成顺序；深链不会使用递归栈。
-std::vector<std::size_t> FinishOrder(const ProbabilityGraph& graph, const GraphIndex& index, std::stop_token stop) {
+std::vector<std::size_t> FinishOrder(const ProbabilityGraph& graph, const GraphIndex& index, pbi::CancellationToken stop) {
   std::vector<bool> visited(graph.Nodes().size());
   std::vector<std::size_t> result;
   for (std::size_t start = 0; start < visited.size(); ++start) {
@@ -81,7 +81,7 @@ std::vector<std::optional<NodeValues>> BoundaryValues(const ProbabilityGraph& gr
 /// @param graph 只读图；@param index 出边索引；@param values 已知吸收边界；@param stop 取消令牌。
 /// @return 瞬态图的完整拓扑序；存在有出口循环则返回 null，不混同封闭 SCC。
 std::optional<std::vector<std::size_t>> TransientOrder(const ProbabilityGraph& graph, const GraphIndex& index,
-    const std::vector<std::optional<NodeValues>>& values, std::stop_token stop) {
+    const std::vector<std::optional<NodeValues>>& values, pbi::CancellationToken stop) {
   std::vector<std::size_t> indegree(values.size());
   std::size_t count = 0;
   for (std::size_t node = 0; node < values.size(); ++node) {
@@ -142,7 +142,7 @@ public:
     }
   }
   /// @param stop 取消令牌；@return 每个瞬态节点的五项精确值；奇异抛 SingularSignal，不改外部图。
-  [[nodiscard]] std::vector<std::pair<std::size_t, NodeValues>> Solve(std::stop_token stop) {
+  [[nodiscard]] std::vector<std::pair<std::size_t, NodeValues>> Solve(pbi::CancellationToken stop) {
     const auto size = nodes_.size();
     const auto width = size + 5;
     for (std::size_t pivot_column = 0; pivot_column < size; ++pivot_column) {
@@ -205,7 +205,7 @@ ProbabilityGraph::ProbabilityGraph(std::vector<ProbabilityNode> nodes, std::vect
   }
 }
 
-std::vector<StrongComponent> AnalyzeComponents(const ProbabilityGraph& graph, std::stop_token stop) {
+std::vector<StrongComponent> AnalyzeComponents(const ProbabilityGraph& graph, pbi::CancellationToken stop) {
   CheckStop(stop);
   const GraphIndex index{graph, stop};
   const auto finish = FinishOrder(graph, index, stop);
@@ -270,7 +270,7 @@ std::vector<StrongComponent> AnalyzeComponents(const ProbabilityGraph& graph, st
 }
 
 GraphSolution SolveGraph(const ProbabilityGraph& graph, BattleSide observer,
-    std::optional<std::size_t> max_equation_nodes, std::stop_token stop) {
+    std::optional<std::size_t> max_equation_nodes, pbi::CancellationToken stop) {
   if (observer != BattleSide::attacker && observer != BattleSide::defender) throw std::invalid_argument("observer must be a BattleSide");
   if (max_equation_nodes && *max_equation_nodes == 0) throw std::invalid_argument("max_equation_nodes must be greater than 0");
   try {

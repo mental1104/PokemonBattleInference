@@ -15,8 +15,8 @@ constexpr std::array<std::string_view, 4> statuses{"incomplete-graph", "resource
 constexpr std::array<std::string_view, 2> policies{"uniform-random", "first-legal-action"};
 
 /// @param stop 共享 C 令牌对应的只读状态；已取消时明确中断，不交付部分拓扑结果。
-void CheckGraphCancelled(std::stop_token stop) {
-  if (stop.stop_requested()) throw RequestError(PBI_CANCELLED_V1, "calculation cancelled");
+void CheckGraphCancelled(pbi::CancellationToken stop) {
+  if (stop.Requested()) throw RequestError(PBI_CANCELLED_V1, "calculation cancelled");
 }
 /// @param value JSON 索引，必须为非负整数；@return 当前平台可表示的索引，bool/float 不转换。
 std::size_t ReadIndex(const Json& value) {
@@ -44,7 +44,7 @@ Json ActionJson(const BattleAction& value) {
 } // namespace
 
 GraphRequest ReadGraphRequest(const Json& value, std::size_t available_nodes,
-    std::size_t available_edges, std::stop_token stop) {
+    std::size_t available_edges, pbi::CancellationToken stop) {
   RequireSchema(value, {"kind", "nodes", "edges", "root", "observer", "truncations"}, {"max_equation_nodes"});
   const auto& node_values = value.at("nodes");
   const auto& edge_values = value.at("edges");
@@ -91,7 +91,7 @@ LegalActionsRequest ReadLegalActionsRequest(const Json& value, std::size_t remai
   return {std::move(state.state), ReadEnum<BattleSide>(value.at("side"), sides), ReadEnum<ActionPolicy>(value.at("policy"), policies)};
 }
 
-Json EvaluateGraph(const GraphRequest& request, std::stop_token stop) {
+Json EvaluateGraph(const GraphRequest& request, pbi::CancellationToken stop) {
   auto component_values = Json::array();
   // Core 的迭代 SCC 遍历会检查同一个令牌；取消异常必须转为正式 CANCELLED 而不是 INTERNAL_ERROR。
   try {

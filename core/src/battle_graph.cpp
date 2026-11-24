@@ -7,7 +7,7 @@
 namespace pbi {
 namespace {
 /// @param stop 协作取消令牌；已取消时抛出稳定领域取消错误。
-void CheckBuildStop(std::stop_token stop) { if (stop.stop_requested()) throw GraphBuildCancelled{}; }
+void CheckBuildStop(pbi::CancellationToken stop) { if (stop.Requested()) throw GraphBuildCancelled{}; }
 /// @param state 已验证完整节点；@return 确定终局和原因，存活普通阶段不提前判平局。
 std::pair<GraphOutcome, std::optional<GraphStopReason>> Classify(const BattleState& state) {
   const auto first = state.View().attacker.View().current_hp == 0;
@@ -70,7 +70,7 @@ std::vector<GraphNodeId> BattleGraph::RepresentativePath(GraphNodeId target) con
 }
 
 BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expand, GraphLimits limits,
-    const GraphProgressObserver& progress, std::size_t progress_interval, std::stop_token stop) {
+    const GraphProgressObserver& progress, std::size_t progress_interval, pbi::CancellationToken stop) {
   CheckBuildStop(stop);
   if (!expand) throw std::invalid_argument("battle graph requires an actual transition expander");
   if ((limits.max_nodes && *limits.max_nodes == 0) || (limits.max_edges && *limits.max_edges == 0)

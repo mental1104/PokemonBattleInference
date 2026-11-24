@@ -8,7 +8,7 @@
 #include "graph_contract.hpp"
 
 #include <nlohmann/json.hpp>
-#include <stop_token>
+#include "pbi/cancellation.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -25,7 +25,7 @@
 
 /// 单向线程安全取消源，无共享计算状态；不透明布局由 C ABI 独占。
 struct pbi_cancel_token_v1 {
-  std::stop_source source;
+  pbi::CancellationSource source;
 };
 
 namespace {
@@ -51,7 +51,7 @@ using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, 
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
-  if (token && token->source.stop_requested()) {
+  if (token && token->source.Requested()) {
     throw RequestError(PBI_CANCELLED_V1, "calculation cancelled");
   }
 }
@@ -110,7 +110,7 @@ DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
 /// @param remaining_nodes 本批余下图节点；@param remaining_edges 本批余下图边；@param stop 协作取消。
 /// @return 类型化操作和消耗的槽位数；不修改调用方预算。
 std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t remaining_rolls,
-    std::size_t remaining_nodes, std::size_t remaining_edges, std::stop_token stop) {
+    std::size_t remaining_nodes, std::size_t remaining_edges, pbi::CancellationToken stop) {
   if (!object.is_object() || !object.contains("kind") || !object.at("kind").is_string()) {
     throw RequestError(PBI_INVALID_INPUT_V1, "operation kind must be a string");
   }
@@ -243,13 +243,13 @@ pbi_status_v1 WriteError(pbi_status_v1 code, const char* message, pbi_buffer_v1*
 
 std::uint32_t pbi_v1_abi_version() noexcept { return 1; }
 const char* pbi_v1_engine_version() noexcept { return PBI_ENGINE_VERSION; }
-/// @return 拥有的未取消令牌；对象或 stop_state 分配失败均返回 nullptr，不越过 C 边界抛异常。
+/// @return 拥有的未取消令牌；对象或共享状态分配失败均返回 nullptr，不越过 C 边界抛异常。
 pbi_cancel_token_v1* pbi_v1_cancel_token_create() noexcept {
-  // stop_source 的内部状态分配也可能失败；nothrow new 不会捕获构造函数异常。
+  // 共享原子状态分配也可能失败；nothrow new 不会捕获构造函数异常。
   try { return new pbi_cancel_token_v1; } catch (...) { return nullptr; }
 }
 void pbi_v1_cancel_request(pbi_cancel_token_v1* token) noexcept {
-  if (token) token->source.request_stop();
+  if (token) token->source.Request();
 }
 void pbi_v1_cancel_token_destroy(pbi_cancel_token_v1* token) noexcept { delete token; }
 void pbi_v1_buffer_release(pbi_buffer_v1* buffer) noexcept {
@@ -286,7 +286,7 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     std::size_t remaining_rolls = kMaxTotalRolls;
     std::size_t remaining_nodes = PBI_V1_MAX_GRAPH_NODES;
     std::size_t remaining_edges = PBI_V1_MAX_GRAPH_EDGES;
-    const auto stop = cancellation ? cancellation->source.get_token() : std::stop_token{};
+    const auto stop = cancellation ? cancellation->source.Token() : pbi::CancellationToken{};
     for (const auto& operation : operations) {
       CheckCancelled(cancellation);
       auto [value, consumed] = ReadOperation(operation, remaining_rolls, remaining_nodes, remaining_edges, stop);
@@ -300,7 +300,7 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     auto results = Json::array();
     for (const auto& operation : typed) {
       CheckCancelled(cancellation);
-      // 图遍历/消元借用原 C 令牌的 stop_token，不创建轮询线程，也不在长图操作中忽略取消。
+      // 图遍历/消元持有同一共享原子状态的只读令牌，不创建轮询线程或忽略长图取消。
       results.push_back(std::visit([stop](const auto& value) {
         if constexpr (std::is_same_v<std::decay_t<decltype(value)>, GraphRequest>) return EvaluateGraph(value, stop);
         else return Evaluate(value);

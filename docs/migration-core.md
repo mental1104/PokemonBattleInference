@@ -33,3 +33,13 @@ P1 仍为 **IN_PROGRESS**。已验证的能力不能替代尚未迁移的完整�
 ## 剩余依赖
 
 下一条真实计算链为：带条件权重的事件/概率转移 → 不可变战斗图构建 → 正式回合器/动态效果 → fixed_battle/graph/step → 配置空间搜索及事件分析。回合阶段、资源截断、PP/状态/道具效果与 Python 行为都必须继续实际差分；未支持机制必须明确失败，不能用无伤害回合或假的完成状态顶替。
+
+## Apple 标准库取消兼容修复（待本批复测）
+
+提交 `e60eb2d` 的 [Native 45366954912](https://github.com/mental1104/PokemonBattleInference/actions/runs/45366954912) 实际失败在 Core 编译：AppleClang/Xcode 自带 libc++ 没有提供 `std::stop_token`，`graph.hpp`/`graph.cpp` 共九处类型错误；App 步骤尚未运行。原始日志在 `app-sync-20261124/github-native-45366954912.log`。不能将 GNU 工具链支持这项 C++20 库能力当作 Apple 已支持。
+
+已核对全部调用只需要请求、读取和取得令牌，无回调依赖。新增纯 Core `CancellationSource`/`CancellationToken` 使用 `shared_ptr<atomic<bool>>` 的共享生命周期与单向原子标志：空令牌永不取消，源/令牌副本同源，源销毁后令牌仍有效；不增加轮询线程、实验编译开关或降低 C++ 标准。图/SCC/消元、不可变图 builder、适配解码和不透明 C ABI handle 都观察同一状态，C v1 函数和 JSON 合同不变。
+
+新增三项原生测试覆盖空值、幂等请求、副本/移动、源销毁后生命周期及 16 读者/8 请求者并发。该修复与尚未完成的正式回合器分开；回合器新文件未注册到 CMake，未完成基础公式改动保存为私有 `core-graph-20261124/turn-in-progress.patch`，没有带入修复验证。
+
+本批 Linux、Swift 重链与 ASan 证据正在 `portable-cancellation-20261124/` 生成；实际 Apple 修复结果仍需后续 GitHub CI，未提前标记 PASS。
