@@ -61,7 +61,7 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 - `sanitizer.log`：本批纯 Core ASan/UBSan/leak **41/41 PASS**（2.26 秒），没有因无关旧大型 ABI 预算测试再次执行七分钟整套 sanitizer。正式 C ABI/Go/Swift .6 及 Apple 构建结果由 P2 后续实际验证，未用先前 .5 的绿灯替代。
 - `fixed-battle-benchmark.json`：五个小型合成领域场景全部实际完整求解，分别覆盖优先 KO、同速 KO、挣扎互 KO、FakeOut 封闭循环和 75% 命中后挣扎；节点数 `[2,3,2,2,7]`、边数 `[1,2,1,2,6]`，五次采样每次完整精确结果一致。Python 中位 **0.062558 秒**，C++ 实际进程中位 **0.025591 秒**；包含 Python 模型投影与 C++ 进程/JSON/IPC，不外推到纯函数或完整配置空间。复跑入口 `python -m tests.migration.benchmark_core_turn --runner build/core/pbi_turn_vectors --repeats 5 --output /tmp/fixed-battle-benchmark.json`，固定证据副本 `docs/benchmarks/core-fixed-battle-20261124.json`。
 
-## 标准四维配置候选与精确权重（2026-11-24，独立模块待注册）
+## 标准四维配置候选与精确权重（2026-11-24，已注册纯 Core）
 
 新增 `configuration_stats`、`configuration_moves`、`configuration_space` 三个纯类型模块；Go/Swift 不负责组合、过滤、等价归并或权重。输入为 version-aware 合法原候选、完整能力快照和原命令；输出是真正经过过滤、归并与保护校验的完整空间，不能用预先构造战斗状态的笛卡尔积代替。
 
@@ -77,4 +77,8 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 
 最后追加非有限/输出溢出边界测试及性格去重从二次扫描改为有序集合后，单独重编译最终 stats 源并以 ASan/UBSan/leak **5/5 PASS**（2 毫秒），记录 `stats-final-sanitizer.log`；初批整包 11 项和本次 5 项各有独立运行记录，不冒称另跑了一套 12 项 CTest。冻结源文件校验清单为 `frozen-sources.sha256`。
 
-本批仅迁移真实默认四维，未声称旧运行时自定义 provider 插件、目标 EV 搜索、配置求解批量聚合或事件查询已经完成。三个新模块当前未注册 CMake，也未公开正式 ABI；先与 P2 的 .6 正式回合协议保持独立，再由主 agent 统一检查点和登记。
+在 `.6` 正式回合检查点 `76a40a0` 后核对上述 15 个冻结文件的 SHA256 全部一致，再于 `core/CMakeLists.txt` 登记三源、三项 GoogleTest 文件及三个独立 JSON 差分进程。新模块没有改变 `.6` C ABI、版本或 Go/Swift 桥接。独立 fresh 构建 `/build/p1-configuration-registered` 的完整旧/新 Core、ABI 与 C 头 **70/70 CTest PASS**（2.61 秒），七项配置差分 **7/7 PASS**（1.94 秒），证据 `configuration-registered-20261124/native.log/xml` 和 `differential.log/xml`。
+
+注册审查同时根据 [LLVM 的浮点 to_chars availability 修订](https://reviews.llvm.org/D146367) 核实该 API 要求 macOS 13.3/iOS 16.3，高于项目 `Package.swift` 的 macOS 13/iOS 16 最低轴。已移除新标签格式化对该 API 的依赖，改用固定 classic locale 的科学计数流寻找最短精确 roundtrip 文本，不改变数值公式或全局 locale。增加最小/近最小次正规倍率标签对照后，最终增量重编的完整 **70/70 CTest PASS**，配置差分 **7/7 PASS**（1.31 秒）；记录 `portable-build.log`、`portable-native.log/xml`、`portable-differential.log/xml`。这是已核实部署约束的源码修正，Apple 实际编译仍以随后的 GitHub CI 为准，未声称已在 Mac 执行。
+
+本批仅迁移真实默认四维，未声称旧运行时自定义 provider 插件、目标 EV 搜索、配置求解批量聚合或事件查询已经完成。三模块已注册纯 Core 和独立差分入口，尚未公开正式配置 ABI；后续由 P2 在新操作合同准备完毕后接入。最终本批冻结清单见 `configuration-registered-20261124/frozen-sources.sha256`，未覆盖前一批历史清单。
