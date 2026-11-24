@@ -175,7 +175,7 @@ func (handler moveCombinationHandler) ServeHTTP(w http.ResponseWriter, r *http.R
 				identifier = *selections[index].Fixed.Item
 			}
 			if selected.Fact.missing != nil || selected.Fact.index < 0 || !decisions.Candidates[selected.Fact.index].Selectable {
-				inferenceFailure(w, inferenceInvalid(fmt.Sprintf("%s '%s' is not selectable for Pokemon %d", selected.Source, identifier, selections[index].Fixed.PokemonID)))
+				inferenceFailure(w, inferenceInvalid(fmt.Sprintf("%s %s is not selectable for Pokemon %d", selected.Source, pythonRepr(identifier), selections[index].Fixed.PokemonID)))
 				return
 			}
 		}

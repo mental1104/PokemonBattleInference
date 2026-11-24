@@ -124,3 +124,5 @@ PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,41
 组合预览完整比较两侧原名称/ID/自然顺序与move-set ID，实际5招侧5组及10×10侧各210组、全局44,100 count。Core configuration_coverage裁strict、configuration_moves枚举、job_move_pool空页重复关联准入并返回完整pair数；Go没有重新生成组合、相乘或缩小候选池。非法特性/道具/招式/候选缺失/错revision/重复ID，以及特性错误优先于重复候选的原顺序均逐字段相同。
 
 实际原固定输入212/149同50级经过独立PG daemon，结果 **841节点/16095边**，精确攻胜0/1、防胜1/1、平0/1、期望5/1；只是该输入的真实结果，不写死到服务。完成后同key202返回当前succeeded，原phase字段仍queued，原完整响应一致。Go vet通过，bash syntax/diff检查通过，专属API/PG/daemon均已清理。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-event-abi9 bash tools/migration/accept-go-fixed-workflow.sh`；该批不改生产或增加Core数学规则。
+
+`fixed-workflow-quotes/`追加原字符串repr兼容：特性/道具ID分别含单引号、双引号、反斜杠的六项真实HTTP拒绝逐字段一致，复用原pythonRepr而不手拼引号。完整空库重跑 **30/30零SKIP**（29项3.68秒及daemon完成后重提1项），保留前24项和真实单case执行回归；专属实例均已清理。该小修只修错误DTO转义，不改变准入或数学规则。

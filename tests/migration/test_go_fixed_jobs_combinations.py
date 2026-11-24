@@ -163,6 +163,23 @@ class TestFixedJobsAndCombinations:
             request.attacker.move_ids = [404, 404]
         clients.compare("/v1/inference/fixed-one-on-one-jobs", request.model_dump(mode="json"), "fixed-strict-" + scenario, 422, "fixed-workflow-strict-" + scenario)
 
+    @pytest.mark.parametrize("source", ["ability", "item"])
+    @pytest.mark.parametrize("identifier", ["a'b", 'a"b', "a\\b"])
+    def test_combination_identifier_repr(self, clients: _Clients, source: str, identifier: str) -> None:
+        """任意合法输入字符串拒绝时沿原repr引号/转义，不能手拼单引号制造不同公开诊断。"""
+        fixed = _Requests.fixed().model_dump(mode="json")
+        body = {name: fixed[name] for name in ("ruleset_id", "version_group_id", "attacker", "defender")}
+        body["calculation_revision"] = "battle-inference.summary-exploration.v2"
+        for name in ("attacker", "defender"):
+            side = body[name]
+            assert isinstance(side, dict)
+            side["candidate_move_ids"] = side.pop("move_ids")
+        attacker = body["attacker"]
+        assert isinstance(attacker, dict)
+        attacker[source + "_identifier"] = identifier
+        label = "quoted-" + source + "-" + str(["a'b", 'a"b', "a\\b"].index(identifier))
+        clients.compare("/v1/inference/move-set-combinations", body, label, 422)
+
     def test_terminal_replay(self, clients: _Clients) -> None:
         """runner完成真实worker消费后，重提同key返回实际succeeded而不是固定pending。"""
         clients.compare("/v1/inference/fixed-one-on-one-jobs", _Requests.fixed().model_dump(mode="json"), "terminal-replay", 202, "fixed-workflow-baseline")
