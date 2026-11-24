@@ -47,3 +47,21 @@ GitHub 的 `Native Core - macOS and iOS` 仅在 Ready PR 上运行。Apple SDK �
 Mac 需要已安装 Xcode、iOS Simulator Runtime、XcodeGen、CMake、Boost、nlohmann-json；真实UI验收另需Go、Python、jq和完整PostgreSQL工具。CI优先探测已有PG工具，缺少时安装postgresql@16。构建入口先生成 `build/core` 原生Mac库与 `build/apple/iphoneos` / `build/apple/iphonesimulator` 静态库，再由XcodeGen生成工程。App把 `build/apple/$(PLATFORM_NAME)` 作为库搜索路径，同时完整编译本地Swift Package和资源。
 
 CI 不签名、不生成发布证书、不安装到物理设备。真机安装还需要用户 Mac 上的 Apple 身份/Team、设备物理连接与信任以及 Developer Mode；这些交互不能由 Linux CI 代替。完成这些必要身份和物理步骤后，可选择本工程的 App scheme 与实际设备进行构建安装。Bundle ID 是 `com.mental1104.PokemonBattleInference`，需要时可在 Mac 的本地签名配置中调整。
+
+## .9 Apple 复验与输入修复
+
+`2885c41`对应[Native/App 45413559200](https://github.com/mental1104/PokemonBattleInference/actions/runs/45413559200)的macOS Core、Go/Swift、两SDK和未签名App构建通过；iPhone **9/9**（481.450秒）、iPad **8/9**（471.265秒）。iPad取消用例在提交任务之前失败，招式控件实际值仅为`404,17,806,`，严格预期仍为`404,17,806,814,851`；没有证据说明该次已执行服务端取消。iPhone同项通过，其余任务精确结果、同步和计算两机均通过。
+
+测试现按原顺序逐个输入完整招式ID，每一项都等待真实控件值严格匹配后再继续；末尾仍核对两侧完整候选池，提交相同75case任务并要求真实cancelled终态。不改产品输入、不注入值、不缩小工作量。Mac Xcode27.2 Swift语法解析通过，修复效果须下一轮Apple CI；原失败日志保存在`Backup/PokemonBattleInference/apple-abi9-20261124/github-native-45413559200.log`。
+
+## 2026-11-24 iPhone 15 Pro 实际安装
+
+用户Mac实测为M1/macOS26.7.3、Xcode27.2，已配对的iPhone15Pro运行iOS27.3 Beta，Developer Mode已开启。固定验收源码为已获Main/Apple全绿、双模拟器各9/9的`c0b048e1c49de9483692c77788498267049ac135`，本次只增加App Icon及安装版本元数据；没有把尚在迁移的完整图接口混入手机验收版。
+
+复用同一CI产物中的arm64设备Core静态库，传输前后SHA一致；Mac本地完整编译Swift/App并使用已有开发身份签名。SSH会话最初在CodeSign返回`errSecInternalComponent`，改在已登录用户的GUI launchd会话执行一次性构建后真实成功；未修改Keychain ACL、读取密码或创建额外证书。一次性job在完成后卸载。
+
+首次安装后iOS拒绝启动，用户亲自完成开发者信任；随后`devicectl`启动成功，独立进程清单确认App仍在运行。最终图标版为 **0.8.0（2）**，签名校验、实际安装、启动及独立进程核验全部通过；同一1024不透明图标已生成iPhone/iPad资源。XcodeGen的版本属性也已改为读取正式构建设置，避免默认常量把实际安装版本留在1.0/1。
+
+Mac源码在`/Users/espeonblue/code/apps/PokemonBattleInference-c0b048e/`，日志在`~/Library/Logs/PokemonBattleInference/iphone15pro-c0b048e/`；签名App及完整本次证据保存于NAS私有`Backup/PokemonBattleInference/iphone15pro-c0b048e-20261124/`。用户另授权清理缓存后，只移除闲置Remmich DerivedData和Homebrew下载缓存；保留源码、签名资料及当前设备符号，回收约3.3GB。
+
+本次只证明上述真机构建、安装及启动；iPhone完整功能体验、iPad物理安装、双真机同步和最终人工验收仍为HUMAN_PENDING。手机可先验断网图鉴与默认计算，预期伤害`99–117`、两击KO`123/128`；在线任务和跨设备同步需要实际验收服务端及另一设备，不能把App成功启动当作这些项目已经通过。

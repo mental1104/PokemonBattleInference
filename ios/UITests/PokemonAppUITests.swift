@@ -230,10 +230,10 @@ final class PokemonAppUITests: XCTestCase {
         launchCleanApp(); configureLiveConnection(services)
         configurationsRoot(); metric("open-configuration-jobs").tap()
         let moves = app.textFields["job-attacker-moves"]
-        reveal(moves); moves.tap(); moves.typeText(",17,806,814,851\n")
+        appendMoveIDs([17, 806, 814, 851], to: moves, startingValue: "404")
         XCTAssertEqual(moves.value as? String, "404,17,806,814,851")
         let defender = app.textFields["job-defender-moves"]
-        reveal(defender); defender.tap(); defender.typeText(",17,21,56,401,406\n")
+        appendMoveIDs([17, 21, 56, 401, 406], to: defender, startingValue: "337")
         XCTAssertEqual(defender.value as? String, "337,17,21,56,401,406")
         reveal(app.buttons["submit-configuration-job"]); app.buttons["submit-configuration-job"].tap()
         let cancel = app.buttons["cancel-configuration-job"]
@@ -244,6 +244,24 @@ final class PokemonAppUITests: XCTestCase {
         waitForValue(metric("configuration-job-phase"), value: "已取消", timeout: 60)
         XCTAssertFalse(app.alerts.firstMatch.exists)
         capture("live-go-task-cancelled")
+    }
+
+    /// 在真实键盘逐项追加完整招式；每项实际值到达后才继续，保持原75case候选池不变。
+    /// identifiers为依原顺序追加的正式ID；field为实际招式输入框；startingValue为表单原默认值。
+    /// 本方法只进行UI输入和严格断言，不注入模型、缩短输入或用延迟制造取消窗口。
+    @MainActor private func appendMoveIDs(_ identifiers: [Int], to field: XCUIElement, startingValue: String) {
+        reveal(field); field.tap()
+        waitForValue(field, value: startingValue)
+        var expected = startingValue
+        for identifier in identifiers {
+            let addition = ",\(identifier)"
+            field.typeText(addition)
+            expected += addition
+            // iPad长串typeText曾只留下前缀；每个完整ID都必须真实出现在控件中。
+            waitForValue(field, value: expected)
+        }
+        field.typeText("\n")
+        waitForValue(field, value: expected)
     }
 
     /// 测试资源由验收脚本通过真实回环Go/PG环境生成；缺失即失败，不能把实际网络验收静默跳过。

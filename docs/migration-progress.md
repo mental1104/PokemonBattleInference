@@ -10,10 +10,10 @@
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | .9事件/配置加权、独立旧伤害及明确静态上下文已登记，111/111 CTest、60原差分/委托通过；所选6 ABI ASan全过。透明工厂与完整图交互纯域已分别验证、组合.10在编译，winning纯搜索仍在迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | .9共享33个原oracle样本Go/Swift一致，真实Swift→Go→PG→daemon/Core25/25零SKIP；所选6项public ASan/UBSan/leak PASS。c0b048e的Apple/Main全绿、两SDK/device App及两模拟器各9/9通过，.9须新Apple复验。 |
+| P2 跨语言集成 | IN_PROGRESS | .9共享33个原oracle样本Go/Swift一致，真实Swift→Go→PG→daemon/Core25/25零SKIP；所选6项public ASan/UBSan/leak PASS。最新.9 Apple Core/桥接/两SDK通过，iPhone9/9、iPad8/9；取消用例输入被截为前缀，完整候选池及断言保留，逐项输入修复待新CI。c0仍为双模拟器全绿基线。 |
 | P3 Go 服务端 | IN_PROGRESS | 原32/41完整API已保存；新旧damage33/33、fixed-job/组合24/24真实同PG/daemon通过。solver40/40、固定摘要19/19、44,100任务和取消恢复已验；剩余9条图/单步/旅程/winning HTTP尚未完成。 |
 | P4 iOS/iPadOS | IN_PROGRESS | c0b048e基本范围已实际Apple验证：两SDK/device App、iPhone9/9/iPad9/9全通过，含真实在线任务、取消、结果与双模拟器同步；真机签名/物理安装及体验HUMAN_PENDING。 |
-| P5 数据同步 | IN_PROGRESS | 两独立SQLite客户端和Go/PG的队列/幂等/冲突/删除/收敛、真实HTTP中断/Range/原子更新已验；本轮iPhone上传→iPad拉取与两端同步重启UI真实通过。整个App CI仍有另外两处结果定位失败，真机未验收。 |
+| P5 数据同步 | PASS | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；新增纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。全量图库/带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
@@ -29,9 +29,9 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | IN_PROGRESS | .7 GitHub macOS/Xcode、两SDK、未签名device App及iPhone/iPad各5项UI全部通过；.8和新增在线任务/双模拟器同步仍须新CI复验，真机未验收。 |
-| Apple 登录、Team、签名 | HUMAN_PENDING | Human 在 Xcode 登录 Apple Account、选择 Signing Team；不购买资格。 |
-| iPhone/iPad 安装及验收 | HUMAN_PENDING | 工程可构建后，由 Human 连接设备、信任、启用 Developer Mode 并按固定向量验收。 |
+| macOS / Xcode 构建 | PASS | c0b048e GitHub完整构建及双模拟器各9/9通过；用户Mac Xcode27.2已实际编译并用现有身份签名c0真机App及新增图标。新增.9 Core/SDK已过，但iPad取消输入用例失败，不能扩称新版本App全过。 |
+| Apple 登录、Team、签名 | PASS | 复用用户Mac已有有效开发身份与Team；SSH签名失败后在已登录GUI会话正常构建成功，未修改Keychain ACL或读取密码。 |
+| iPhone/iPad 安装及验收 | HUMAN_PENDING | iPhone15Pro已真实安装并启动，用户已亲自完成开发者信任；图标版也已安装启动。双设备完整人工验收、iPad物理安装和体验仍待完成。 |
 | HomeLab 生产切换、正式备份、最终合并 | HUMAN_PENDING | 只在替代能力完成验证并获得明确授权后执行。 |
 
 ## 验证记录
