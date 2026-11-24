@@ -5,6 +5,7 @@ click==8.1.7
 cryptography==41.0.7
 decorator==4.4.2
 fastapi==0.110.2
+httpx==0.28.1
 future==1.0.0
 jsonpatch==1.32
 jsonpointer==2.1

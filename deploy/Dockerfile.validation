@@ -5,10 +5,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends g++ make cmake libboost-dev libgtest-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt /requirements.txt
-# common 的顶层初始化依赖沿用当前 backend 镜像；httpx 为 HTTP 测试客户端。
+# common 的顶层初始化依赖沿用当前 backend 镜像；HTTP 测试依赖统一从 requirements 安装。
 RUN pip install --no-cache-dir -r /requirements.txt \
     genanki pypdf clickhouse-connect pymongo motor redis pycryptodome matplotlib \
-    ruamel.yaml orjson ujson 'psycopg[binary]' httpx==0.28.1
+    ruamel.yaml orjson ujson 'psycopg[binary]'
 # 跨语言验证使用同一 C ABI；保留上面的 Python 层缓存。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nlohmann-json3-dev golang-go \
