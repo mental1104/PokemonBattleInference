@@ -5,10 +5,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"pokemonbattleinference/server/internal/corebridge"
 	"pokemonbattleinference/server/internal/jobs"
 	"pokemonbattleinference/server/internal/workerprocess"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -104,16 +106,47 @@ type completion struct {
 	result jobs.Result
 }
 
+// runningProcess 的 latest 只由读取子进程帧的 goroutine 写入；persisted 只由 PG 主循环更新。
+// 每个用例仅保留一个不可变最新副本，进度回调不等待数据库，也不会积压无界事件队列。
+type runningProcess struct {
+	cancel       context.CancelFunc
+	latest       atomic.Pointer[corebridge.Progress]
+	persisted    jobs.Progress
+	hasPersisted bool
+}
+
+// persistProgress 将 process 最新实际计数写入对应 id/pair 租约；无新帧不写，失败由调用方停止执行。
+func (worker *Worker) persistProgress(ctx context.Context, id, pair string, process *runningProcess, now time.Time) error {
+	frame := process.latest.Load()
+	if frame == nil {
+		return nil
+	}
+	phase := "building_graph"
+	if frame.Phase == corebridge.ProgressBuilt {
+		phase = "graph_built"
+	}
+	value := jobs.Progress{Phase: phase, ObservedNodes: int64(frame.Nodes), ObservedEdges: int64(frame.Edges),
+		ExpandedNodes: int64(frame.Expanded), Frontier: int64(frame.Frontier)}
+	if process.hasPersisted && process.persisted == value {
+		return nil
+	}
+	if _, err := worker.store.RecordProgress(ctx, id, pair, worker.options.Owner, worker.options.Revision, now, value); err != nil {
+		return err
+	}
+	process.persisted, process.hasPersisted = value, true
+	return nil
+}
+
 // runJob 为 id 调度 definition 的真实冻结请求；有界结果 channel 与 WaitGroup 确保退出时没有遗留子进程。
 func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Definition) error {
 	children, stop := context.WithCancel(ctx)
 	var waiting sync.WaitGroup
-	active := make(map[string]context.CancelFunc)
+	active := make(map[string]*runningProcess)
 	results := make(chan completion, definition.Spec.ProcessCount)
 	defer func() {
 		stop()
-		for _, cancel := range active {
-			cancel()
+		for _, process := range active {
+			process.cancel()
 		}
 		waiting.Wait()
 	}()
@@ -156,10 +189,16 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 			}
 			heartbeat = now
 		}
+		for pair, process := range active {
+			if err = worker.persistProgress(query, id, pair, process, now); err != nil {
+				cancel()
+				return err
+			}
+		}
 		if current.Status == jobs.CancelRequested {
 			// 仅用户请求取消会写 cancelled；父进程停机保留 lease，由下个 daemon 恢复。
-			for _, cancelChild := range active {
-				cancelChild()
+			for _, process := range active {
+				process.cancel()
 			}
 			if _, err = worker.store.CancelUnclaimed(query, id, now); err != nil {
 				cancel()
@@ -189,10 +228,20 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 				}
 				child, cancelChild := context.WithCancel(children)
 				pair := item.Definition.PairID
-				active[pair] = cancelChild
+				process := &runningProcess{cancel: cancelChild}
+				active[pair] = process
 				waiting.Add(1)
 				// request 只读借用持久化副本；完成消息缓冲足够容纳本轮所有子进程，关闭时也不会阻塞发送。
-				go func() { defer waiting.Done(); results <- completion{pair, worker.execute(child, request)} }()
+				go func() {
+					defer waiting.Done()
+					result := worker.execute(child, request, func(frame corebridge.Progress) { process.latest.Store(&frame) })
+					// 失败也保留已经真实观察到的构图资源，不把中断后的成本伪造为零。
+					if frame := process.latest.Load(); result.Status != jobs.Succeeded && frame != nil {
+						result.Nodes, result.Edges = int64(frame.Nodes), int64(frame.Edges)
+						result.Budget = result.Nodes + result.Edges
+					}
+					results <- completion{pair, result}
+				}()
 			}
 		}
 		current, err = worker.store.Get(query, id)
@@ -212,14 +261,19 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			cancelChild, exists := active[result.pair]
+			process, exists := active[result.pair]
 			if !exists {
 				return errors.New("native process completed without active lease")
 			}
 			query, cancel = context.WithTimeout(ctx, worker.options.DatabaseTimeout)
+			// 即使小图在一次轮询内结束，最后的 built 帧也先落地，再提交不可变最终结果。
+			if err = worker.persistProgress(query, id, result.pair, process, time.Now().UTC()); err != nil {
+				cancel()
+				return err
+			}
 			_, err = worker.store.RecordResult(query, id, result.pair, worker.options.Owner, definition.Revision, time.Now().UTC(), result.result)
 			cancel()
-			cancelChild()
+			process.cancel()
 			delete(active, result.pair)
 			if err != nil {
 				return err
@@ -230,16 +284,36 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 }
 
 // execute 将 request 原样交给绝对路径原生进程，返回可持久化终态；只转换传输错误，不实现求解规则。
-// ctx 的取消由 coordinator 的用户请求或关闭触发；关闭路径不会调用 RecordResult。
-func (worker *Worker) execute(ctx context.Context, request []byte) jobs.Result {
-	input, err := readGraph(request)
+// ctx 的取消由 coordinator 的用户请求或关闭触发；onProgress 为只存 latest 副本的快速回调，可空。
+// 关闭路径不会调用 RecordResult；协议错误不能伪装成用户取消。
+func (worker *Worker) execute(ctx context.Context, request []byte, onProgress func(corebridge.Progress)) jobs.Result {
+	input, err := readInput(request)
 	if err != nil {
-		return failure(jobs.Failed, "invalid_configuration", "frozen input is not a supported graph request")
+		return failure(jobs.Failed, "invalid_configuration", "frozen input is not a supported inference request")
 	}
-	response, err := workerprocess.Execute(ctx, worker.options.Executable, request)
+	child, stop := context.WithCancel(ctx)
+	defer stop()
+	invalidProgress := false
+	response, err := workerprocess.ExecuteWithProgress(child, worker.options.Executable, request, func(frame corebridge.Progress) {
+		// 每个冻结用例恰好一项推演；其他 operation_index 的计数不能污染该用例。
+		if frame.OperationIndex != 0 {
+			invalidProgress = true
+			stop()
+			return
+		}
+		if onProgress != nil {
+			onProgress(frame)
+		}
+	})
+	if invalidProgress {
+		return failure(jobs.Failed, "worker_crash", "native progress refers to a different operation")
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return failure(jobs.Cancelled, "cancelled", "job cancellation stopped native process")
+		}
+		if errors.Is(err, workerprocess.ErrOutputLimit) {
+			return failure(jobs.Truncated, "solver_unresolved", "native output exceeded the response budget")
 		}
 		var native *workerprocess.Failure
 		if errors.As(err, &native) {
