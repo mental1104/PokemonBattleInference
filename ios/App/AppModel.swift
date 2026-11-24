@@ -25,11 +25,18 @@ private struct AppServices: Sendable {
     @Published private(set) var busy = false
     @Published private(set) var ready = false
     @Published var serverAddress = ""
+    @Published var syncUserIdentifier = ""
+    @Published private(set) var syncBusy = false
+    @Published private(set) var pendingSyncCount = 0
+    @Published private(set) var syncConflicts: [SyncConflict] = []
+    @Published private(set) var syncMessage = ""
     @Published var errorMessage: String?
     @Published var savedMessage = ""
+    @Published private(set) var connectionMessage = ""
     private var configurations: ConfigurationStore?
     private var calculator: CalculationService?
     private var calculationTask: Task<Void, Never>?
+    private var syncTask: Task<Void, Never>?
     private var started = false
 
     /// 初始化真实知识/用户数据库；UI 测试只使用专属 UITesting 子目录，绝不清理正常用户目录。
@@ -52,6 +59,7 @@ private struct AppServices: Sendable {
             natures = try await services.knowledge.natures()
             dataVersion = await services.knowledge.version().dataVersion
             serverAddress = try await services.configurations.serverURL()?.absoluteString ?? ""
+            syncUserIdentifier = try await services.configurations.syncUserIdentifier()
             try await refreshConfigurations()
             ready = true
         } catch { present(error); started = false }
@@ -106,25 +114,75 @@ private struct AppServices: Sendable {
         catch { present(error) }
     }
 
-    /// 保存用户明确的 HTTP(S) 地址；留空表示仅离线，凭据不写进地址。
+    /// 原子保存用户明确的 HTTP(S) 地址与同步账户；留空表示停用对应在线能力。
     func saveServerAddress() async {
         guard let configurations else { return }
+        connectionMessage = ""
         do {
             let text = serverAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             let value = text.isEmpty ? nil : URL(string: text)
             if !text.isEmpty && value == nil { errorMessage = "请输入完整的 http 或 https 服务器地址。"; return }
-            try await configurations.setServerURL(value)
+            try await configurations.setConnectionSettings(serverURL: value, userIdentifier: syncUserIdentifier)
             serverAddress = value?.absoluteString ?? ""
-            savedMessage = "服务器设置已保存"
-        } catch { errorMessage = "服务器地址需要使用 http 或 https，且不能包含用户名或密码。" }
+            syncUserIdentifier = try await configurations.syncUserIdentifier()
+            connectionMessage = "连接设置已保存"
+        } catch { present(error) }
     }
 
-    /// 从用户库刷新列表，禁止用内存列表冒充重启可恢复的持久化结果。
-    private func refreshConfigurations() async throws { if let configurations { saved = try await configurations.all() } }
+    /// 顺序发送持久化变更并拉取增量；只使用已保存连接，失败保留队列供下次手动重试。
+    func synchronize() {
+        guard !syncBusy, let configurations else { return }
+        syncBusy = true; syncMessage = ""
+        syncTask = Task {
+            defer { syncBusy = false; syncTask = nil }
+            do {
+                guard let server = try await configurations.serverURL() else { errorMessage = "请先在设置中保存服务器地址和同步账户。"; return }
+                let identity = try await configurations.syncUserIdentifier()
+                guard !identity.isEmpty else { errorMessage = "请先在设置中填写服务端分配的同步账户。"; return }
+                let client = SyncClient(store: configurations, transport: try HTTPSyncTransport(serverURL: server, userId: identity))
+                let summary = try await client.synchronize()
+                try await refreshConfigurations()
+                syncMessage = "已提交 \(summary.accepted) 项，接收 \(summary.received) 项，待处理冲突 \(summary.conflicts) 项。"
+            } catch {
+                // 服务端可能已接收一部分请求；刷新真实队列，下一次仍复用未确认操作的稳定 ID。
+                try? await refreshConfigurations()
+                if Task.isCancelled { syncMessage = "同步已取消，未确认的修改会在下次同步时重试。" }
+                else { present(error) }
+            }
+        }
+    }
+
+    /// 取消当前网络/队列迭代；不删除本地内容或假设服务端尚未提交。
+    func cancelSynchronization() { syncTask?.cancel() }
+
+    /// id 是用户正查看的冲突，resolution 为明确选择；采用本地时生成新的待提交操作。
+    func resolveSyncConflict(id: UUID, resolution: SyncConflictResolution) async {
+        guard !syncBusy, let configurations else { return }
+        do {
+            try await configurations.resolveConflict(entityId: id, resolution: resolution)
+            try await refreshConfigurations()
+            switch resolution {
+            case .keepLocal: syncMessage = "已保留此设备版本，请再次同步以提交。"
+            case .keepRemote: syncMessage = "已采用服务器版本，原冲突副本已保留。"
+            }
+        } catch { present(error) }
+    }
+
+    /// 从真实用户库刷新配置/待提交项/冲突，保留当前未保存的编辑输入。
+    private func refreshConfigurations() async throws {
+        guard let configurations else { return }
+        saved = try await configurations.all()
+        pendingSyncCount = try await configurations.pendingChanges().count
+        syncConflicts = try await configurations.syncConflicts()
+    }
 
     /// 将稳定错误类别转换为用户可处理的信息，不把 SQL/C ABI 实现细节放进交互流程。
     func present(_ error: Error) {
         switch error {
+        case SyncFailure.scopeMismatch: errorMessage = "此设备的数据已关联另一个服务器或同步账户。请恢复原连接设置，现有配置和待同步修改仍被保留。"
+        case SyncFailure.invalidEndpoint: errorMessage = "请检查服务器地址和同步账户，地址需要使用 http 或 https，且不能包含用户名、密码或查询参数。"
+        case SyncFailure.httpStatus(let status): errorMessage = "同步未完成（HTTP \(status)），本地修改已保留。请检查服务和账户后重试。"
+        case is SyncFailure: errorMessage = "同步暂未完成，本地修改已保留，请稍后重试。"
         case CalculationFailure.engineVersionMismatch: errorMessage = "服务器与本机的计算引擎版本不同，请先更新到相同版本。"
         case CalculationFailure.httpStatus(let status): errorMessage = "服务器未完成计算（HTTP \(status)）。请检查地址和服务状态。"
         case is CalculationFailure: errorMessage = "计算输入或知识数据不完整，请检查当前选择。"

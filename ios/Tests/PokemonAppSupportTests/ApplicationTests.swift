@@ -62,4 +62,34 @@ final class ApplicationTests: XCTestCase, @unchecked Sendable {
         let rows = try await store.all(), queue = try await store.pendingChanges()
         XCTAssertTrue(rows.isEmpty); XCTAssertTrue(queue.isEmpty)
     }
+    /// 连接两项原子保存并跨重启保留；写失败或换同步空间不得留下半套设置或清除旧用户库。
+    func testConnectionSettingsRollbackAndBoundScope() async throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("user.sqlite"), store = try ConfigurationStore(url: url)
+        let first = try XCTUnwrap(URL(string: "http://127.0.0.1:41106"))
+        let other = try XCTUnwrap(URL(string: "http://127.0.0.1:41107"))
+        try await store.setConnectionSettings(serverURL: first, userIdentifier: " alice ")
+        let restarted = try ConfigurationStore(url: url)
+        let savedUser = try await restarted.syncUserIdentifier(), savedServer = try await restarted.serverURL()
+        XCTAssertEqual(savedUser, "alice"); XCTAssertEqual(savedServer, first)
+        // 即使同步账户为空，非法计算服务地址也必须整体拒绝，不清空原账户。
+        do { try await restarted.setConnectionSettings(serverURL: URL(string: "http://127.0.0.1:41107?query=invalid"), userIdentifier: ""); XCTFail("query endpoint accepted") }
+        catch SyncFailure.invalidEndpoint { }
+        let injection = try SQLiteConnection(url: url, readOnly: false)
+        try injection.execute("CREATE TRIGGER fail_identity BEFORE UPDATE ON settings WHEN NEW.key='sync_user' BEGIN SELECT RAISE(ABORT,'test settings failure'); END")
+        do { try await restarted.setConnectionSettings(serverURL: other, userIdentifier: "bob"); XCTFail("partial settings commit accepted") }
+        catch StorageFailure.database { }
+        let unchangedURL = try await restarted.serverURL(), unchangedUser = try await restarted.syncUserIdentifier()
+        XCTAssertEqual(unchangedURL, first); XCTAssertEqual(unchangedUser, "alice")
+        try injection.execute("DROP TRIGGER fail_identity")
+        try await restarted.bindSyncScope(HTTPSyncTransport(serverURL: first, userId: "alice").scopeIdentifier)
+        do { try await restarted.setConnectionSettings(serverURL: other, userIdentifier: "alice"); XCTFail("different server reused sync state") }
+        catch SyncFailure.scopeMismatch { }
+        do { try await restarted.setConnectionSettings(serverURL: first, userIdentifier: "bob"); XCTFail("different user reused sync state") }
+        catch SyncFailure.scopeMismatch { }
+        do { try await restarted.setConnectionSettings(serverURL: first, userIdentifier: "bad\0identity"); XCTFail("control character accepted") }
+        catch SyncFailure.invalidEndpoint { }
+        let finalURL = try await ConfigurationStore(url: url).serverURL(), finalUser = try await restarted.syncUserIdentifier()
+        XCTAssertEqual(finalURL, first); XCTAssertEqual(finalUser, "alice")
+    }
 }

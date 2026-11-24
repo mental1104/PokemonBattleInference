@@ -145,13 +145,36 @@ public actor ConfigurationStore {
     }
     /// url 为用户选定的 HTTP(S) 服务根地址/null；凭据不嵌入 URL 保存。
     public func setServerURL(_ url: URL?) throws {
-        if let url { guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil, url.user == nil, url.password == nil else { throw StorageFailure.invalidData("invalid server URL") } }
+        if let url { guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil, url.user == nil, url.password == nil,
+                           url.query == nil, url.fragment == nil else { throw SyncFailure.invalidEndpoint } }
         try connection.execute("INSERT INTO settings VALUES ('server_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [.blob(try ContractJSON.encoder().encode(url))])
     }
     /// 返回用户实际保存的服务地址；未配置时为 null，不猜测生产域名。
     public func serverURL() throws -> URL? {
         guard let data = try connection.rows("SELECT value FROM settings WHERE key='server_url'", decode: { try $0.data(0) }).first else { return nil }
         return try ContractJSON.decoder().decode(URL?.self, from: data)
+    }
+    /// serverURL 为可空服务根地址，userIdentifier 为服务端分配的同步账户；空账户停用同步。
+    /// 两项在同一事务保存，已绑定的同步空间禁止换成其他用户/服务器，失败保留原设置和队列。
+    public func setConnectionSettings(serverURL: URL?, userIdentifier: String) throws {
+        let identity = userIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard identity.utf8.count <= 256, !identity.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            throw SyncFailure.invalidEndpoint
+        }
+        let transport = try serverURL.flatMap { identity.isEmpty ? nil : try HTTPSyncTransport(serverURL: $0, userId: identity) }
+        try connection.transaction {
+            // 已确认过的 revision 只属于原空间；绝不因编辑设置清空旧游标或用户资料。
+            if let transport, let data = try connection.rows("SELECT value FROM settings WHERE key='sync_scope'", decode: { try $0.data(0) }).first {
+                guard try ContractJSON.decoder().decode(String.self, from: data) == transport.scopeIdentifier else { throw SyncFailure.scopeMismatch }
+            }
+            try setServerURL(serverURL)
+            try connection.execute("INSERT INTO settings VALUES ('sync_user',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [.blob(try ContractJSON.encoder().encode(identity))])
+        }
+    }
+    /// 返回已保存的同步账户；首次启动或未启用时为空，不自动生成导致双设备隔离的随机账户。
+    public func syncUserIdentifier() throws -> String {
+        guard let data = try connection.rows("SELECT value FROM settings WHERE key='sync_user'", decode: { try $0.data(0) }).first else { return "" }
+        return try ContractJSON.decoder().decode(String.self, from: data)
     }
     /// 保存实际计算输入/输出和全部版本；不使用展示小数重建计算输入。
     public func saveCalculation(configurationId: UUID, request: Data, response: Data, engineVersion: String, rulesVersion: String, knowledgeVersion: String) throws {

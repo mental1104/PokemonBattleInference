@@ -22,6 +22,7 @@ trap cleanup EXIT
 xcodebuild build -project "$repo/ios/PokemonBattleInference.xcodeproj" -scheme PokemonBattleInference \
     -destination 'generic/platform=iOS' -derivedDataPath "$repo/build/app-device" \
     CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$reports/device-build.log"
+overall_status=0
 for family in iPhone iPad; do
     device="$(jq -r --arg family "$family" '[.[] | select(.name | startswith($family))][0].udid // empty' "$reports/ios-devices.json")"
     if [[ -z "$device" ]]; then echo "Missing available $family iOS simulator" >&2; exit 1; fi
@@ -36,6 +37,12 @@ for family in iPhone iPad; do
         -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
         -resultBundlePath "$reports/$family.xcresult" CODE_SIGNING_ALLOWED=NO \
         2>&1 | tee "$reports/$family-test.log" || status=$?
+    # 导出测试过程中的实际附件；测试退出后 App 已关闭，单张最终截图不能代替失败现场。
+    xcrun xcresulttool export attachments --path "$reports/$family.xcresult" \
+        --output-path "$reports/$family-attachments" > "$reports/$family-export.log" 2>&1 || true
     xcrun simctl io "$device" screenshot "$reports/$family-final.png" || true
-    if [[ "$status" != 0 ]]; then exit "$status"; fi
+    printf '%s %s\n' "$family" "$status" >> "$reports/test-exit-codes.txt"
+    # 一个机型的断言失败仍收集另一机型的独立证据；最终保留失败退出码，不将失败算作通过。
+    if [[ "$status" != 0 ]]; then overall_status=1; fi
 done
+exit "$overall_status"

@@ -31,19 +31,19 @@ final class PokemonAppUITests: XCTestCase {
         launchCleanApp()
         app.tabBars.buttons["计算"].tap()
         reveal(app.buttons["calculate-offline"]); app.buttons["calculate-offline"].tap()
-        let damage = app.staticTexts["damage-range"]
+        let damage = metric("damage-range")
         reveal(damage)
         XCTAssertTrue(damage.waitForExistence(timeout: 15), "Native result must appear")
-        XCTAssertEqual(damage.label, "99–117")
-        XCTAssertEqual(app.staticTexts["two-hit-probability"].label, "123/128")
-        XCTAssertEqual(app.staticTexts["attacker-speed"].label, "85")
+        XCTAssertEqual(damage.label, "伤害"); XCTAssertEqual(damage.value as? String, "99–117")
+        XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
+        XCTAssertEqual(metric("attacker-speed").value as? String, "85")
         capture("offline-damage-exact-ko")
         let paralysis = app.switches["attacker-paralyzed"]
         reveal(paralysis, upward: false); paralysis.tap()
         reveal(app.buttons["calculate-offline"]); app.buttons["calculate-offline"].tap()
-        reveal(app.staticTexts["attacker-speed"])
-        XCTAssertTrue(app.staticTexts["attacker-speed"].waitForExistence(timeout: 15))
-        XCTAssertEqual(app.staticTexts["attacker-speed"].label, "42")
+        reveal(metric("attacker-speed"))
+        XCTAssertTrue(metric("attacker-speed").waitForExistence(timeout: 15))
+        XCTAssertEqual(metric("attacker-speed").value as? String, "42")
         capture("paralysis-speed")
     }
     /// 修改名称后保存并杀进程重启，检查配置从 SQLite 恢复并能继续编辑。
@@ -58,6 +58,8 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertTrue(edited.contains("CI saved configuration"))
         app.swipeUp()
         reveal(app.buttons["save-configuration"]); app.buttons["save-configuration"].tap()
+        // Form 懒加载，新增成功提示可能在可见按钮下方；滚动后仍严格检查成功和重启后的完整名称。
+        reveal(app.staticTexts["configuration-save-status"])
         XCTAssertTrue(app.staticTexts["configuration-save-status"].waitForExistence(timeout: 10))
         app.terminate(); app.launchArguments = ["--ui-testing"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["配置"].waitForExistence(timeout: 30)); app.tabBars.buttons["配置"].tap()
@@ -71,6 +73,38 @@ final class PokemonAppUITests: XCTestCase {
             capture("ipad-landscape-editor")
             XCUIDevice.shared.orientation = .portrait
         }
+    }
+    /// 保存配置产生真实待提交项；未配服务器时同步明确提示，保存连接后重启保留账户和队列。
+    @MainActor func testSyncQueueAndConnectionSettingsSurviveRestart() {
+        launchCleanApp()
+        app.tabBars.buttons["计算"].tap()
+        reveal(app.buttons["save-configuration"]); app.buttons["save-configuration"].tap()
+        reveal(app.staticTexts["configuration-save-status"])
+        XCTAssertTrue(app.staticTexts["configuration-save-status"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["配置"].tap(); metric("open-synchronization").tap()
+        XCTAssertEqual(metric("sync-pending-count").value as? String, "1")
+        app.buttons["synchronize-now"].tap()
+        XCTAssertTrue(app.alerts.staticTexts["请先在设置中保存服务器地址和同步账户。"].waitForExistence(timeout: 10))
+        app.alerts.buttons["好"].tap()
+        XCTAssertEqual(metric("sync-pending-count").value as? String, "1")
+        app.tabBars.buttons["设置"].tap()
+        let address = app.textFields["server-address"], identity = app.textFields["sync-user"]
+        address.tap(); address.typeText("http://127.0.0.1:41106")
+        identity.tap(); identity.typeText("ci-shared-user\n")
+        reveal(app.buttons["save-server"]); app.buttons["save-server"].tap()
+        reveal(app.staticTexts["settings-save-status"])
+        XCTAssertTrue(app.staticTexts["settings-save-status"].waitForExistence(timeout: 10))
+        app.terminate(); app.launchArguments = ["--ui-testing"]; app.launch()
+        XCTAssertTrue(app.tabBars.buttons["设置"].waitForExistence(timeout: 30)); app.tabBars.buttons["设置"].tap()
+        XCTAssertEqual(app.textFields["server-address"].value as? String, "http://127.0.0.1:41106")
+        XCTAssertEqual(app.textFields["sync-user"].value as? String, "ci-shared-user")
+        app.tabBars.buttons["配置"].tap(); metric("open-synchronization").tap()
+        XCTAssertEqual(metric("sync-pending-count").value as? String, "1")
+        capture("sync-queue-after-restart")
+    }
+    /// identifier 对应显式 accessibilityValue 指标；按稳定语义定位，不依赖 LabeledContent 合并类型。
+    @MainActor private func metric(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)[identifier].firstMatch
     }
     /// element 是当前页真实控件；有限次滚动直到可交互，upward 为向页面底部滚动。
     @MainActor private func reveal(_ element: XCUIElement, upward: Bool = true) {

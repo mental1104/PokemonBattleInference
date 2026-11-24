@@ -115,16 +115,22 @@ import PokemonAppSupport
     /// result 是一次完整实际调用的不可变结果，展开内容包含能力和计算版本。
     var body: some View {
         Section("计算结果") {
-            LabeledContent("伤害") { Text("\(result.damage.rolls.min() ?? 0)–\(result.damage.rolls.max() ?? 0)").accessibilityIdentifier("damage-range") }
-            LabeledContent("一击 KO") { Text(result.damage.ohko.text).accessibilityIdentifier("ohko-probability") }
-            LabeledContent("两击 KO") { Text(result.damage.twoHit.text).accessibilityIdentifier("two-hit-probability") }
-            LabeledContent("攻击方速度") { Text(String(result.attackerSpeed)).accessibilityIdentifier("attacker-speed") }
+            metric("伤害", value: "\(result.damage.rolls.min() ?? 0)–\(result.damage.rolls.max() ?? 0)", identifier: "damage-range")
+            metric("一击 KO", value: result.damage.ohko.text, identifier: "ohko-probability")
+            metric("两击 KO", value: result.damage.twoHit.text, identifier: "two-hit-probability")
+            metric("攻击方速度", value: String(result.attackerSpeed), identifier: "attacker-speed")
             LabeledContent("防御方速度", value: String(result.defenderSpeed))
             DisclosureGroup("全部伤害分布") { Text(result.damage.rolls.map(String.init).joined(separator: ", ")).font(.caption).textSelection(.enabled) }
             DisclosureGroup("攻击方能力") { StatSummary(values: result.attackerStats) }
             DisclosureGroup("防御方能力") { StatSummary(values: result.defenderStats) }
             Text("引擎 \(result.engineVersion) · 规则 \(result.rulesVersion)").font(.caption).foregroundStyle(.secondary)
         }
+    }
+    /// title 为指标名称，value 为 Core 结果的精确展示，identifier 是稳定控件标识。
+    /// 返回独立名称/值的无障碍行，VoiceOver 与黑盒测试都无需从合并字符串猜测数值。
+    private func metric(_ title: String, value: String, identifier: String) -> some View {
+        LabeledContent(title, value: value).accessibilityElement(children: .ignore)
+            .accessibilityLabel(title).accessibilityValue(value).accessibilityIdentifier(identifier)
     }
 }
 

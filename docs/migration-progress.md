@@ -9,8 +9,8 @@
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 能力值/直接伤害/精确 KO、不可变状态/StateKey/PP/锁招及独立状态修正已通过 Linux/macOS/Apple SDK；新增完整性格 profile 已通过 Linux 差分。完整回合/动态效果/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
-| P3 Go 服务端 | IN_PROGRESS | Core HTTP 已实际验收；旧 API/PG/Worker 迁移并行开发中，新增部分待统一集成验证。生产仍为 Python。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 查询/计算/配置保存的 AppSupport 在 Linux 实测，SwiftUI 与工程已落地；实际 App 构建、模拟器和真机仍未验证。 |
+| P3 Go 服务端 | IN_PROGRESS | 原 16/41 API、原物化视图及独立原生子进程已真实 PG/HTTP 验证；任务生命周期和其余 API 继续迁移，生产仍为 Python。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 首批未签名 device App 构建成功，iPhone 中文查询通过；其余 UI 测试存在首轮失败，已修后待重跑。新增同步界面仍待 Apple 实测，真机未验收。 |
 | P5 数据同步 | IN_PROGRESS | 版本化知识 SQLite 与失败恢复已有真实验证；独立用户库/本地队列已实测，PG/双设备同步仍在开发，尚未验证收敛。 |
 | P6 部署与回归 | IN_PROGRESS | 已加入统一原生测试入口与隔离验证；用户已授权 GitHub macOS/iOS CI。旧部署/数据库保持原状，未切换生产。 |
 
@@ -118,7 +118,7 @@
 - 提交 **`e8a8b2749c9148eaa9ba44107e57db702cda79ed`** 的 [Native Core 45356308995](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308995) **PASS**：macOS CTest **27/27**、迁移/Go/Swift 委托 **13/13，无跳过**（73.87 秒）；[Main Gate 45356308957](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308957) **PASS**。iPhoneOS/Simulator SDK 库均实际构建成功，尚未运行 App。
 - 已独立核验 [Apple 产物 14902881683](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308995/artifacts/14902881683)：ZIP SHA-256 **`4a90a8ac8c41407065ad35bfc202761329854e40b976ff937347405a16e935ca`** 与 GitHub digest 一致；两个平台各含六个实际 arm64 Mach-O 对象，LC_BUILD_VERSION 分别为 iOS **2** 与 Simulator **7**，共享 C 头与仓库相同、含 compute 导出、Swift module 非空，JUnit 无失败/错误/跳过。ZIP、完整 job 日志与核验脚本/JSON 在本节证据根。
 
-## 离线知识与 AppSupport 检查点（2026-11-24，待统一提交）
+## 离线知识与 AppSupport 检查点（2026-11-24）
 
 证据根：`/volume1/homes/mental1104/Backup/PokemonBattleInference/app-20261124/`。
 
@@ -129,6 +129,16 @@
 - 当前只证明 Linux AppSupport 与本机 Core 闭环；在线 Swift 计算客户端、SwiftUI App 编译/模拟器运行、复杂推演及真实双设备仍未验收。检查点 **11bbedc9bc2e07dd9f2a3d1729af4dbb1b1eaa4c** 已推送 Ready PR；[Native/App CI 45362670690](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690) 与 [Main Gate 45362670582](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670582) 已启动，尚未确认结果。
 - P5 首批同步底层已独立实测：Go 真实隔离 PostgreSQL 三个业务测试 `-race` PASS、`go vet` PASS；实际 HTTP 服务 fixture PASS（131.71 秒），两个独立 Swift SQLite 客户端完成丢 ack 重试、重启、离线冲突/显式恢复、版本保留和删除传播，最终 cursor 均为 4；Swift **13/13、零失败/跳过**（1.797 秒）。证据在 `Backup/PokemonBattleInference/migration-p5-sync-20261124/`，详见 `migration-sync.md`。这不代表 App 同步 UI 或真机验收通过。
 - 用户要求 P1/P2 也由专属 agent 处理；最初系统四线程上限拒绝新建。在 P4/P5 首批交接释放名额后，已分别实际启动 **p1_core**（合法行动/回合/图/SCC/搜索）与 **p2_bridge**（C ABI、Go/Swift、新能力接入、真实在线/离线一致验收）。当前并行的是 P1/P2/P3 加 root；root 负责统一提交/CI、App/同步 UI 整合。P4/P5 后续按需轮换，不声称五条子任务同时运行。
+
+## 并行迁移与首轮 App 反馈（2026-11-24）
+
+- 服务端检查点 **60d9fe9**：原 **16/41** 配置/知识/图片 API、非破坏运行表初始化、持久化同步及原生子进程边界；真实全量 CSV/八个原 MV + 自有 PostgreSQL 的 Go race **11 PASS / 1 专用 Swift 服务 fixture SKIP**，独立 curl 五个 HTTP 200。子进程向量/错误/取消和真实 SIGKILL 隔离 **2 PASS**。首次 512 MiB tmpfs DiskFull 证据保留，专属 2 GiB tmpfs 重跑通过；未改通用维护模板或生产。详见 `migration-server.md`。
+- Core/在线验收检查点 **01a5db5**：纯合法行动（PP/禁用/讲究锁招/濒死/挣扎及两种精确策略）、有限图 SCC/精确 DAG 与循环求解、预算/未知截断/无限期望/取消。Linux CTest **36/36**，原 Python 真实拓扑差分 **3/3**（288 随机图、边界和 2,500 深链），ASan/UBSan/leak **36/36 PASS**（32.52 秒），证据 `Backup/PokemonBattleInference/core-graph-20261124/`。这不代表完整战斗回合器已迁移。
+- 真实 Swift → 独立 Go HTTP → C++ 对三组完整配置验证逐字段及请求/响应字节一致；在线 **2/2 PASS**，实际 404 明确失败无离线回退。该次 Swift **15 tests / 1 skipped**（缺 P5 专用服务 URL，P5 已另测真实收敛），证据 `Backup/PokemonBattleInference/migration-p2-online-20261124-fixed2/`。正式图/行动 ABI 的 .5 版本由 P2 后续统一交接。
+- **11bbedc** [首轮 App CI 45362670690](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690) 最终 **FAIL**：macOS CTest **28/28**、迁移 pytest **17/17**（54.90 秒）、两 SDK 库及未签名 device App 构建成功。iPhone 三个 XCUITest 中中文知识首装查询 PASS；伤害断言拿到合并无障碍标签 `伤害, 99–117`，保存测试未找到成功提示，故两项 FAIL，iPad 尚未执行。Main Gate **PASS**。
+- 首轮产物 [14905627832](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690/artifacts/14905627832) ZIP SHA-256 **01ab38260cb4f812b1e9030c2e5f921139c3684e789aa80891e77d5b1f70d3d2** 与 GitHub digest 一致；完整日志、xcresult/ZIP 在 `Backup/PokemonBattleInference/app-20261124/`。测试结束的 final screenshot 是主屏幕，不能用来证明失败时 App 内状态。
+- 已将指标改成明确无障碍名称/精确值并保持原冻结数值断言；保存测试增加懒加载行滚动，仍待下一轮验证其失败原因。测试脚本即使某机型失败也继续独立执行另一机型，并导出 xcresult 附件，最终仍返回失败。
+- 新增 App 手动同步/取消、真实待提交项、完整冲突双方参数/删除状态/版本比较和明确选择。连接设置在 SQLite 事务保存，禁止沿用其他服务器/用户的同步空间；注入身份写失败时 URL/账户一起回滚，重启、非法地址和范围保护实测。修改后的 AppSupport **4/4 PASS**（0.179 秒），UI/UITest Swift 语法与 shell 检查通过；Apple UI 运行未验证，证据 `Backup/PokemonBattleInference/app-sync-20261124/`。
 
 ## 下一步
 

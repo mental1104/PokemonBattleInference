@@ -35,6 +35,12 @@ import PokemonCore
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink { SynchronizationView(model: model) } label: {
+                        Label("同步配置（待提交 \(model.pendingSyncCount) 项）", systemImage: "arrow.triangle.2.circlepath")
+                    }.accessibilityIdentifier("open-synchronization")
+                    if !model.syncConflicts.isEmpty { Text("有 \(model.syncConflicts.count) 项冲突需要选择版本。").foregroundStyle(.orange) }
+                }
                 if model.saved.isEmpty {
                     Text("还没有保存的配置。请到计算页编辑并保存。").foregroundStyle(.secondary)
                 }
@@ -61,10 +67,13 @@ import PokemonCore
             Form {
                 Section("服务器") {
                     TextField("http://服务器:端口", text: $model.serverAddress).textInputAutocapitalization(.never)
-                        .autocorrectionDisabled().keyboardType(.URL).accessibilityIdentifier("server-address")
-                    Button("保存服务器地址") { Task { await model.saveServerAddress() } }.accessibilityIdentifier("save-server")
+                        .autocorrectionDisabled().keyboardType(.URL).submitLabel(.done).accessibilityIdentifier("server-address")
+                    TextField("服务端分配的同步账户", text: $model.syncUserIdentifier).textInputAutocapitalization(.never)
+                        .autocorrectionDisabled().submitLabel(.done).accessibilityIdentifier("sync-user")
+                    Button("保存连接设置") { Task { await model.saveServerAddress() } }.accessibilityIdentifier("save-server")
                     Text("留空时使用离线模式。在线计算向此地址发送当前计算参数；同一引擎版本才接受结果。").font(.caption).foregroundStyle(.secondary)
-                    if !model.savedMessage.isEmpty { Text(model.savedMessage).accessibilityIdentifier("settings-save-status") }
+                    Text("两台设备使用同一服务器和同步账户即可共享已保存配置。同步账户由服务端分配。").font(.caption).foregroundStyle(.secondary)
+                    if !model.connectionMessage.isEmpty { Text(model.connectionMessage).accessibilityIdentifier("settings-save-status") }
                 }
                 Section("版本") {
                     LabeledContent("引擎", value: Engine.version)
@@ -73,7 +82,7 @@ import PokemonCore
                 Section("当前计算范围") {
                     Text("支持单次直接伤害、能力值、速度与精确的一击/两击 KO 概率。特性、道具与环境仅可选择界面列出的已实现规则；特殊威力或变化招式会明确提示不支持。")
                 }
-            }.navigationTitle("设置")
+            }.scrollDismissesKeyboard(.interactively).navigationTitle("设置")
         }
     }
 }
