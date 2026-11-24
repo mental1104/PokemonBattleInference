@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入、任务 ID 或持久化副作用。可选同步进度回调仅观察真实构图计数，不能被解释为结果已成功提交。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.7.0` / `calculation-rules.v7`，新增完整候选枚举、覆盖/strict准入及独立 job-v1 具体 case 规划；回合和固定战斗仍由真实结构化管线驱动，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.8.0` / `calculation-rules.v8`，在完整候选/严格准入/具体任务规划之上加入原模板目标与完整 EV/IV 搜索；回合和固定战斗仍由真实结构化管线驱动，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |

@@ -5722,6 +5722,1998 @@
         "offset": 1
       },
       "kind": "job_move_pool"
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [
+        {
+          "attacking": 9,
+          "defending": 18,
+          "percent": 200
+        }
+      ],
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "none",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "templates": [
+        {
+          "preset_key": "no_investment",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_atk_neutral",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            252,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_spatk_neutral",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            252,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_atk_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            252,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.1,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_spatk_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            252,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_spdef",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            252,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_def",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            252,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_spdef_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            252,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_def_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            252,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.1,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "allowed_stat_presets": [],
+      "max_candidates": 3,
+      "goals": [
+        {
+          "goal_id": "attack",
+          "kind": "attack",
+          "target": {
+            "level": 50,
+            "types": [
+              18
+            ],
+            "stats": {
+              "hp": 170,
+              "attack": 85,
+              "defense": 85,
+              "special_attack": 130,
+              "special_defense": 150,
+              "speed": 80
+            },
+            "ability": "none",
+            "item": "none",
+            "can_evolve": false,
+            "grounding": null
+          },
+          "move": {
+            "type": 9,
+            "category": "physical",
+            "power": 40
+          },
+          "required_turns": 2,
+          "roll_policy": null
+        }
+      ],
+      "speed_goals": [],
+      "kind": "configuration_templates"
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [],
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "none",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "templates": [
+        {
+          "preset_key": "no_investment",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_atk_neutral",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            252,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_spatk_neutral",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            252,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_atk_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            252,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.1,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_spatk_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            252,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_spdef",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            252,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_def",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            252,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_spdef_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            0,
+            0,
+            252,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "max_hp_def_plus",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            252,
+            0,
+            252,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.1,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "allowed_stat_presets": [],
+      "max_candidates": 3,
+      "goals": [],
+      "speed_goals": [
+        {
+          "goal_id": "tie",
+          "target_speed": 85
+        }
+      ],
+      "kind": "configuration_templates"
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [
+        {
+          "attacking": 9,
+          "defending": 18,
+          "percent": 200
+        }
+      ],
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "technician",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "templates": [
+        {
+          "preset_key": "no_investment",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "preset_key": "preset-snapshot:eyJldnMiOnsiYXR0YWNrIjowLCJkZWZlbnNlIjowLCJocCI6MCwic3BlY2lhbF9hdHRhY2siOjAsInNwZWNpYWxfZGVmZW5zZSI6MCwic3BlZWQiOjI1Mn0sIml2cyI6eyJhdHRhY2siOjMxLCJkZWZlbnNlIjozMSwiaHAiOjMxLCJzcGVjaWFsX2F0dGFjayI6MzEsInNwZWNpYWxfZGVmZW5zZSI6MzEsInNwZWVkIjozMX0sImtleSI6ImdvbGRlbi1zcGVlZCIsImxhYmVsIjoiU3BlZWQgc25hcHNob3QiLCJuYXR1cmVfaWQiOiJqb2xseSIsInNvdXJjZSI6ImN1c3RvbSJ9",
+          "ivs": [
+            31,
+            31,
+            31,
+            31,
+            31,
+            31
+          ],
+          "evs": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            252
+          ],
+          "nature": [
+            1.0,
+            1.0,
+            0.9,
+            1.0,
+            1.1
+          ]
+        }
+      ],
+      "allowed_stat_presets": [
+        "preset-snapshot:eyJldnMiOnsiYXR0YWNrIjowLCJkZWZlbnNlIjowLCJocCI6MCwic3BlY2lhbF9hdHRhY2siOjAsInNwZWNpYWxfZGVmZW5zZSI6MCwic3BlZWQiOjI1Mn0sIml2cyI6eyJhdHRhY2siOjMxLCJkZWZlbnNlIjozMSwiaHAiOjMxLCJzcGVjaWFsX2F0dGFjayI6MzEsInNwZWNpYWxfZGVmZW5zZSI6MzEsInNwZWVkIjozMX0sImtleSI6ImdvbGRlbi1zcGVlZCIsImxhYmVsIjoiU3BlZWQgc25hcHNob3QiLCJuYXR1cmVfaWQiOiJqb2xseSIsInNvdXJjZSI6ImN1c3RvbSJ9",
+        "no_investment"
+      ],
+      "max_candidates": 3,
+      "goals": [
+        {
+          "goal_id": "attack",
+          "kind": "attack",
+          "target": {
+            "level": 50,
+            "types": [
+              18
+            ],
+            "stats": {
+              "hp": 170,
+              "attack": 85,
+              "defense": 85,
+              "special_attack": 130,
+              "special_defense": 150,
+              "speed": 80
+            },
+            "ability": "none",
+            "item": "none",
+            "can_evolve": false,
+            "grounding": null
+          },
+          "move": {
+            "type": 9,
+            "category": "physical",
+            "power": 40
+          },
+          "required_turns": 2,
+          "roll_policy": null
+        }
+      ],
+      "speed_goals": [
+        {
+          "goal_id": "speed",
+          "target_speed": 123
+        }
+      ],
+      "kind": "configuration_templates"
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [],
+      "kind": "configuration_spread_search",
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "technician",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "max_candidates": 2,
+      "goals": [],
+      "speed_goals": [
+        {
+          "goal_id": "speed",
+          "target_speed": 85
+        }
+      ],
+      "natures": [
+        {
+          "identifier": "quirky",
+          "label": "Quirky",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "careful",
+          "label": "Careful",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "sassy",
+          "label": "Sassy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.1,
+            0.9
+          ]
+        },
+        {
+          "identifier": "gentle",
+          "label": "Gentle",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "calm",
+          "label": "Calm",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "rash",
+          "label": "Rash",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bashful",
+          "label": "Bashful",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "quiet",
+          "label": "Quiet",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "mild",
+          "label": "Mild",
+          "modifier": [
+            1.0,
+            0.9,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "modest",
+          "label": "Modest",
+          "modifier": [
+            0.9,
+            1.0,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naive",
+          "label": "Naive",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            0.9,
+            1.1
+          ]
+        },
+        {
+          "identifier": "jolly",
+          "label": "Jolly",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "serious",
+          "label": "Serious",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hasty",
+          "label": "Hasty",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "timid",
+          "label": "Timid",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "lax",
+          "label": "Lax",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "impish",
+          "label": "Impish",
+          "modifier": [
+            1.0,
+            1.1,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "relaxed",
+          "label": "Relaxed",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "docile",
+          "label": "Docile",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bold",
+          "label": "Bold",
+          "modifier": [
+            0.9,
+            1.1,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naughty",
+          "label": "Naughty",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "adamant",
+          "label": "Adamant",
+          "modifier": [
+            1.1,
+            1.0,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "brave",
+          "label": "Brave",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "lonely",
+          "label": "Lonely",
+          "modifier": [
+            1.1,
+            0.9,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hardy",
+          "label": "Hardy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [
+        {
+          "attacking": 9,
+          "defending": 18,
+          "percent": 200
+        }
+      ],
+      "kind": "configuration_spread_search",
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "technician",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "max_candidates": 2,
+      "goals": [
+        {
+          "goal_id": "attack",
+          "kind": "attack",
+          "target": {
+            "level": 50,
+            "types": [
+              18
+            ],
+            "stats": {
+              "hp": 170,
+              "attack": 85,
+              "defense": 85,
+              "special_attack": 130,
+              "special_defense": 150,
+              "speed": 80
+            },
+            "ability": "none",
+            "item": "none",
+            "can_evolve": false,
+            "grounding": null
+          },
+          "move": {
+            "type": 9,
+            "category": "physical",
+            "power": 40
+          },
+          "required_turns": 2,
+          "roll_policy": null
+        }
+      ],
+      "speed_goals": [
+        {
+          "goal_id": "speed",
+          "target_speed": 85
+        }
+      ],
+      "natures": [
+        {
+          "identifier": "quirky",
+          "label": "Quirky",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "careful",
+          "label": "Careful",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "sassy",
+          "label": "Sassy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.1,
+            0.9
+          ]
+        },
+        {
+          "identifier": "gentle",
+          "label": "Gentle",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "calm",
+          "label": "Calm",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "rash",
+          "label": "Rash",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bashful",
+          "label": "Bashful",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "quiet",
+          "label": "Quiet",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "mild",
+          "label": "Mild",
+          "modifier": [
+            1.0,
+            0.9,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "modest",
+          "label": "Modest",
+          "modifier": [
+            0.9,
+            1.0,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naive",
+          "label": "Naive",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            0.9,
+            1.1
+          ]
+        },
+        {
+          "identifier": "jolly",
+          "label": "Jolly",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "serious",
+          "label": "Serious",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hasty",
+          "label": "Hasty",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "timid",
+          "label": "Timid",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "lax",
+          "label": "Lax",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "impish",
+          "label": "Impish",
+          "modifier": [
+            1.0,
+            1.1,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "relaxed",
+          "label": "Relaxed",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "docile",
+          "label": "Docile",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bold",
+          "label": "Bold",
+          "modifier": [
+            0.9,
+            1.1,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naughty",
+          "label": "Naughty",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "adamant",
+          "label": "Adamant",
+          "modifier": [
+            1.1,
+            1.0,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "brave",
+          "label": "Brave",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "lonely",
+          "label": "Lonely",
+          "modifier": [
+            1.1,
+            0.9,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hardy",
+          "label": "Hardy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "generation_id": 9,
+      "policy": {
+        "terrain_boost_multiplier": 1.3,
+        "misty_terrain_dragon_multiplier": 0.5,
+        "weather_boost_multiplier": 1.5,
+        "weather_weaken_multiplier": 0.5,
+        "sandstorm_rock_spdef_multiplier": 1.5,
+        "snow_ice_defense_multiplier": 1.5,
+        "hail_ice_defense_multiplier": null,
+        "screen_single_target_multiplier": 0.5,
+        "screen_multi_target_multiplier": 0.6666666666666666,
+        "aurora_veil_single_target_multiplier": 0.5,
+        "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+        "critical_hit_multiplier": 1.5,
+        "spread_move_multiplier": 0.75,
+        "protect_damage_multiplier": 0.25,
+        "same_type_attack_bonus_multiplier": 1.5,
+        "technician_base_power_threshold": 60,
+        "technician_base_power_multiplier": 1.5,
+        "adaptability_stab_multiplier": 2.0,
+        "thick_fat_damage_multiplier": 0.5,
+        "filter_damage_multiplier": 0.75,
+        "sniper_critical_multiplier": 1.5,
+        "multiscale_damage_multiplier": 0.5,
+        "life_orb_damage_multiplier": 1.3,
+        "choice_item_attack_multiplier": 1.5,
+        "expert_belt_damage_multiplier": 1.2,
+        "eviolite_defense_multiplier": 1.5,
+        "burn_physical_attack_multiplier": 0.5,
+        "random_damage_multipliers": [
+          0.85,
+          0.86,
+          0.87,
+          0.88,
+          0.89,
+          0.9,
+          0.91,
+          0.92,
+          0.93,
+          0.94,
+          0.95,
+          0.96,
+          0.97,
+          0.98,
+          0.99,
+          1.0
+        ]
+      },
+      "type_chart": [],
+      "kind": "configuration_spread_search",
+      "subject_base": {
+        "level": 50,
+        "types": [
+          7,
+          9
+        ],
+        "stats": {
+          "hp": 70,
+          "attack": 130,
+          "defense": 100,
+          "special_attack": 55,
+          "special_defense": 80,
+          "speed": 65
+        },
+        "ability": "technician",
+        "item": "none",
+        "can_evolve": false,
+        "grounding": null
+      },
+      "max_candidates": 2,
+      "goals": [],
+      "speed_goals": [
+        {
+          "goal_id": "speed",
+          "target_speed": 128
+        }
+      ],
+      "natures": [
+        {
+          "identifier": "quirky",
+          "label": "Quirky",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "careful",
+          "label": "Careful",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "sassy",
+          "label": "Sassy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.1,
+            0.9
+          ]
+        },
+        {
+          "identifier": "gentle",
+          "label": "Gentle",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "calm",
+          "label": "Calm",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.1,
+            1.0
+          ]
+        },
+        {
+          "identifier": "rash",
+          "label": "Rash",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bashful",
+          "label": "Bashful",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "quiet",
+          "label": "Quiet",
+          "modifier": [
+            1.0,
+            1.0,
+            1.1,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "mild",
+          "label": "Mild",
+          "modifier": [
+            1.0,
+            0.9,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "modest",
+          "label": "Modest",
+          "modifier": [
+            0.9,
+            1.0,
+            1.1,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naive",
+          "label": "Naive",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            0.9,
+            1.1
+          ]
+        },
+        {
+          "identifier": "jolly",
+          "label": "Jolly",
+          "modifier": [
+            1.0,
+            1.0,
+            0.9,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "serious",
+          "label": "Serious",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hasty",
+          "label": "Hasty",
+          "modifier": [
+            1.0,
+            0.9,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "timid",
+          "label": "Timid",
+          "modifier": [
+            0.9,
+            1.0,
+            1.0,
+            1.0,
+            1.1
+          ]
+        },
+        {
+          "identifier": "lax",
+          "label": "Lax",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "impish",
+          "label": "Impish",
+          "modifier": [
+            1.0,
+            1.1,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "relaxed",
+          "label": "Relaxed",
+          "modifier": [
+            1.0,
+            1.1,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "docile",
+          "label": "Docile",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "bold",
+          "label": "Bold",
+          "modifier": [
+            0.9,
+            1.1,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "naughty",
+          "label": "Naughty",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            0.9,
+            1.0
+          ]
+        },
+        {
+          "identifier": "adamant",
+          "label": "Adamant",
+          "modifier": [
+            1.1,
+            1.0,
+            0.9,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "brave",
+          "label": "Brave",
+          "modifier": [
+            1.1,
+            1.0,
+            1.0,
+            1.0,
+            0.9
+          ]
+        },
+        {
+          "identifier": "lonely",
+          "label": "Lonely",
+          "modifier": [
+            1.1,
+            0.9,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "identifier": "hardy",
+          "label": "Hardy",
+          "modifier": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
     }
   ],
   "schema_version": 1

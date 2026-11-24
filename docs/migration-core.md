@@ -137,3 +137,20 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 - 三个正式 golden 各自在写入前再次通过原公开 WithSpeed 用例和完整伤害 oracle：damage-only、严格同速不可达、混合自定义速度 snapshot；不是从未经对照的 C++ 输出直接冻结。
 
 纯源、专属 codec、runner 与原生测试已登记 CMake；公共 `abi.cpp` Operation/dispatch、.8 engine/rules 和 Go/Swift 由主 agent 统一接入，未冒称 .7 已可调用该新操作。完整 EV/IV/性格反推与事件分析继续迁移，不能以本模板搜索替代真正 EV 搜索。冻结源文件清单见本证据根 `frozen-sources.sha256`。
+
+## 实际 WithSpeed EV/IV/性格反推（2026-11-24，待公共注册）
+
+`configuration_spread_search.hpp/.cpp` 直接迁移实际 HTTP 使用的 `SearchPokemonStatSpreadsWithSpeedUseCase.execute`。完整 25 性格事实由知识边界注入，Core 根据当前目标相关轴合并等价性格，保留原偏好代表和全部可选性格顺序。攻击/特攻、严格速度和防御/特防分别使用原 4EV 网格二分，遍历 HP 权衡，在构造能力分布前执行 510 总量过滤，再以同一 `ConfigurationGoalEvaluator` 验收全部伤害与速度目标。相同组和六项实际能力按原成本选代表，全体排序后才取原 max_candidates；没有用十模板、预构造状态 Cartesian 积或外层 Go 搜索替代真正反推。
+
+最终候选保留原稳定 candidate_id、EV、6V、六项实际能力、等价性格与全部双类目标证据。EV/IV 六个区间按原整数二分计算，表示其余五项固定在代表值时该单项独立可调整的范围，不能任意联合组合。没有速度目标时代表 Speed EV=0、IV=31，但 IV 安全下界可以为 0；无解保留首性格组的零 EV/6V 基线全部证据，不自动放宽目标。取消整体失败，没有增加原需求外搜索预算。
+
+正式 `configuration_spread_search_contract.hpp/.cpp` 提供 `ConfigurationSpreadSearchRequest`、`ReadConfigurationSpreadSearchRequest` 与 `EvaluateConfigurationSpreadSearch`，操作名 `configuration_spread_search`。输入仅有 subject_base、25 性格、已准备目标和规则/相克知识，不接受已求解候选。模板 codec 的目标读取与目标/能力/速度结果投影已提升为同一内部共享函数，模板公开合同不变，避免两个求解入口出现不同伤害上下文或输出证据。差分 runner 直接执行正式 codec；独立三项 golden 保存在 `tests/vectors/configuration-spread-search.v1.json`。
+
+证据根 `configuration-spread-search-20261124/`：
+
+- `registered-ctest.log`：新增四项真实反推边界与全部旧 Core/ABI/C 头 **87/87 CTest PASS**（1.93 秒）。
+- `registered-differential.log`：模板共享 codec 回归三项及 EV 完整差分两项 **5/5 pytest PASS**（24.45 秒）。EV 对照 **36** 个原公开 WithSpeed execute，其中 **24** 个纯伤害/纯速度/混合和 **12** 个同一配置四轴攻防加可选速度的完整案例，逐字段比较全部候选 ID/成本顺序、等价性格、EV/IV、六项独立范围、全部目标及完整伤害 roll/trace/KO、无解基线。
+- `asan-ctest.log`：登记 EV 纯源后的完整纯 Core **68/68 ASan/UBSan/leak CTest PASS**（3.59 秒），独立 Debug 缓存 `/build/p1-job-pure-san`。
+- 三个专属 golden 在写入前逐例通过原完整公开搜索与伤害 oracle：严格速度、攻击与速度混合、最大速度同速不可达。
+
+该批纯源、专属 codec、runner 和测试已登记 CMake，公共 ABI Operation/dispatch 和版本由主 agent 统一接入。事件查询/产品图/反事实和配置事件聚合仍在迁移，不能将本批证据解释成 P1 全部完成。

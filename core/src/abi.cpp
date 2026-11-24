@@ -8,6 +8,8 @@
 #include "graph_contract.hpp"
 #include "turn_contract.hpp"
 #include "configuration_contract.hpp"
+#include "configuration_goals_contract.hpp"
+#include "configuration_spread_search_contract.hpp"
 
 #include <nlohmann/json.hpp>
 #include "pbi/cancellation.hpp"
@@ -49,7 +51,7 @@ struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
 struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
 /// 完整能力配置复用领域性格选择和能力公式。
 struct ProfileRequest { pbi::StatProfile input; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest, TurnRequest, FixedBattleRequest, ConfigurationStatsRequest, ConfigurationMovesRequest, ConfigurationSpaceRequest, ConfigurationCoverageRequest, JobMovePoolRequest>;
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest, TurnRequest, FixedBattleRequest, ConfigurationStatsRequest, ConfigurationMovesRequest, ConfigurationSpaceRequest, ConfigurationCoverageRequest, JobMovePoolRequest, ConfigurationTemplatesRequest, ConfigurationSpreadSearchRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
@@ -124,6 +126,8 @@ std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t 
   if (kind == "configuration_space") return {ReadConfigurationSpaceRequest(object, stop), 0};
   if (kind == "configuration_coverage") return {ReadConfigurationCoverageRequest(object, stop), 0};
   if (kind == "job_move_pool") return {ReadJobMovePoolRequest(object, stop), 0};
+  if (kind == "configuration_templates") return {ReadConfigurationTemplatesRequest(object, stop), 0};
+  if (kind == "configuration_spread_search") return {ReadConfigurationSpreadSearchRequest(object, stop), 0};
   if (kind == "battle_turn") {
     auto request = ReadTurnRequest(object, remaining_rolls);
     const auto consumed = request.state.View().rules.View().damage_policy.random_damage_multipliers.size();
@@ -220,7 +224,7 @@ Json Evaluate(const LegalActionsRequest& request) { return EvaluateLegalActions(
 
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v7"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v8"}};
 }
 
 /// 按操作编码完整结果并限制整批内存；失败前不提交外部字节，也不积累所有图的 JSON 树。
@@ -366,6 +370,8 @@ pbi_status_v1 pbi_v1_compute_with_progress(const std::uint8_t* request, std::siz
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationSpaceRequest>) return EvaluateConfigurationSpace(value, stop);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationCoverageRequest>) return EvaluateConfigurationCoverage(value, stop);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, JobMovePoolRequest>) return EvaluateJobMovePool(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationTemplatesRequest>) return EvaluateConfigurationTemplates(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationSpreadSearchRequest>) return EvaluateConfigurationSpreadSearch(value, stop);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, FixedBattleRequest>) {
           pbi::GraphProgressObserver observer;
           if (progress) observer = [progress, user_data, index](const pbi::GraphBuildProgress& current) {

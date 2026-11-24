@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.7.0",
+  "engine_version": "0.8.0",
   "results": [
     {
       "kind": "hp",
@@ -2498,8 +2498,1006 @@
       "kind": "job_move_pool",
       "next_offset": 3,
       "offset": 1
+    },
+    {
+      "kind": "configuration_templates",
+      "reachable": true,
+      "candidates": [
+        {
+          "preset_key": "max_atk_plus",
+          "stats": {
+            "hp": 145,
+            "attack": 200,
+            "defense": 120,
+            "special_attack": 75,
+            "special_defense": 100,
+            "speed": 85
+          },
+          "goals": [
+            {
+              "goal_id": "attack",
+              "kind": "attack",
+              "subject_role": "attacker",
+              "satisfied": true,
+              "damage": {
+                "kind": "damage",
+                "damage_ruleset_id": "python-compatible.gen9.v1",
+                "rolls": [
+                  109,
+                  110,
+                  112,
+                  113,
+                  114,
+                  116,
+                  117,
+                  118,
+                  119,
+                  121,
+                  122,
+                  123,
+                  125,
+                  126,
+                  127,
+                  129
+                ],
+                "defender_hp": 170,
+                "base_damage": 43,
+                "trace": [
+                  {
+                    "key": "stab",
+                    "stage": "stab",
+                    "source": "stab",
+                    "reason": "Same-type attack bonus.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "type_effectiveness",
+                    "stage": "type_effectiveness",
+                    "source": "type_effectiveness",
+                    "reason": "Type effectiveness multiplier.",
+                    "multiplier": 2.0,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "random",
+                    "stage": "random",
+                    "source": "random",
+                    "reason": "Pokemon damage random roll range.",
+                    "multiplier": null,
+                    "min_multiplier": 0.85,
+                    "max_multiplier": 1.0
+                  }
+                ],
+                "ohko": {
+                  "numerator": "0",
+                  "denominator": "1"
+                },
+                "two_hit": {
+                  "numerator": "1",
+                  "denominator": "1"
+                },
+                "guaranteed_ohko": false,
+                "guaranteed_two_hit": true
+              },
+              "selected_damage": 109,
+              "repetitions": 2,
+              "total_damage": "218",
+              "hp_threshold": 170,
+              "remaining_hp": "0",
+              "effective_attack": 200,
+              "effective_defense": 85,
+              "roll_policy": "min"
+            }
+          ],
+          "speed_goals": []
+        },
+        {
+          "preset_key": "max_atk_neutral",
+          "stats": {
+            "hp": 145,
+            "attack": 182,
+            "defense": 120,
+            "special_attack": 75,
+            "special_defense": 100,
+            "speed": 85
+          },
+          "goals": [
+            {
+              "goal_id": "attack",
+              "kind": "attack",
+              "subject_role": "attacker",
+              "satisfied": true,
+              "damage": {
+                "kind": "damage",
+                "damage_ruleset_id": "python-compatible.gen9.v1",
+                "rolls": [
+                  99,
+                  100,
+                  101,
+                  102,
+                  104,
+                  105,
+                  106,
+                  107,
+                  108,
+                  109,
+                  111,
+                  112,
+                  113,
+                  114,
+                  115,
+                  117
+                ],
+                "defender_hp": 170,
+                "base_damage": 39,
+                "trace": [
+                  {
+                    "key": "stab",
+                    "stage": "stab",
+                    "source": "stab",
+                    "reason": "Same-type attack bonus.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "type_effectiveness",
+                    "stage": "type_effectiveness",
+                    "source": "type_effectiveness",
+                    "reason": "Type effectiveness multiplier.",
+                    "multiplier": 2.0,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "random",
+                    "stage": "random",
+                    "source": "random",
+                    "reason": "Pokemon damage random roll range.",
+                    "multiplier": null,
+                    "min_multiplier": 0.85,
+                    "max_multiplier": 1.0
+                  }
+                ],
+                "ohko": {
+                  "numerator": "0",
+                  "denominator": "1"
+                },
+                "two_hit": {
+                  "numerator": "1",
+                  "denominator": "1"
+                },
+                "guaranteed_ohko": false,
+                "guaranteed_two_hit": true
+              },
+              "selected_damage": 99,
+              "repetitions": 2,
+              "total_damage": "198",
+              "hp_threshold": 170,
+              "remaining_hp": "0",
+              "effective_attack": 182,
+              "effective_defense": 85,
+              "roll_policy": "min"
+            }
+          ],
+          "speed_goals": []
+        }
+      ],
+      "rejected_goals": [],
+      "rejected_speed_goals": []
+    },
+    {
+      "kind": "configuration_templates",
+      "reachable": false,
+      "candidates": [],
+      "rejected_goals": [],
+      "rejected_speed_goals": [
+        {
+          "goal_id": "tie",
+          "satisfied": false,
+          "subject_speed": 85,
+          "target_speed": 85,
+          "speed_margin": 0
+        }
+      ]
+    },
+    {
+      "kind": "configuration_templates",
+      "reachable": true,
+      "candidates": [
+        {
+          "preset_key": "preset-snapshot:eyJldnMiOnsiYXR0YWNrIjowLCJkZWZlbnNlIjowLCJocCI6MCwic3BlY2lhbF9hdHRhY2siOjAsInNwZWNpYWxfZGVmZW5zZSI6MCwic3BlZWQiOjI1Mn0sIml2cyI6eyJhdHRhY2siOjMxLCJkZWZlbnNlIjozMSwiaHAiOjMxLCJzcGVjaWFsX2F0dGFjayI6MzEsInNwZWNpYWxfZGVmZW5zZSI6MzEsInNwZWVkIjozMX0sImtleSI6ImdvbGRlbi1zcGVlZCIsImxhYmVsIjoiU3BlZWQgc25hcHNob3QiLCJuYXR1cmVfaWQiOiJqb2xseSIsInNvdXJjZSI6ImN1c3RvbSJ9",
+          "stats": {
+            "hp": 145,
+            "attack": 150,
+            "defense": 120,
+            "special_attack": 67,
+            "special_defense": 100,
+            "speed": 128
+          },
+          "goals": [
+            {
+              "goal_id": "attack",
+              "kind": "attack",
+              "subject_role": "attacker",
+              "satisfied": true,
+              "damage": {
+                "kind": "damage",
+                "damage_ruleset_id": "python-compatible.gen9.v1",
+                "rolls": [
+                  122,
+                  123,
+                  125,
+                  126,
+                  128,
+                  129,
+                  131,
+                  132,
+                  133,
+                  135,
+                  136,
+                  138,
+                  139,
+                  141,
+                  142,
+                  144
+                ],
+                "defender_hp": 170,
+                "base_damage": 48,
+                "trace": [
+                  {
+                    "key": "ability:technician",
+                    "stage": "base_power",
+                    "source": "ability:technician",
+                    "reason": "Technician boosts moves with base power 60 or lower.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "stab",
+                    "stage": "stab",
+                    "source": "stab",
+                    "reason": "Same-type attack bonus.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "type_effectiveness",
+                    "stage": "type_effectiveness",
+                    "source": "type_effectiveness",
+                    "reason": "Type effectiveness multiplier.",
+                    "multiplier": 2.0,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "random",
+                    "stage": "random",
+                    "source": "random",
+                    "reason": "Pokemon damage random roll range.",
+                    "multiplier": null,
+                    "min_multiplier": 0.85,
+                    "max_multiplier": 1.0
+                  }
+                ],
+                "ohko": {
+                  "numerator": "0",
+                  "denominator": "1"
+                },
+                "two_hit": {
+                  "numerator": "1",
+                  "denominator": "1"
+                },
+                "guaranteed_ohko": false,
+                "guaranteed_two_hit": true
+              },
+              "selected_damage": 122,
+              "repetitions": 2,
+              "total_damage": "244",
+              "hp_threshold": 170,
+              "remaining_hp": "0",
+              "effective_attack": 150,
+              "effective_defense": 85,
+              "roll_policy": "min"
+            }
+          ],
+          "speed_goals": [
+            {
+              "goal_id": "speed",
+              "satisfied": true,
+              "subject_speed": 128,
+              "target_speed": 123,
+              "speed_margin": 5
+            }
+          ]
+        }
+      ],
+      "rejected_goals": [],
+      "rejected_speed_goals": []
+    },
+    {
+      "kind": "configuration_spread_search",
+      "reachable": true,
+      "candidates": [
+        {
+          "candidate_id": "spread-1-jolly-0-0-0-0-0-0",
+          "nature_id": "jolly",
+          "nature_label": "Jolly",
+          "nature_options": [
+            {
+              "identifier": "jolly",
+              "label": "Jolly"
+            },
+            {
+              "identifier": "timid",
+              "label": "Timid"
+            },
+            {
+              "identifier": "hasty",
+              "label": "Hasty"
+            },
+            {
+              "identifier": "naive",
+              "label": "Naive"
+            }
+          ],
+          "evs": {
+            "hp": 0,
+            "attack": 0,
+            "defense": 0,
+            "special_attack": 0,
+            "special_defense": 0,
+            "speed": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "attack": 31,
+            "defense": 31,
+            "special_attack": 31,
+            "special_defense": 31,
+            "speed": 31
+          },
+          "ev_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            }
+          ],
+          "iv_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 18,
+              "maximum": 31
+            }
+          ],
+          "stats": {
+            "hp": 145,
+            "attack": 150,
+            "defense": 120,
+            "special_attack": 67,
+            "special_defense": 100,
+            "speed": 93
+          },
+          "goals": [],
+          "speed_goals": [
+            {
+              "goal_id": "speed",
+              "satisfied": true,
+              "subject_speed": 93,
+              "target_speed": 85,
+              "speed_margin": 8
+            }
+          ]
+        },
+        {
+          "candidate_id": "spread-2-adamant-0-0-0-0-0-4",
+          "nature_id": "adamant",
+          "nature_label": "Adamant",
+          "nature_options": [
+            {
+              "identifier": "adamant",
+              "label": "Adamant"
+            },
+            {
+              "identifier": "modest",
+              "label": "Modest"
+            },
+            {
+              "identifier": "bold",
+              "label": "Bold"
+            },
+            {
+              "identifier": "calm",
+              "label": "Calm"
+            },
+            {
+              "identifier": "impish",
+              "label": "Impish"
+            },
+            {
+              "identifier": "careful",
+              "label": "Careful"
+            },
+            {
+              "identifier": "hardy",
+              "label": "Hardy"
+            },
+            {
+              "identifier": "docile",
+              "label": "Docile"
+            },
+            {
+              "identifier": "serious",
+              "label": "Serious"
+            },
+            {
+              "identifier": "bashful",
+              "label": "Bashful"
+            },
+            {
+              "identifier": "quirky",
+              "label": "Quirky"
+            },
+            {
+              "identifier": "lonely",
+              "label": "Lonely"
+            },
+            {
+              "identifier": "naughty",
+              "label": "Naughty"
+            },
+            {
+              "identifier": "lax",
+              "label": "Lax"
+            },
+            {
+              "identifier": "mild",
+              "label": "Mild"
+            },
+            {
+              "identifier": "rash",
+              "label": "Rash"
+            },
+            {
+              "identifier": "gentle",
+              "label": "Gentle"
+            }
+          ],
+          "evs": {
+            "hp": 0,
+            "attack": 0,
+            "defense": 0,
+            "special_attack": 0,
+            "special_defense": 0,
+            "speed": 4
+          },
+          "ivs": {
+            "hp": 31,
+            "attack": 31,
+            "defense": 31,
+            "special_attack": 31,
+            "special_defense": 31,
+            "speed": 31
+          },
+          "ev_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 4,
+              "maximum": 252
+            }
+          ],
+          "iv_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 31,
+              "maximum": 31
+            }
+          ],
+          "stats": {
+            "hp": 145,
+            "attack": 165,
+            "defense": 120,
+            "special_attack": 67,
+            "special_defense": 100,
+            "speed": 86
+          },
+          "goals": [],
+          "speed_goals": [
+            {
+              "goal_id": "speed",
+              "satisfied": true,
+              "subject_speed": 86,
+              "target_speed": 85,
+              "speed_margin": 1
+            }
+          ]
+        }
+      ],
+      "rejected_goals": [],
+      "rejected_speed_goals": []
+    },
+    {
+      "kind": "configuration_spread_search",
+      "reachable": true,
+      "candidates": [
+        {
+          "candidate_id": "spread-1-jolly-0-0-0-0-0-0",
+          "nature_id": "jolly",
+          "nature_label": "Jolly",
+          "nature_options": [
+            {
+              "identifier": "jolly",
+              "label": "Jolly"
+            },
+            {
+              "identifier": "hasty",
+              "label": "Hasty"
+            },
+            {
+              "identifier": "naive",
+              "label": "Naive"
+            }
+          ],
+          "evs": {
+            "hp": 0,
+            "attack": 0,
+            "defense": 0,
+            "special_attack": 0,
+            "special_defense": 0,
+            "speed": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "attack": 31,
+            "defense": 31,
+            "special_attack": 31,
+            "special_defense": 31,
+            "speed": 31
+          },
+          "ev_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            }
+          ],
+          "iv_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 18,
+              "maximum": 31
+            }
+          ],
+          "stats": {
+            "hp": 145,
+            "attack": 150,
+            "defense": 120,
+            "special_attack": 67,
+            "special_defense": 100,
+            "speed": 93
+          },
+          "goals": [
+            {
+              "goal_id": "attack",
+              "kind": "attack",
+              "subject_role": "attacker",
+              "satisfied": true,
+              "damage": {
+                "kind": "damage",
+                "damage_ruleset_id": "python-compatible.gen9.v1",
+                "rolls": [
+                  122,
+                  123,
+                  125,
+                  126,
+                  128,
+                  129,
+                  131,
+                  132,
+                  133,
+                  135,
+                  136,
+                  138,
+                  139,
+                  141,
+                  142,
+                  144
+                ],
+                "defender_hp": 170,
+                "base_damage": 48,
+                "trace": [
+                  {
+                    "key": "ability:technician",
+                    "stage": "base_power",
+                    "source": "ability:technician",
+                    "reason": "Technician boosts moves with base power 60 or lower.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "stab",
+                    "stage": "stab",
+                    "source": "stab",
+                    "reason": "Same-type attack bonus.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "type_effectiveness",
+                    "stage": "type_effectiveness",
+                    "source": "type_effectiveness",
+                    "reason": "Type effectiveness multiplier.",
+                    "multiplier": 2.0,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "random",
+                    "stage": "random",
+                    "source": "random",
+                    "reason": "Pokemon damage random roll range.",
+                    "multiplier": null,
+                    "min_multiplier": 0.85,
+                    "max_multiplier": 1.0
+                  }
+                ],
+                "ohko": {
+                  "numerator": "0",
+                  "denominator": "1"
+                },
+                "two_hit": {
+                  "numerator": "1",
+                  "denominator": "1"
+                },
+                "guaranteed_ohko": false,
+                "guaranteed_two_hit": true
+              },
+              "selected_damage": 122,
+              "repetitions": 2,
+              "total_damage": "244",
+              "hp_threshold": 170,
+              "remaining_hp": "0",
+              "effective_attack": 150,
+              "effective_defense": 85,
+              "roll_policy": "min"
+            }
+          ],
+          "speed_goals": [
+            {
+              "goal_id": "speed",
+              "satisfied": true,
+              "subject_speed": 93,
+              "target_speed": 85,
+              "speed_margin": 8
+            }
+          ]
+        },
+        {
+          "candidate_id": "spread-2-timid-0-0-0-0-0-0",
+          "nature_id": "timid",
+          "nature_label": "Timid",
+          "nature_options": [
+            {
+              "identifier": "timid",
+              "label": "Timid"
+            }
+          ],
+          "evs": {
+            "hp": 0,
+            "attack": 0,
+            "defense": 0,
+            "special_attack": 0,
+            "special_defense": 0,
+            "speed": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "attack": 31,
+            "defense": 31,
+            "special_attack": 31,
+            "special_defense": 31,
+            "speed": 31
+          },
+          "ev_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            },
+            {
+              "minimum": 0,
+              "maximum": 252
+            }
+          ],
+          "iv_ranges": [
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 0,
+              "maximum": 31
+            },
+            {
+              "minimum": 18,
+              "maximum": 31
+            }
+          ],
+          "stats": {
+            "hp": 145,
+            "attack": 135,
+            "defense": 120,
+            "special_attack": 75,
+            "special_defense": 100,
+            "speed": 93
+          },
+          "goals": [
+            {
+              "goal_id": "attack",
+              "kind": "attack",
+              "subject_role": "attacker",
+              "satisfied": true,
+              "damage": {
+                "kind": "damage",
+                "damage_ruleset_id": "python-compatible.gen9.v1",
+                "rolls": [
+                  109,
+                  110,
+                  112,
+                  113,
+                  114,
+                  116,
+                  117,
+                  118,
+                  119,
+                  121,
+                  122,
+                  123,
+                  125,
+                  126,
+                  127,
+                  129
+                ],
+                "defender_hp": 170,
+                "base_damage": 43,
+                "trace": [
+                  {
+                    "key": "ability:technician",
+                    "stage": "base_power",
+                    "source": "ability:technician",
+                    "reason": "Technician boosts moves with base power 60 or lower.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "stab",
+                    "stage": "stab",
+                    "source": "stab",
+                    "reason": "Same-type attack bonus.",
+                    "multiplier": 1.5,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "type_effectiveness",
+                    "stage": "type_effectiveness",
+                    "source": "type_effectiveness",
+                    "reason": "Type effectiveness multiplier.",
+                    "multiplier": 2.0,
+                    "min_multiplier": null,
+                    "max_multiplier": null
+                  },
+                  {
+                    "key": "random",
+                    "stage": "random",
+                    "source": "random",
+                    "reason": "Pokemon damage random roll range.",
+                    "multiplier": null,
+                    "min_multiplier": 0.85,
+                    "max_multiplier": 1.0
+                  }
+                ],
+                "ohko": {
+                  "numerator": "0",
+                  "denominator": "1"
+                },
+                "two_hit": {
+                  "numerator": "1",
+                  "denominator": "1"
+                },
+                "guaranteed_ohko": false,
+                "guaranteed_two_hit": true
+              },
+              "selected_damage": 109,
+              "repetitions": 2,
+              "total_damage": "218",
+              "hp_threshold": 170,
+              "remaining_hp": "0",
+              "effective_attack": 135,
+              "effective_defense": 85,
+              "roll_policy": "min"
+            }
+          ],
+          "speed_goals": [
+            {
+              "goal_id": "speed",
+              "satisfied": true,
+              "subject_speed": 93,
+              "target_speed": 85,
+              "speed_margin": 8
+            }
+          ]
+        }
+      ],
+      "rejected_goals": [],
+      "rejected_speed_goals": []
+    },
+    {
+      "kind": "configuration_spread_search",
+      "reachable": false,
+      "candidates": [],
+      "rejected_goals": [],
+      "rejected_speed_goals": [
+        {
+          "goal_id": "speed",
+          "satisfied": false,
+          "subject_speed": 85,
+          "target_speed": 128,
+          "speed_margin": -43
+        }
+      ]
     }
   ],
-  "rules_version": "calculation-rules.v7",
+  "rules_version": "calculation-rules.v8",
   "schema_version": 1
 }

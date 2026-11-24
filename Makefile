@@ -75,6 +75,9 @@ export PBI_CONFIGURATION_STATS_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_sta
 export PBI_CONFIGURATION_MOVES_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_moves_vectors
 export PBI_CONFIGURATION_SPACE_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_space_vectors
 export PBI_JOB_MOVE_POOL_RUNNER := $(CORE_BUILD_DIR)/pbi_job_move_pool_vectors
+export PBI_CONFIGURATION_GOALS_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_goals_vectors
+export PBI_CONFIGURATION_AGGREGATE_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_aggregate_vectors
+export PBI_CONFIGURATION_SPREAD_SEARCH_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_spread_search_vectors
 
 .PHONY: test-bindings test-native
 test-bindings: test-core

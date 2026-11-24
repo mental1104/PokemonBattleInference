@@ -10,22 +10,23 @@ void CheckStop(CancellationToken stop) {
 void RequireArray(const Json& value) {
   if (!value.is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "configuration goal field must be an array");
 }
-/// @param value 完整共享Pokemon快照；@param level 原统一等级；@return 原静态上下文实际消费字段。
-ConfigurationGoalPokemon ReadGoalPokemon(const Json& value, std::int32_t level) {
-  const auto pokemon = ReadPokemon(value);
-  if (pokemon.level != level || pokemon.can_evolve || pokemon.grounding) {
-    throw RequestError(PBI_INVALID_INPUT_V1, "configuration goals require a shared level and reference static Pokemon context");
-  }
-  return {pokemon.types, pokemon.stats, pokemon.ability, pokemon.item};
-}
 /// @param value 固定六项数组；@return 完整投入数据，不计算能力或推测缺省值。
 BattleStats ReadSpread(const Json& value) {
   RequireArray(value);
   if (value.size() != 6) throw RequestError(PBI_INVALID_INPUT_V1, "configuration spread must contain six values");
   return {ReadInt32(value[0]), ReadInt32(value[1]), ReadInt32(value[2]), ReadInt32(value[3]), ReadInt32(value[4]), ReadInt32(value[5])};
 }
-/// @param value 完整原目标；@param level 统一等级；@return 不含预先满足性/伤害的类型化目标。
-ConfigurationDamageGoal ReadGoal(const Json& value, std::int32_t level) {
+} // namespace
+
+ConfigurationGoalPokemon ReadConfigurationGoalPokemon(const Json& value, std::int32_t level) {
+  const auto pokemon = ReadPokemon(value);
+  if (pokemon.level != level || pokemon.can_evolve || pokemon.grounding) {
+    throw RequestError(PBI_INVALID_INPUT_V1, "configuration goals require a shared level and reference static Pokemon context");
+  }
+  return {pokemon.types, pokemon.stats, pokemon.ability, pokemon.item};
+}
+
+ConfigurationDamageGoal ReadConfigurationDamageGoal(const Json& value, std::int32_t level) {
   RequireSchema(value, {"goal_id", "kind", "target", "move"}, {"required_turns", "roll_policy"});
   const auto kind = ReadEnum<ConfigurationGoalKind>(value.at("kind"), std::array<std::string_view, 2>{"attack", "defense"});
   const auto& move = value.at("move");
@@ -34,19 +35,19 @@ ConfigurationDamageGoal ReadGoal(const Json& value, std::int32_t level) {
   std::optional<ConfigurationDamageRollPolicy> policy;
   if (value.contains("roll_policy") && !value.at("roll_policy").is_null()) policy = ReadEnum<ConfigurationDamageRollPolicy>(
       value.at("roll_policy"), std::array<std::string_view, 2>{"min", "max"});
-  return {value.at("goal_id").get<std::string>(), kind, ReadGoalPokemon(value.at("target"), level),
+  return {value.at("goal_id").get<std::string>(), kind, ReadConfigurationGoalPokemon(value.at("target"), level),
       {static_cast<PokemonType>(ReadInt32(move.at("type"))), category, ReadInt32(move.at("power"))},
       value.contains("required_turns") ? ReadInt32(value.at("required_turns")) : 1, policy};
 }
 /// @param goals 原全部速度证据；@return 不在codec重算比较/margin的完整投影。
-Json SpeedGoalsJson(const std::vector<ConfigurationSpeedGoalResult>& goals) {
+Json ConfigurationSpeedGoalResultsJson(const std::vector<ConfigurationSpeedGoalResult>& goals) {
   auto result = Json::array();
   for (const auto& goal : goals) result.push_back({{"goal_id", goal.goal_id}, {"satisfied", goal.satisfied},
       {"subject_speed", goal.subject_speed}, {"target_speed", goal.target_speed}, {"speed_margin", goal.speed_margin}});
   return result;
 }
 /// @param goals 原全部伤害目标证据；@param generation 原固定代际；@return 目标与完整伤害投影。
-Json GoalsJson(const std::vector<ConfigurationDamageGoalResult>& goals, std::int32_t generation) {
+Json ConfigurationGoalResultsJson(const std::vector<ConfigurationDamageGoalResult>& goals, std::int32_t generation) {
   auto result = Json::array();
   for (const auto& goal : goals) result.push_back({{"goal_id", goal.goal_id}, {"kind", goal.kind == ConfigurationGoalKind::attack ? "attack" : "defense"},
       {"subject_role", goal.kind == ConfigurationGoalKind::attack ? "attacker" : "defender"}, {"satisfied", goal.satisfied},
@@ -57,10 +58,9 @@ Json GoalsJson(const std::vector<ConfigurationDamageGoalResult>& goals, std::int
   return result;
 }
 /// @param stats 原能力输出；@return 与其他Core操作一致的六字段值。
-Json StatsJson(const BattleStats& stats) {
+Json ConfigurationStatsJson(const BattleStats& stats) {
   return {{"hp", stats.hp}, {"attack", stats.attack}, {"defense", stats.defense}, {"special_attack", stats.special_attack}, {"special_defense", stats.special_defense}, {"speed", stats.speed}};
 }
-} // namespace
 
 ConfigurationTemplatesRequest ReadConfigurationTemplatesRequest(const Json& value, CancellationToken stop) {
   CheckStop(stop);
@@ -71,7 +71,7 @@ ConfigurationTemplatesRequest ReadConfigurationTemplatesRequest(const Json& valu
   auto policy = DamagePolicyForGeneration(generation);
   if (value.contains("policy")) policy = ReadPolicy(value.at("policy"), std::move(policy));
   const auto base = ReadPokemon(value.at("subject_base"));
-  static_cast<void>(ReadGoalPokemon(value.at("subject_base"), base.level));
+  static_cast<void>(ReadConfigurationGoalPokemon(value.at("subject_base"), base.level));
   ConfigurationTemplateSolveInput input;
   input.subject = {base.stats, base.types, base.level, base.ability, base.item};
   if (value.contains("allowed_stat_presets")) {
@@ -100,7 +100,7 @@ ConfigurationTemplatesRequest ReadConfigurationTemplatesRequest(const Json& valu
   }
   if (value.contains("goals")) {
     RequireArray(value.at("goals"));
-    for (const auto& goal : value.at("goals")) { CheckStop(stop); input.goals.push_back(ReadGoal(goal, base.level)); }
+    for (const auto& goal : value.at("goals")) { CheckStop(stop); input.goals.push_back(ReadConfigurationDamageGoal(goal, base.level)); }
   }
   if (value.contains("speed_goals")) {
     RequireArray(value.at("speed_goals"));
@@ -119,9 +119,9 @@ Json EvaluateConfigurationTemplates(const ConfigurationTemplatesRequest& request
   const auto solved = evaluator.SolveTemplates(request.input);
   CheckStop(stop);
   auto candidates = Json::array();
-  for (const auto& candidate : solved.candidates) candidates.push_back({{"preset_key", candidate.preset_key}, {"stats", StatsJson(candidate.stats)},
-      {"goals", GoalsJson(candidate.goals, request.generation)}, {"speed_goals", SpeedGoalsJson(candidate.speed_goals)}});
+  for (const auto& candidate : solved.candidates) candidates.push_back({{"preset_key", candidate.preset_key}, {"stats", ConfigurationStatsJson(candidate.stats)},
+      {"goals", ConfigurationGoalResultsJson(candidate.goals, request.generation)}, {"speed_goals", ConfigurationSpeedGoalResultsJson(candidate.speed_goals)}});
   return {{"kind", "configuration_templates"}, {"reachable", solved.Reachable()}, {"candidates", std::move(candidates)},
-      {"rejected_goals", GoalsJson(solved.rejected_goals, request.generation)}, {"rejected_speed_goals", SpeedGoalsJson(solved.rejected_speed_goals)}};
+      {"rejected_goals", ConfigurationGoalResultsJson(solved.rejected_goals, request.generation)}, {"rejected_speed_goals", ConfigurationSpeedGoalResultsJson(solved.rejected_speed_goals)}};
 }
 } // namespace pbi::contract

@@ -88,3 +88,13 @@ raw 预算均作用于归并前合法原始成员，而不是归并后的类数�
 无效字段/值为 INVALID_INPUT，未知规则/机制字符集为 UNSUPPORTED，能力 int32 溢出与分配失败为 RESOURCE_LIMIT，真实取消为 CANCELLED。计算复用同一 portable CancellationToken，捕获普通 runtime_error 时仅在令牌真实已请求取消才映射 CANCELLED；其他内部错误不冒充取消。
 
 这五种操作不伪造构图进度。原 compute_with_progress 仍只在真实 fixed_battle 构图时产生已有 building/built 帧。
+
+## 0.8 模板目标与完整 EV 搜索
+
+`configuration_templates` 和 `configuration_spread_search` 均接收 `kind` 与完整 `input` 快照，不读取数据库或在Go/Swift计算能力值。完整请求/结果的权威示例分别为 `tests/vectors/configuration-templates.v1.json`、`configuration-spread-search.v1.json`，其 expected 由原公开 WithSpeed 用例与完整伤害链逐例生成，再追加到三语言共享向量；既有19项输入/数学结果保持不变。
+
+模板操作保留原模板顺序、显式模板去重、原 max_candidates 提前停止及首个失败的完整伤害/速度证据。速度目标使用原严格大于，同速不满足；伤害和速度目标共用原ID空间，支持单类与混合目标，不擅自添加状态或道具速度修正。
+
+EV操作保留原4EV网格、25种性格等价分组、四种攻防目标与可选速度目标、510总量剪枝、候选排序，以及每项EV/IV独立安全区间。独立范围不表示它们的任意笛卡尔组合都安全。无解返回原基线及双类失败证据，不构造胜率或默认可达状态。
+
+两个操作仍遵守整体8MiB输入、32MiB输出、整批原子失败及同源取消。没有为提高通过率新增原接口不存在的默认搜索截断预算。
