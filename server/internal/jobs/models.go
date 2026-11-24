@@ -255,6 +255,7 @@ type Result struct {
 	Nodes, Edges, Budget           int64
 	Explanation                    *string
 	FailureCode, Diagnostic        *string
+	Metadata                       *ExecutionMetadata
 }
 
 // ValidFailureCode 判断 code 是否属于原结果/诊断查询合同，不接受任意数据库文本作为有效过滤枚举。
@@ -319,6 +320,13 @@ func (result Result) Normalize() (Result, error) {
 		if !ValidFailureCode(*result.FailureCode) {
 			return result, errors.New("unknown inference failure code")
 		}
+	}
+	if result.Metadata != nil {
+		metadata, err := result.Metadata.normalized()
+		if err != nil {
+			return result, err
+		}
+		result.Metadata = metadata
 	}
 	return result, nil
 }

@@ -233,7 +233,11 @@ func applyResult(ctx context.Context, tx *sql.Tx, id, pair string, now time.Time
 		en, ed = fractionParts(result.ExpectedTurns.Value)
 	}
 	_, err := tx.ExecContext(ctx, `UPDATE poke_runtime.battle_inference_cases SET status=$3,attacker_win_numerator=$4,attacker_win_denominator=$5,defender_win_numerator=$6,defender_win_denominator=$7,draw_numerator=$8,draw_denominator=$9,expected_turns_kind=$10,expected_turns_numerator=$11,expected_turns_denominator=$12,node_count=$13,edge_count=$14,budget_consumed=$15,explanation_json=$16,failure_code=$17,diagnostic=$18,result_fingerprint=$19,completed_at=$20,updated_at=$20,lease_owner=NULL,lease_expires_at=NULL,heartbeat_at=NULL WHERE job_id=$1 AND configuration_pair_id=$2`, id, pair, result.Status, an, ad, dn, dd, tn, td, kind, en, ed, result.Nodes, result.Edges, result.Budget, result.Explanation, result.FailureCode, result.Diagnostic, result.Fingerprint(), now)
-	return err
+	if err != nil {
+		return err
+	}
+	// 与终态/计数共用事务；aux写失败时case状态及lease释放也必须一起回滚。
+	return persistExecutionMetadata(ctx, tx, id, pair, now, result)
 }
 
 // RecordResult 将终态和 progress 守恒计数原子提交；完全相同指纹重放返回 false。

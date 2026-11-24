@@ -286,12 +286,18 @@ func TestNativeRefusalAndIncompleteGraphRemainFailures(t *testing.T) {
 	if err != nil || first == nil || first.Status != jobs.Failed || *first.FailureCode != "invalid_configuration" || first.AttackerWin != nil {
 		t.Fatalf("invalid result=%+v err=%v", first, err)
 	}
+	// 在原生执行前拒绝的非推演请求没有实际执行记录，不能从协调器配置补造版本。
+	refusedMetadata, err := store.ResultMetadata(context.Background(), value.ID, value.Cases[0].PairID)
+	if err != nil || refusedMetadata != nil {
+		t.Fatalf("pre-execution refusal has invented provenance: %+v err=%v", refusedMetadata, err)
+	}
 	second, err := store.Result(context.Background(), value.ID, value.Cases[1].PairID)
 	if err != nil || second == nil || second.Status != jobs.Truncated || *second.FailureCode != "graph_node_limit" || second.Draw != nil {
 		t.Fatalf("truncated result=%+v err=%v", second, err)
 	}
 	mismatch := definition("fixed-one-on-one-job-native-version", options.Revision, 1)
 	create(t, store, mismatch)
+	actualEngine := options.EngineVersion
 	options.EngineVersion = "different-engine"
 	if _, err := workerFor(t, store, options).RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
@@ -299,5 +305,11 @@ func TestNativeRefusalAndIncompleteGraphRemainFailures(t *testing.T) {
 	result, err := store.Result(context.Background(), mismatch.ID, mismatch.Cases[0].PairID)
 	if err != nil || result == nil || result.Status != jobs.Failed || *result.FailureCode != "calculation_revision_mismatch" {
 		t.Fatalf("version result=%+v err=%v", result, err)
+	}
+	// 即使期望版本故意不匹配，实际来源仍取真实child信封，不能记录different-engine。
+	actualMetadata, err := store.ResultMetadata(context.Background(), mismatch.ID, mismatch.Cases[0].PairID)
+	if err != nil || actualMetadata == nil || actualMetadata.EngineVersion == nil || *actualMetadata.EngineVersion != actualEngine ||
+		actualMetadata.RulesVersion == nil || *actualMetadata.RulesVersion == "" {
+		t.Fatalf("mismatch provenance does not preserve the actual child version: %+v err=%v", actualMetadata, err)
 	}
 }

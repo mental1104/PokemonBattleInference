@@ -314,15 +314,21 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 // execute 将 request 原样交给绝对路径原生进程，返回可持久化终态；只转换传输错误，不实现求解规则。
 // ctx 的取消由 coordinator 的用户请求或关闭触发；onProgress 为只存 latest 副本的快速回调，可空。
 // 关闭路径不会调用 RecordResult；协议错误不能伪装成用户取消。
-func (worker *Worker) execute(ctx context.Context, request []byte, onProgress func(corebridge.Progress)) jobs.Result {
+func (worker *Worker) execute(ctx context.Context, request []byte, onProgress func(corebridge.Progress)) (result jobs.Result) {
 	input, err := readInput(request)
 	if err != nil {
 		return failure(jobs.Failed, "invalid_configuration", "frozen input is not a supported inference request")
 	}
+	var response []byte
+	// 在真正调用传输入口后记录最终请求；所有成功/失败路径共享同一实际响应，不占用原explanation。
+	defer func() {
+		metadata := executionMetadata(input, request, response)
+		result.Metadata = &metadata
+	}()
 	child, stop := context.WithCancel(ctx)
 	defer stop()
 	invalidProgress := false
-	response, err := workerprocess.ExecuteWithProgress(child, worker.options.Executable, request, func(frame corebridge.Progress) {
+	response, err = workerprocess.ExecuteWithProgress(child, worker.options.Executable, request, func(frame corebridge.Progress) {
 		// 每个冻结用例恰好一项推演；其他 operation_index 的计数不能污染该用例。
 		if frame.OperationIndex != 0 {
 			invalidProgress = true
@@ -356,7 +362,7 @@ func (worker *Worker) execute(ctx context.Context, request []byte, onProgress fu
 		}
 		return failure(jobs.Failed, "worker_crash", "native process did not return a valid result")
 	}
-	result, err := decodeResult(input, response, worker.options.EngineVersion)
+	result, err = decodeResult(input, response, worker.options.EngineVersion)
 	if errors.Is(err, errNativeVersion) {
 		return failure(jobs.Failed, "calculation_revision_mismatch", "native engine version does not match coordinator")
 	}

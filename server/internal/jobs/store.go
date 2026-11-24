@@ -21,7 +21,10 @@ func New(db *sql.DB) *Store { return &Store{db: db} }
 // 已存在 Python 任务没有该表中的定义，因此 Go 不会凭空领取不能重建输入的旧任务。
 func (store *Store) Migrate(ctx context.Context) error {
 	_, err := store.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS poke_runtime.go_job_definitions(job_id text PRIMARY KEY REFERENCES poke_runtime.battle_inference_jobs(job_id) ON DELETE CASCADE,definition_hash char(64) NOT NULL,definition_json json NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`)
-	return err
+	if err != nil {
+		return err
+	}
+	return store.migrateExecutionMetadata(ctx)
 }
 
 // Create 原子保存 definition、冻结规格、全部有序 case 和初始进度；同 ID 同定义返回 false。

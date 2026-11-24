@@ -11,7 +11,7 @@
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | .10图投影、获胜路径与冻结事实查询正式组合131/131 CTest、93差分/委托通过；旧.9所选6 ABI sanitizer全过。任务归因/Summary截断、旅程factory context及独立状态门禁仍在补，不能仅按已迁函数数宣告P1完整。 |
 | P2 跨语言集成 | IN_PROGRESS | .10共享39原oracle样本Go/Swift一致；本版Swift25项20通过/5真实HTTP未配置明确skip，.9实际服务链25/25证据保留。新Apple仍待复验；.9 iPhone9/9、iPad8/9的取消输入失败已修逐项等待，未降低候选/断言。 |
-| P3 Go 服务端 | IN_PROGRESS | 原路由覆盖38/41；新增5条完整图/导航24/24及winning3/3真实PG/原Python逐字段通过，完整841/16095图无裁事件。剩step、dragonite-vs-weavile、casegraph三路；原任务归因/摘要预算及独立结果溯源还在收尾，路由覆盖不等于全部业务已验完。 |
+| P3 Go 服务端 | IN_PROGRESS | 原路由覆盖38/41；新增5条完整图/导航24/24及winning3/3真实PG/原Python逐字段通过，完整841/16095图无裁事件。独立实际溯源存储/producer已真实PG race11/11通过，SDK读取待接。剩step、dragonite-vs-weavile、casegraph三路与任务归因/摘要预算；路由覆盖不等于全部业务已验完。 |
 | P4 iOS/iPadOS | IN_PROGRESS | c0双模拟器各9/9且图标版0.8.0(2)已在iPhone15Pro签名安装/启动；用户现要求先继续迭代、暂停后续手机操作。新版本独立溯源展示在接线，完整双真机体验仍HUMAN_PENDING。 |
 | P5 数据同步 | PASS | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；新增纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。全量图库/带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |

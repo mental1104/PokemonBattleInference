@@ -2,6 +2,8 @@ package nativeworker_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -75,6 +77,11 @@ func TestFixedBattlePersistsRealProgressAndExactSummary(t *testing.T) {
 	value.Cases[0].CoreRequest = fixedRequest(t, "attacker", 100)
 	value.Cases[1].CoreRequest = fixedRequest(t, "defender", 100)
 	create(t, store, value)
+	// case列表只保存公开身份；实际执行输入来自落库后重新读取的冻结Definition。
+	frozen, err := store.Definition(context.Background(), value.ID)
+	if err != nil || frozen.CoreTemplate != nil {
+		t.Fatalf("expected independently frozen complete requests: %+v err=%v", frozen.CoreTemplate, err)
+	}
 	if worked, err := workerFor(t, store, options).RunOnce(context.Background()); err != nil || !worked {
 		t.Fatalf("worked=%v err=%v", worked, err)
 	}
@@ -112,6 +119,26 @@ func TestFixedBattlePersistsRealProgressAndExactSummary(t *testing.T) {
 		}
 		if metadata.Operation != "fixed_battle" || metadata.Engine != options.EngineVersion || metadata.Rules == "" {
 			t.Fatalf("invalid version metadata: %+v", metadata)
+		}
+		// 独立辅助表保存实际child版本与最终请求SHA；不从提交Definition或旧explanation回填。
+		provenance, err := store.ResultMetadata(context.Background(), value.ID, item.Definition.PairID)
+		if err != nil || provenance == nil || provenance.EngineVersion == nil || provenance.RulesVersion == nil {
+			t.Fatalf("actual execution metadata is absent: %+v err=%v", provenance, err)
+		}
+		var actualRequest json.RawMessage
+		for _, candidate := range frozen.Cases {
+			if candidate.PairID == item.Definition.PairID {
+				actualRequest = candidate.CoreRequest
+				break
+			}
+		}
+		if len(actualRequest) == 0 {
+			t.Fatal("the frozen case request is absent")
+		}
+		digest := sha256.Sum256(actualRequest)
+		if provenance.InputSHA256 != hex.EncodeToString(digest[:]) || provenance.InputSchemaVersion != 1 ||
+			provenance.Operation != "fixed_battle" || *provenance.EngineVersion != options.EngineVersion || *provenance.RulesVersion != metadata.Rules {
+			t.Fatalf("execution metadata does not describe the real request/response: %+v", provenance)
 		}
 	}
 }
