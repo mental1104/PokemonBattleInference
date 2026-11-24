@@ -1,18 +1,18 @@
 # 架构迁移进度
 
-本文件是长程迁移的恢复入口。目标保持 P0–P6 全部范围；任何 Linux 验证均不能替代 macOS、Xcode 或双设备人工验收。
+本文件是长程迁移的恢复入口。目标保持 P0–P6 全部范围；任何 Linux 验证均不能替代 macOS、Xcode 或双设备人工验收。顶部状态表与“0.6 检查点”反映最新范围，下方早期记录保留当时的结果与限制，不作为新提交已通过的证据。
 
 ## 当前状态（2026-11-24）
 
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 能力值/直接伤害/精确 KO、不可变状态/StateKey/PP/锁招及独立状态修正已通过 Linux/macOS/Apple SDK；新增完整性格 profile 已通过 Linux 差分。完整回合/动态效果/图推演仍待迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
-| P3 Go 服务端 | IN_PROGRESS | 原 19/41 API、原物化视图、任务仓库和独立原生子进程已真实 PG/HTTP 验证；完整推演/coordinator 和其余 API 继续迁移，生产仍为 Python。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 首批未签名 device App 构建成功，iPhone 中文查询通过；其余 UI 测试存在首轮失败，已修后待重跑。新增同步界面仍待 Apple 实测，真机未验收。 |
-| P5 数据同步 | IN_PROGRESS | 版本化知识 SQLite 与失败恢复已有真实验证；独立用户库/本地队列已实测，PG/双设备同步仍在开发，尚未验证收敛。 |
-| P6 部署与回归 | IN_PROGRESS | 已加入统一原生测试入口与隔离验证；用户已授权 GitHub macOS/iOS CI。旧部署/数据库保持原状，未切换生产。 |
+| P1 C++ Core | IN_PROGRESS | 正式十一阶段回合、动态效果、不可变 BFS、SCC/精确求解与真实 fixed_battle 已完成 Python 差分和实际 benchmark。四维配置候选正在登记整合；目标搜索、结果聚合和事件分析仍待迁移。 |
+| P2 跨语言集成 | IN_PROGRESS | 0.6 C ABI/进度回调及 Go 独立 child 已实测，58/58 CTest、Go race/vet 通过；固定提交的 ASan/Swift 与新一轮 Apple 验证继续进行。历史 SDK 产物不能代替新版本验收。 |
+| P3 Go 服务端 | IN_PROGRESS | 原 19/41 API、纯 Go 全 CSV/原 MV 初始化、HTTP 全原生调用进程隔离及 PG 持久化 Worker 已实测。固定战斗真实进度/结果、取消/停机恢复 7 项通过；任务创建、其余计算/图 API 与 Web 闭环仍待补。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 未签名 device App 与两 SDK 构建成功；最近 iPhone 3/4 UI 测试通过，麻痹切换及 iPad 导航定位失败已修，尚待新 CI。在线复杂任务 UI 和真机未验收。 |
+| P5 数据同步 | IN_PROGRESS | Go HTTP/PG 与两个独立 SQLite 客户端的离线队列、幂等重试、显式冲突、删除与 cursor 收敛 13/13 通过；知识下载/Range 续传/原子安装有实际 HTTP 测试。完整 App 更新 UI 与真机双设备仍待验收。 |
+| P6 部署与回归 | IN_PROGRESS | 无 Python/shell/编译器的 scratch API/数据镜像已实际构建并黑盒验收；完整四角色部署、Web 接入、健康检查周期和升级回滚仍待补。旧生产与数据库保持原状。 |
 
 ## 已确认的边界与决策
 
@@ -27,7 +27,7 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | PASS | GitHub macOS 15 arm64 / Xcode 16.4 已实测通过首批原生测试和 Apple SDK 构建；不代表 SwiftUI App、模拟器运行或真机验收。 |
+| macOS / Xcode 构建 | IN_PROGRESS | GitHub macOS/Xcode 已实测通过 0.5 原生及 SDK/device App 构建；0.6 新提交仍须实际验证，模拟器最近仍有 UI 失败，真机未验收。 |
 | Apple 登录、Team、签名 | HUMAN_PENDING | Human 在 Xcode 登录 Apple Account、选择 Signing Team；不购买资格。 |
 | iPhone/iPad 安装及验收 | HUMAN_PENDING | 工程可构建后，由 Human 连接设备、信任、启用 Developer Mode 并按固定向量验收。 |
 | HomeLab 生产切换、正式备份、最终合并 | HUMAN_PENDING | 只在替代能力完成验证并获得明确授权后执行。 |
@@ -139,15 +139,27 @@
 - 首轮产物 [14905627832](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690/artifacts/14905627832) ZIP SHA-256 **01ab38260cb4f812b1e9030c2e5f921139c3684e789aa80891e77d5b1f70d3d2** 与 GitHub digest 一致；完整日志、xcresult/ZIP 在 `Backup/PokemonBattleInference/app-20261124/`。测试结束的 final screenshot 是主屏幕，不能用来证明失败时 App 内状态。
 - 已将指标改成明确无障碍名称/精确值并保持原冻结数值断言；保存测试增加懒加载行滚动，仍待下一轮验证其失败原因。测试脚本即使某机型失败也继续独立执行另一机型，并导出 xcresult 附件，最终仍返回失败。
 - 新增 App 手动同步/取消、真实待提交项、完整冲突双方参数/删除状态/版本比较和明确选择。连接设置在 SQLite 事务保存，禁止沿用其他服务器/用户的同步空间；注入身份写失败时 URL/账户一起回滚，重启、非法地址和范围保护实测。修改后的 AppSupport **4/4 PASS**（0.179 秒），UI/UITest Swift 语法与 shell 检查通过；Apple UI 运行未验证，证据 `Backup/PokemonBattleInference/app-sync-20261124/`。
-- **8049ddc**：图/合法行动正式 C ABI 及 Go/Swift 冻结向量已扩展至十一操作，引擎 **0.5.0 / calculation-rules.v5**，ABI/schema 仍 v1。纯域新增结构化事件/条件权重、分支合并与注入回合转移器的不可变 BFS 图构建；完整旧回合器尚未迁完，不以自定义回调测试代替。新域/runner **14/14 CTest**、图与 builder **5/5 Python 差分**（1.41 秒，新增 106 组），新纯域 ASan/UBSan/leak **32/32 PASS**（1.58 秒）。P2 图 ABI 另有 50 拓扑、行动 ABI 256 情况的精确差分；全量 CTest **46/46 PASS**。新正式 ABI 的全量 sanitizer 原进程仍运行，未记为 PASS。
+- **8049ddc**：图/合法行动正式 C ABI 及 Go/Swift 冻结向量已扩展至十一操作，引擎 **0.5.0 / calculation-rules.v5**，ABI/schema 仍 v1。纯域新增结构化事件/条件权重、分支合并与注入回合转移器的不可变 BFS 图构建；完整旧回合器尚未迁完，不以自定义回调测试代替。新域/runner **14/14 CTest**、图与 builder **5/5 Python 差分**（1.41 秒，新增 106 组），新纯域 ASan/UBSan/leak **32/32 PASS**（1.58 秒）。P2 图 ABI 另有 50 拓扑、行动 ABI 256 情况的精确差分；全量 CTest **46/46 PASS**。全量 ASan/UBSan/leak 原进程最终 **46/46 PASS**（455.88 秒，其中大批次节点预算 347.41 秒、图运行中取消 40.43 秒），日志 `migration-p2-online-20261124-fixed2/sanitizer.log`；未重启、未删减断言，临时容器已清理。
 - **f04a552**：新增旧通用任务列表/详情/幂等取消，进度 **19/41**；真实 PG 仓库验证稳定 fingerprint/重复提交、租约/心跳/过期恢复、进度守恒、取消和结果分页。独立重建 .5 Core 后 CTest **46/46**，Go 所有包 **18 PASS / 1 专用 Swift 服务 fixture SKIP**、race/vet 通过，外部 curl 六条 HTTP 200；测试实例已清理。证据 `p3-server-20261124/jobs-final/`。任务创建/复杂推演/完整 coordinator 仍未完成，原生 CSV 初始化正在另批开发，未纳入该检查点。
 - **e248d3b**：计算通过一个 actor 调用读取宝可梦/招式/性格/属性表及 manifest 的不可变快照，避免知识安装插入多次 await 导致混用版本。两个真实 SQLite 包、16 次安装和 64 次读取竞争，所有输入字段与版本保持整版一致，旧快照不变。实际 Swift→Go HTTP 完整 .5 请求/响应仍一致，整包 **17 tests / 1 skipped**（仅未配置 P5 专用服务 URL），零失败（2.721 秒）；证据 `migration-p2-snapshot-online-20261124/`。
+- 上述代码统一推至 **e60eb2dd5d23c57632d015ea5fe56075ca86ca0d**；[Native/App 45366954912](https://github.com/mental1104/PokemonBattleInference/actions/runs/45366954912) 最终 **FAIL**，[Main Gate 45366955174](https://github.com/mental1104/PokemonBattleInference/actions/runs/45366955174) **PASS**。新失败发生在 macOS Core 编译：AppleClang 17/Xcode 16.4 libc++ 未提供新代码使用的 `std::stop_token`，报错位于 `graph.hpp:92/99` 及 `graph.cpp`；Apple SDK/App/UI 步骤未执行，不能称为上一轮 UI 失败重现。完整真实日志已保存 `app-sync-20261124/github-native-45366954912.log`。
+- P1 当前优先修正可移植取消令牌/源，保持单向原子取消、共享生命周期、空令牌及 C ABI v1 语义，不降 C++ 标准或移除取消断言；稳定后再继续旧回合器。P2 完成本轮切片后释放名额，P4 已重新接手 App CI 及知识下载/中断恢复；P3 继续 Go 原生 CSV/物化视图初始化，未提交的 importer 尚未验收。root 负责 P6 与统一整合，当前可自动化工作不被 Human 事项阻塞。
+
+## 0.6 检查点与最新 Apple 反馈（2026-11-24）
+
+- **76a40a0** 保存正式 `battle_turn`、`fixed_battle`、兼容 C ABI v1 的 typed 进度回调及有界 NDJSON child。引擎 **0.6.0 / calculation-rules.v6**，共享完整向量为 13 操作。`turn-abi-20261124/` 已实际 **58/58 CTest PASS**、正式 turn/fixed ABI 差分 **2/2 PASS**、Go bridge **6/6** 和 workerprocess **8/8** `-race`/vet PASS。迁移 pytest **28 passed / 8 skipped**（27.70 秒）：七项当时未登记的候选 runner、一项缺 Swift 工具环境，未把跳过当成通过。P2 使用 Git 注册的独立 detached `abi6-verification` 验证树，固定 SHA 的 ASan/Swift 结果另行记录。
+- 正式回合与固定战斗的完整差分、动态覆盖边界及五个真实小图 benchmark 详见 `migration-core.md`。固定战斗默认 20,000 节点/80,000 边、原生成图上限 2,000,000 节点/8,000,000 边/10,000 回合仍保留；显式图继续使用其独立边界。缺省/null 分支和方程预算保留原不设限语义，结果传输预算单独明确失败；没有用缩小原任务范围换测试通过。
+- **0c10056** 接入真实 fixed_battle 与进度落库，`nativeworker-20261124/progress6/` **7/7 PG/child/daemon 测试 PASS**（3.943 秒），race/vet 通过。两个攻守视角得到同一旧结果合同；一节点预算真实截断保留 NULL 概率。租约、取消、SIGTERM 停机恢复及独立 daemon 均实际运行，详见 `native-worker.md`。
+- **a755043** 纯 Go db-init：179 raw 表、177 CSV、八个原 MV；全部 1,051,800 条来源记录逐字段 Python 语义摘要一致，主键去重后 1,051,052 行，六项真实 PG race 测试与 vet 通过。**a74d98e** 的 HTTP 0.6 完整向量与生命周期测试通过，实际 30 秒 504/运行中 SIGTERM 408 后 child 均已回收；scratch API/数据镜像分别 46,786,282 / 82,609,776 字节，六条目录/配置/任务 API 和 13-op Core 响应实测通过。详见 `migration-server.md`；Docker 健康周期和完整部署不在该验收范围内。
+- **89b7db9** 保存 Swift 知识更新客户端、来源设置和界面，严格下载预算、校验与 Range 续传使用真实 HTTP 夹具；安装失败/取消保留旧包及用户库。工具镜像 Swift **20 tests / 3 explicit skip / 0 failure**（17 项实跑，缺独立在线/同步 URL 的三项明确跳过）；此前双 SQLite/Go/PG 的同步 13/13 仍是独立实测证据。
+- 最近已推送 **fc068e3** 的 [Main Gate 45369481139](https://github.com/mental1104/PokemonBattleInference/actions/runs/45369481139) **PASS**，[Native/App 45369481161](https://github.com/mental1104/PokemonBattleInference/actions/runs/45369481161) **FAIL**。可移植取消修复使 macOS CTest **49/49**、两个 SDK 库与未签名 device App 构建通过；iPhone 查询、保存重启、同步设置 **3/4 PASS**，麻痹开关仍为 0、速度 85 而非 42；iPad 四项均在旧 TabBar 入口定位失败。不能写成数学计算错误或 App 启动失败。
+- 产物 **14912441828** 已下载独立验 SHA-256 **bfa53a53334acb55c0711fcf804e66df3141e51deafd334441f5e415489b8fba**，ZIP/完整日志在 `app-sync-20261124/`。实际截图/无障碍层级显示 iPhone 命中整行而非内层 UISwitch，iPad 正常启动并使用顶部浮动按钮。修复保留严格 `0→1→42`、全入口可见中文标签和横屏断言，增加层级/阶段时间及只关闭自启模拟器；Swift parse、bash syntax、diff 检查通过，修复结果以新 CI 为准。
 
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-统一提交已验证 Core/离线知识/AppSupport 与 SwiftUI 工程，执行实际 iPhone/iPad App CI，并处理真实编译/运行反馈；继续完整合法行动、回合/动态效果/图/SCC/搜索/事件分析及 Go API/Worker 和同步迁移。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
+推送本批稳定提交及 App 导航/真实开关修复，执行新一轮 Apple CI；继续配置目标搜索/结果聚合/事件分析、Go 任务准入/其余计算 API、App 在线复杂任务和真实更新 UI，以及完整部署/Web/回滚验收。P1–P6 全部要求和 Human 双设备验收均仍保留，不能因当前切片通过而标记阶段 PASS。
 
 ## 恢复提示
 
@@ -155,4 +167,4 @@
 
 跨语言检查点：`c42acac`（C ABI/Go/Swift 实际闭环）、`425c9b8`（用户授权 Ready-PR CI）、`738919a`（Apple 交叉编译依赖发现修复；远端完整 CI 全绿）。后续纯记录提交不改变这些已经验证的代码；不为文档状态更新重复运行整套 SDK 构建，下一次代码变更再推送并运行 CI。
 
-先查看本文件和 `core/README.md`，然后 `git status --short`。原完整回归已经通过，不在没有新行为改动或失败的情况下重复执行 6 分钟图 benchmark；下一轮应继续实现缺失能力。当前没有需要观察的遗留计算任务；一次性验证均已结束。
+先查看顶部最新状态、本轮检查点与 `git status --short`，再核对实际 agent/容器/CI 状态；不要凭历史“已结束”判断当前验证进程。仅对新行为、真实失败或未解决风险追加必要验证，不重复无变化的长 benchmark。root 统一提交和推送，独立 agent 不提交未冻结批。
