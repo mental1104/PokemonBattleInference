@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **19 项配置/知识/图片及任务查询取消 API**，并接入 P5 同步处理器；正式推演创建及计算 API 尚未替换。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **19 项配置/知识/图片及任务查询取消 API**，并接入 P5 同步处理器；另有第 20 项原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。正式业务推演创建与其余计算 API 尚未接齐。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -10,7 +10,8 @@
 | PostgreSQL | pgx/v5/stdlib + database/sql。显式 DSN、连接池；原六张运行表采用 additive 初始化，一笔事务/advisory lock、不 DROP、不重建已有数据；二次运行保持记录。独立 pbi-db-init 已纯 Go 导入全量固定 CSV 并创建八个原物化视图，具体事务/版本边界见下文。 |
 | P5 接线 | NewServer(db) 挂 GET/POST /v1/sync；主进程显式迁移时调用 syncstore.Migrate；本轮真实 PG 重跑 P5 三项事务/并发/HTTP 测试通过。Swift 测试专用服务入口缺少 PBI_SYNC_TEST_SERVE_ADDR 时有一个预期 SKIP，不能记成跨语言 PASS；P5 另有独立跨语言验收。 |
 | 子进程边界 | pbi-core-worker 从 stdin 接收单批 JSON，stdout 输出完整 Core ABI 响应。所有 Core HTTP 请求统一使用绝对路径子进程，缺失时 503，绝不回退进程内 CGO；原生进度和实际 PG daemon 另见 [native-worker.md](native-worker.md)。 |
-| 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。创建 HTTP/实际 coordinator 尚未接入，不能把仓库测试当成完整推演闭环。 |
+| 受限静态计算器 | POST /v1/calculator/damage 从单个 repeatable-read 快照读取原规则集、双方种族值/合法历史特性、version-aware 招式及完整属性表；Core 子进程执行 hp/stat、stage、damage 三个依赖批次。旧单轴 plus 模板不降低其他轴；快照完整 paired nature/EV/IV 保留。合法未实现特性沿旧入口返回原中文 warning。InnerFocus/Multiscale 当前静态 Core 明确 422，而旧静态入口为 200，仍属兼容缺口，不用 Go 静默抹掉机制或补倍率。 |
+| 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。真实 graph/fixed-battle coordinator/daemon 和 NDJSON 进度已在独立切片接入，见 [native-worker.md](native-worker.md)；原业务创建 HTTP 的严格准入与配置候选组装尚未接齐。 |
 
 ## 运行边界
 
@@ -32,6 +33,7 @@
 - `http-isolation-v6.log`：Core **0.6.0** 新 13-op 共享完整响应，经真实 HTTP→独立 child 全字段相同；原非法 400/unsupported 422、ctx 408、缺 child 503、真实 CGO SIGSEGV 500 后 health 200、运行中 deadline 504 后 PID 确实消失，**4/4 race 测试、零 SKIP** 与 vet 通过。未提供测试 child 路径时自动真实 `go build -a`，没有跳过原 Mac/Linux HTTP 断言。
 - `http-lifecycle-v5-final/`：实际 API 主进程与受控慢 child 的独立宿主 curl 验收，默认截止 **30.024763 秒**返回完整 **504**，之后进程清单无该 child；第二个 child 实际运行时 SIGTERM，客户端得到完整 **408**，API **exit 0**，自有实例清理完成。该场景只验生命周期、不伪造数学计算，真正计算由上项 0.6 完整向量证明。
 - `go-images-v6-final/`：实际构建 scratch API/数据镜像，包含 server、单请求 Core child、PG daemon、healthcheck 和纯 Go db-init 五个二进制。运行文件清单证明没有 Python、shell 或编译器；独立空 PG 完整导入当前 `42563467286d` 知识版本，六条目录/配置/任务 HTTP 均 200，Core 0.6 的 13-op 完整响应与共享向量逐字段相同。API 镜像 **46,786,282 bytes**，数据镜像 **82,609,776 bytes**；默认同目录 child 实际可执行，自有实例退出清理。复现入口 `tools/migration/accept-go-images.sh`。
+- `calculator-final/`：独立 Core 0.6 重建、空 PG 全量导入、真实 Go HTTP 与原 FastAPI/同 PG 差分 **14/14 PASS、零 SKIP（1.50 秒）**。其中 **12 项完全等价**（八种双方/招式/道具/等级组合、软删除后快照及三种原 detail 拒绝），另两项明确记录原 200/新 422 的动态特性差异，不能称为完整兼容。比较包括原 JSON 全部键/null、六项未分级基础能力、分级后展示攻击/防御、16 档伤害、KO、trace/reason、全部中文 warning；新增 strict/null/range 入口 **11 子场景 race PASS** 与 vet 通过。数据和子进程均真实，不在 Go 复制战斗公式；自有 PG/API 全部清理。复现入口 `tools/migration/accept-go-calculator.sh`。
 - 复现：`bash tools/migration/validate-go-server.sh`。脚本只使用 manager + 已声明 maintenance run --rm、自有 tmpfs PG、不发布 DB 端口；唯一 Web 测试实例发布随机回环端口，退出仅清理本脚本精确 ID。上述早期检查点当时使用原 Python bootstrap 准备离线夹具；当前脚本已改用下文的真实 Go 初始化命令。
 
 ## 纯 Go 知识初始化
@@ -48,8 +50,8 @@
 
 ## 剩余范围
 
-1. 原任务创建/配置结果 API、实际 PG coordinator 与子进程调度接线。仓库 lease/heartbeat/恢复/幂等结果/进度/分页已通过独立 PG 测试，完整业务推演仍需正式 Core 回合合同和真实调度。
-2. 原 damage/calculator damage/configuration solve/search、fixed-one-on-one/step/graph、graph 导航/重算、candidate pool/move combinations/winning paths 等计算服务。依赖 P1 尚未迁完的正式回合、动态效果、图扩展/SCC 与配置求解合同。Go 仅负责知识/请求组装，不复制战斗规则。
+1. 原任务创建/配置结果 HTTP API：补齐严格 admission、version-aware 候选快照与配置 Core ABI 组装，再交给已验证的 PG coordinator/真实子进程 daemon。持久任务入口必须拒绝旧规则声明为 partial 的机制；旧同步推演的允许 partial 并返回 coverage 策略不能混用。
+2. 原 damage、configuration solve/search、fixed-one-on-one/step/graph、graph 导航/重算、candidate pool/move combinations/winning paths 等 HTTP 适配；静态 calculator 的两项动态特性差异仍需正式 Core 合同解决。真实固定战斗、图/SCC 和 typed 配置候选能力已有独立 Core 验证，配置公开 ABI 由 P1/P2 接入；Go 仅负责知识/请求组装，不重复枚举、权重或战斗规则。
 3. 独立 Worker 发布编排、知识版本升级/历史库接管、Vue 接入、旧新全 API 差分、重启恢复和部署回滚演练。纯 Go 数据镜像与五个真实二进制的 scratch 镜像已完成隔离黑盒验证，不等于已完成生产迁移。
 4. 所有 Core HTTP 已统一独立 child，正式推演创建/完整配置与图交互 API 仍需接通；子进程工具和 graph/fixed daemon 通过不等于 41 项旧业务整体完成。
 
