@@ -33,3 +33,11 @@
 正式 Core **0.6.0** 接入后的 `progress6/` 独立重跑 **7/7 PASS**（3.943 秒），包含上述五项及两个新增场景，`go test -a -race` 和 `go vet` 均通过：完整真实固定战斗从初始状态得到两节点一边、攻击方胜率一及期望一回合；攻守两个视角还原到同一旧结果合同，最终进度实际保存 `graph_built/2/1/1/0` 和版本。另一场景用一节点预算真实触发 `graph_node_limit`，保存资源统计及 NULL 概率，绝不编造平局。报告同时保存本轮两个静态 archive 摘要和自有 PG 日志。
 
 配置任务查询回归发现真实停机竞态：父 context 取消与 SQL Commit 同时发生，驱动可能返回 `sql.ErrTxDone`。`RunOnce` 现在仅在已有错误且父 context 确实撤销时统一返回 `ctx.Err()`；父 context 活跃时保留真实数据库、租约与内部超时错误。`configuration-jobs-final2/` 保存首次失败；修复后的 `configuration-jobs-go-all7/` 使用正式 **0.7** 库，全部 Go 包 **46 PASS / 1 专用 Swift 服务 fixture SKIP**、race/vet 通过，另对停机/租约恢复场景实际重复 **10/10 PASS**（24.198 秒），未跳过或降低原恢复断言。
+
+## 共享冻结输入
+
+原10+10池共有44,100个具体case。实际完整PG属性表为14,504字节，固定战斗请求约18,025字节；若逐case重复，原始请求就达794,902,500字节，尚未计入解码和序列化副本。`Definition` 因此新增可选共享 `CoreTemplate` 与冻结 `Admission`：知识/完整状态只保存一次，case继续保存原canonical身份和技能ID。旧完整请求模式保留，模板模式禁止混用每case完整请求，未使用新字段时omitempty保持原序列化形状。
+
+Worker只索引轻量case，领取后按冻结ID选择原始MoveSpec和PP槽，覆盖`spec.moves/move_slots`，其余原始状态/规则/属性表逐字段保留。真实`slot_id`可能为9001等值，不按位置或move_id重编号。每个原生进程只拥有当前请求，结束后释放；不预先物化全部44,100个请求、不重查知识、不执行Go战斗公式。
+
+`nativeworker-template-20261124/`：真实PG/child/daemon **8/8 race PASS**（3.897秒）及vet，包括同一模板两个不同技能配置，经PG重载后实际构图/精确结果并保持轻量case；独立完整fixture投影/原slot身份/未知选择拒绝/缓冲区所有权测试 **PASS**（1.046秒），使用JSON Number精确比较。完整44,100用例的实际HTTP提交体积和任务闭环由服务端后续验收，不以此两个用例代替。

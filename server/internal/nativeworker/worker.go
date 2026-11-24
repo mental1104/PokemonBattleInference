@@ -156,9 +156,14 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 		}
 		waiting.Wait()
 	}()
-	inputs := make(map[string][]byte, len(definition.Cases))
+	projector, err := newRequestProjector(definition.CoreTemplate)
+	if err != nil {
+		return err
+	}
+	// 只索引轻量case；共享知识/状态在领取后投影，避免为44,100用例重复持有完整请求。
+	inputs := make(map[string]jobs.CaseDefinition, len(definition.Cases))
 	for _, item := range definition.Cases {
-		inputs[item.PairID] = item.CoreRequest
+		inputs[item.PairID] = item
 	}
 	heartbeat := time.Now().UTC()
 	ticker := time.NewTicker(worker.options.PollInterval)
@@ -222,10 +227,15 @@ func (worker *Worker) runJob(ctx context.Context, id string, definition jobs.Def
 				return claimErr
 			}
 			for _, item := range cases {
-				request, exists := inputs[item.Definition.PairID]
+				frozen, exists := inputs[item.Definition.PairID]
 				if !exists {
 					cancel()
 					return errors.New("claimed case has no frozen input")
+				}
+				request, projectionErr := projector.request(frozen)
+				if projectionErr != nil {
+					cancel()
+					return projectionErr
 				}
 				if _, err = worker.store.RecordProgress(query, id, item.Definition.PairID, worker.options.Owner, definition.Revision, now,
 					jobs.Progress{Phase: "executing-core"}); err != nil {

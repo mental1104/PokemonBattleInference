@@ -99,23 +99,27 @@ func (spec ExecutionSpec) Validate() error {
 }
 
 // CaseDefinition 保存原稳定配置身份和招式列表，不依赖当前运行中的内存注册表。
+// CoreRequest 为空仅允许使用 Definition 的共享 CoreTemplate，避免每 case 重复属性矩阵。
 type CaseDefinition struct {
 	PairID        string          `json:"configuration_pair_id"`
 	AttackerID    string          `json:"attacker_configuration_id"`
 	DefenderID    string          `json:"defender_configuration_id"`
 	AttackerMoves []int           `json:"attacker_move_ids"`
 	DefenderMoves []int           `json:"defender_move_ids"`
-	CoreRequest   json.RawMessage `json:"core_request"`
+	CoreRequest   json.RawMessage `json:"core_request,omitempty"`
 }
 
 // Definition 是已由应用层完成知识与机制准入的完整任务，不直接暴露为 HTTP 输入。
+// CoreTemplate/Admission 是可选拥有值；省略时保持旧定义 JSON 与幂等哈希兼容。
 type Definition struct {
-	ID             string           `json:"job_id"`
-	RulesetID      string           `json:"ruleset_id"`
-	VersionGroupID int              `json:"version_group_id"`
-	Revision       string           `json:"calculation_revision"`
-	Spec           ExecutionSpec    `json:"execution"`
-	Cases          []CaseDefinition `json:"cases"`
+	ID             string               `json:"job_id"`
+	RulesetID      string               `json:"ruleset_id"`
+	VersionGroupID int                  `json:"version_group_id"`
+	Revision       string               `json:"calculation_revision"`
+	Spec           ExecutionSpec        `json:"execution"`
+	Cases          []CaseDefinition     `json:"cases"`
+	CoreTemplate   *FixedBattleTemplate `json:"core_request_template,omitempty"`
+	Admission      json.RawMessage      `json:"admission,omitempty"`
 }
 
 // Validate 检查任务身份、预算和有序用例唯一性；不执行战斗合法性推断。
@@ -126,20 +130,27 @@ func (definition Definition) Validate() error {
 	if err := definition.Spec.Validate(); err != nil {
 		return err
 	}
+	if len(definition.Admission) > 0 && (len(definition.Admission) > 8<<20 || !json.Valid(definition.Admission)) {
+		return errors.New("bounded complete admission JSON is required")
+	}
 	seen := map[string]bool{}
 	for _, item := range definition.Cases {
 		if strings.TrimSpace(item.PairID) == "" || strings.TrimSpace(item.AttackerID) == "" || strings.TrimSpace(item.DefenderID) == "" || seen[item.PairID] {
 			return errors.New("case identities must be nonempty and unique")
 		}
-		if len(item.CoreRequest) > 8<<20 || !json.Valid(item.CoreRequest) {
-			return errors.New("bounded immutable Core request is required")
-		}
-		var batch struct {
-			SchemaVersion int               `json:"schema_version"`
-			Operations    []json.RawMessage `json:"operations"`
-		}
-		if err := json.Unmarshal(item.CoreRequest, &batch); err != nil || batch.SchemaVersion != 1 || len(batch.Operations) == 0 {
-			return errors.New("Core request must be a nonempty version 1 batch")
+		if definition.CoreTemplate == nil {
+			if len(item.CoreRequest) > 8<<20 || !json.Valid(item.CoreRequest) {
+				return errors.New("bounded immutable Core request is required")
+			}
+			var batch struct {
+				SchemaVersion int               `json:"schema_version"`
+				Operations    []json.RawMessage `json:"operations"`
+			}
+			if err := json.Unmarshal(item.CoreRequest, &batch); err != nil || batch.SchemaVersion != 1 || len(batch.Operations) == 0 {
+				return errors.New("Core request must be a nonempty version 1 batch")
+			}
+		} else if len(item.CoreRequest) != 0 {
+			return errors.New("shared template and per-case Core requests cannot be mixed")
 		}
 		seen[item.PairID] = true
 		for _, moves := range [][]int{item.AttackerMoves, item.DefenderMoves} {
@@ -154,6 +165,9 @@ func (definition Definition) Validate() error {
 				previous = id
 			}
 		}
+	}
+	if definition.CoreTemplate != nil {
+		return definition.CoreTemplate.Validate(definition.Cases)
 	}
 	return nil
 }
