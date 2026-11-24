@@ -9,12 +9,12 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、四维候选及44,100具体case已差分；完整WithSpeed模板、EV搜索及结果聚合已登记，.8全量92/92 CTest通过。事件/反事实仍待公共接入；新搜索运行中取消的错误码边界已发现，待修复复验。 |
+| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、候选/44,100case、完整WithSpeed模板/EV及聚合已登记；事件/反事实纯域已保存。新冻结全量103/103 CTest、纯域82/82 ASan及原差分10/10通过，搜索运行中取消已修。事件公共ABI与静态兼容小缺口待收口。 |
 | P2 跨语言集成 | IN_PROGRESS | .8正式25操作，Linux92/92 CTest、迁移52 PASS/52外部环境SKIP、Swift17 PASS/3无URL SKIP；所选4项ABI ASan通过。.7 Apple/Main全绿、两SDK与device App成功，.8须新CI复验。 |
-| P3 Go 服务端 | IN_PROGRESS | 原25/41完整API加一个受限calculator；真实任务创建/幂等/进度/取消/分页、候选、共享冻结模板与异步准备失败已验。合法7类preset的44,100任务实际202耗时8.536秒；solver/fixed/graph等API仍待迁移。 |
-| P4 iOS/iPadOS | IN_PROGRESS | .7 Apple iPhone与iPad各5/5 UI PASS；新增真实任务表单/进度/取消/结果及Mac Go/PG测试服务已提交，待新Apple CI。Linux真实Swift→Go→PG→daemon/Core25/25通过；真机HUMAN_PENDING。 |
-| P5 数据同步 | IN_PROGRESS | 两个独立SQLite客户端与真实Go/PG的队列/幂等/冲突/删除/收敛已验；整包真实在线/同步/任务25/25零SKIP通过，真实HTTP中断/Range/原子更新也在其中。新增App双模拟器同步/更新UI仍待新CI，真机未验收。 |
-| P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、真实 Chromium 原 Vue 计算、Docker 健康故障恢复、两个 Go 镜像回退和独立 PG 备份恢复已实测；原 BYTEA 图片初始化、复杂任务完整 Web 与正式生产升级仍待补。旧生产保持原状。 |
+| P3 Go 服务端 | IN_PROGRESS | 原28/41完整API加一个受限calculator；新增solver/search40/40、fixed summary19/19真实同PG差分通过。任务/候选/共享模板已验，合法44,100任务实际202耗时8.536秒；step/graph/navigation、旧damage及其他API仍未完成。 |
+| P4 iOS/iPadOS | IN_PROGRESS | .8 Apple两SDK/device App成功，iPhone/iPad各8/9 UI通过，真实任务提交/结果/取消均通过。两处结果行定位失败已小修，待后续CI；Linux真实服务25/25零SKIP通过；真机HUMAN_PENDING。 |
+| P5 数据同步 | IN_PROGRESS | 两独立SQLite客户端和Go/PG的队列/幂等/冲突/删除/收敛、真实HTTP中断/Range/原子更新已验；本轮iPhone上传→iPad拉取与两端同步重启UI真实通过。整个App CI仍有另外两处结果定位失败，真机未验收。 |
+| P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；新增纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。全量图库/带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
 
@@ -180,6 +180,14 @@
 - 21:00仍未达到本轮P1–P3/P5全完成门槛。三条并行任务继续收口事件/反事实、fixed/graph领域投影、solver/search真实HTTP；P4/P6基本链已形成，新增App UI及上述新代码仍须实际CI。总体Goal保持active，原全目标/Human要求不变。
 
 ## 下一步
+
+### 21:30后的稳定提交与Apple反馈
+
+`ac206b9`保存原solver/search40/40；`06d471a`保存真实RED→GREEN的模板/EV运行中取消；`d8f6779`保存同一工厂完整capability事实（默认25操作输出不变）；`cfb83fd`保存事件/配置加权/真实双runner反事实纯域；`a8806ec`保存原fixed摘要19/19。Root只保存已冻结文件，P2后续SHA抽取/graph、P1静态damage及P3旧damage未成熟编辑不混入这些提交。
+
+`5dc4dad`的Main Gate **PASS**；[Native/App 45399177231](https://github.com/mental1104/PokemonBattleInference/actions/runs/45399177231) **FAIL**：macOS Core/Go/Swift、两SDK与未签名device App成功，iPhone/iPad各 **8/9 UI PASS**。两端真实任务提交/精确结果/运行中取消、跨模拟器同步和设置重启通过；iPhone在线对照缺two-hit结果元素，iPad离线缺attacker-speed元素，各自另一机型相同数学断言通过。原日志保存`apple-abi8-ui-20261124/`，artifact14924002576约241MB。`250f0b3`逐个滚动显露独立Form懒加载结果行，未改数值断言；Swift parse通过，后续CI复验。
+
+`99c2d12`把事件runner导出到统一Make入口，避免5项真实差分因环境变量缺失而跳过。`3dcb0fc`保存纯Go图片导入、显式只读Compose来源及真实PG/原Python/HTTP验收：完整知识/race/vet通过，五张上游真PNG6/6差分通过；初轮精简镜像MIME缺失已修，Pythonruff/strict mypy、gofmt、bash syntax与Compose config通过。验收五图不能代替全量sprites导入，尚未重跑带图完整Web栈。
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
