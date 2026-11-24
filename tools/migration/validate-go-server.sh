@@ -28,19 +28,26 @@ trap cleanup EXIT
 compose run --rm --no-deps pokemon-validation sh -c \
  'cmake -S /source/core -B /build/p3/core -DCMAKE_BUILD_TYPE=Release && cmake --build /build/p3/core -j2 && ctest --test-dir /build/p3/core --output-on-failure' \
  > "$POKEOP_REPORT_ROOT/core-build.log" 2>&1
+compose run --rm --no-deps -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
+ 'cd /source/server && go build -o /build/p3/pbi-db-init ./cmd/pbi-db-init' \
+ > "$POKEOP_REPORT_ROOT/db-init-build.log" 2>&1
 postgres_id="$(compose run --rm --no-deps -d --name "$postgres_name" pokemon-go-postgres)"
 for attempt in {1..30}; do
  if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop > /dev/null 2>&1; then break; fi
  sleep 0.2
 done
-# 这里只调用现有初始化函数作为真实知识夹具；Go HTTP 运行时不加载 Python。
-compose run --rm --no-deps -e PGHOST="$postgres_name" -e PGPORT=5432 -e PGUSER=pokeop -e PGDATABASE=pokeop pokemon-validation python -c \
- '"""导入固定 submodule CSV 并创建原物化视图，目标仅为本脚本自有临时库。"""; from pokeop.persistence.bootstrap import init_db; init_db(create_tables=True, import_csv=True, import_sprites=False, create_materialized_views=True, refresh_materialized_views=True)' \
- > "$POKEOP_REPORT_ROOT/catalog-initialization.log" 2>&1
+# 真正的 Go 初始化命令导入全部固定 CSV/原 MV；第二次执行独立验证幂等复用。
+compose run --rm --no-deps -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
+ pokemon-validation /build/p3/pbi-db-init --csv-root /source/submodules/pokeapi/data/v2/csv \
+ > "$POKEOP_REPORT_ROOT/catalog-initialization.json" 2> "$POKEOP_REPORT_ROOT/catalog-initialization.log"
+compose run --rm --no-deps -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
+ pokemon-validation /build/p3/pbi-db-init --csv-root /source/submodules/pokeapi/data/v2/csv \
+ > "$POKEOP_REPORT_ROOT/catalog-reuse.json" 2> "$POKEOP_REPORT_ROOT/catalog-reuse.log"
 compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/p3/core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp \
- -e PBI_TEST_CORE_WORKER=/build/p3/pbi-core-worker -e PBI_CONTRACT_FIXTURES=/source/tests/vectors -e PBI_TEST_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
- -e PBI_TEST_CATALOG_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" pokemon-validation sh -c \
- 'cd /source/server && go build -a -o /build/p3/pbi-core-worker ./cmd/pbi-core-worker && go test -a -race -count=1 -v ./... && go vet ./... && go build -a -o /build/p3/pbi-server ./cmd/pbi-server' \
+ -e PBI_TEST_CORE_WORKER=/build/p3/pbi-core-worker -e PBI_TEST_CRASH_WORKER=/build/p3/pbi-crash-worker -e PBI_CONTRACT_FIXTURES=/source/tests/vectors -e PBI_TEST_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
+ -e PBI_TEST_CATALOG_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
+ -e PBI_TEST_KNOWLEDGE_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" -e PBI_KNOWLEDGE_CSV_ROOT=/source/submodules/pokeapi/data/v2/csv pokemon-validation sh -c \
+ 'cd /source/server && go build -a -o /build/p3/pbi-core-worker ./cmd/pbi-core-worker && go build -o /build/p3/pbi-crash-worker ./internal/workerprocess/testdata/crashing-worker && go test -a -race -count=1 -v ./... && go vet ./... && go build -a -o /build/p3/pbi-server ./cmd/pbi-server' \
  > "$POKEOP_REPORT_ROOT/go-postgres.log" 2>&1
 server_id="$(compose run --rm --no-deps -d --name "pokemon-go-server-$$" --publish 127.0.0.1::41105 \
  -e PBI_LISTEN=0.0.0.0:41105 -e PBI_MIGRATE=1 -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \

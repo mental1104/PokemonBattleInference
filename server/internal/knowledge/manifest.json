@@ -1,0 +1,4055 @@
+{
+  "schema_version": 1,
+  "source_commit": "1567d53073a069b6c96e1c393c5c490f602e3ab5",
+  "license": "LICENSE.pokeapi.txt",
+  "raw_table_count": 179,
+  "raw_schema_sha256": "760bab1f5e86770f7f85eec6692e9bed3554c8217b49188dc8de973ba5295883",
+  "views_sha256": "e7ad7a02fbe40ff86631c47b95fbf2d5b8ce71d2d2a9ec1aec2194dbee441e85",
+  "license_sha256": "1c04595dc662981c20956ae4251dfa7b62b475c345eddf98bc9b904cb2373f2c",
+  "tables": [
+    {
+      "name": "abilities",
+      "relative_path": "abilities.csv",
+      "sha256": "f014f8fbe81e30b09bf36b281b0fbb1a88593e26513300e4317c3ab65fb95634",
+      "parsed_sha256": "6891ce7ab7d10db377b03ca4c8135e810b5335f7bcec6398d81a00b1b9b1717d",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "is_main_series",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "ability_changelog",
+      "relative_path": "ability_changelog.csv",
+      "sha256": "ed7a66329078ef29185549d3e0476bc088de6cef0c1413aeb87403ad8badad66",
+      "parsed_sha256": "a689bb90adefbc14308e2692671d6cf63e4f62e5c823dec8b5716b76227f4c68",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "changed_in_version_group_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "ability_changelog_prose",
+      "relative_path": "ability_changelog_prose.csv",
+      "sha256": "94f3322059a703c54a44d47541444a67bcf3505ddb9f66ed51afc882ed432c78",
+      "parsed_sha256": "924ec239bbf4b5a6a5ddb36a54e929409da5a9f1851d3caece31b681d97a37c5",
+      "columns": [
+        {
+          "name": "ability_changelog_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "ability_flavor_text",
+      "relative_path": "ability_flavor_text.csv",
+      "sha256": "0532ffc203999dad061d109ee493cd6444d012e35589337532b89a8abf34c19d",
+      "parsed_sha256": "03b0ab31d3f0df01e3128da9bc92abcecb37a7ef584b795dea8619b8751ae571",
+      "columns": [
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "ability_names",
+      "relative_path": "ability_names.csv",
+      "sha256": "351f00037a8f02c2c4000230854324a59329dbeb6c529e6b7f2198ce0e7cb8cf",
+      "parsed_sha256": "7956361c8646d14246981b5331a1633161b816a5a91da379e5993b1b6fa1b06e",
+      "columns": [
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "ability_prose",
+      "relative_path": "ability_prose.csv",
+      "sha256": "9dd4d85767664d3db758a280fd7f45a443af968c7580db42471411933c8742eb",
+      "parsed_sha256": "de6864a5032d6b77d6a088509b7d108e1f708afb710d6cbdd30fd88f2f191f70",
+      "columns": [
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "short_effect",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "berries",
+      "relative_path": "berries.csv",
+      "sha256": "05368daaa4bfb8f680763f4429949420c8258ae558fd917ea3a567bc93f769dc",
+      "parsed_sha256": "50f4ac1cbdb692bb4716ddccbf09b0ac64c9f223c08b8d3531e8c838e807e18d",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "firmness_id",
+          "kind": "integer"
+        },
+        {
+          "name": "natural_gift_power",
+          "kind": "integer"
+        },
+        {
+          "name": "natural_gift_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "size",
+          "kind": "integer"
+        },
+        {
+          "name": "max_harvest",
+          "kind": "integer"
+        },
+        {
+          "name": "growth_time",
+          "kind": "integer"
+        },
+        {
+          "name": "soil_dryness",
+          "kind": "integer"
+        },
+        {
+          "name": "smoothness",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "berry_firmness",
+      "relative_path": "berry_firmness.csv",
+      "sha256": "7a9f6f6fd5f2376139f3fed41fc1397022bd753b32921f304bbb97d2c35e7d5f",
+      "parsed_sha256": "9ab4f6a0961e97c074667a51982baf9a408d888e2430ae74a5d12c7feb0d5caf",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "berry_firmness_names",
+      "relative_path": "berry_firmness_names.csv",
+      "sha256": "8f36992d4ee8ae045352eabf3653e9f3933dd91ac9c6c23366e844002a294c5a",
+      "parsed_sha256": "740cde15dd18deaeae1f376125a631f65d9a9193a52f4d70df52318b470d2a45",
+      "columns": [
+        {
+          "name": "berry_firmness_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "berry_flavors",
+      "relative_path": "berry_flavors.csv",
+      "sha256": "10f624c523293bed54760bae40da62872890cd5447e847cfded2f44e3727f7d2",
+      "parsed_sha256": "8ba159824ccde5084e09225232317e16d40ac5b528b8296fb7420c75f4efe588",
+      "columns": [
+        {
+          "name": "berry_id",
+          "kind": "integer"
+        },
+        {
+          "name": "contest_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "characteristic_text",
+      "relative_path": "characteristic_text.csv",
+      "sha256": "d1047455c5ca12dbd4bb3b322a51492df4ab1354013045c0469119af754a3d5e",
+      "parsed_sha256": "c48a03100a9960679d82c03c78325827fb027e1e3e704e47c8841f028642dc19",
+      "columns": [
+        {
+          "name": "characteristic_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "message",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "characteristics",
+      "relative_path": "characteristics.csv",
+      "sha256": "2a4557f2535407900b9d005a418b1a483e3d111bd6249d5abaafb437a8bae993",
+      "parsed_sha256": "0c03a21de5d502baf66dfa1b0a403fb13146411ee642eb7b859ed28bbd3e3a01",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "gene_mod_5",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_episode_names",
+      "relative_path": "conquest_episode_names.csv",
+      "sha256": "d4e4430f196920c3300827fdb43982a89f3bc172b30ef0dd64f29c96694e2bb5",
+      "parsed_sha256": "14cbcdab7dbdf2aaab01167432138b278b64f1d522036e5366e48d3f246e47fe",
+      "columns": [
+        {
+          "name": "episode_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_episode_warriors",
+      "relative_path": "conquest_episode_warriors.csv",
+      "sha256": "47fc3ab4dfd8548ff0dc9bdc162fe676171521e0f28525d831796c481cf9115b",
+      "parsed_sha256": "d10776a9775393efc964cfe79b1bc078210c646c9f3f309e6bb67f355beab3c5",
+      "columns": [
+        {
+          "name": "episode_id",
+          "kind": "integer"
+        },
+        {
+          "name": "warrior_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_episodes",
+      "relative_path": "conquest_episodes.csv",
+      "sha256": "f0b1336be21c67d8ef525c0cfe0b580a2636b0c472598942081a9bb9a0a2cb1d",
+      "parsed_sha256": "649ef23969a7da465b7606052a1ab40ead8e1b401bda8c6bdcf1c0aeb7037674",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_kingdom_names",
+      "relative_path": "conquest_kingdom_names.csv",
+      "sha256": "b3d2c5e17a722b1ba4a28f4c113ebc4f57fce07525d38dc2add57e909673c384",
+      "parsed_sha256": "c13e48578218af53dec1edd5a366e30d1e6d6ced245c3c6e3f8929e881ba5b50",
+      "columns": [
+        {
+          "name": "kingdom_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_kingdoms",
+      "relative_path": "conquest_kingdoms.csv",
+      "sha256": "798396906b5e0439929b02597ca3a7907829c178afc13550f3b8a899644b88ff",
+      "parsed_sha256": "42c5accbcc3bda234bef45b2bf2629ef72e536e15806818e90e184da499d7799",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_max_links",
+      "relative_path": "conquest_max_links.csv",
+      "sha256": "d193783971f54948d171b64519557882b10ccdee96fc991169ec32e873ba5468",
+      "parsed_sha256": "6fac049f7c4fe07678cdd6a213a059d149ae99aa61bf1870968f912b59dbbadb",
+      "columns": [
+        {
+          "name": "warrior_rank_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "max_link",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_data",
+      "relative_path": "conquest_move_data.csv",
+      "sha256": "f7a805ef6cb8751dcceffe5d49d20d27926f8e264de173e755dffa95023c208c",
+      "parsed_sha256": "a6230629d1f72fb46a5169baa472b81f98c69c63fcc54901f7045624667301c3",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "power",
+          "kind": "integer"
+        },
+        {
+          "name": "accuracy",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_chance",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "range_id",
+          "kind": "integer"
+        },
+        {
+          "name": "displacement_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_displacement_prose",
+      "relative_path": "conquest_move_displacement_prose.csv",
+      "sha256": "fab8acd10f102410ead7c58915d14907e018d1149f933ffc8170f78804517f96",
+      "parsed_sha256": "858e9e99a1068c7df18178384c928a5e2a75a649651ccab82ac99fdf8aab6050",
+      "columns": [
+        {
+          "name": "move_displacement_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "short_effect",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_displacements",
+      "relative_path": "conquest_move_displacements.csv",
+      "sha256": "21501e8b87391be944ae3e35c2fa1d59de71a61aee5d98a6a8454e1153de1b86",
+      "parsed_sha256": "69e49653a2b19759fb1042459d252967ff1a4056a181604f05718cfebce7c963",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "affects_target",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_effect_prose",
+      "relative_path": "conquest_move_effect_prose.csv",
+      "sha256": "674e1d1059577ccdd08d33371c75644bb2c207296551ed1752ad63eeaaa0a4ad",
+      "parsed_sha256": "e68b192a3e35c1d95f8af5aa0db9b5ede156b12275f50769135e25ffdb39e9e9",
+      "columns": [
+        {
+          "name": "conquest_move_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "short_effect",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_effects",
+      "relative_path": "conquest_move_effects.csv",
+      "sha256": "5f84afde41470c955608f6c09e5f3a69f5a77c454f50d5cc4ff12aa5e277adac",
+      "parsed_sha256": "ddfc188587e87f77db66d06d2788ff5d6633dac6bb5d1295aea998fc3f7b0496",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_range_prose",
+      "relative_path": "conquest_move_range_prose.csv",
+      "sha256": "2d85d6736c2264b8226dc4830919e9b8a458e1e0432e4c8684d07c51bacd2834",
+      "parsed_sha256": "f06f0c75a3a684ad6073c1878c16a7a75388ac2a64d6d3dd0e4d5324c1595462",
+      "columns": [
+        {
+          "name": "conquest_move_range_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_move_ranges",
+      "relative_path": "conquest_move_ranges.csv",
+      "sha256": "9336342762687ae37fbe670f4770485ead11552f5d9562dfb41ed486f7d72533",
+      "parsed_sha256": "cab4842db9e55dd198774609335636b3537ba1f678e4133d3b3bebebd477bfb3",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "targets",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_pokemon_abilities",
+      "relative_path": "conquest_pokemon_abilities.csv",
+      "sha256": "002a0c21858aac4a95c7bccf4fe65321099e14be31e4f6a12880bed9c7a5499c",
+      "parsed_sha256": "7fa2b2931bc2ebfaf2e96a197ca8880b30ec91864bc40283c7d4e442977e639f",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        },
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_pokemon_evolution",
+      "relative_path": "conquest_pokemon_evolution.csv",
+      "sha256": "8c1ce9e28ced9b42cc582124f591249a05ce802f1de9df39276de5dae9274d16",
+      "parsed_sha256": "18a82cee69130b6b2a70b7680a78f0358c25235bc9f88777c58bb6c6f1c3c1e6",
+      "columns": [
+        {
+          "name": "evolved_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "required_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_stat",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_link",
+          "kind": "integer"
+        },
+        {
+          "name": "kingdom_id",
+          "kind": "integer"
+        },
+        {
+          "name": "warrior_gender_id",
+          "kind": "integer"
+        },
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "recruiting_ko_required",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_pokemon_moves",
+      "relative_path": "conquest_pokemon_moves.csv",
+      "sha256": "835ee6fc863b5a7a2441b30a20977eff50ff47dad06224deb31bc16d4a1b855e",
+      "parsed_sha256": "876a70e60623b24c3181a4148f8d6fc311fe40c0018403cc7a1840bb099a780c",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "move_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_pokemon_stats",
+      "relative_path": "conquest_pokemon_stats.csv",
+      "sha256": "528a93e946d6bb36b97ec015edbb069d93ecd97788c3e35127597b57ff5ae3b0",
+      "parsed_sha256": "a1cdcf0a2397345c4736783e4f5b9003cf2d02c118eebd4a08ce2ee036c8e7ed",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "conquest_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "base_stat",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_stat_names",
+      "relative_path": "conquest_stat_names.csv",
+      "sha256": "f440c0bed88164587fd6069c4dfe9b729428c2b21bca2b04eca43929d704367e",
+      "parsed_sha256": "6c0534e5ad19bb824280165e7de5c2fbd19987b1fc1213d51f44d23e14b9bcaa",
+      "columns": [
+        {
+          "name": "conquest_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_stats",
+      "relative_path": "conquest_stats.csv",
+      "sha256": "ee052dbaadf95061b392dd280013d677d380194931f78604d6fd516d8e2436f7",
+      "parsed_sha256": "906478d9f03141e9e4ac0a04fba09ba585556dfd6cf0fe88a9ffc85d2982d4f6",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "is_base",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "conquest_transformation_pokemon",
+      "relative_path": "conquest_transformation_pokemon.csv",
+      "sha256": "48f5aa04b183569feb005efa1f2c5d018ac73838a478e82d30551bcdf6c8f0d0",
+      "parsed_sha256": "5be476e170e43ea48ca83efbae29d56e5c29b4f3d8b0213ac5a8d02f66f183f3",
+      "columns": [
+        {
+          "name": "transformation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_transformation_warriors",
+      "relative_path": "conquest_transformation_warriors.csv",
+      "sha256": "b4903fb22a239688e56d1ce19c6d3043af2b5497506b4085188e2e40258ad54b",
+      "parsed_sha256": "45c4dee0c3892b0fc071c4e1db17b30010103b7f6538a1f953bbcb7261a9756f",
+      "columns": [
+        {
+          "name": "transformation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "present_warrior_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_archetypes",
+      "relative_path": "conquest_warrior_archetypes.csv",
+      "sha256": "f543b232347a65c032b83f6db307e8fbad722c4be29b4942bc99cb961776944f",
+      "parsed_sha256": "91f923d229e6198d124f840e30e28593735d242f2a75517506b1996941427d4c",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_names",
+      "relative_path": "conquest_warrior_names.csv",
+      "sha256": "1272e2be78363ff7fa95f9a5ac51490dd76d0639053699fe0d97d4a9bab0d1d9",
+      "parsed_sha256": "5b176cc8904fc82ef98e455ec310bb12dc2ae9bf9411a45d4ca755de6042b12c",
+      "columns": [
+        {
+          "name": "warrior_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_rank_stat_map",
+      "relative_path": "conquest_warrior_rank_stat_map.csv",
+      "sha256": "dae021563256954a2f8b3ada3cfe9f1b16167d6a132056ea06d43ee79c19a4f1",
+      "parsed_sha256": "22d3b21e86c0b6249bf00092f7b2c094c6f1bff3112f41802c467e10f01c51a7",
+      "columns": [
+        {
+          "name": "warrior_rank_id",
+          "kind": "integer"
+        },
+        {
+          "name": "warrior_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "base_stat",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_ranks",
+      "relative_path": "conquest_warrior_ranks.csv",
+      "sha256": "7f0df2c680d148399d794add957b46548cd9627f11cf6b8225039d5c95c4e113",
+      "parsed_sha256": "6731cf14aac41242f54c9dd943fbe2f514545f7e0aee52bea83a372acc513df2",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "warrior_id",
+          "kind": "integer"
+        },
+        {
+          "name": "rank",
+          "kind": "integer"
+        },
+        {
+          "name": "skill_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_skill_names",
+      "relative_path": "conquest_warrior_skill_names.csv",
+      "sha256": "795591974190687b5fc25af7ff83e32c667ad2e67c466084d1c87a9081533290",
+      "parsed_sha256": "0d315c3e79797d4f2f852507667940d1c6a5f944e5d35634e7fdbf1146ae0d67",
+      "columns": [
+        {
+          "name": "skill_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_skills",
+      "relative_path": "conquest_warrior_skills.csv",
+      "sha256": "5a4a14a444f8ef824421f2ae21cd4dd502643b6ae4bc83bc3cec47772b2dede1",
+      "parsed_sha256": "41850393feb1784b15cc7b76c13142e2564804dfdc31e0a6f3bf8fd1ddaa3936",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_specialties",
+      "relative_path": "conquest_warrior_specialties.csv",
+      "sha256": "c0189c93e348a9df93ede49ec90b2764b7ce1be2b284ac5c0051293559973856",
+      "parsed_sha256": "91488083d9c93b380d54c3e285763f1df6dd91616304226ff7ec8d71d6178f42",
+      "columns": [
+        {
+          "name": "warrior_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_stat_names",
+      "relative_path": "conquest_warrior_stat_names.csv",
+      "sha256": "a547064535a56ad5d117db01ffe7b253b31c65122505fb55ab507004f5abf9d8",
+      "parsed_sha256": "7a88480df5bf50a1228c4e2dcdaecbaf388f0217fd3eda460c98a4e58e20ba23",
+      "columns": [
+        {
+          "name": "warrior_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_stats",
+      "relative_path": "conquest_warrior_stats.csv",
+      "sha256": "dbebd583f97df2a223e0ff0b8446f5e4891a8f0d44cf0877d4c2ebe7a9f0822b",
+      "parsed_sha256": "00138626939ca12cb1ddf395b30b1cadd58fa168f8d23fea50e2bc4c4a3db6d2",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warrior_transformation",
+      "relative_path": "conquest_warrior_transformation.csv",
+      "sha256": "a1e0d35609088b03f0b6da5e47ac7796ca7a057124dedbfb457a1a0d0c2d681c",
+      "parsed_sha256": "3a8f27c6ea80ece3df10bc8204f5b6ad148322c7a78aa08b24961ad80d94dc2b",
+      "columns": [
+        {
+          "name": "transformed_warrior_rank_id",
+          "kind": "integer"
+        },
+        {
+          "name": "is_automatic",
+          "kind": "boolean"
+        },
+        {
+          "name": "required_link",
+          "kind": "integer"
+        },
+        {
+          "name": "completed_episode_id",
+          "kind": "integer"
+        },
+        {
+          "name": "current_episode_id",
+          "kind": "integer"
+        },
+        {
+          "name": "distant_warrior_id",
+          "kind": "integer"
+        },
+        {
+          "name": "female_warlord_count",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_count",
+          "kind": "integer"
+        },
+        {
+          "name": "collection_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "warrior_count",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "conquest_warriors",
+      "relative_path": "conquest_warriors.csv",
+      "sha256": "29038c4df4391053b6ece2b09a672fae34e7586cdc3a793fc3535767c685aac8",
+      "parsed_sha256": "5938f266339f17f938190f459a775127bd493c1751a238381ad608e46aa760a5",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "gender_id",
+          "kind": "integer"
+        },
+        {
+          "name": "archetype_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "contest_combos",
+      "relative_path": "contest_combos.csv",
+      "sha256": "9a7694c381c37c2cc0d1322d11c19937317f79db335527ecbeea1f31ec010c4c",
+      "parsed_sha256": "e35ee8bf5352cb4ac1e428681c55f6bc7687fa415fddf8b53394562b75e2eebf",
+      "columns": [
+        {
+          "name": "first_move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "second_move_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "contest_effect_prose",
+      "relative_path": "contest_effect_prose.csv",
+      "sha256": "dfd394f7a23b1d00712a6f8ef2d3d578c11ca2c596f023af42f5e0b00f67d224",
+      "parsed_sha256": "ac949bc1823154c9366ad74d814b47a1aab07513e5da470c6dd58aa5c760ca6b",
+      "columns": [
+        {
+          "name": "contest_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "contest_effects",
+      "relative_path": "contest_effects.csv",
+      "sha256": "c9c1bb12f783a85d2a0efcd78cbfc3a542e8593b48da30364f746eb1fa0e8172",
+      "parsed_sha256": "c009000916dd36545039860770f84486cfe14da4fe0dd73d59d0a5257b1b9701",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "appeal",
+          "kind": "integer"
+        },
+        {
+          "name": "jam",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "contest_type_names",
+      "relative_path": "contest_type_names.csv",
+      "sha256": "6475238aa83d0f37e7457466531035496b2d97d5e59c703fd46ab4f29d7e4d03",
+      "parsed_sha256": "297cbe718216a8e83382ff48f31a51d9480d590c6dc7c295b462b6184ed7135d",
+      "columns": [
+        {
+          "name": "contest_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "flavor",
+          "kind": "text"
+        },
+        {
+          "name": "color",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "contest_types",
+      "relative_path": "contest_types.csv",
+      "sha256": "44574724cb7aa862fadd4078ff9b65d933ce9d525a51be70fb4a1e0821eff43f",
+      "parsed_sha256": "d61fa940edc072e90ae050cf9769dd33adf47075437dcf14652571ee651463ac",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "egg_group_prose",
+      "relative_path": "egg_group_prose.csv",
+      "sha256": "f910928930e4398c8fb065cb6381780251c0a2020105c1ae88825e4b77b9f610",
+      "parsed_sha256": "2801b2cb86113be650b0dab74cc41bb50bb9f7097f52660ba44840a843594d23",
+      "columns": [
+        {
+          "name": "egg_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "egg_groups",
+      "relative_path": "egg_groups.csv",
+      "sha256": "71c825ac27eab7a08d8d42d2c9726276f167e3f6a22d4747598c6838c8d9680e",
+      "parsed_sha256": "f5787839a979999c5591c3e36e7bdd12016e55cbb34acecf0cd74b0feecd51a4",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "encounter_condition_prose",
+      "relative_path": "encounter_condition_prose.csv",
+      "sha256": "4bbb1af073e9b458b254292cf32c4330be9cf8cfec9f5896cf59278725c34da7",
+      "parsed_sha256": "5ac4d4adf5c9aefcd4890f9a6eed6ff0c1830050e9dd291cc374cc9ab2ea3750",
+      "columns": [
+        {
+          "name": "encounter_condition_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "encounter_condition_value_map",
+      "relative_path": "encounter_condition_value_map.csv",
+      "sha256": "92ef6aa6ed0b054098b234b8a37e8185d2bb9337b750b438980d3983aa8043fb",
+      "parsed_sha256": "f966263753d3a8268abf6ce7223a6c13757e727a7b44c7286a1183a1e2eb6ec2",
+      "columns": [
+        {
+          "name": "encounter_id",
+          "kind": "integer"
+        },
+        {
+          "name": "encounter_condition_value_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "encounter_condition_value_prose",
+      "relative_path": "encounter_condition_value_prose.csv",
+      "sha256": "fb91418b810deed8a4d575e010c9a029acf51f0b5f8d92d9b01f0105b7d1812f",
+      "parsed_sha256": "33aefc026eb5c9965900e77afa5d39212406199bfed591aad51caa1b733d4ecf",
+      "columns": [
+        {
+          "name": "encounter_condition_value_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "encounter_condition_values",
+      "relative_path": "encounter_condition_values.csv",
+      "sha256": "52ae728be04ba2cd40429b4e98edbb0bc0a85b833beffcf779ef93b9195c441a",
+      "parsed_sha256": "06eca49f860f4935afa89b02c1d8e48bcb744e7567dd1e59d1784dcf17ef2d66",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "encounter_condition_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "is_default",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "encounter_conditions",
+      "relative_path": "encounter_conditions.csv",
+      "sha256": "fc095cfb82dc9cae08c2ca08ce029310aada58b388d19ca9ae96570520ee5117",
+      "parsed_sha256": "2b0f167adf359957d390c7eca7120ea1211b9282bc60bcb8fbe20d58448f03d0",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "encounter_method_prose",
+      "relative_path": "encounter_method_prose.csv",
+      "sha256": "11cbeac37fda8a59be72c7ace16b2e842c3196845e8929724bfc9d3fd451b4cd",
+      "parsed_sha256": "f62192e45c6d726cfedac95a57945ae7d8f98a1f563a1182e94461de76ff686a",
+      "columns": [
+        {
+          "name": "encounter_method_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "encounter_methods",
+      "relative_path": "encounter_methods.csv",
+      "sha256": "30874c49c3fb0649dff62fe624561970994204fd6c63c0d86db6a219e42ca7fb",
+      "parsed_sha256": "7c048534c4a975ac327617811b33b0db828a900074e91a0bd5ffd37584fbc4b1",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "encounter_slots",
+      "relative_path": "encounter_slots.csv",
+      "sha256": "3295194f17d9217ed3d6b717ad063c746bcef3ec1fea4cdcb227fc25836067e0",
+      "parsed_sha256": "0c32f5ea5568e94a8cf720464db300d36bc6b2871149bec195052496e1dcf0d9",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "encounter_method_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        },
+        {
+          "name": "rarity",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "encounters",
+      "relative_path": "encounters.csv",
+      "sha256": "26afbe024cbf6069c7dbb92be53d2439acd526a4149b3bd66f2db2d58a4016ae",
+      "parsed_sha256": "0f81d3e7cbb0f55f4437b4f8c52ffa600efe793de530f22021afc3f05f67986c",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "location_area_id",
+          "kind": "integer"
+        },
+        {
+          "name": "encounter_slot_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "min_level",
+          "kind": "integer"
+        },
+        {
+          "name": "max_level",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "evolution_chains",
+      "relative_path": "evolution_chains.csv",
+      "sha256": "15038dff22fea6a611c08b8065dc30fa2548e734d408879f2ada817902e6f7cb",
+      "parsed_sha256": "ea14923a8cb399d0f278cb2d0a4c18b37444ff7063c198ffc6935a56bbe68d7c",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "baby_trigger_item_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "evolution_trigger_prose",
+      "relative_path": "evolution_trigger_prose.csv",
+      "sha256": "6b852202debeb47ee5bda714ecf99c98161362ac09d5d102d60e14c7bc64bbe7",
+      "parsed_sha256": "3faa8b625010fc0ea0e3ee5869227988411dd3bd5ff2cadd47ec42f39d32a328",
+      "columns": [
+        {
+          "name": "evolution_trigger_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "evolution_triggers",
+      "relative_path": "evolution_triggers.csv",
+      "sha256": "2e0b701370766d3a1f0fd22c8dfbc1f4658fc49bd972250e8b5e58c6aa0339bb",
+      "parsed_sha256": "80a68917ad37277796364bd20983fe7d4d4bc01596d874c91e905024ea4a026e",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "experience",
+      "relative_path": "experience.csv",
+      "sha256": "246d5d215bb90ee47206b57bfb9d9f639f73080ee8e99147382814e44e4f417b",
+      "parsed_sha256": "4ad5a48c464824bdd3bb6e70932801cd303bb0e44fa41ed9b109efd706f280fa",
+      "columns": [
+        {
+          "name": "growth_rate_id",
+          "kind": "integer"
+        },
+        {
+          "name": "level",
+          "kind": "integer"
+        },
+        {
+          "name": "experience",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "genders",
+      "relative_path": "genders.csv",
+      "sha256": "8073fb3647ff98f0c6349539f4232ee4b66c1a31b9540657f33cf10044032d68",
+      "parsed_sha256": "a3391930bf6446767fc920fc55a3a0795af98c12c93e7cf21903bd316b6a17f4",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "generation_names",
+      "relative_path": "generation_names.csv",
+      "sha256": "a077d9d7856f44de7777f01111251b5e87ae3a1391ccb2127776d8862994d2d2",
+      "parsed_sha256": "5263af4975628437c4ff6fbce8ce6a0a74a85beb5e0531aab6dbd43176983065",
+      "columns": [
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "generations",
+      "relative_path": "generations.csv",
+      "sha256": "8a1163c6dbcaf0751607ae5d6e15cd104324d9e9492a2b82c380c1c7e1332df1",
+      "parsed_sha256": "69fc74c4034ffde5b5e8cfda5764a3b0db52a3b26243e84d1000103cdd3f1a25",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "main_region_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "growth_rate_prose",
+      "relative_path": "growth_rate_prose.csv",
+      "sha256": "48d724cc9c53a6f56c97ab2fafddcc30c08a8b89b2fe2050e82950f297706dbb",
+      "parsed_sha256": "1138c7b66aca5d85b632f35cbb5b2314828ad9e82f7b140fcc3eeefb92d29a7d",
+      "columns": [
+        {
+          "name": "growth_rate_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "growth_rates",
+      "relative_path": "growth_rates.csv",
+      "sha256": "2691fea161441ce97085d70c0f466c0329a9a5a587a9797bb3b757da0e8090d0",
+      "parsed_sha256": "a3f50c6971c3fc802b9131d7d2bd24a897b20938b1f4a5abdbc209424168d3e6",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "formula",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_categories",
+      "relative_path": "item_categories.csv",
+      "sha256": "8bfcaaf1dfe45d33a8cc374a602f2424e1c37ad68bab222f090cd95c691660d7",
+      "parsed_sha256": "87255dca8d9b0062d5c8f13a6aa5a2ac2326b2393d015af48a7b7a50b7cb57ae",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "pocket_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_category_prose",
+      "relative_path": "item_category_prose.csv",
+      "sha256": "42b4cc482eaa1bf87f1b1c71cc52ad1ebe2b05252700b3739dbc27d6c7e2c6d1",
+      "parsed_sha256": "767f0085a8150574cf9973cdcd9c8b8a88b50b386870fabc441e59a43e9345ce",
+      "columns": [
+        {
+          "name": "item_category_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_flag_map",
+      "relative_path": "item_flag_map.csv",
+      "sha256": "f3733ab2dc530ce990131fe1a0d8cc8a2e8393b8f514c7283f155dfc2e72619b",
+      "parsed_sha256": "61f6d9d63a57978763af387df53111225ab18d1d14df6f959999e0dc2b016358",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "item_flag_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "item_flag_prose",
+      "relative_path": "item_flag_prose.csv",
+      "sha256": "8e44945275f14d0b892399e145ece8e9ec87a0c4555a97be1f2c19f9cc5c14e5",
+      "parsed_sha256": "163426eb0ae56c93a172aacd2d21681f878a3175a0c36689c3171cf9ec73d43f",
+      "columns": [
+        {
+          "name": "item_flag_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_flags",
+      "relative_path": "item_flags.csv",
+      "sha256": "ac9f0fe5376b9a6b3cba23688866221149354dd761d182092aa7fdee5d312985",
+      "parsed_sha256": "140c134cab88f10e4ef25796e24aefb1addba9f3e026ecd6dfe2be517f794497",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_flavor_summaries",
+      "relative_path": "item_flavor_summaries.csv",
+      "sha256": "94315af59d9079ec4913a4757320a646145bfb8ab08da887b3d2e4445f8d9fec",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_summary",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_flavor_text",
+      "relative_path": "item_flavor_text.csv",
+      "sha256": "1a0bb90a4775e1bf5a5742bd1f36bdfae7c066a96fd78bb849b2fa6f634eee40",
+      "parsed_sha256": "61089df2addbbbcda5004c2f5d0bb9e5a11ce18f3be43d29efbbe4a224a19597",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_fling_effect_prose",
+      "relative_path": "item_fling_effect_prose.csv",
+      "sha256": "b01d219c46827f2bcd2178a69bbb90f8812fffef1b36250035580a4f3b7d7d7d",
+      "parsed_sha256": "383e60c12f85f08fb443b7691b1640cfa871cefff3475a3b9abf240133162b62",
+      "columns": [
+        {
+          "name": "item_fling_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_fling_effects",
+      "relative_path": "item_fling_effects.csv",
+      "sha256": "e6e32de53269b97af9118698f0b79ed1dd0b459dcffe35cd9675ebcf8a97f4a7",
+      "parsed_sha256": "d91f206731e1091ec238db7d75accd2cc22108bf72aa81a89fab302f1acff37f",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_game_indices",
+      "relative_path": "item_game_indices.csv",
+      "sha256": "e39261a35678b381606010eb9c823ecc9f53ad3f84da9060b305f2c6c30554c7",
+      "parsed_sha256": "47356cb9f9057c60e1bfb12048d18502192c8dcd43c6a944edd94bad163c9c4b",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "item_names",
+      "relative_path": "item_names.csv",
+      "sha256": "e8ed039b002884e4acb343c3ab20b59ad38b5cca81d4a4c6e7af57431fcb82eb",
+      "parsed_sha256": "9ceb0fc50b2336b97c53dfdc83372594fb5a6904ba01e2345a31e6b608848bc0",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_pocket_names",
+      "relative_path": "item_pocket_names.csv",
+      "sha256": "682ba9622b98973689fae6c8b05be08c9581b9ca1729ed08cc59477fbfbc395c",
+      "parsed_sha256": "474223423668c4dacbe3a228792748bf4b6c7e913ab26dc5e7a584747899531e",
+      "columns": [
+        {
+          "name": "item_pocket_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_pockets",
+      "relative_path": "item_pockets.csv",
+      "sha256": "8ba8329ca4a72fca13df87cebe1b67ea389ed61ac856d2c9b8073e6bd077aff4",
+      "parsed_sha256": "c8c6d1d009a6bed7b559c3cb01f4224ea577dc0bab5ee01d04f141dba666ac8b",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "item_prose",
+      "relative_path": "item_prose.csv",
+      "sha256": "bd87c002c58afd7b0d9be24adbaea5384d688524e73aa765122076d1ceffbf9f",
+      "parsed_sha256": "bc5f873bc2c36a1ef47e48f31588029b900615cfe87f486999c1e85934961043",
+      "columns": [
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "short_effect",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "items",
+      "relative_path": "items.csv",
+      "sha256": "b97f28cbeee4f551707d43a75e288988f31c4a335f93ee16ba97f85db49dea94",
+      "parsed_sha256": "7836b661bfd8b922742c2b63771076f199a875b623e87955b22aa6b4a518d833",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "category_id",
+          "kind": "integer"
+        },
+        {
+          "name": "cost",
+          "kind": "integer"
+        },
+        {
+          "name": "fling_power",
+          "kind": "integer"
+        },
+        {
+          "name": "fling_effect_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "language_names",
+      "relative_path": "language_names.csv",
+      "sha256": "3c0a812d4f11cb706d674d1e989175d5d79f72e285cab233ae27eccbcefd510b",
+      "parsed_sha256": "76a56a83d712b546a2893c98439f8f1ea663ed05a7ba68c2d90697f040b876fc",
+      "columns": [
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "languages",
+      "relative_path": "languages.csv",
+      "sha256": "a25e4af6726181b59449cc142a0065e7116242c306f020c381bcd6d12871067e",
+      "parsed_sha256": "cb92e54f78041ce4b72d774836920a179b6ae7eb3cd1477175358fa1813b8829",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "iso639",
+          "kind": "text"
+        },
+        {
+          "name": "iso3166",
+          "kind": "text"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "official",
+          "kind": "integer"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "location_area_encounter_rates",
+      "relative_path": "location_area_encounter_rates.csv",
+      "sha256": "fb120842646ba2e1e93e75efba97c9a1ad67fc9eed0912e192ef6580cb289ba5",
+      "parsed_sha256": "1566dab6cc9cf25e7b42de98c1dd2f6a30b2cbfe4c61cbe8048c769cf2fe5d88",
+      "columns": [
+        {
+          "name": "location_area_id",
+          "kind": "integer"
+        },
+        {
+          "name": "encounter_method_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "rate",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "location_area_prose",
+      "relative_path": "location_area_prose.csv",
+      "sha256": "083c891f5d566b592c7a166bf06d5bfc6f56524cdc07e9f7b90676379eab9ac0",
+      "parsed_sha256": "d6fb10eab9b9fc96ade8d8c3f51a6b3bf015fc97f245e7022bdc66a23c341ccc",
+      "columns": [
+        {
+          "name": "location_area_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "location_areas",
+      "relative_path": "location_areas.csv",
+      "sha256": "1083aae2f6ed7589df64459fdfb5483cfc2bd6e5adeb457b234f568bce19042f",
+      "parsed_sha256": "34743186becedb3fe4deeb4a344773130ae40d464000a5856c9e7b7e7ad6aed1",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "location_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "location_game_indices",
+      "relative_path": "location_game_indices.csv",
+      "sha256": "d88c5e3133856f6a995cbe641828055c08539e2c25d320ca8a12fb3ab0d5cb4d",
+      "parsed_sha256": "0eb18e289ae8a02633ae38fcc3d191c3db607e344f8c61a01365e461a8394e09",
+      "columns": [
+        {
+          "name": "location_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "location_names",
+      "relative_path": "location_names.csv",
+      "sha256": "1f4a9d29fa8d240a415dd7e6c1285113e073cdd492549daa17889189dbb01321",
+      "parsed_sha256": "0795f5f5899eca39d5ba284eac27b2e53fe5ecd7d294c0aaec6b8d743b2b0576",
+      "columns": [
+        {
+          "name": "location_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "subtitle",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "locations",
+      "relative_path": "locations.csv",
+      "sha256": "98e607ca3c1892f565a9289c9852f86dbe65b3b0ec71dbd7854ae2a368e6b322",
+      "parsed_sha256": "52ae395a2baa08d56a24a8e4873f225e7179b3f4fc9831f6a88ad67c5b3da21d",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "region_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "machines",
+      "relative_path": "machines.csv",
+      "sha256": "aeeb0c37c158dbcd52e2379ca3a9e200526bbd48a5853daeedb9233613f98062",
+      "parsed_sha256": "27cfb1788714b62224882b68304493b51c342b17c3003ce509b8264a3ba3e09d",
+      "columns": [
+        {
+          "name": "machine_number",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "move_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_battle_style_prose",
+      "relative_path": "move_battle_style_prose.csv",
+      "sha256": "c34e7341ef3b4124e89c59664edb9b3c16842bb6c890ad2a491cbfff8597f0a6",
+      "parsed_sha256": "98880fcf1f9221c42cf0754a872bdd24d953bfa4375b4bf12f2a04ac60540b2c",
+      "columns": [
+        {
+          "name": "move_battle_style_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_battle_styles",
+      "relative_path": "move_battle_styles.csv",
+      "sha256": "d6247c3cde2de4c8059ade38b571b1a8b0cc8bfc816f46c655ed79039c890445",
+      "parsed_sha256": "6d47b7123ec250d62858506efa94e9c2c75ec3da3652d947808ad1959a6f20c6",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_changelog",
+      "relative_path": "move_changelog.csv",
+      "sha256": "86c1511f6a0e29dcc5a885c5b8f125ffd502afbec9f69c7f2b85a3e0e8b001f8",
+      "parsed_sha256": "cc669e9631573a01bc42ec1fba3e1a0736c34a4bdcd60e6c643c706899774910",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "changed_in_version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "power",
+          "kind": "integer"
+        },
+        {
+          "name": "pp",
+          "kind": "integer"
+        },
+        {
+          "name": "accuracy",
+          "kind": "integer"
+        },
+        {
+          "name": "priority",
+          "kind": "text"
+        },
+        {
+          "name": "target_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_chance",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_damage_class_prose",
+      "relative_path": "move_damage_class_prose.csv",
+      "sha256": "31fb18994e93900fde78e8ae00e1a9a2c8fa9845367e687c3597ff7bb3a9e46a",
+      "parsed_sha256": "feba072ecfca571492471eaa66a4b8cc87a2032308320a1fbf9c1347f9c2695c",
+      "columns": [
+        {
+          "name": "move_damage_class_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_damage_classes",
+      "relative_path": "move_damage_classes.csv",
+      "sha256": "b7101ceca4dff152537a2fb5c439ca4030b05f86442c643812c0b7b6ccf16f1b",
+      "parsed_sha256": "7bfee32928dab7e8604f7dbdc621836f2208213edbfdb4214b01956c53e61f10",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_effect_changelog",
+      "relative_path": "move_effect_changelog.csv",
+      "sha256": "b91d0ce3565c86e7592a528643c613c862d3247efeb5d20faa75d03381a84fab",
+      "parsed_sha256": "6cee06b0f9767c81ddf4142d351029153e6a0c99cff62c21d3db2231c5b86d60",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "changed_in_version_group_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_effect_changelog_prose",
+      "relative_path": "move_effect_changelog_prose.csv",
+      "sha256": "130c118b07abcb3622b4d1aa9e917503783ef2bb727d7708863802574bbbfd29",
+      "parsed_sha256": "8b7edb685eafe4419c5845223057e009f8c59b98b1c92a6180c68b4b12ae7728",
+      "columns": [
+        {
+          "name": "move_effect_changelog_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_effect_prose",
+      "relative_path": "move_effect_prose.csv",
+      "sha256": "49435d673e6b94a542a974ef4952fd1d17e5953bc957a9d1a18607e13326ff2a",
+      "parsed_sha256": "f6891cd572a9b7d31de414712cdea2ad8c9bff72a29cba28587dc4dbe3d7e753",
+      "columns": [
+        {
+          "name": "move_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "short_effect",
+          "kind": "text"
+        },
+        {
+          "name": "effect",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_effects",
+      "relative_path": "move_effects.csv",
+      "sha256": "fe46b203929787379c0255fd450c1e4d93e907f8bc02637f7adcad3ddaeb9aa4",
+      "parsed_sha256": "691f8f20bd9cd9df28790da9bb57ee3791f2f393a77762480bb076612bb83033",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_flag_map",
+      "relative_path": "move_flag_map.csv",
+      "sha256": "399cf005933418f406b94729903bd1528e9088bddc3bc1966be6c442a625da1b",
+      "parsed_sha256": "dde090a576da4e0c0e83b8805c7ee4399420caaf5ed3209d3a16161f49633ee1",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "move_flag_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_flag_prose",
+      "relative_path": "move_flag_prose.csv",
+      "sha256": "58aa026b7492312b7e68ff871d763ebe4437ea8b17bd0e9ac8ff2d0b5993f355",
+      "parsed_sha256": "387fc9baef07d08b733736ba6f5dfba1483cdf09e8732cd7436d527a91a643f1",
+      "columns": [
+        {
+          "name": "move_flag_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_flags",
+      "relative_path": "move_flags.csv",
+      "sha256": "1ebc43dfcbc635afcf4d34913158dbfd4cccbca0a496055c4a03e7ee5b9bc4d4",
+      "parsed_sha256": "301398f0c42a8823ff378cb6a35a706fa5a0eeedab4da7d9da1813aba407f5ed",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_flavor_summaries",
+      "relative_path": "move_flavor_summaries.csv",
+      "sha256": "ec2afa967cab868b6284ab8cea0e8f767c749851f2efe1ba4db48215e457a7b9",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_summary",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_flavor_text",
+      "relative_path": "move_flavor_text.csv",
+      "sha256": "a5974dda8138fdfb8d5073836862a267bd47e3963a3cacadfd0820100fd8734f",
+      "parsed_sha256": "e0681e163f906bcb63ae6daf8dfaa19d00a362fb289c12131e3df54c719f88d9",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_meta",
+      "relative_path": "move_meta.csv",
+      "sha256": "c02f480f22a5269c4567f39fa9de6309d60e0b51e232096fdac4d60dd686285c",
+      "parsed_sha256": "d0e364dd9f6ec65729da58afd25e6d5e3dd807bd267e1cc17390ae8faad8826d",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "meta_category_id",
+          "kind": "integer"
+        },
+        {
+          "name": "meta_ailment_id",
+          "kind": "integer"
+        },
+        {
+          "name": "min_hits",
+          "kind": "integer"
+        },
+        {
+          "name": "max_hits",
+          "kind": "integer"
+        },
+        {
+          "name": "min_turns",
+          "kind": "integer"
+        },
+        {
+          "name": "max_turns",
+          "kind": "integer"
+        },
+        {
+          "name": "drain",
+          "kind": "text"
+        },
+        {
+          "name": "healing",
+          "kind": "text"
+        },
+        {
+          "name": "crit_rate",
+          "kind": "integer"
+        },
+        {
+          "name": "ailment_chance",
+          "kind": "integer"
+        },
+        {
+          "name": "flinch_chance",
+          "kind": "integer"
+        },
+        {
+          "name": "stat_chance",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "move_meta_ailment_names",
+      "relative_path": "move_meta_ailment_names.csv",
+      "sha256": "69f458fec152ccff5395deafa7abdb1a68cd0da7e442ca69391f933327ac3839",
+      "parsed_sha256": "e2adc5da7ae2e18a282ff2bd0b42502f77cb4a0a3dac72dbbe8c27ac0d84eba1",
+      "columns": [
+        {
+          "name": "move_meta_ailment_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_meta_ailments",
+      "relative_path": "move_meta_ailments.csv",
+      "sha256": "272080cf8929cd4ed4d09c36896eb33c5909aafb3d2ff403b20c6cb43fbb8c95",
+      "parsed_sha256": "3824e7861e49d430bfcff115906062c595e8399db4f749664ed464f024243cb3",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_meta_categories",
+      "relative_path": "move_meta_categories.csv",
+      "sha256": "fa323bf9f1c9aa030b5029002a0347a97b1bf8abfcca60349c94c6e34312c4c7",
+      "parsed_sha256": "70f14e78e2d62267a10f634e29c174a82f780617c4337d116f8c8cbad1fe14cd",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_meta_category_prose",
+      "relative_path": "move_meta_category_prose.csv",
+      "sha256": "f3181d11750d5d6d09d468d630a4120c55d7d5962fc9c11a7a5c3cf3b8fedd72",
+      "parsed_sha256": "007d01fd4f3c94a7782af74ff959864fcfc96c82bc4910ba4faf7c22234ca3d0",
+      "columns": [
+        {
+          "name": "move_meta_category_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_meta_stat_changes",
+      "relative_path": "move_meta_stat_changes.csv",
+      "sha256": "489edd9ee45ea7e60c99c5a860c4c0957b337af21f8ae9bf03dd121fd548d5ab",
+      "parsed_sha256": "929c3716727786c0f02dc88cf8efa20be15f6526537b8e1da5447409b350578f",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "change",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_names",
+      "relative_path": "move_names.csv",
+      "sha256": "d4be0857cfb9725f341b43525546f0f504708f984fd2b70222391d967b4f81bb",
+      "parsed_sha256": "1b4c28a8b50e2ecd9d85b30ee52583fe45ed77e2c81f38b08afd45cb4748e80e",
+      "columns": [
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_target_prose",
+      "relative_path": "move_target_prose.csv",
+      "sha256": "73d3a258752a053a73146e8f09bc8b5b24d2c6cd7c17f4b390ad142b787d4d19",
+      "parsed_sha256": "acd3f44d48134710b80e1569548625055e570fbb2154a9a0ad70a5732aaf1e30",
+      "columns": [
+        {
+          "name": "move_target_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "move_targets",
+      "relative_path": "move_targets.csv",
+      "sha256": "47600dd1ec76bc6e9f117116686ea5d44219623658b2cfcb140711fc9f021db9",
+      "parsed_sha256": "fb8693c4a51f5de927162a4c360cfeb39965b8e81d6ef5bd93ec138bfa0d8cbf",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "moves",
+      "relative_path": "moves.csv",
+      "sha256": "d4e8292524f38c0883dafc9778264cf4a08ccbf35337422ec1677890070c9885",
+      "parsed_sha256": "509f342d0ee3f3ef8785bcdda28881b97dd9b9db70031762e0536856ecc00a99",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "power",
+          "kind": "integer"
+        },
+        {
+          "name": "pp",
+          "kind": "integer"
+        },
+        {
+          "name": "accuracy",
+          "kind": "integer"
+        },
+        {
+          "name": "priority",
+          "kind": "text"
+        },
+        {
+          "name": "target_id",
+          "kind": "integer"
+        },
+        {
+          "name": "damage_class_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "effect_chance",
+          "kind": "integer"
+        },
+        {
+          "name": "contest_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "contest_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "super_contest_effect_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "nature_battle_style_preferences",
+      "relative_path": "nature_battle_style_preferences.csv",
+      "sha256": "5ba8d0188c216a326d34415d4febddc104eb49a4a5c5eff48f73985d5091f162",
+      "parsed_sha256": "f7f96c937c3e406f609cf88b26e7a4305b23c1fdcf43b5d4cfc4d6c97ad9618d",
+      "columns": [
+        {
+          "name": "nature_id",
+          "kind": "integer"
+        },
+        {
+          "name": "move_battle_style_id",
+          "kind": "integer"
+        },
+        {
+          "name": "low_hp_preference",
+          "kind": "integer"
+        },
+        {
+          "name": "high_hp_preference",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "nature_names",
+      "relative_path": "nature_names.csv",
+      "sha256": "a44591fd49fec9a0d1ac6e616c9cd8fdd11284be2bbf1c7cf630e24d37040d06",
+      "parsed_sha256": "f279234e3f6b825dde0cd45ca870760ecb9bf27cb10df78e702b7a2b7e3c50a8",
+      "columns": [
+        {
+          "name": "nature_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "nature_pokeathlon_stats",
+      "relative_path": "nature_pokeathlon_stats.csv",
+      "sha256": "7cff0dd741c9e34cceac1a885c4cc3032d0367af7f4842f62f302e6e0e9f22ee",
+      "parsed_sha256": "c46acbaddacaf5b0d4383d6122e8045642bfe364e5d60bf283388d64bb5ff133",
+      "columns": [
+        {
+          "name": "nature_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokeathlon_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "max_change",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "natures",
+      "relative_path": "natures.csv",
+      "sha256": "3536990f6adeaa1735551a6afe798649d22426e161c937da09d3ae9a5381309c",
+      "parsed_sha256": "850278f1a34dbfdda5b237faec9262e3b16cbdd44f37aea22bfda5caff712e24",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "decreased_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "increased_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "hates_flavor_id",
+          "kind": "integer"
+        },
+        {
+          "name": "likes_flavor_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pal_park",
+      "relative_path": "pal_park.csv",
+      "sha256": "3c2ef7a0ec81ab99e990e3119d3eae021577353a62d64247fd142f049c2a2b89",
+      "parsed_sha256": "fa097e6f2dd49fa55d314937f723297f0bdccde4d4982e954539544351e87d24",
+      "columns": [
+        {
+          "name": "species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "area_id",
+          "kind": "integer"
+        },
+        {
+          "name": "base_score",
+          "kind": "integer"
+        },
+        {
+          "name": "rate",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pal_park_area_names",
+      "relative_path": "pal_park_area_names.csv",
+      "sha256": "4d2fa2ace7af7a89119d8cab3208e14f7fbea779097d9ab1018ec0666e3bae44",
+      "parsed_sha256": "c3b97522cc513b3d3b2cb16889cb3251cf7a5a784284093e1c9b3db2cabe56b6",
+      "columns": [
+        {
+          "name": "pal_park_area_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pal_park_areas",
+      "relative_path": "pal_park_areas.csv",
+      "sha256": "ce5a466c24209fe3f1f8fc8870bb4820246579ae3c82cd018e309cb9fef389ba",
+      "parsed_sha256": "85b664c67cb2885cb139f820d92be0ae2343883fa8a34b476415fa528ccebfda",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokeathlon_stat_names",
+      "relative_path": "pokeathlon_stat_names.csv",
+      "sha256": "7285e5b6d994af1b8bf8e16d7318e46929d4aca026461e69547e7a8843f8d953",
+      "parsed_sha256": "62f8165b881d986d3d96f3898ad5c2b5a61eab3e7e0d80c0c391a037cc914aa8",
+      "columns": [
+        {
+          "name": "pokeathlon_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokeathlon_stats",
+      "relative_path": "pokeathlon_stats.csv",
+      "sha256": "3e602c231364f15f90a362a59bd294d8ab47063221a3841352eeeca1e8f00128",
+      "parsed_sha256": "ae3f0650632415dd00dd7a798841dd60ff30420a6c190d6e2ddbb6d37eaa37ea",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokedex_prose",
+      "relative_path": "pokedex_prose.csv",
+      "sha256": "9ff01f8c3744d34a97e4711abba4e064a354599acb5cacd1888b1f33ab8fbb12",
+      "parsed_sha256": "10c87d73944c02020da7b4e7888490a46f9a90442839d24fbf05c460ee809797",
+      "columns": [
+        {
+          "name": "pokedex_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokedex_version_groups",
+      "relative_path": "pokedex_version_groups.csv",
+      "sha256": "e82e973e4ec048e3e0304e2ec2827d6c963d7458f61a7d3ee405061e13f8b522",
+      "parsed_sha256": "8ad8a2a64486a2b2d816b6cf792af1540f5670a58579839bcbe88896c632134b",
+      "columns": [
+        {
+          "name": "pokedex_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokedexes",
+      "relative_path": "pokedexes.csv",
+      "sha256": "860dfc5a7a598ee9098d8678577d9127aef0f2c8b13351f654fafcd20abba14a",
+      "parsed_sha256": "d00377a12b3e8f23dd270eae8d536d1f17a55cb2eed93f73f7dd29ad642e7634",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "region_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "is_main_series",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "pokemon",
+      "relative_path": "pokemon.csv",
+      "sha256": "5b03f86e9e5fd8ccb33260ab755468d0c2d1099bc900a9b2024a99e21468c759",
+      "parsed_sha256": "9b43e297f4f58a113bda976e3f0b7770f3a6023be6a542af7c93084c00d8bc72",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "height",
+          "kind": "integer"
+        },
+        {
+          "name": "weight",
+          "kind": "integer"
+        },
+        {
+          "name": "base_experience",
+          "kind": "integer"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        },
+        {
+          "name": "is_default",
+          "kind": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_abilities",
+      "relative_path": "pokemon_abilities.csv",
+      "sha256": "888cfb9101028a6a569ed9a4dab00e07e628daab665284e41ad0e73ed8c09c7c",
+      "parsed_sha256": "da15228a0945873b923782512e74f009c2f813e8e9f0d223f742e83206a9b7ae",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "is_hidden",
+          "kind": "boolean"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_abilities_past",
+      "relative_path": "pokemon_abilities_past.csv",
+      "sha256": "cc77c6d85f8323f5f52047d45671140309d19ec0eb0e5e610b68971dc9c64e02",
+      "parsed_sha256": "85483c33c5fa90d58fa6ae141fabf15a26b2541bb977afc6910793d695ca85fc",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "ability_id",
+          "kind": "integer"
+        },
+        {
+          "name": "is_hidden",
+          "kind": "boolean"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_color_names",
+      "relative_path": "pokemon_color_names.csv",
+      "sha256": "40262ab0aeedceed7460edbfb9b8910e86eef622cdf4d3a6977122522125e911",
+      "parsed_sha256": "a1a12ecb0ae7564ebafc44338bbb18077e161d2b06b35ea0d43551b0621039bc",
+      "columns": [
+        {
+          "name": "pokemon_color_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_colors",
+      "relative_path": "pokemon_colors.csv",
+      "sha256": "02f0753b509eacc92eb7896e932f3e873d86697de6449491ecebb278b1e60c1a",
+      "parsed_sha256": "49e99e6b2b0726893fd2ed6d036440a082bd60d2075fa87d06ee60efe71308fb",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_dex_numbers",
+      "relative_path": "pokemon_dex_numbers.csv",
+      "sha256": "abb177d302dc928cf54abe1ad3145007b55c4100a8bc4c9565fdc07f564f2738",
+      "parsed_sha256": "6f802de5826a6744410cf9152093ce9f97481a1a9a4af00f774c0e313e8c19c3",
+      "columns": [
+        {
+          "name": "﻿species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokedex_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokedex_number",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_egg_groups",
+      "relative_path": "pokemon_egg_groups.csv",
+      "sha256": "16f12853935cee8673790e0dfbc6382c60ca362e4b17f06c67f8ddca2b038298",
+      "parsed_sha256": "9afaa32ab8ec324a5bbdfeb49edf57af46a843974f92490202aa62d993f0b8fe",
+      "columns": [
+        {
+          "name": "species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "egg_group_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_evolution",
+      "relative_path": "pokemon_evolution.csv",
+      "sha256": "c090f8195f5fe4f93c239662e32b7533408f488bba5af669ebe775fe50631b7b",
+      "parsed_sha256": "d68c4eff1404d733e140c64cabe2feba4ad5bde87975ffd4b34be7b2cd3c1144",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "evolved_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "evolution_trigger_id",
+          "kind": "integer"
+        },
+        {
+          "name": "trigger_item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_level",
+          "kind": "integer"
+        },
+        {
+          "name": "gender_id",
+          "kind": "integer"
+        },
+        {
+          "name": "location_id",
+          "kind": "integer"
+        },
+        {
+          "name": "held_item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "time_of_day",
+          "kind": "text"
+        },
+        {
+          "name": "known_move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "known_move_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_happiness",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_beauty",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_affection",
+          "kind": "text"
+        },
+        {
+          "name": "relative_physical_stats",
+          "kind": "text"
+        },
+        {
+          "name": "party_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "party_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "trade_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "needs_overworld_rain",
+          "kind": "integer"
+        },
+        {
+          "name": "turn_upside_down",
+          "kind": "integer"
+        },
+        {
+          "name": "region_id",
+          "kind": "integer"
+        },
+        {
+          "name": "base_form_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_form_generations",
+      "relative_path": "pokemon_form_generations.csv",
+      "sha256": "e9baa93d93a4d975909f30fe3c77a646cf80030a3ca119e6a40baf6f0e017d8e",
+      "parsed_sha256": "077a0e76f2b4a8785445b716ddcf3bb508e7aefe5bc3bb29b40a9316e282eb64",
+      "columns": [
+        {
+          "name": "pokemon_form_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_form_names",
+      "relative_path": "pokemon_form_names.csv",
+      "sha256": "def0f08c3eda1034019dfe0e846d15a1e31679ac352c0f46b5ceb4ca68921c01",
+      "parsed_sha256": "f96670f1a3f1844b359e4c9737c45a3d2a307e02ef32d5d3fb3ac9cb14d44c52",
+      "columns": [
+        {
+          "name": "pokemon_form_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "form_name",
+          "kind": "text"
+        },
+        {
+          "name": "pokemon_name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_form_pokeathlon_stats",
+      "relative_path": "pokemon_form_pokeathlon_stats.csv",
+      "sha256": "349f129406eb93fa67c167b4d22da14f53092e88ebda73790805731ddb7c9a3a",
+      "parsed_sha256": "781716c26710379d9cbd8a7b9377a113be7c0f13750001435ec990a3b60d1344",
+      "columns": [
+        {
+          "name": "pokemon_form_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokeathlon_stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "minimum_stat",
+          "kind": "integer"
+        },
+        {
+          "name": "base_stat",
+          "kind": "integer"
+        },
+        {
+          "name": "maximum_stat",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_form_types",
+      "relative_path": "pokemon_form_types.csv",
+      "sha256": "da360b00a6dc50dff6cc2a71f6d4b6706bdf7b5e941de84ed6866d6b9531a6b2",
+      "parsed_sha256": "bea6c77f2fc4341b8c5cea2cbfc3335687c64f111b1a59614a3b2ff3d6dcc88f",
+      "columns": [
+        {
+          "name": "pokemon_form_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_forms",
+      "relative_path": "pokemon_forms.csv",
+      "sha256": "fb0ca9d7b4011194e5046ec886a6d100c1595a649733e81da57429a32be1a58a",
+      "parsed_sha256": "8b42ddd94d67a1cf1e45d4267862d8e3f664f7b2f6842a913b32c818284ccf02",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "form_identifier",
+          "kind": "text"
+        },
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "introduced_in_version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "is_default",
+          "kind": "boolean"
+        },
+        {
+          "name": "is_battle_only",
+          "kind": "boolean"
+        },
+        {
+          "name": "is_mega",
+          "kind": "boolean"
+        },
+        {
+          "name": "form_order",
+          "kind": "integer"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_game_indices",
+      "relative_path": "pokemon_game_indices.csv",
+      "sha256": "5d9ca7fd3ee27bc32d1e76ee71a70f4cd274a713ab97955787369bd4f65b8af0",
+      "parsed_sha256": "1b4282fae0e88ea9e087734491549ec0196f8d479a960aa30a0e0d40141f7506",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_habitat_names",
+      "relative_path": "pokemon_habitat_names.csv",
+      "sha256": "944f3b00f6ee7097523a71420fc977c647f3c12027c9d26f1bf6825c13e3fecf",
+      "parsed_sha256": "53942fb1cf264b34da15806211540d381c82a4c71a5e1ec1ff61fa15883c0619",
+      "columns": [
+        {
+          "name": "pokemon_habitat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_habitats",
+      "relative_path": "pokemon_habitats.csv",
+      "sha256": "30f6c3a82a1aa32be1280fcf4a8c138b1cdaf421399cbf9c0dd1a6aa2673b5df",
+      "parsed_sha256": "fc17c0590d615f19aec0674c13417ebc7ffee57ddc2b767076cb3fcd97999d09",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_items",
+      "relative_path": "pokemon_items.csv",
+      "sha256": "d3252002f446e5a5fe6ea4c88490eb49c4bfbb24b365cf7a807a9fab53c9f412",
+      "parsed_sha256": "2e7b695d47b42c3367fa62c6e1395687169298b33b6efaf7467088b02e15f73e",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "item_id",
+          "kind": "integer"
+        },
+        {
+          "name": "rarity",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_move_method_prose",
+      "relative_path": "pokemon_move_method_prose.csv",
+      "sha256": "8b1604abf8482f22dda7b9407bd49380d8b396a45aeba69ef786db6b8c71a9e1",
+      "parsed_sha256": "1a071c05462ae8b5a91e9f4c3d44987ab00324c141c3ecc580fd156294725dc9",
+      "columns": [
+        {
+          "name": "pokemon_move_method_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_move_methods",
+      "relative_path": "pokemon_move_methods.csv",
+      "sha256": "165580d89a710a4c4a8fe4051e6240c39fef8cda63efb0e87d172fc07180c14f",
+      "parsed_sha256": "6dd8e72b82cda960e56cf26a47527004ae5d269e1c78167b2b6f4d7994fa20bc",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_moves",
+      "relative_path": "pokemon_moves.csv",
+      "sha256": "29649f63db6df08edf8bf090a3ea18b84e2a4686612a65bd907866497cabc33b",
+      "parsed_sha256": "c50b044c57821f1998a27a7545a052a40ff44ddc79a80bdbf9c6fa2fafc19dbd",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_move_method_id",
+          "kind": "integer"
+        },
+        {
+          "name": "level",
+          "kind": "integer"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        },
+        {
+          "name": "mastery",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_shape_prose",
+      "relative_path": "pokemon_shape_prose.csv",
+      "sha256": "3c94532b01d4a98c334c23976265e387b157082d38d9a7b7b0202a93276d8060",
+      "parsed_sha256": "97c9efd0364339d4b1e35144afd55526d090e2e563e144ed7dd9d029a01de415",
+      "columns": [
+        {
+          "name": "pokemon_shape_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "awesome_name",
+          "kind": "text"
+        },
+        {
+          "name": "description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_shapes",
+      "relative_path": "pokemon_shapes.csv",
+      "sha256": "acf1c6079fb3601ad1badae83c966ce6a5cf500e75e128415248772825d9b8cd",
+      "parsed_sha256": "bc170f0e97bba74273637a43b1c2043377f90b23db2ef42133628c7a6db1d272",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_species",
+      "relative_path": "pokemon_species.csv",
+      "sha256": "75ded2f9498e38a9714a4b37ea1f43024bef12f1d2a52702393c35212d875875",
+      "parsed_sha256": "ec85945ec93fc511dfe51850cedf8f1ceb40c14cb5ec66e541bfa273090baed6",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "evolves_from_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "evolution_chain_id",
+          "kind": "integer"
+        },
+        {
+          "name": "color_id",
+          "kind": "integer"
+        },
+        {
+          "name": "shape_id",
+          "kind": "integer"
+        },
+        {
+          "name": "habitat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "gender_rate",
+          "kind": "text"
+        },
+        {
+          "name": "capture_rate",
+          "kind": "integer"
+        },
+        {
+          "name": "base_happiness",
+          "kind": "integer"
+        },
+        {
+          "name": "is_baby",
+          "kind": "boolean"
+        },
+        {
+          "name": "hatch_counter",
+          "kind": "integer"
+        },
+        {
+          "name": "has_gender_differences",
+          "kind": "boolean"
+        },
+        {
+          "name": "growth_rate_id",
+          "kind": "integer"
+        },
+        {
+          "name": "forms_switchable",
+          "kind": "integer"
+        },
+        {
+          "name": "is_legendary",
+          "kind": "boolean"
+        },
+        {
+          "name": "is_mythical",
+          "kind": "boolean"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        },
+        {
+          "name": "conquest_order",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_species_flavor_summaries",
+      "relative_path": "pokemon_species_flavor_summaries.csv",
+      "sha256": "02c7be59e0d5047b87aa07888341061b4a2672f8990e9b2d18c6e8a2a7479639",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_summary",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_species_flavor_text",
+      "relative_path": "pokemon_species_flavor_text.csv",
+      "sha256": "21c912095446890588348cfb4a2a6736e01ee67466348894168231746ce258a0",
+      "parsed_sha256": "c52b878890c6dcd7e660975be25467a5280c4ea1297b85bfecb5ef5400c950f9",
+      "columns": [
+        {
+          "name": "species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_species_names",
+      "relative_path": "pokemon_species_names.csv",
+      "sha256": "618280064cae9958d781d96834b1cab8d89dea4e2ef819a64130536c37d7b650",
+      "parsed_sha256": "59f04b23746603586707d03e84c4dd730f870d62e33bbbfea209b82ebda07cc5",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        },
+        {
+          "name": "genus",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_species_prose",
+      "relative_path": "pokemon_species_prose.csv",
+      "sha256": "ea306c0ea6c7037fba593932635809fcbfd00c83c8064dea7177bc9f69587792",
+      "parsed_sha256": "ae73d7431c2cf1c11579526087136794a47bf56f60c3dcfd992216a6b77e761b",
+      "columns": [
+        {
+          "name": "pokemon_species_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "form_description",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_stats",
+      "relative_path": "pokemon_stats.csv",
+      "sha256": "01974c40d3d1855839b2f5d9366c9f49b79ed2854d41ae121a4ec7659a005982",
+      "parsed_sha256": "3c7d8f42ce9ebedc05fd77c818332e54e371408760ec2dfba1721a45430657fb",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "base_stat",
+          "kind": "integer"
+        },
+        {
+          "name": "effort",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_types",
+      "relative_path": "pokemon_types.csv",
+      "sha256": "9f67b663ea488cb779f1672b06da372c6c05145f58ce15b3b9526ff334913cbd",
+      "parsed_sha256": "3d6a4b04a7c1cc2bc7ecd11e1a90c64d376970e70270f70c04b22f0f9ac6742a",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "pokemon_types_past",
+      "relative_path": "pokemon_types_past.csv",
+      "sha256": "02553c38e3871f99c7ed809b944066fea3f42ef6bccd4daba19274aca01fbff0",
+      "parsed_sha256": "aa23b06e6a0826364abef63e8b3d63186b6b151cc3ce019e42e523b478e21f01",
+      "columns": [
+        {
+          "name": "pokemon_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "slot",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "region_names",
+      "relative_path": "region_names.csv",
+      "sha256": "f9bc7d2b44c76312dd601b8b59987941a4ef251200b9b26c33ecb270bf6f85cb",
+      "parsed_sha256": "b27d33fa8c611270e0a883aeb1d76b0e97e69a92e3d70f98e845daa9216d79c0",
+      "columns": [
+        {
+          "name": "region_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "regions",
+      "relative_path": "regions.csv",
+      "sha256": "a98e3ed4b46fdd5236b3ae10200a3e60650188585b4c9847395584d34c016b98",
+      "parsed_sha256": "9deb851279930416d8704c944e3081e0043f873f0e408c3f7b2615ffc29560cc",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "stat_names",
+      "relative_path": "stat_names.csv",
+      "sha256": "d69eaf7b5ae5d65d901e33aafc1147d628c6123b22f4090ca38603ce34d21f75",
+      "parsed_sha256": "cdb66f8e7c8995d418a5b0d7a69e725af175d91b1272bb9e3b55df102b8195f2",
+      "columns": [
+        {
+          "name": "stat_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "stats",
+      "relative_path": "stats.csv",
+      "sha256": "e19da0a16cdcad39983e09f8464827283c06a792aa0bb4bd4766f2a8b60a8f9c",
+      "parsed_sha256": "019f8493b8b6743428a555110e4e518873992ad53cd19b26912449fc5d89673e",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "damage_class_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "is_battle_only",
+          "kind": "boolean"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "super_contest_combos",
+      "relative_path": "super_contest_combos.csv",
+      "sha256": "c07ad3715a5be394b61028843a4204252dcf950898388f66f7512316121ed137",
+      "parsed_sha256": "d074f030e3708f53f0a3781e4270029d52e5b2a64b73ce4cc5297c830d5b89ca",
+      "columns": [
+        {
+          "name": "first_move_id",
+          "kind": "integer"
+        },
+        {
+          "name": "second_move_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "super_contest_effect_prose",
+      "relative_path": "super_contest_effect_prose.csv",
+      "sha256": "4b874bb32156a01c5fdc8c881e179cb994a49b364c66f4ce1ead2db8773c3b00",
+      "parsed_sha256": "61e9cabe72c4970bf0394c28a8a10bbb89be678a55eb40366a7489bd51313cf6",
+      "columns": [
+        {
+          "name": "super_contest_effect_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "flavor_text",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "super_contest_effects",
+      "relative_path": "super_contest_effects.csv",
+      "sha256": "15d34aef35bd6645a405272c1a9401ff91d7c08bd91858012728ff53d37958f7",
+      "parsed_sha256": "ab86a2c3250d40d8f5e5312ad04295fc2d049ee305cd439f77d6c5c927530e62",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "appeal",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "translations_cs",
+      "relative_path": "translations/cs.csv",
+      "sha256": "37fbd2060d985b6230ea9a22717523593027b66194237b63325364ba07511fe2",
+      "parsed_sha256": "538edfe0cf709c58d40af29323b5b22f72bd463ee59bb54c6bc0f0665de25c49",
+      "columns": [
+        {
+          "name": "language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "table",
+          "kind": "text"
+        },
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "column",
+          "kind": "text"
+        },
+        {
+          "name": "source_crc",
+          "kind": "text"
+        },
+        {
+          "name": "string",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "type_efficacy",
+      "relative_path": "type_efficacy.csv",
+      "sha256": "cdd7de4066680414d0a2433af805f139f425d6350cbf998ecab559a0fe8ff587",
+      "parsed_sha256": "af715d161948c64fbd6736f14036d3a47154ac0a87a4ab79e289d5a06f9aa136",
+      "columns": [
+        {
+          "name": "damage_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "target_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "damage_factor",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "type_efficacy_past",
+      "relative_path": "type_efficacy_past.csv",
+      "sha256": "0d8cb1251c7f987c7978d77d6c1b9ecfc54e04474b7584b8ecf96fef498fb9d4",
+      "parsed_sha256": "e4d0819a60f6c2414da6b2e0bd067324fac68e07b05f75403619a87090826578",
+      "columns": [
+        {
+          "name": "damage_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "target_type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "damage_factor",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "type_game_indices",
+      "relative_path": "type_game_indices.csv",
+      "sha256": "d9a39466f584fd67c821d009b1607fde058c1c73847d4a12cf726358b4857223",
+      "parsed_sha256": "71a7be4905cf95baa6f2d386bc87c18904fb23a3f41a47181dea310381d5f0d4",
+      "columns": [
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "game_index",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "type_names",
+      "relative_path": "type_names.csv",
+      "sha256": "e9c930030dc42743e724215b819f4f3e2aca5ebb618e95417a228b30581dde11",
+      "parsed_sha256": "4b1303ead018b78fa8baabddbc1d43372dc2c532efdbb69bbdb69c05806073f8",
+      "columns": [
+        {
+          "name": "type_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "types",
+      "relative_path": "types.csv",
+      "sha256": "37f039c8d722f47d51ba1c5c5ecf9b7007235b1a9a1af2827645c777b70307c8",
+      "parsed_sha256": "e3f520348a333870c78a2b99652efe5bcdbbe0435379466e98288fd8a484de17",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "damage_class_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "version_group_pokemon_move_methods",
+      "relative_path": "version_group_pokemon_move_methods.csv",
+      "sha256": "847a2ee19229d7649f7368f4d03694456d8ae859d9eaf644e6ecbf90e9d849f5",
+      "parsed_sha256": "a0db7b3636b0bbe19c702eea2a78de55bcfe24cc648b1cee25028b27f25683eb",
+      "columns": [
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "pokemon_move_method_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "version_group_regions",
+      "relative_path": "version_group_regions.csv",
+      "sha256": "293007869441d5b74066beb45dbba833f67dfdc19dccaa28d5d3a2efdc67d937",
+      "parsed_sha256": "8ad75c9293d89a7fdbbe82ad69ac7b57cddd93886d7b96f33eab68b002cd2759",
+      "columns": [
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "region_id",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "version_groups",
+      "relative_path": "version_groups.csv",
+      "sha256": "f9e6232447fd238fec28ab0aafe11c8f9e866425290e1b81967ccfc9115c1a5f",
+      "parsed_sha256": "99d5f1ea4bb4946a548d480c410c006372d5845e24a6b1d908eb05fcd95c78de",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        },
+        {
+          "name": "generation_id",
+          "kind": "integer"
+        },
+        {
+          "name": "order",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "name": "version_names",
+      "relative_path": "version_names.csv",
+      "sha256": "0768691a8f9b7bb12fbd3b96574b45e1bad615065d9064cc9fa9ad831b53b065",
+      "parsed_sha256": "e4b21a6c7364ad23982f9d0585b9ce2498a21ef6250c70fe7e7cc66de6a7ab48",
+      "columns": [
+        {
+          "name": "version_id",
+          "kind": "integer"
+        },
+        {
+          "name": "local_language_id",
+          "kind": "integer"
+        },
+        {
+          "name": "name",
+          "kind": "text"
+        }
+      ]
+    },
+    {
+      "name": "versions",
+      "relative_path": "versions.csv",
+      "sha256": "9e63514184105c355abc288114622fc41f9846e3befac77d2d6329c7c8a97b7e",
+      "parsed_sha256": "fe980b22d1b1b81de78e1f4854b5f9ec7a5ed36dced437026d264d5f71abd05b",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "integer"
+        },
+        {
+          "name": "version_group_id",
+          "kind": "integer"
+        },
+        {
+          "name": "identifier",
+          "kind": "text"
+        }
+      ]
+    }
+  ]
+}

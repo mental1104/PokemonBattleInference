@@ -9,3 +9,5 @@
 `cmd/pbi-core-worker` 是单请求原生子进程。复杂请求可由 `workerprocess.Execute` 经 stdin/stdout 隔离，不在 Go 中实现第二套战斗规则。PG coordinator、完整推演生命周期及剩余计算 API 正在迁移；当前服务还不能替换原后端。
 
 NAS 实际验证入口为 `bash tools/migration/validate-go-server.sh`：声明的维护服务、自有 tmpfs PG、真实 CSV 与原物化视图、Go race/vet、容器外 curl、证据归档及精确实例清理。它不操作生产部署。Core-only HTTP 验收仍可单独运行 `bash tools/migration/accept-go-core.sh`。
+
+`cmd/pbi-db-init` 是纯 Go 显式初始化命令，读取 `PBI_POSTGRES_DSN` 与 `--csv-root`，校验固定源、导入177 CSV并建立原179raw表/8MV；同版本复用且不接管未知非空知识库。独立数据验收由 `bash tools/migration/validate-go-knowledge.sh` 执行，完整来源/类型/许可和版本边界见迁移文档。运行时不需要 Python。
