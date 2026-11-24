@@ -154,6 +154,18 @@ public actor ConfigurationStore {
         guard let data = try connection.rows("SELECT value FROM settings WHERE key='server_url'", decode: { try $0.data(0) }).first else { return nil }
         return try ContractJSON.decoder().decode(URL?.self, from: data)
     }
+
+    /// url 为用户明确保存的知识 manifest 文件地址；独立设置键不改变同步 scope 或待提交队列。
+    public func setKnowledgeManifestURL(_ url: URL?) throws {
+        if let url { _ = try KnowledgeUpdateClient.validateManifestURL(url) }
+        try connection.execute("INSERT INTO settings VALUES ('knowledge_manifest_url',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [.blob(try ContractJSON.encoder().encode(url))])
+    }
+
+    /// 返回已保存的知识来源；未配置为 nil，不默认访问外网。
+    public func knowledgeManifestURL() throws -> URL? {
+        guard let data = try connection.rows("SELECT value FROM settings WHERE key='knowledge_manifest_url'", decode: { try $0.data(0) }).first else { return nil }
+        return try ContractJSON.decoder().decode(URL?.self, from: data)
+    }
     /// serverURL 为可空服务根地址，userIdentifier 为服务端分配的同步账户；空账户停用同步。
     /// 两项在同一事务保存，已绑定的同步空间禁止换成其他用户/服务器，失败保留原设置和队列。
     public func setConnectionSettings(serverURL: URL?, userIdentifier: String) throws {

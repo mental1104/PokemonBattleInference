@@ -38,8 +38,8 @@ import PokemonAppSupport
                     }
                 }.disabled(model.busy)
                 Section {
-                    Button("离线计算") { model.calculate(online: false) }.accessibilityIdentifier("calculate-offline").disabled(model.busy)
-                    Button("在线计算") { model.calculate(online: true) }.accessibilityIdentifier("calculate-online").disabled(model.busy)
+                    Button("离线计算") { model.calculate(online: false) }.accessibilityIdentifier("calculate-offline").disabled(model.busy || model.knowledgeUpdateBusy)
+                    Button("在线计算") { model.calculate(online: true) }.accessibilityIdentifier("calculate-online").disabled(model.busy || model.knowledgeUpdateBusy)
                     if model.busy {
                         ProgressView("计算中")
                         Button("取消计算", role: .cancel) { model.cancelCalculation() }
@@ -62,7 +62,7 @@ import PokemonAppSupport
                         }
                     }
                 }
-                .task(id: "\(model.configuration.attacker.pokemonId)|\(model.configuration.defender.pokemonId)|\(model.configuration.moveId)") { await loadNames() }
+                .task(id: "\(model.dataVersion)|\(model.configuration.attacker.pokemonId)|\(model.configuration.defender.pokemonId)|\(model.configuration.moveId)") { await loadNames() }
         }
     }
     /// 读取当前三个知识编号的真实名称；取消过期任务后禁止写回旧名字。

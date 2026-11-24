@@ -10,7 +10,7 @@ import PokemonCore
         Group {
             if model.ready, let knowledge = model.knowledge {
                 TabView(selection: $model.tab) {
-                    CatalogView(knowledge: knowledge).tabItem { Label("图鉴", systemImage: "books.vertical") }.tag(AppTab.catalog)
+                    CatalogView(knowledge: knowledge).id(model.dataVersion).tabItem { Label("图鉴", systemImage: "books.vertical") }.tag(AppTab.catalog)
                     CalculatorView(model: model, knowledge: knowledge).tabItem { Label("计算", systemImage: "function") }.tag(AppTab.calculator)
                     ConfigurationsView(model: model).tabItem { Label("配置", systemImage: "tray.full") }.tag(AppTab.configurations)
                     SettingsView(model: model).tabItem { Label("设置", systemImage: "gearshape") }.tag(AppTab.settings)
@@ -78,6 +78,7 @@ import PokemonCore
                 Section("版本") {
                     LabeledContent("引擎", value: Engine.version)
                     LabeledContent("离线知识", value: model.dataVersion)
+                    NavigationLink("更新离线知识") { KnowledgeUpdateView(model: model) }.accessibilityIdentifier("open-knowledge-update")
                 }
                 Section("当前计算范围") {
                     Text("支持单次直接伤害、能力值、速度与精确的一击/两击 KO 概率。特性、道具与环境仅可选择界面列出的已实现规则；特殊威力或变化招式会明确提示不支持。")

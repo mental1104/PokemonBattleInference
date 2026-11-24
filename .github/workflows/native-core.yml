@@ -21,6 +21,7 @@ jobs:
     env:
       PBI_CORE_LIBRARY_DIR: ${{ github.workspace }}/build/core
       PBI_CORE_VECTOR_RUNNER: ${{ github.workspace }}/build/core/pbi_core_vectors
+      PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY: ${{ github.workspace }}/build/reports/knowledge-http
     steps:
       - uses: actions/checkout@v4
       - name: Initialize pinned knowledge source

@@ -102,6 +102,25 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertEqual(metric("sync-pending-count").value as? String, "1")
         capture("sync-queue-after-restart")
     }
+    /// 知识来源必须由用户保存并跨重启恢复；保存不会自动访问填写的回环服务。
+    @MainActor func testKnowledgeUpdateSourceSurvivesRestart() {
+        launchCleanApp()
+        app.tabBars.buttons["设置"].tap()
+        reveal(metric("open-knowledge-update")); metric("open-knowledge-update").tap()
+        let address = app.textFields["knowledge-manifest-url"]
+        XCTAssertTrue(address.waitForExistence(timeout: 10)); address.tap()
+        address.typeText("http://127.0.0.1:41107/packs/manifest.json\n")
+        app.buttons["save-knowledge-source"].tap()
+        reveal(app.staticTexts["knowledge-update-status"])
+        XCTAssertEqual(app.staticTexts["knowledge-update-status"].label, "知识来源已保存")
+        XCTAssertTrue(app.buttons["download-knowledge-update"].exists)
+        XCTAssertFalse(app.buttons["cancel-knowledge-update"].exists)
+        app.terminate(); app.launchArguments = ["--ui-testing"]; app.launch()
+        XCTAssertTrue(app.tabBars.buttons["设置"].waitForExistence(timeout: 30)); app.tabBars.buttons["设置"].tap()
+        reveal(metric("open-knowledge-update")); metric("open-knowledge-update").tap()
+        XCTAssertEqual(app.textFields["knowledge-manifest-url"].value as? String, "http://127.0.0.1:41107/packs/manifest.json")
+        capture("knowledge-update-source-after-restart")
+    }
     /// identifier 对应显式 accessibilityValue 指标；按稳定语义定位，不依赖 LabeledContent 合并类型。
     @MainActor private func metric(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch

@@ -11,6 +11,7 @@ private struct AppServices: Sendable {
     let knowledge: KnowledgeStore
     let configurations: ConfigurationStore
     let calculator: CalculationService
+    let updater: KnowledgeUpdateClient
 }
 
 /// MainActor 只管理交互与展示，SQLite 和 Core 重计算由应用支持模块执行。
@@ -33,10 +34,16 @@ private struct AppServices: Sendable {
     @Published var errorMessage: String?
     @Published var savedMessage = ""
     @Published private(set) var connectionMessage = ""
+    @Published var knowledgeManifestAddress = ""
+    @Published private(set) var knowledgeUpdateBusy = false
+    @Published private(set) var knowledgeUpdateProgress: KnowledgeUpdateProgress?
+    @Published private(set) var knowledgeUpdateMessage = ""
     private var configurations: ConfigurationStore?
     private var calculator: CalculationService?
     private var calculationTask: Task<Void, Never>?
     private var syncTask: Task<Void, Never>?
+    private var updater: KnowledgeUpdateClient?
+    private var updateTask: Task<Void, Never>?
     private var started = false
 
     /// 初始化真实知识/用户数据库；UI 测试只使用专属 UITesting 子目录，绝不清理正常用户目录。
@@ -53,13 +60,16 @@ private struct AppServices: Sendable {
                 if reset, FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
                 let library = try KnowledgeStore(directory: directory.appendingPathComponent("Knowledge"), initial: KnowledgePack.bundled())
                 let users = try ConfigurationStore(url: directory.appendingPathComponent("User/configurations.sqlite"))
-                return AppServices(knowledge: library, configurations: users, calculator: CalculationService(knowledge: library))
+                return AppServices(knowledge: library, configurations: users, calculator: CalculationService(knowledge: library),
+                    updater: KnowledgeUpdateClient(store: library, directory: directory.appendingPathComponent("KnowledgeDownloads")))
             }.value
             knowledge = services.knowledge; configurations = services.configurations; calculator = services.calculator
             natures = try await services.knowledge.natures()
             dataVersion = await services.knowledge.version().dataVersion
             serverAddress = try await services.configurations.serverURL()?.absoluteString ?? ""
             syncUserIdentifier = try await services.configurations.syncUserIdentifier()
+            updater = services.updater
+            knowledgeManifestAddress = try await services.configurations.knowledgeManifestURL()?.absoluteString ?? ""
             try await refreshConfigurations()
             ready = true
         } catch { present(error); started = false }
@@ -67,7 +77,7 @@ private struct AppServices: Sendable {
 
     /// 从当前配置创建独立输入快照；允许取消，不把失败在线请求悄悄改成离线结果。
     func calculate(online: Bool) {
-        guard !busy, let calculator, let configurations else { return }
+        guard !busy, !knowledgeUpdateBusy, let calculator, let configurations else { return }
         let input = configuration
         busy = true; result = nil; savedMessage = ""
         calculationTask = Task {
@@ -155,6 +165,40 @@ private struct AppServices: Sendable {
     /// 取消当前网络/队列迭代；不删除本地内容或假设服务端尚未提交。
     func cancelSynchronization() { syncTask?.cancel() }
 
+    /// 只保存明确的知识清单来源；保存动作不会发起下载，空值表示停用更新。
+    func saveKnowledgeManifestAddress() async {
+        guard !knowledgeUpdateBusy, let configurations else { return }
+        do {
+            let text = knowledgeManifestAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = text.isEmpty ? nil : URL(string: text)
+            if !text.isEmpty && value == nil { throw KnowledgeUpdateFailure.invalidEndpoint }
+            try await configurations.setKnowledgeManifestURL(value)
+            knowledgeManifestAddress = value?.absoluteString ?? ""
+            knowledgeUpdateMessage = "知识来源已保存"
+        } catch { present(error) }
+    }
+
+    /// 从已保存地址手动更新；失败/取消保留旧知识与部分下载，成功才刷新实际版本和性格。
+    func updateKnowledge() {
+        guard !knowledgeUpdateBusy, !busy, let updater, let configurations, let knowledge else { return }
+        knowledgeUpdateBusy = true; knowledgeUpdateMessage = ""; knowledgeUpdateProgress = nil
+        updateTask = Task {
+            defer { knowledgeUpdateBusy = false; updateTask = nil }
+            do {
+                guard let source = try await configurations.knowledgeManifestURL() else { errorMessage = "请先保存知识清单地址。"; return }
+                let current = try await updater.update(from: source) { [weak self] state in
+                    Task { @MainActor [weak self] in if self?.knowledgeUpdateBusy == true { self?.knowledgeUpdateProgress = state } }
+                }
+                dataVersion = current.dataVersion; natures = try await knowledge.natures(); invalidateResult()
+                knowledgeUpdateMessage = "知识更新完成：\(current.dataVersion)"
+            } catch is CancellationError { knowledgeUpdateMessage = "更新已取消，原有知识和配置仍可使用。再次更新时会尝试续传。" }
+            catch { present(error); knowledgeUpdateMessage = "更新未完成，原有知识和配置已保留，可再次更新重试。" }
+        }
+    }
+
+    /// 取消真实网络任务；已完成原子提交时返回安装成功，不将新版本误报为取消。
+    func cancelKnowledgeUpdate() { updateTask?.cancel() }
+
     /// id 是用户正查看的冲突，resolution 为明确选择；采用本地时生成新的待提交操作。
     func resolveSyncConflict(id: UUID, resolution: SyncConflictResolution) async {
         guard !syncBusy, let configurations else { return }
@@ -179,6 +223,10 @@ private struct AppServices: Sendable {
     /// 将稳定错误类别转换为用户可处理的信息，不把 SQL/C ABI 实现细节放进交互流程。
     func present(_ error: Error) {
         switch error {
+        case KnowledgeUpdateFailure.invalidEndpoint: errorMessage = "请输入完整的 http 或 https 清单文件地址，不能包含用户名、密码、查询参数或片段。"
+        case KnowledgeUpdateFailure.httpStatus(let status): errorMessage = "知识下载失败（HTTP \(status)），请检查清单地址后重试。"
+        case KnowledgeUpdateFailure.responseTooLarge: errorMessage = "知识文件超过允许大小，已停止下载。原有版本仍可使用。"
+        case is KnowledgeUpdateFailure: errorMessage = "知识清单或下载响应不符合要求，原有版本已保留。"
         case SyncFailure.scopeMismatch: errorMessage = "此设备的数据已关联另一个服务器或同步账户。请恢复原连接设置，现有配置和待同步修改仍被保留。"
         case SyncFailure.invalidEndpoint: errorMessage = "请检查服务器地址和同步账户，地址需要使用 http 或 https，且不能包含用户名、密码或查询参数。"
         case SyncFailure.httpStatus(let status): errorMessage = "同步未完成（HTTP \(status)），本地修改已保留。请检查服务和账户后重试。"
