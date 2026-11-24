@@ -1,0 +1,71 @@
+name: Native Core - macOS and iOS
+
+# 用户明确授权 GitHub CI；仅 Ready PR 执行，Draft 或普通分支 push 不触发。
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-core-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  apple-core:
+    if: github.event.pull_request.draft == false
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      PBI_CORE_LIBRARY_DIR: ${{ github.workspace }}/build/core
+      PBI_CORE_VECTOR_RUNNER: ${{ github.workspace }}/build/core/pbi_core_vectors
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: false
+      - name: Install native dependencies
+        shell: bash
+        run: |
+          brew install boost googletest nlohmann-json cmake
+          python -m pip install -r requirements.txt
+      - name: Record actual toolchains
+        shell: bash
+        run: |
+          mkdir -p build/reports
+          {
+            uname -a
+            xcodebuild -version
+            swift --version
+            go version
+            cmake --version
+            c++ --version
+          } > build/reports/toolchains.txt
+      - name: Native Core and Go-Swift shared contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          export CMAKE_PREFIX_PATH="$(brew --prefix boost):$(brew --prefix googletest):$(brew --prefix nlohmann-json)"
+          make test-native PYTEST_ADDOPTS="-v --junitxml=build/reports/native-tests.xml" 2>&1 | tee build/reports/native-tests.log
+      - name: Build unsigned iOS device and simulator libraries
+        shell: bash
+        run: |
+          set -o pipefail
+          export CMAKE_PREFIX_PATH="$(brew --prefix boost):$(brew --prefix nlohmann-json)"
+          bash tools/migration/build-apple-core.sh "$PWD/build/apple" 2>&1 | tee build/reports/apple-build.log
+      - name: Preserve actual reports and Apple artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-apple-${{ github.sha }}
+          path: |
+            build/reports/
+            build/apple/
+          if-no-files-found: warn
+          retention-days: 7
