@@ -82,3 +82,39 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 注册审查同时根据 [LLVM 的浮点 to_chars availability 修订](https://reviews.llvm.org/D146367) 核实该 API 要求 macOS 13.3/iOS 16.3，高于项目 `Package.swift` 的 macOS 13/iOS 16 最低轴。已移除新标签格式化对该 API 的依赖，改用固定 classic locale 的科学计数流寻找最短精确 roundtrip 文本，不改变数值公式或全局 locale。增加最小/近最小次正规倍率标签对照后，最终增量重编的完整 **70/70 CTest PASS**，配置差分 **7/7 PASS**（1.31 秒）；记录 `portable-build.log`、`portable-native.log/xml`、`portable-differential.log/xml`。这是已核实部署约束的源码修正，Apple 实际编译仍以随后的 GitHub CI 为准，未声称已在 Mac 执行。
 
 本批仅迁移真实默认四维，未声称旧运行时自定义 provider 插件、目标 EV 搜索、配置求解批量聚合或事件查询已经完成。三模块已注册纯 Core 和独立差分入口，尚未公开正式配置 ABI；后续由 P2 在新操作合同准备完毕后接入。最终本批冻结清单见 `configuration-registered-20261124/frozen-sources.sha256`，未覆盖前一批历史清单。
+
+## 原 job-v1 具体配置池与严格准入（2026-11-24，待 P2 正式协议接入）
+
+`job_move_pool.hpp/.cpp` 直接迁移原 `configuration_space/one_on_one/commands.py` 的固定配置和具体候选池。双方总候选数最多 20；每侧少于四招只取全池，达到四招按自然 ID 字典序枚举恰好四招，攻方外层、守方内层。10+10 精确保留 **44,100 个具体 case**，不以通用 `configuration_space` 的等价代表或 `member_count` 替代。`CaseAt` 用组合数按原索引定位，`Page` 有界惰性生成并整页取消，不缓存完整 case 集合，也不缩减原始分母。
+
+固定 Pokémon/form/level/stat_profile_id/ability/item、规则轴、计算修订和 v1 维度模式均按原合同校验，所有身份文本继续要求 ASCII 非空规范化。pair ID 是原 `one-on-one-configuration:` 加紧凑六位置可读 canonical JSON，**不是 SHA**；两侧 ID 则是原 `one-on-one-side-` 加原八位置数组的 SHA-256。保留 `null`、引号/反斜杠、全部 ASCII 控制字节，以及 pair `ensure_ascii=False` 与 side `ensure_ascii=True` 对 DEL 的不同编码。正式 common C++ 子模块没有对应 SHA-256 可复用，局部 SHA 实现仅服务该旧身份协议，没有增加通用加密 API。
+
+`configuration_admission.hpp/.cpp` 将原 `ListBattleCandidatePoolUseCase._admission` 的最终严格准入留在 Core。工厂显式区分原标准 PokemonChampion 与真实 HTTP composition 的 Transparent 版本；标准默认行为不变，透明版 `pressure`/`pickpocket` 为整体 SUPPORTED 的中性占位，但缺失 `real_ability_behavior`，故严格准入必须是 PARTIAL。基础字段不足、部分覆盖、未知机制、明确 no-effect 和允许无附加效果分别处理；原 repository 三态不替代最终工厂裁定。严格准入在任务创建前整池执行，具体 case 迭代不会边过滤边继续缩减候选。原公开中文 coverage reason 按既有 HTTP 合同保留，未新增本地化日志或异常。
+
+实际 HTTP 还经过 `FactoryReconciledBattleInferenceRepository`：能提升为可执行的 move/ability/item 会先追加 `Factory reconciliation` 原因，再由严格边界追加 `Current factory coverage`。Core 的 `ConfigurationRepositoryMode` 显式区分 raw 与 factory_reconciled；后者根据真实产品/基础字段完成这层对账，外层只提供原 repository 原因，不在 Go 拼接或裁定工厂结论。默认 raw 保持直接 `_admission` 的独立合同，真实 HTTP 使用 transparent_inference + factory_reconciled。
+
+证据根 `job-move-pool-20261124/`：
+
+- `native.log`：新增 **5/5 GoogleTest PASS**，含完整固定 canonical 文本、44,100 计数和边界索引、唯一 ID/固定维度/20 招限制、分页/取消，以及默认/透明工厂和严格 no-effect/PARTIAL 差别。
+- `final-differential.log/xml`：**2/2 pytest PASS**（2.71 秒）。原 `OneOnOneMovePoolCommand.iter_configurations` 与 `case_definition` 对照全部 **44,100** case 的顺序、完整 canonical pair ID、两侧 SHA、技能组和精确权重，另对照 **64** 组随机有界页，强制覆盖全部 ASCII 字节、跨 SHA 分块长度、空页和末页。没有另写 Python 组合/JSON/SHA 算法作为 oracle。
+- 同一差分另有 **512** 组真实两类工厂和原 `_admission`，逐字段比较所有来源、四种 raw repository 状态、基础可执行性/NO_EFFECT 开关组合的完整工厂与严格 status、reason、missing identifiers 和 selectable。
+- `pure-sanitizer.log/xml`：注册新源和测试后的完整纯 Core ASan/UBSan/leak **58/58 CTest PASS**（2.86 秒），独立 Debug 缓存 `/build/p1-job-pure-san`；未运行或挪用 P2 的正式配置 ABI/Go/Swift .7 结果。
+- `composition-differential.log/xml`：补上实际 repository 对账层后重跑 **2/2 PASS**（2.71 秒）；保留所有 44,100 身份/64 页对照，并将 strict 扩为 **1,024** 组 raw/reconciled × standard/transparent 全链输入，直接调用原 `_move/_ability/_item` 对账和原 `_admission` 比较完整原 reason/status/missing/selectable。最终纯 Core sanitizer 再次 **58/58 PASS**（2.84 秒），记录 `composition-sanitizer.log/xml`；最终纯源冻结清单为 `frozen-pure-sources-composition.sha256`，前一清单保留作历史证据。
+
+纯 Core 的 admission/job 源、五项测试和独立 job JSON 差分入口已注册 CMake；正式版本和 ABI 操作仍由 P2 同步。目标 EV 搜索、配置流式执行 orchestration 和事件分析仍未完成；独立结果聚合切片的证据见下一节。
+
+## 流式配置结果的精确聚合（2026-11-24，独立模块未注册）
+
+`configuration_aggregate.hpp/.cpp` 真实迁移 `stream_configuration_pairs/aggregation.py:AggregateState`。成功、截断与失败用互斥类型表达，未完成结果不能携带部分概率；每次显式 `Add` 累计全部尝试数、三种状态数、原配置权重和全部已尝试节点/边资源。加权胜负平只纳入成功结果，精确总和为 completed_weight；失败、截断和未执行配置的权重不重新归一化，也不会把不完整概率解释成零胜率。
+
+三个有界 Top-K 分别按原胜率降序、有限期望回合降序、节点数/边数降序，使用 pair_id 作为稳定 tie 轴；相同 pair_id 和指标仍保留执行先后顺序。无限期望不进入有限期望排行。保留完整排行身份/技能组/胜负平/期望/资源，额外内存只与 K 有关，接口不接收或缓存完整状态图。重复观察按原执行流累加，不擅自加入与数据库幂等语义混淆的去重。
+
+所有权重、概率和期望使用精确有理数；配置数和累计资源使用任意精度整数。完整保留原 Fraction 的中间观察次数、最大分子/分母位数和最终三类概率位数。原聚合器没有分数位数截断预算，本切片不新增上限改变原成功结果。六类原停止原因均保留，只有处理数等于完整配置数时最终原因统一为 completed；配置/节点/边/失败数量预算的执行循环仍属后续 orchestration，不能将这些摘要当作已实现完整调度。
+
+证据根 `configuration-aggregate-20261124/`：
+
+- `native.log`：独立实际编译的 **5/5 GoogleTest PASS**，覆盖原完整空间分母、全部结果桶/资源、K 限制、有限/无限期望、稳定 tie、重复观察、200 位分母、100 位资源计数，以及无效输入/空间拒绝。
+- `differential.log/xml`：真实 C++ 进程对照原 `AggregateState`，**1/1 pytest PASS**（0.71 秒），包含 **384** 组随机完整/部分结果流。逐个 Add 比较全部进度，再比较最终全部计数/权重/概率、三类 Top-K 的每一项完整字段、停止原因及全部分数复杂度；不复制原统计或排序算法作为 oracle。
+- `sanitizer.log`：独立新模块 ASan/UBSan/leak **5/5 GoogleTest PASS**（3 毫秒），没有借用前面候选或 job 批次的 sanitizer 结果。
+
+本切片五个新文件仍未登记 CMake、版本或 ABI，按主 agent 指示独立冻结；尚未纳入正式在线/离线链路。冻结校验清单为同证据根 `frozen-sources.sha256`。

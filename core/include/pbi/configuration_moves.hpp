@@ -10,6 +10,8 @@ enum class ConfigurationSupport { supported, partial, unsupported };
 enum class ConfigurationEffectStatus { supported, partial, unsupported, no_effect };
 /// 当前规则集的固定 effect 产品类型，不使用可变全局注册表。
 enum class ConfigurationEffectSource { move, ability, item };
+/// 通用标准工厂与旧HTTP推演的透明中性占位composition显式分开。
+enum class ConfigurationEffectFactory { standard, transparent_inference };
 /// 原工厂的可执行覆盖快照；缺失子能力保留为严格任务准入的独立依据。
 struct ConfigurationEffectCoverage {
   std::string identifier;
@@ -65,7 +67,8 @@ struct ConfigurationMoveSpace {
 /// @param source 有限产品来源；@param identifier 已读取机制标识，null 表示明确未配置。
 /// @return 当前 PokemonChampion 工厂覆盖，未知非空标识保持 unsupported。
 [[nodiscard]] ConfigurationEffectCoverage DescribeConfigurationEffect(
-    ConfigurationEffectSource source, std::optional<std::string> identifier);
+    ConfigurationEffectSource source, std::optional<std::string> identifier,
+    ConfigurationEffectFactory factory = ConfigurationEffectFactory::standard);
 /// @param input 只读合法候选池和枚举边界；@param cancellation 可空共享取消令牌。
 /// @return 真实过滤、候选归并、唯一 ID 组合和精确成员数；超预算整次失败。
 [[nodiscard]] ConfigurationMoveSpace EnumerateConfigurationMoves(

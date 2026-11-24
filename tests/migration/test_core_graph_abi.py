@@ -37,8 +37,8 @@ class GraphEnvelope(BaseModel):
     """完整版本信封，错误或缺项不能被解码成空成功。"""
     model_config = ConfigDict(frozen=True, extra="forbid")
     schema_version: Literal[1]
-    engine_version: Literal["0.6.0"]
-    rules_version: Literal["calculation-rules.v6"]
+    engine_version: Literal["0.7.0"]
+    rules_version: Literal["calculation-rules.v7"]
     results: tuple[GraphResult, ...]
 
 

@@ -17,13 +17,13 @@ JSON 不是 NUL 终止字符串，必须读取完整 size。Go 使用 `C.GoBytes
 | 4 / CANCELLED | cancelled | 408；Go context deadline 为 504 |
 | 5 / INTERNAL_ERROR | internal_error | 500 |
 
-C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获；不通过全局/线程 last-error 传错。异常消息是固定 ASCII 或 Core 的稳定 ASCII 文本，不回显请求。SIGSEGV/abort 等进程级故障不能由 C++ catch 或 CGO 隔离；P3 的复杂推演必须由独立 Worker 进程承担，当前同步 Go 首批计算服务不是这一隔离方案的替代。
+C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获；不通过全局/线程 last-error 传错。异常消息是固定 ASCII 或 Core 的稳定 ASCII 文本，不回显请求。SIGSEGV/abort 等进程级故障不能由 C++ catch 或 CGO 隔离；Go HTTP 计算入口使用独立 Core worker 子进程，不提供进程内回退。真实 CGO SIGSEGV 的 exit=2 也不能仅凭退出码冒充正常业务拒绝，必须核对完整 ABI 错误正文。
 
 ## 批次与版本
 
-请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入，也没有任务 ID、进度或持久化副作用。
+请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入、任务 ID 或持久化副作用。可选同步进度回调仅观察真实构图计数，不能被解释为结果已成功提交。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.6.0`，规则集合标识为 `calculation-rules.v6`；已接入正式结构化回合和由真实回合驱动的固定战斗，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.7.0` / `calculation-rules.v7`，新增完整候选枚举、覆盖/strict准入及独立 job-v1 具体 case 规划；回合和固定战斗仍由真实结构化管线驱动，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -39,6 +39,11 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | graph | nodes、edges、root、observer、truncations；可选 max_equation_nodes | 全部 SCC 与精确胜负/平局/闭环概率及有限/无限/不可用期望，详见 [图与行动合同](graph.v1.md) |
 | battle_turn | state、type_chart、selection；可选 turn_limits | 正式十一阶段、完整后继/状态/概率/条件事件路径，详见 [回合与固定战斗](turn.v1.md) |
 | fixed_battle | state、type_chart、attacker_policy、defender_policy、observer；可选保护/完整图开关 | 真实构图/精确解/实际统计/保护未知与可选完整图，详见 [回合与固定战斗](turn.v1.md) |
+| configuration_stats | input：完整base/level、preset或受控枚举与原raw预算 | 全部实际能力类、第一IV/EV/五轴性格代表和精确原始成员，详见 [配置合同](configuration.v1.md) |
+| configuration_moves | input：全部合法候选、可选ID/槽数命令与原raw预算 | 原无序组合、具体招式ID/完整spec、原始成员和全覆盖，详见 [配置合同](configuration.v1.md) |
+| configuration_space | input：双方完整四维命令、权重假设和原pair预算 | 原等价分区、丰富代表、全部coverage、精确配置对权重，详见 [配置合同](configuration.v1.md) |
+| configuration_coverage | input：显式三来源描述列表或完整admission事实及composition | 完整factory描述/缺失能力或真实strict裁定，不提前过滤不可选候选 |
+| job_move_pool | input：原完整job命令、关联准入快照、offset/limit | 整池strict后原具体case/canonical pair与sideSHA、全局分母和有界页面 |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 
@@ -46,7 +51,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 ### 直接伤害输入与版本边界
 
-共享八操作向量中的 damage 项是完整最小请求。`attacker`/`defender` 必填 `level`、`types`（PokeAPI 1…18）和 `stats`（hp/attack/defense/special_attack/special_defense/speed）；可选 `ability`、`item`、`can_evolve`、`grounding`。未填效果表示明确无效果；显式名称必须是以下支持项，未知名称不回退：
+共享向量中的 damage 项是完整最小请求。`attacker`/`defender` 必填 `level`、`types`（PokeAPI 1…18）和 `stats`（hp/attack/defense/special_attack/special_defense/speed）；可选 `ability`、`item`、`can_evolve`、`grounding`。未填效果表示明确无效果；显式名称必须是以下支持项，未知名称不回退：
 
 - ability：none、technician、adaptability、thick_fat、filter、solid_rock、sniper。
 - item：none、life_orb、choice_band、choice_specs、expert_belt、eviolite。
@@ -74,11 +79,11 @@ Go 在每次调用内拥有令牌、C 输入副本和结果。监视 context 的
 
 ## 实际验证与入口
 
-- Linux C/C++：18 项 CTest，含直接伤害、真正的 C 编译器调用、完整共享向量、非法输入/预算、循环释放、32 并发及实际运行中取消。ASan/UBSan/leak 检查同样 18/18 通过。
-- Go：3 项桥接测试加 1 项回环 HTTP 测试，`-race` 与 `go vet` 通过。外部静态库不参与 Go 缓存跟踪，所以测试/交付构建使用 `-a`。
-- Swift 6 Linux：4 项 XCTest，通过实际 Core 静态库；完整结果/版本、错误/释放、32 并发、Task 运行中取消均已执行。Swift scratch 以两个原生 archive 的 SHA-256 区分，避免增量缓存链接旧库。
-- 独立 NAS curl 到实际 Go 服务容器：200 完整共享向量匹配，未知操作 422 且无部分结果；临时服务和随机回环端口已清理。
+- 已冻结 `.6` 提交 76a40a0：Linux 58/58 CTest 与 ASan/UBSan/leak 均实际通过；Go桥接/独立worker 14项 `-race -count=1` 与 `go vet` 通过。
+- 同一 `.6` 固定快照 Swift 6 Linux 20项中17项实际通过、3项显式SKIP（在线2/PG1缺环境）。a74d98e独立HTTP子进程快照的真实在线计算2/2通过，三配置完整在线/离线JSON一致；该轮全套20项另有1个知识更新取消测试失败、1个PG跳过，因此不称整套通过。
+- `.7` 正式ABI差分已真实核对64能力案例、12招式池、32完整双侧空间、两工厂描述、全部44100具体case和192 strict组合；共享19操作向量中的新增6项由原Python独立生成，旧13项数学结果保持不变。最终原生/Go/Swift和平台批次结果见迁移进度，不把进行中的检查记成通过。
+- 外部静态库不参与Go缓存跟踪，构建使用 `-a`；需要重新执行而非复用测试缓存时使用 `-count=1`。Swift scratch 以两个原生archive的SHA-256区分，避免链接旧库。
 
 本地统一入口：`make test` 或 `make test-native`。仅缺少未显式配置的 Go/Swift 工具时，pytest 会说明能力缺失并 SKIP；显式工具/库配置错误必须 FAIL。NAS 的 `validate-nas.sh bindings` 委托两个声明的 maintenance 工具环境，弥补 Python 镜像未含 Swift 的能力；不是把其跳过结果算成通过。
 
-macOS/iOS 已由用户授权的 [GitHub Ready-PR CI 45349703813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813) 实际验证：macOS CTest 18/18、差分和双语言委托 9/9 无跳过；arm64 iPhoneOS/Simulator archive、Swift 模块和 C ABI XCFramework 均构建成功。下载的 ZIP 校验值、两个平台的实际 Mach-O 对象与共享头已独立核验，证据见 `docs/migration-progress.md`。Apple SDK 编译不需要登录或签名，不安装 App、不执行签名、不代表模拟器运行或 iPhone/iPad 真机验收。
+macOS/iOS 使用用户授权的 Ready-PR CI。早期 [CI 45349703813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45349703813) 的18原生/9差分及双SDK构建是历史基线，不能替代当前版本验证。`.7` 的Apple构建/运行状态以 `docs/migration-progress.md` 的确切提交和终态为准。SDK编译不需要登录或签名，不表示已经完成iPhone/iPad真机验收。

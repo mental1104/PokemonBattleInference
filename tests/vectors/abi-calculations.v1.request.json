@@ -1,78 +1,77 @@
 {
-  "schema_version": 1,
   "operations": [
     {
-      "kind": "hp",
       "base": 95,
-      "iv": 31,
       "ev": 252,
+      "iv": 31,
+      "kind": "hp",
       "level": 50
     },
     {
-      "kind": "stat",
       "base": 130,
-      "iv": 31,
       "ev": 252,
+      "iv": 31,
+      "kind": "stat",
       "level": 50,
       "nature_tenths": 11
     },
     {
       "kind": "stage",
-      "value": 110,
-      "stage": -1
+      "stage": -1,
+      "value": 110
     },
     {
+      "defender_hp": 3,
       "kind": "ko",
       "rolls": [
         1,
         1,
         3
-      ],
-      "defender_hp": 3
+      ]
     },
     {
-      "kind": "hp",
       "base": 45,
-      "iv": 31,
       "ev": 0,
+      "iv": 31,
+      "kind": "hp",
       "level": 100
     },
     {
-      "kind": "damage",
-      "generation_id": 9,
       "attacker": {
         "level": 50,
-        "types": [
-          7,
-          9
-        ],
         "stats": {
-          "hp": 177,
           "attack": 182,
           "defense": 120,
+          "hp": 177,
           "special_attack": 67,
           "special_defense": 100,
           "speed": 85
-        }
+        },
+        "types": [
+          7,
+          9
+        ]
       },
       "defender": {
         "level": 50,
-        "types": [
-          18
-        ],
         "stats": {
-          "hp": 202,
           "attack": 85,
           "defense": 85,
+          "hp": 202,
           "special_attack": 130,
           "special_defense": 150,
           "speed": 80
-        }
+        },
+        "types": [
+          18
+        ]
       },
+      "generation_id": 9,
+      "kind": "damage",
       "move": {
-        "type": 9,
         "category": "physical",
-        "power": 40
+        "power": 40,
+        "type": 9
       },
       "type_chart": [
         {
@@ -83,7 +82,19 @@
       ]
     },
     {
+      "base_multiplier": {
+        "denominator": "7",
+        "numerator": "2"
+      },
+      "burn_multiplier": {
+        "denominator": "10",
+        "numerator": "3"
+      },
+      "category": "physical",
+      "generation_id": 6,
       "kind": "status_modifiers",
+      "paralysis_multiplier": null,
+      "speed": 101,
       "status": {
         "major": {
           "kind": "paralysis"
@@ -101,136 +112,127 @@
             "kind": "flinch"
           }
         ]
-      },
-      "speed": 101,
-      "generation_id": 6,
-      "category": "physical",
-      "base_multiplier": {
-        "numerator": "2",
-        "denominator": "7"
-      },
-      "burn_multiplier": {
-        "numerator": "3",
-        "denominator": "10"
-      },
-      "paralysis_multiplier": null
+      }
     },
     {
-      "kind": "battle_state",
-      "state": {
+      "compare_to": {
         "attacker": {
+          "choice_lock_move_id": null,
+          "current_hp": 177,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 1,
+              "slot_id": 1001
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 2,
+              "slot_id": 1002
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 3,
+              "slot_id": 1003
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 4,
+              "slot_id": 1004
+            }
+          ],
           "spec": {
-            "pokemon_id": 212,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 1,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 2,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 3,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 4,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
             "name": "scizor",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "choice_band",
               "level": 50,
-              "types": [
-                7,
-                9
-              ],
               "stats": {
-                "hp": 177,
                 "attack": 182,
                 "defense": 120,
+                "hp": 177,
                 "special_attack": 67,
                 "special_defense": 100,
                 "speed": 85
               },
-              "ability": "none",
-              "item": "choice_band",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                7,
+                9
+              ]
             },
-            "moves": [
-              {
-                "move_id": 1,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 2,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 3,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 4,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 212
           },
-          "current_hp": 177,
-          "move_slots": [
-            {
-              "move_id": 1,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1001
-            },
-            {
-              "move_id": 2,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1002
-            },
-            {
-              "move_id": 3,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1003
-            },
-            {
-              "move_id": 4,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1004
-            }
-          ],
           "stages": [
             0,
             0,
@@ -243,124 +245,124 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
         "defender": {
+          "choice_lock_move_id": null,
+          "current_hp": 202,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 101,
+              "slot_id": 2101
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 102,
+              "slot_id": 2102
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 103,
+              "slot_id": 2103
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 104,
+              "slot_id": 2104
+            }
+          ],
           "spec": {
-            "pokemon_id": 700,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 101,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 102,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 103,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 104,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
             "name": "sylveon",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "life_orb",
               "level": 50,
-              "types": [
-                18
-              ],
               "stats": {
-                "hp": 202,
                 "attack": 76,
                 "defense": 85,
+                "hp": 202,
                 "special_attack": 130,
                 "special_defense": 150,
                 "speed": 80
               },
-              "ability": "none",
-              "item": "life_orb",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                18
+              ]
             },
-            "moves": [
-              {
-                "move_id": 101,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 102,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 103,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 104,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 700
           },
-          "current_hp": 202,
-          "move_slots": [
-            {
-              "move_id": 101,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2101
-            },
-            {
-              "move_id": 102,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2102
-            },
-            {
-              "move_id": 103,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2103
-            },
-            {
-              "move_id": 104,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2104
-            }
-          ],
           "stages": [
             0,
             0,
@@ -373,52 +375,44 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
+        "field": {
+          "attacker_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "defender_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "terrain": "none",
+          "weather": "none"
+        },
+        "phase": "action-selection",
         "rules": {
-          "ruleset_id": "pokemon-champion",
-          "version_group_id": 25,
-          "level": 50,
-          "battle_format": "one-on-one-singles",
-          "switching_policy": "disabled",
-          "allow_terastallization": false,
-          "allow_mega_evolution": false,
           "allow_dynamax": false,
-          "max_turns": 100,
-          "repetition_resolution": "declare-draw",
+          "allow_mega_evolution": false,
+          "allow_terastallization": false,
+          "battle_format": "one-on-one-singles",
           "cycle_resolution": "declare-draw",
           "damage_policy": {
-            "terrain_boost_multiplier": 1.3,
-            "misty_terrain_dragon_multiplier": 0.5,
-            "weather_boost_multiplier": 1.5,
-            "weather_weaken_multiplier": 0.5,
-            "sandstorm_rock_spdef_multiplier": 1.5,
-            "snow_ice_defense_multiplier": 1.5,
-            "hail_ice_defense_multiplier": null,
-            "screen_single_target_multiplier": 0.5,
-            "screen_multi_target_multiplier": 0.6666666666666666,
-            "aurora_veil_single_target_multiplier": 0.5,
-            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
-            "critical_hit_multiplier": 1.5,
-            "spread_move_multiplier": 0.75,
-            "protect_damage_multiplier": 0.25,
-            "same_type_attack_bonus_multiplier": 1.5,
-            "technician_base_power_threshold": 60,
-            "technician_base_power_multiplier": 1.5,
             "adaptability_stab_multiplier": 2.0,
-            "thick_fat_damage_multiplier": 0.5,
-            "filter_damage_multiplier": 0.75,
-            "sniper_critical_multiplier": 1.5,
-            "multiscale_damage_multiplier": 0.5,
-            "life_orb_damage_multiplier": 1.3,
-            "choice_item_attack_multiplier": 1.5,
-            "expert_belt_damage_multiplier": 1.2,
-            "eviolite_defense_multiplier": 1.5,
+            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+            "aurora_veil_single_target_multiplier": 0.5,
             "burn_physical_attack_multiplier": 0.5,
+            "choice_item_attack_multiplier": 1.5,
+            "critical_hit_multiplier": 1.5,
+            "eviolite_defense_multiplier": 1.5,
+            "expert_belt_damage_multiplier": 1.2,
+            "filter_damage_multiplier": 0.75,
+            "hail_ice_defense_multiplier": null,
+            "life_orb_damage_multiplier": 1.3,
+            "misty_terrain_dragon_multiplier": 0.5,
+            "multiscale_damage_multiplier": 0.5,
+            "protect_damage_multiplier": 0.25,
             "random_damage_multipliers": [
               0.85,
               0.86,
@@ -436,8 +430,23 @@
               0.98,
               0.99,
               1.0
-            ]
+            ],
+            "same_type_attack_bonus_multiplier": 1.5,
+            "sandstorm_rock_spdef_multiplier": 1.5,
+            "screen_multi_target_multiplier": 0.6666666666666666,
+            "screen_single_target_multiplier": 0.5,
+            "sniper_critical_multiplier": 1.5,
+            "snow_ice_defense_multiplier": 1.5,
+            "spread_move_multiplier": 0.75,
+            "technician_base_power_multiplier": 1.5,
+            "technician_base_power_threshold": 60,
+            "terrain_boost_multiplier": 1.3,
+            "thick_fat_damage_multiplier": 0.5,
+            "weather_boost_multiplier": 1.5,
+            "weather_weaken_multiplier": 0.5
           },
+          "level": 50,
+          "max_turns": 100,
           "move_execution_policy": {
             "accuracy_denominator": 100,
             "consume_pp_on_miss": true,
@@ -445,27 +454,368 @@
             "consume_pp_when_before_move_stops": false,
             "struggle_power": 50,
             "struggle_recoil_fraction": {
-              "numerator": "1",
-              "denominator": "4"
+              "denominator": "4",
+              "numerator": "1"
             }
+          },
+          "repetition_resolution": "declare-draw",
+          "ruleset_id": "pokemon-champion",
+          "switching_policy": "disabled",
+          "version_group_id": 25
+        },
+        "turn_number": 1
+      },
+      "damage_query": null,
+      "kind": "battle_state",
+      "state": {
+        "attacker": {
+          "choice_lock_move_id": null,
+          "current_hp": 177,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 1,
+              "slot_id": 1001
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 2,
+              "slot_id": 1002
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 3,
+              "slot_id": 1003
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 4,
+              "slot_id": 1004
+            }
+          ],
+          "spec": {
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 1,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 2,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 3,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 4,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
+            "name": "scizor",
+            "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "choice_band",
+              "level": 50,
+              "stats": {
+                "attack": 182,
+                "defense": 120,
+                "hp": 177,
+                "special_attack": 67,
+                "special_defense": 100,
+                "speed": 85
+              },
+              "types": [
+                7,
+                9
+              ]
+            },
+            "pokemon_id": 212
+          },
+          "stages": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "status": {
+            "major": null,
+            "volatile": []
           }
         },
-        "turn_number": 1,
+        "defender": {
+          "choice_lock_move_id": null,
+          "current_hp": 202,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 101,
+              "slot_id": 2101
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 102,
+              "slot_id": 2102
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 103,
+              "slot_id": 2103
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 104,
+              "slot_id": 2104
+            }
+          ],
+          "spec": {
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 101,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 102,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 103,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 104,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
+            "name": "sylveon",
+            "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "life_orb",
+              "level": 50,
+              "stats": {
+                "attack": 76,
+                "defense": 85,
+                "hp": 202,
+                "special_attack": 130,
+                "special_defense": 150,
+                "speed": 80
+              },
+              "types": [
+                18
+              ]
+            },
+            "pokemon_id": 700
+          },
+          "stages": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "status": {
+            "major": null,
+            "volatile": []
+          }
+        },
         "field": {
-          "weather": "none",
-          "terrain": "none",
           "attacker_side": {
-            "reflect": false,
+            "aurora_veil": false,
             "light_screen": false,
-            "aurora_veil": false
+            "reflect": false
           },
           "defender_side": {
-            "reflect": false,
+            "aurora_veil": false,
             "light_screen": false,
-            "aurora_veil": false
-          }
+            "reflect": false
+          },
+          "terrain": "none",
+          "weather": "none"
         },
-        "phase": "action-selection"
+        "phase": "action-selection",
+        "rules": {
+          "allow_dynamax": false,
+          "allow_mega_evolution": false,
+          "allow_terastallization": false,
+          "battle_format": "one-on-one-singles",
+          "cycle_resolution": "declare-draw",
+          "damage_policy": {
+            "adaptability_stab_multiplier": 2.0,
+            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+            "aurora_veil_single_target_multiplier": 0.5,
+            "burn_physical_attack_multiplier": 0.5,
+            "choice_item_attack_multiplier": 1.5,
+            "critical_hit_multiplier": 1.5,
+            "eviolite_defense_multiplier": 1.5,
+            "expert_belt_damage_multiplier": 1.2,
+            "filter_damage_multiplier": 0.75,
+            "hail_ice_defense_multiplier": null,
+            "life_orb_damage_multiplier": 1.3,
+            "misty_terrain_dragon_multiplier": 0.5,
+            "multiscale_damage_multiplier": 0.5,
+            "protect_damage_multiplier": 0.25,
+            "random_damage_multipliers": [
+              0.85,
+              0.86,
+              0.87,
+              0.88,
+              0.89,
+              0.9,
+              0.91,
+              0.92,
+              0.93,
+              0.94,
+              0.95,
+              0.96,
+              0.97,
+              0.98,
+              0.99,
+              1.0
+            ],
+            "same_type_attack_bonus_multiplier": 1.5,
+            "sandstorm_rock_spdef_multiplier": 1.5,
+            "screen_multi_target_multiplier": 0.6666666666666666,
+            "screen_single_target_multiplier": 0.5,
+            "sniper_critical_multiplier": 1.5,
+            "snow_ice_defense_multiplier": 1.5,
+            "spread_move_multiplier": 0.75,
+            "technician_base_power_multiplier": 1.5,
+            "technician_base_power_threshold": 60,
+            "terrain_boost_multiplier": 1.3,
+            "thick_fat_damage_multiplier": 0.5,
+            "weather_boost_multiplier": 1.5,
+            "weather_weaken_multiplier": 0.5
+          },
+          "level": 50,
+          "max_turns": 100,
+          "move_execution_policy": {
+            "accuracy_denominator": 100,
+            "consume_pp_on_miss": true,
+            "consume_pp_when_action_blocked": false,
+            "consume_pp_when_before_move_stops": false,
+            "struggle_power": 50,
+            "struggle_recoil_fraction": {
+              "denominator": "4",
+              "numerator": "1"
+            }
+          },
+          "repetition_resolution": "declare-draw",
+          "ruleset_id": "pokemon-champion",
+          "switching_policy": "disabled",
+          "version_group_id": 25
+        },
+        "turn_number": 1
       },
       "updates": [
         {
@@ -475,14 +825,14 @@
         },
         {
           "kind": "pp",
-          "side": "attacker",
           "move_id": 1,
+          "side": "attacker",
           "value": 29
         },
         {
           "kind": "choice_lock",
-          "side": "attacker",
-          "move_id": 1
+          "move_id": 1,
+          "side": "attacker"
         },
         {
           "kind": "stages",
@@ -509,539 +859,194 @@
         {
           "kind": "next_turn"
         }
-      ],
-      "compare_to": {
-        "attacker": {
-          "spec": {
-            "pokemon_id": 212,
-            "name": "scizor",
-            "pokemon": {
-              "level": 50,
-              "types": [
-                7,
-                9
-              ],
-              "stats": {
-                "hp": 177,
-                "attack": 182,
-                "defense": 120,
-                "special_attack": 67,
-                "special_defense": 100,
-                "speed": 85
-              },
-              "ability": "none",
-              "item": "choice_band",
-              "can_evolve": false,
-              "grounding": null
-            },
-            "moves": [
-              {
-                "move_id": 1,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 2,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 3,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 4,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
-          },
-          "current_hp": 177,
-          "move_slots": [
-            {
-              "move_id": 1,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1001
-            },
-            {
-              "move_id": 2,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1002
-            },
-            {
-              "move_id": 3,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1003
-            },
-            {
-              "move_id": 4,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1004
-            }
-          ],
-          "stages": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "status": {
-            "major": null,
-            "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
-        },
-        "defender": {
-          "spec": {
-            "pokemon_id": 700,
-            "name": "sylveon",
-            "pokemon": {
-              "level": 50,
-              "types": [
-                18
-              ],
-              "stats": {
-                "hp": 202,
-                "attack": 76,
-                "defense": 85,
-                "special_attack": 130,
-                "special_defense": 150,
-                "speed": 80
-              },
-              "ability": "none",
-              "item": "life_orb",
-              "can_evolve": false,
-              "grounding": null
-            },
-            "moves": [
-              {
-                "move_id": 101,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 102,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 103,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 104,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
-          },
-          "current_hp": 202,
-          "move_slots": [
-            {
-              "move_id": 101,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2101
-            },
-            {
-              "move_id": 102,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2102
-            },
-            {
-              "move_id": 103,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2103
-            },
-            {
-              "move_id": 104,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2104
-            }
-          ],
-          "stages": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "status": {
-            "major": null,
-            "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
-        },
-        "rules": {
-          "ruleset_id": "pokemon-champion",
-          "version_group_id": 25,
-          "level": 50,
-          "battle_format": "one-on-one-singles",
-          "switching_policy": "disabled",
-          "allow_terastallization": false,
-          "allow_mega_evolution": false,
-          "allow_dynamax": false,
-          "max_turns": 100,
-          "repetition_resolution": "declare-draw",
-          "cycle_resolution": "declare-draw",
-          "damage_policy": {
-            "terrain_boost_multiplier": 1.3,
-            "misty_terrain_dragon_multiplier": 0.5,
-            "weather_boost_multiplier": 1.5,
-            "weather_weaken_multiplier": 0.5,
-            "sandstorm_rock_spdef_multiplier": 1.5,
-            "snow_ice_defense_multiplier": 1.5,
-            "hail_ice_defense_multiplier": null,
-            "screen_single_target_multiplier": 0.5,
-            "screen_multi_target_multiplier": 0.6666666666666666,
-            "aurora_veil_single_target_multiplier": 0.5,
-            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
-            "critical_hit_multiplier": 1.5,
-            "spread_move_multiplier": 0.75,
-            "protect_damage_multiplier": 0.25,
-            "same_type_attack_bonus_multiplier": 1.5,
-            "technician_base_power_threshold": 60,
-            "technician_base_power_multiplier": 1.5,
-            "adaptability_stab_multiplier": 2.0,
-            "thick_fat_damage_multiplier": 0.5,
-            "filter_damage_multiplier": 0.75,
-            "sniper_critical_multiplier": 1.5,
-            "multiscale_damage_multiplier": 0.5,
-            "life_orb_damage_multiplier": 1.3,
-            "choice_item_attack_multiplier": 1.5,
-            "expert_belt_damage_multiplier": 1.2,
-            "eviolite_defense_multiplier": 1.5,
-            "burn_physical_attack_multiplier": 0.5,
-            "random_damage_multipliers": [
-              0.85,
-              0.86,
-              0.87,
-              0.88,
-              0.89,
-              0.9,
-              0.91,
-              0.92,
-              0.93,
-              0.94,
-              0.95,
-              0.96,
-              0.97,
-              0.98,
-              0.99,
-              1.0
-            ]
-          },
-          "move_execution_policy": {
-            "accuracy_denominator": 100,
-            "consume_pp_on_miss": true,
-            "consume_pp_when_action_blocked": false,
-            "consume_pp_when_before_move_stops": false,
-            "struggle_power": 50,
-            "struggle_recoil_fraction": {
-              "numerator": "1",
-              "denominator": "4"
-            }
-          }
-        },
-        "turn_number": 1,
-        "field": {
-          "weather": "none",
-          "terrain": "none",
-          "attacker_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          },
-          "defender_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          }
-        },
-        "phase": "action-selection"
-      },
-      "damage_query": null
+      ]
     },
     {
-      "kind": "profile",
       "base": {
-        "hp": 70,
         "attack": 130,
         "defense": 100,
+        "hp": 70,
         "special_attack": 55,
         "special_defense": 80,
         "speed": 65
       },
-      "ivs": {
-        "hp": 31,
-        "attack": 31,
-        "defense": 31,
-        "special_attack": 31,
-        "special_defense": 31,
-        "speed": 31
-      },
+      "decreased_stat_id": 4,
       "evs": {
-        "hp": 252,
         "attack": 252,
         "defense": 0,
+        "hp": 252,
         "special_attack": 0,
         "special_defense": 0,
         "speed": 0
       },
-      "level": 50,
-      "decreased_stat_id": 4,
-      "increased_stat_id": 2
+      "increased_stat_id": 2,
+      "ivs": {
+        "attack": 31,
+        "defense": 31,
+        "hp": 31,
+        "special_attack": 31,
+        "special_defense": 31,
+        "speed": 31
+      },
+      "kind": "profile",
+      "level": 50
     },
     {
+      "edges": [
+        {
+          "probability": {
+            "denominator": "2",
+            "numerator": "1"
+          },
+          "source": 0,
+          "target": 0
+        },
+        {
+          "probability": {
+            "denominator": "2",
+            "numerator": "1"
+          },
+          "source": 0,
+          "target": 1
+        }
+      ],
       "kind": "graph",
       "nodes": [
         {
-          "outcome": "non-terminal",
-          "cycle_resolution": "solve-absorption-probability"
+          "cycle_resolution": "solve-absorption-probability",
+          "outcome": "non-terminal"
         },
         {
-          "outcome": "attacker-win",
-          "cycle_resolution": "declare-draw"
+          "cycle_resolution": "declare-draw",
+          "outcome": "attacker-win"
         }
       ],
-      "edges": [
-        {
-          "source": 0,
-          "target": 0,
-          "probability": {
-            "numerator": "1",
-            "denominator": "2"
-          }
-        },
-        {
-          "source": 0,
-          "target": 1,
-          "probability": {
-            "numerator": "1",
-            "denominator": "2"
-          }
-        }
-      ],
-      "root": 0,
       "observer": "attacker",
+      "root": 0,
       "truncations": []
     },
     {
       "kind": "legal_actions",
+      "policy": "uniform-random",
+      "side": "attacker",
       "state": {
         "attacker": {
+          "choice_lock_move_id": null,
+          "current_hp": 177,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 1,
+              "slot_id": 1001
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 2,
+              "slot_id": 1002
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 3,
+              "slot_id": 1003
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 4,
+              "slot_id": 1004
+            }
+          ],
           "spec": {
-            "pokemon_id": 212,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 1,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 2,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 3,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 4,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
             "name": "scizor",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "choice_band",
               "level": 50,
-              "types": [
-                7,
-                9
-              ],
               "stats": {
-                "hp": 177,
                 "attack": 182,
                 "defense": 120,
+                "hp": 177,
                 "special_attack": 67,
                 "special_defense": 100,
                 "speed": 85
               },
-              "ability": "none",
-              "item": "choice_band",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                7,
+                9
+              ]
             },
-            "moves": [
-              {
-                "move_id": 1,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 2,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 3,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 4,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 212
           },
-          "current_hp": 177,
-          "move_slots": [
-            {
-              "move_id": 1,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1001
-            },
-            {
-              "move_id": 2,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1002
-            },
-            {
-              "move_id": 3,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1003
-            },
-            {
-              "move_id": 4,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 1004
-            }
-          ],
           "stages": [
             0,
             0,
@@ -1054,124 +1059,124 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
         "defender": {
+          "choice_lock_move_id": null,
+          "current_hp": 202,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 30,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 30,
+              "move_id": 101,
+              "slot_id": 2101
+            },
+            {
+              "current_pp": 15,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 15,
+              "move_id": 102,
+              "slot_id": 2102
+            },
+            {
+              "current_pp": 10,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 10,
+              "move_id": 103,
+              "slot_id": 2103
+            },
+            {
+              "current_pp": 20,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 20,
+              "move_id": 104,
+              "slot_id": 2104
+            }
+          ],
           "spec": {
-            "pokemon_id": 700,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 30,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 101,
+                "name": "bullet-punch",
+                "priority": 1
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": "brick_break",
+                "max_pp": 15,
+                "move": {
+                  "category": "physical",
+                  "power": 75,
+                  "type": 2
+                },
+                "move_id": 102,
+                "name": "brick-break",
+                "priority": 0
+              },
+              {
+                "accuracy": null,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "special",
+                  "power": 80,
+                  "type": 7
+                },
+                "move_id": 103,
+                "name": "special",
+                "priority": 0
+              },
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 20,
+                "move": {
+                  "category": "status",
+                  "power": 0,
+                  "type": 1
+                },
+                "move_id": 104,
+                "name": "swords-dance",
+                "priority": 0
+              }
+            ],
             "name": "sylveon",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "life_orb",
               "level": 50,
-              "types": [
-                18
-              ],
               "stats": {
-                "hp": 202,
                 "attack": 76,
                 "defense": 85,
+                "hp": 202,
                 "special_attack": 130,
                 "special_defense": 150,
                 "speed": 80
               },
-              "ability": "none",
-              "item": "life_orb",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                18
+              ]
             },
-            "moves": [
-              {
-                "move_id": 101,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 30,
-                "priority": 1,
-                "accuracy": 100,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 102,
-                "name": "brick-break",
-                "move": {
-                  "type": 2,
-                  "category": "physical",
-                  "power": 75
-                },
-                "max_pp": 15,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": "brick_break"
-              },
-              {
-                "move_id": 103,
-                "name": "special",
-                "move": {
-                  "type": 7,
-                  "category": "special",
-                  "power": 80
-                },
-                "max_pp": 10,
-                "priority": 0,
-                "accuracy": null,
-                "effect_identifier": null
-              },
-              {
-                "move_id": 104,
-                "name": "swords-dance",
-                "move": {
-                  "type": 1,
-                  "category": "status",
-                  "power": 0
-                },
-                "max_pp": 20,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 700
           },
-          "current_hp": 202,
-          "move_slots": [
-            {
-              "move_id": 101,
-              "current_pp": 30,
-              "max_pp": 30,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2101
-            },
-            {
-              "move_id": 102,
-              "current_pp": 15,
-              "max_pp": 15,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2102
-            },
-            {
-              "move_id": 103,
-              "current_pp": 10,
-              "max_pp": 10,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2103
-            },
-            {
-              "move_id": 104,
-              "current_pp": 20,
-              "max_pp": 20,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 2104
-            }
-          ],
           "stages": [
             0,
             0,
@@ -1184,52 +1189,44 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
+        "field": {
+          "attacker_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "defender_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "terrain": "none",
+          "weather": "none"
+        },
+        "phase": "action-selection",
         "rules": {
-          "ruleset_id": "pokemon-champion",
-          "version_group_id": 25,
-          "level": 50,
-          "battle_format": "one-on-one-singles",
-          "switching_policy": "disabled",
-          "allow_terastallization": false,
-          "allow_mega_evolution": false,
           "allow_dynamax": false,
-          "max_turns": 100,
-          "repetition_resolution": "declare-draw",
+          "allow_mega_evolution": false,
+          "allow_terastallization": false,
+          "battle_format": "one-on-one-singles",
           "cycle_resolution": "declare-draw",
           "damage_policy": {
-            "terrain_boost_multiplier": 1.3,
-            "misty_terrain_dragon_multiplier": 0.5,
-            "weather_boost_multiplier": 1.5,
-            "weather_weaken_multiplier": 0.5,
-            "sandstorm_rock_spdef_multiplier": 1.5,
-            "snow_ice_defense_multiplier": 1.5,
-            "hail_ice_defense_multiplier": null,
-            "screen_single_target_multiplier": 0.5,
-            "screen_multi_target_multiplier": 0.6666666666666666,
-            "aurora_veil_single_target_multiplier": 0.5,
-            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
-            "critical_hit_multiplier": 1.5,
-            "spread_move_multiplier": 0.75,
-            "protect_damage_multiplier": 0.25,
-            "same_type_attack_bonus_multiplier": 1.5,
-            "technician_base_power_threshold": 60,
-            "technician_base_power_multiplier": 1.5,
             "adaptability_stab_multiplier": 2.0,
-            "thick_fat_damage_multiplier": 0.5,
-            "filter_damage_multiplier": 0.75,
-            "sniper_critical_multiplier": 1.5,
-            "multiscale_damage_multiplier": 0.5,
-            "life_orb_damage_multiplier": 1.3,
-            "choice_item_attack_multiplier": 1.5,
-            "expert_belt_damage_multiplier": 1.2,
-            "eviolite_defense_multiplier": 1.5,
+            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+            "aurora_veil_single_target_multiplier": 0.5,
             "burn_physical_attack_multiplier": 0.5,
+            "choice_item_attack_multiplier": 1.5,
+            "critical_hit_multiplier": 1.5,
+            "eviolite_defense_multiplier": 1.5,
+            "expert_belt_damage_multiplier": 1.2,
+            "filter_damage_multiplier": 0.75,
+            "hail_ice_defense_multiplier": null,
+            "life_orb_damage_multiplier": 1.3,
+            "misty_terrain_dragon_multiplier": 0.5,
+            "multiscale_damage_multiplier": 0.5,
+            "protect_damage_multiplier": 0.25,
             "random_damage_multipliers": [
               0.85,
               0.86,
@@ -1247,8 +1244,23 @@
               0.98,
               0.99,
               1.0
-            ]
+            ],
+            "same_type_attack_bonus_multiplier": 1.5,
+            "sandstorm_rock_spdef_multiplier": 1.5,
+            "screen_multi_target_multiplier": 0.6666666666666666,
+            "screen_single_target_multiplier": 0.5,
+            "sniper_critical_multiplier": 1.5,
+            "snow_ice_defense_multiplier": 1.5,
+            "spread_move_multiplier": 0.75,
+            "technician_base_power_multiplier": 1.5,
+            "technician_base_power_threshold": 60,
+            "terrain_boost_multiplier": 1.3,
+            "thick_fat_damage_multiplier": 0.5,
+            "weather_boost_multiplier": 1.5,
+            "weather_weaken_multiplier": 0.5
           },
+          "level": 50,
+          "max_turns": 100,
           "move_execution_policy": {
             "accuracy_denominator": 100,
             "consume_pp_on_miss": true,
@@ -1256,1935 +1268,92 @@
             "consume_pp_when_before_move_stops": false,
             "struggle_power": 50,
             "struggle_recoil_fraction": {
-              "numerator": "1",
-              "denominator": "4"
+              "denominator": "4",
+              "numerator": "1"
             }
-          }
-        },
-        "turn_number": 1,
-        "field": {
-          "weather": "none",
-          "terrain": "none",
-          "attacker_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
           },
-          "defender_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          }
+          "repetition_resolution": "declare-draw",
+          "ruleset_id": "pokemon-champion",
+          "switching_policy": "disabled",
+          "version_group_id": 25
         },
-        "phase": "action-selection"
-      },
-      "side": "attacker",
-      "policy": "uniform-random"
+        "turn_number": 1
+      }
     },
     {
       "kind": "battle_turn",
-      "state": {
-        "attacker": {
-          "spec": {
-            "pokemon_id": 212,
-            "name": "scizor",
-            "pokemon": {
-              "level": 50,
-              "types": [
-                7,
-                9
-              ],
-              "stats": {
-                "hp": 177,
-                "attack": 182,
-                "defense": 120,
-                "special_attack": 67,
-                "special_defense": 100,
-                "speed": 85
-              },
-              "ability": "none",
-              "item": "none",
-              "can_evolve": false,
-              "grounding": null
-            },
-            "moves": [
-              {
-                "move_id": 1,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 1,
-                "priority": 3,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
-          },
-          "current_hp": 1,
-          "move_slots": [
-            {
-              "move_id": 1,
-              "current_pp": 1,
-              "max_pp": 1,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 9001
-            }
-          ],
-          "stages": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "status": {
-            "major": null,
-            "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
-        },
-        "defender": {
-          "spec": {
-            "pokemon_id": 700,
-            "name": "sylveon",
-            "pokemon": {
-              "level": 50,
-              "types": [
-                18
-              ],
-              "stats": {
-                "hp": 202,
-                "attack": 76,
-                "defense": 85,
-                "special_attack": 130,
-                "special_defense": 150,
-                "speed": 80
-              },
-              "ability": "none",
-              "item": "none",
-              "can_evolve": false,
-              "grounding": null
-            },
-            "moves": [
-              {
-                "move_id": 101,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 1,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
-          },
-          "current_hp": 1,
-          "move_slots": [
-            {
-              "move_id": 101,
-              "current_pp": 1,
-              "max_pp": 1,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 9101
-            }
-          ],
-          "stages": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          "status": {
-            "major": null,
-            "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
-        },
-        "rules": {
-          "ruleset_id": "pokemon-champion",
-          "version_group_id": 25,
-          "level": 50,
-          "battle_format": "one-on-one-singles",
-          "switching_policy": "disabled",
-          "allow_terastallization": false,
-          "allow_mega_evolution": false,
-          "allow_dynamax": false,
-          "max_turns": 100,
-          "repetition_resolution": "declare-draw",
-          "cycle_resolution": "declare-draw",
-          "damage_policy": {
-            "terrain_boost_multiplier": 1.3,
-            "misty_terrain_dragon_multiplier": 0.5,
-            "weather_boost_multiplier": 1.5,
-            "weather_weaken_multiplier": 0.5,
-            "sandstorm_rock_spdef_multiplier": 1.5,
-            "snow_ice_defense_multiplier": 1.5,
-            "hail_ice_defense_multiplier": null,
-            "screen_single_target_multiplier": 0.5,
-            "screen_multi_target_multiplier": 0.6666666666666666,
-            "aurora_veil_single_target_multiplier": 0.5,
-            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
-            "critical_hit_multiplier": 1.5,
-            "spread_move_multiplier": 0.75,
-            "protect_damage_multiplier": 0.25,
-            "same_type_attack_bonus_multiplier": 1.5,
-            "technician_base_power_threshold": 60,
-            "technician_base_power_multiplier": 1.5,
-            "adaptability_stab_multiplier": 2.0,
-            "thick_fat_damage_multiplier": 0.5,
-            "filter_damage_multiplier": 0.75,
-            "sniper_critical_multiplier": 1.5,
-            "multiscale_damage_multiplier": 0.5,
-            "life_orb_damage_multiplier": 1.3,
-            "choice_item_attack_multiplier": 1.5,
-            "expert_belt_damage_multiplier": 1.2,
-            "eviolite_defense_multiplier": 1.5,
-            "burn_physical_attack_multiplier": 0.5,
-            "random_damage_multipliers": [
-              1.0
-            ]
-          },
-          "move_execution_policy": {
-            "accuracy_denominator": 100,
-            "consume_pp_on_miss": true,
-            "consume_pp_when_action_blocked": false,
-            "consume_pp_when_before_move_stops": false,
-            "struggle_power": 50,
-            "struggle_recoil_fraction": {
-              "numerator": "1",
-              "denominator": "4"
-            }
-          }
-        },
-        "turn_number": 1,
-        "field": {
-          "weather": "none",
-          "terrain": "none",
-          "attacker_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          },
-          "defender_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          }
-        },
-        "phase": "action-selection"
-      },
-      "type_chart": [
-        {
-          "attacking": 1,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 6,
-          "percent": 50
-        },
-        {
-          "attacking": 1,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 8,
-          "percent": 0
-        },
-        {
-          "attacking": 1,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 1,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 1,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 1,
-          "percent": 200
-        },
-        {
-          "attacking": 2,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 3,
-          "percent": 50
-        },
-        {
-          "attacking": 2,
-          "defending": 4,
-          "percent": 50
-        },
-        {
-          "attacking": 2,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 6,
-          "percent": 200
-        },
-        {
-          "attacking": 2,
-          "defending": 7,
-          "percent": 50
-        },
-        {
-          "attacking": 2,
-          "defending": 8,
-          "percent": 0
-        },
-        {
-          "attacking": 2,
-          "defending": 9,
-          "percent": 200
-        },
-        {
-          "attacking": 2,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 14,
-          "percent": 50
-        },
-        {
-          "attacking": 2,
-          "defending": 15,
-          "percent": 200
-        },
-        {
-          "attacking": 2,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 2,
-          "defending": 17,
-          "percent": 200
-        },
-        {
-          "attacking": 2,
-          "defending": 18,
-          "percent": 50
-        },
-        {
-          "attacking": 3,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 2,
-          "percent": 200
-        },
-        {
-          "attacking": 3,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 6,
-          "percent": 50
-        },
-        {
-          "attacking": 3,
-          "defending": 7,
-          "percent": 200
-        },
-        {
-          "attacking": 3,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 3,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 12,
-          "percent": 200
-        },
-        {
-          "attacking": 3,
-          "defending": 13,
-          "percent": 50
-        },
-        {
-          "attacking": 3,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 3,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 4,
-          "percent": 50
-        },
-        {
-          "attacking": 4,
-          "defending": 5,
-          "percent": 50
-        },
-        {
-          "attacking": 4,
-          "defending": 6,
-          "percent": 50
-        },
-        {
-          "attacking": 4,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 8,
-          "percent": 50
-        },
-        {
-          "attacking": 4,
-          "defending": 9,
-          "percent": 0
-        },
-        {
-          "attacking": 4,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 12,
-          "percent": 200
-        },
-        {
-          "attacking": 4,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 4,
-          "defending": 18,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 3,
-          "percent": 0
-        },
-        {
-          "attacking": 5,
-          "defending": 4,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 6,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 7,
-          "percent": 50
-        },
-        {
-          "attacking": 5,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 9,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 10,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 12,
-          "percent": 50
-        },
-        {
-          "attacking": 5,
-          "defending": 13,
-          "percent": 200
-        },
-        {
-          "attacking": 5,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 5,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 2,
-          "percent": 50
-        },
-        {
-          "attacking": 6,
-          "defending": 3,
-          "percent": 200
-        },
-        {
-          "attacking": 6,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 5,
-          "percent": 50
-        },
-        {
-          "attacking": 6,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 7,
-          "percent": 200
-        },
-        {
-          "attacking": 6,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 6,
-          "defending": 10,
-          "percent": 200
-        },
-        {
-          "attacking": 6,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 15,
-          "percent": 200
-        },
-        {
-          "attacking": 6,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 6,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 2,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 3,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 4,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 8,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 7,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 12,
-          "percent": 200
-        },
-        {
-          "attacking": 7,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 14,
-          "percent": 200
-        },
-        {
-          "attacking": 7,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 7,
-          "defending": 17,
-          "percent": 200
-        },
-        {
-          "attacking": 7,
-          "defending": 18,
-          "percent": 50
-        },
-        {
-          "attacking": 8,
-          "defending": 1,
-          "percent": 0
-        },
-        {
-          "attacking": 8,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 8,
-          "percent": 200
-        },
-        {
-          "attacking": 8,
-          "defending": 9,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 14,
-          "percent": 200
-        },
-        {
-          "attacking": 8,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 8,
-          "defending": 17,
-          "percent": 50
-        },
-        {
-          "attacking": 8,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 6,
-          "percent": 200
-        },
-        {
-          "attacking": 9,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 9,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 9,
-          "defending": 11,
-          "percent": 50
-        },
-        {
-          "attacking": 9,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 13,
-          "percent": 50
-        },
-        {
-          "attacking": 9,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 15,
-          "percent": 200
-        },
-        {
-          "attacking": 9,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 9,
-          "defending": 18,
-          "percent": 200
-        },
-        {
-          "attacking": 10,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 6,
-          "percent": 50
-        },
-        {
-          "attacking": 10,
-          "defending": 7,
-          "percent": 200
-        },
-        {
-          "attacking": 10,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 9,
-          "percent": 200
-        },
-        {
-          "attacking": 10,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 10,
-          "defending": 11,
-          "percent": 50
-        },
-        {
-          "attacking": 10,
-          "defending": 12,
-          "percent": 200
-        },
-        {
-          "attacking": 10,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 15,
-          "percent": 200
-        },
-        {
-          "attacking": 10,
-          "defending": 16,
-          "percent": 50
-        },
-        {
-          "attacking": 10,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 10,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 5,
-          "percent": 200
-        },
-        {
-          "attacking": 11,
-          "defending": 6,
-          "percent": 200
-        },
-        {
-          "attacking": 11,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 9,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 10,
-          "percent": 200
-        },
-        {
-          "attacking": 11,
-          "defending": 11,
-          "percent": 50
-        },
-        {
-          "attacking": 11,
-          "defending": 12,
-          "percent": 50
-        },
-        {
-          "attacking": 11,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 16,
-          "percent": 50
-        },
-        {
-          "attacking": 11,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 11,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 3,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 4,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 5,
-          "percent": 200
-        },
-        {
-          "attacking": 12,
-          "defending": 6,
-          "percent": 200
-        },
-        {
-          "attacking": 12,
-          "defending": 7,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 11,
-          "percent": 200
-        },
-        {
-          "attacking": 12,
-          "defending": 12,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 16,
-          "percent": 50
-        },
-        {
-          "attacking": 12,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 12,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 3,
-          "percent": 200
-        },
-        {
-          "attacking": 13,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 5,
-          "percent": 0
-        },
-        {
-          "attacking": 13,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 9,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 11,
-          "percent": 200
-        },
-        {
-          "attacking": 13,
-          "defending": 12,
-          "percent": 50
-        },
-        {
-          "attacking": 13,
-          "defending": 13,
-          "percent": 50
-        },
-        {
-          "attacking": 13,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 16,
-          "percent": 50
-        },
-        {
-          "attacking": 13,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 13,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 2,
-          "percent": 200
-        },
-        {
-          "attacking": 14,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 4,
-          "percent": 200
-        },
-        {
-          "attacking": 14,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 14,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 14,
-          "percent": 50
-        },
-        {
-          "attacking": 14,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 14,
-          "defending": 17,
-          "percent": 0
-        },
-        {
-          "attacking": 14,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 3,
-          "percent": 200
-        },
-        {
-          "attacking": 15,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 5,
-          "percent": 200
-        },
-        {
-          "attacking": 15,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 15,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 15,
-          "defending": 11,
-          "percent": 50
-        },
-        {
-          "attacking": 15,
-          "defending": 12,
-          "percent": 200
-        },
-        {
-          "attacking": 15,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 15,
-          "percent": 50
-        },
-        {
-          "attacking": 15,
-          "defending": 16,
-          "percent": 200
-        },
-        {
-          "attacking": 15,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 15,
-          "defending": 18,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 2,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 16,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 16,
-          "percent": 200
-        },
-        {
-          "attacking": 16,
-          "defending": 17,
-          "percent": 100
-        },
-        {
-          "attacking": 16,
-          "defending": 18,
-          "percent": 0
-        },
-        {
-          "attacking": 17,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 2,
-          "percent": 50
-        },
-        {
-          "attacking": 17,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 4,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 8,
-          "percent": 200
-        },
-        {
-          "attacking": 17,
-          "defending": 9,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 10,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 14,
-          "percent": 200
-        },
-        {
-          "attacking": 17,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 16,
-          "percent": 100
-        },
-        {
-          "attacking": 17,
-          "defending": 17,
-          "percent": 50
-        },
-        {
-          "attacking": 17,
-          "defending": 18,
-          "percent": 50
-        },
-        {
-          "attacking": 18,
-          "defending": 1,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 2,
-          "percent": 200
-        },
-        {
-          "attacking": 18,
-          "defending": 3,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 4,
-          "percent": 50
-        },
-        {
-          "attacking": 18,
-          "defending": 5,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 6,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 7,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 8,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 9,
-          "percent": 50
-        },
-        {
-          "attacking": 18,
-          "defending": 10,
-          "percent": 50
-        },
-        {
-          "attacking": 18,
-          "defending": 11,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 12,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 13,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 14,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 15,
-          "percent": 100
-        },
-        {
-          "attacking": 18,
-          "defending": 16,
-          "percent": 200
-        },
-        {
-          "attacking": 18,
-          "defending": 17,
-          "percent": 200
-        },
-        {
-          "attacking": 18,
-          "defending": 18,
-          "percent": 100
-        }
-      ],
       "selection": {
-        "mode": "actions",
         "attacker": {
           "kind": "use-move",
-          "side": "attacker",
           "move_id": 1,
           "priority": 3,
+          "side": "attacker",
           "slot_id": 9001
         },
         "defender": {
           "kind": "use-move",
-          "side": "defender",
           "move_id": 101,
           "priority": 0,
+          "side": "defender",
           "slot_id": 9101
-        }
-      }
-    },
-    {
-      "kind": "fixed_battle",
+        },
+        "mode": "actions"
+      },
       "state": {
         "attacker": {
+          "choice_lock_move_id": null,
+          "current_hp": 1,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 1,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 1,
+              "move_id": 1,
+              "slot_id": 9001
+            }
+          ],
           "spec": {
-            "pokemon_id": 212,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 1,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 1,
+                "name": "bullet-punch",
+                "priority": 3
+              }
+            ],
             "name": "scizor",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "none",
               "level": 50,
-              "types": [
-                7,
-                9
-              ],
               "stats": {
-                "hp": 177,
                 "attack": 182,
                 "defense": 120,
+                "hp": 177,
                 "special_attack": 67,
                 "special_defense": 100,
                 "speed": 85
               },
-              "ability": "none",
-              "item": "none",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                7,
+                9
+              ]
             },
-            "moves": [
-              {
-                "move_id": 1,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 1,
-                "priority": 3,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 212
           },
-          "current_hp": 1,
-          "move_slots": [
-            {
-              "move_id": 1,
-              "current_pp": 1,
-              "max_pp": 1,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 9001
-            }
-          ],
           "stages": [
             0,
             0,
@@ -3197,61 +1366,61 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
         "defender": {
+          "choice_lock_move_id": null,
+          "current_hp": 1,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 1,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 1,
+              "move_id": 101,
+              "slot_id": 9101
+            }
+          ],
           "spec": {
-            "pokemon_id": 700,
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 1,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 101,
+                "name": "bullet-punch",
+                "priority": 0
+              }
+            ],
             "name": "sylveon",
             "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "none",
               "level": 50,
-              "types": [
-                18
-              ],
               "stats": {
-                "hp": 202,
                 "attack": 76,
                 "defense": 85,
+                "hp": 202,
                 "special_attack": 130,
                 "special_defense": 150,
                 "speed": 80
               },
-              "ability": "none",
-              "item": "none",
-              "can_evolve": false,
-              "grounding": null
+              "types": [
+                18
+              ]
             },
-            "moves": [
-              {
-                "move_id": 101,
-                "name": "bullet-punch",
-                "move": {
-                  "type": 9,
-                  "category": "physical",
-                  "power": 40
-                },
-                "max_pp": 1,
-                "priority": 0,
-                "accuracy": 100,
-                "effect_identifier": null
-              }
-            ]
+            "pokemon_id": 700
           },
-          "current_hp": 1,
-          "move_slots": [
-            {
-              "move_id": 101,
-              "current_pp": 1,
-              "max_pp": 1,
-              "disabled": false,
-              "locked": false,
-              "slot_id": 9101
-            }
-          ],
           "stages": [
             0,
             0,
@@ -3264,56 +1433,63 @@
           "status": {
             "major": null,
             "volatile": []
-          },
-          "last_move_id": null,
-          "choice_lock_move_id": null,
-          "item_consumed": false,
-          "is_first_turn": true
+          }
         },
+        "field": {
+          "attacker_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "defender_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "terrain": "none",
+          "weather": "none"
+        },
+        "phase": "action-selection",
         "rules": {
-          "ruleset_id": "pokemon-champion",
-          "version_group_id": 25,
-          "level": 50,
-          "battle_format": "one-on-one-singles",
-          "switching_policy": "disabled",
-          "allow_terastallization": false,
-          "allow_mega_evolution": false,
           "allow_dynamax": false,
-          "max_turns": 100,
-          "repetition_resolution": "declare-draw",
+          "allow_mega_evolution": false,
+          "allow_terastallization": false,
+          "battle_format": "one-on-one-singles",
           "cycle_resolution": "declare-draw",
           "damage_policy": {
-            "terrain_boost_multiplier": 1.3,
-            "misty_terrain_dragon_multiplier": 0.5,
-            "weather_boost_multiplier": 1.5,
-            "weather_weaken_multiplier": 0.5,
-            "sandstorm_rock_spdef_multiplier": 1.5,
-            "snow_ice_defense_multiplier": 1.5,
-            "hail_ice_defense_multiplier": null,
-            "screen_single_target_multiplier": 0.5,
-            "screen_multi_target_multiplier": 0.6666666666666666,
-            "aurora_veil_single_target_multiplier": 0.5,
-            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
-            "critical_hit_multiplier": 1.5,
-            "spread_move_multiplier": 0.75,
-            "protect_damage_multiplier": 0.25,
-            "same_type_attack_bonus_multiplier": 1.5,
-            "technician_base_power_threshold": 60,
-            "technician_base_power_multiplier": 1.5,
             "adaptability_stab_multiplier": 2.0,
-            "thick_fat_damage_multiplier": 0.5,
-            "filter_damage_multiplier": 0.75,
-            "sniper_critical_multiplier": 1.5,
-            "multiscale_damage_multiplier": 0.5,
-            "life_orb_damage_multiplier": 1.3,
-            "choice_item_attack_multiplier": 1.5,
-            "expert_belt_damage_multiplier": 1.2,
-            "eviolite_defense_multiplier": 1.5,
+            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+            "aurora_veil_single_target_multiplier": 0.5,
             "burn_physical_attack_multiplier": 0.5,
+            "choice_item_attack_multiplier": 1.5,
+            "critical_hit_multiplier": 1.5,
+            "eviolite_defense_multiplier": 1.5,
+            "expert_belt_damage_multiplier": 1.2,
+            "filter_damage_multiplier": 0.75,
+            "hail_ice_defense_multiplier": null,
+            "life_orb_damage_multiplier": 1.3,
+            "misty_terrain_dragon_multiplier": 0.5,
+            "multiscale_damage_multiplier": 0.5,
+            "protect_damage_multiplier": 0.25,
             "random_damage_multipliers": [
               1.0
-            ]
+            ],
+            "same_type_attack_bonus_multiplier": 1.5,
+            "sandstorm_rock_spdef_multiplier": 1.5,
+            "screen_multi_target_multiplier": 0.6666666666666666,
+            "screen_single_target_multiplier": 0.5,
+            "sniper_critical_multiplier": 1.5,
+            "snow_ice_defense_multiplier": 1.5,
+            "spread_move_multiplier": 0.75,
+            "technician_base_power_multiplier": 1.5,
+            "technician_base_power_threshold": 60,
+            "terrain_boost_multiplier": 1.3,
+            "thick_fat_damage_multiplier": 0.5,
+            "weather_boost_multiplier": 1.5,
+            "weather_weaken_multiplier": 0.5
           },
+          "level": 50,
+          "max_turns": 100,
           "move_execution_policy": {
             "accuracy_denominator": 100,
             "consume_pp_on_miss": true,
@@ -3321,27 +1497,16 @@
             "consume_pp_when_before_move_stops": false,
             "struggle_power": 50,
             "struggle_recoil_fraction": {
-              "numerator": "1",
-              "denominator": "4"
+              "denominator": "4",
+              "numerator": "1"
             }
-          }
-        },
-        "turn_number": 1,
-        "field": {
-          "weather": "none",
-          "terrain": "none",
-          "attacker_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
           },
-          "defender_side": {
-            "reflect": false,
-            "light_screen": false,
-            "aurora_veil": false
-          }
+          "repetition_resolution": "declare-draw",
+          "ruleset_id": "pokemon-champion",
+          "switching_policy": "disabled",
+          "version_group_id": 25
         },
-        "phase": "action-selection"
+        "turn_number": 1
       },
       "type_chart": [
         {
@@ -4964,18 +3129,2600 @@
           "defending": 18,
           "percent": 100
         }
-      ],
+      ]
+    },
+    {
       "attacker_policy": "first-legal-action",
       "defender_policy": "first-legal-action",
-      "observer": "attacker",
       "graph_limits": {
-        "max_nodes": 4,
         "max_edges": 4,
+        "max_nodes": 4,
         "max_turns": 2
       },
-      "max_equation_nodes": 128,
       "include_graph": false,
-      "progress_interval": 1
+      "kind": "fixed_battle",
+      "max_equation_nodes": 128,
+      "observer": "attacker",
+      "progress_interval": 1,
+      "state": {
+        "attacker": {
+          "choice_lock_move_id": null,
+          "current_hp": 1,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 1,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 1,
+              "move_id": 1,
+              "slot_id": 9001
+            }
+          ],
+          "spec": {
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 1,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 1,
+                "name": "bullet-punch",
+                "priority": 3
+              }
+            ],
+            "name": "scizor",
+            "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "none",
+              "level": 50,
+              "stats": {
+                "attack": 182,
+                "defense": 120,
+                "hp": 177,
+                "special_attack": 67,
+                "special_defense": 100,
+                "speed": 85
+              },
+              "types": [
+                7,
+                9
+              ]
+            },
+            "pokemon_id": 212
+          },
+          "stages": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "status": {
+            "major": null,
+            "volatile": []
+          }
+        },
+        "defender": {
+          "choice_lock_move_id": null,
+          "current_hp": 1,
+          "is_first_turn": true,
+          "item_consumed": false,
+          "last_move_id": null,
+          "move_slots": [
+            {
+              "current_pp": 1,
+              "disabled": false,
+              "locked": false,
+              "max_pp": 1,
+              "move_id": 101,
+              "slot_id": 9101
+            }
+          ],
+          "spec": {
+            "moves": [
+              {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 1,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 9
+                },
+                "move_id": 101,
+                "name": "bullet-punch",
+                "priority": 0
+              }
+            ],
+            "name": "sylveon",
+            "pokemon": {
+              "ability": "none",
+              "can_evolve": false,
+              "grounding": null,
+              "item": "none",
+              "level": 50,
+              "stats": {
+                "attack": 76,
+                "defense": 85,
+                "hp": 202,
+                "special_attack": 130,
+                "special_defense": 150,
+                "speed": 80
+              },
+              "types": [
+                18
+              ]
+            },
+            "pokemon_id": 700
+          },
+          "stages": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "status": {
+            "major": null,
+            "volatile": []
+          }
+        },
+        "field": {
+          "attacker_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "defender_side": {
+            "aurora_veil": false,
+            "light_screen": false,
+            "reflect": false
+          },
+          "terrain": "none",
+          "weather": "none"
+        },
+        "phase": "action-selection",
+        "rules": {
+          "allow_dynamax": false,
+          "allow_mega_evolution": false,
+          "allow_terastallization": false,
+          "battle_format": "one-on-one-singles",
+          "cycle_resolution": "declare-draw",
+          "damage_policy": {
+            "adaptability_stab_multiplier": 2.0,
+            "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+            "aurora_veil_single_target_multiplier": 0.5,
+            "burn_physical_attack_multiplier": 0.5,
+            "choice_item_attack_multiplier": 1.5,
+            "critical_hit_multiplier": 1.5,
+            "eviolite_defense_multiplier": 1.5,
+            "expert_belt_damage_multiplier": 1.2,
+            "filter_damage_multiplier": 0.75,
+            "hail_ice_defense_multiplier": null,
+            "life_orb_damage_multiplier": 1.3,
+            "misty_terrain_dragon_multiplier": 0.5,
+            "multiscale_damage_multiplier": 0.5,
+            "protect_damage_multiplier": 0.25,
+            "random_damage_multipliers": [
+              1.0
+            ],
+            "same_type_attack_bonus_multiplier": 1.5,
+            "sandstorm_rock_spdef_multiplier": 1.5,
+            "screen_multi_target_multiplier": 0.6666666666666666,
+            "screen_single_target_multiplier": 0.5,
+            "sniper_critical_multiplier": 1.5,
+            "snow_ice_defense_multiplier": 1.5,
+            "spread_move_multiplier": 0.75,
+            "technician_base_power_multiplier": 1.5,
+            "technician_base_power_threshold": 60,
+            "terrain_boost_multiplier": 1.3,
+            "thick_fat_damage_multiplier": 0.5,
+            "weather_boost_multiplier": 1.5,
+            "weather_weaken_multiplier": 0.5
+          },
+          "level": 50,
+          "max_turns": 100,
+          "move_execution_policy": {
+            "accuracy_denominator": 100,
+            "consume_pp_on_miss": true,
+            "consume_pp_when_action_blocked": false,
+            "consume_pp_when_before_move_stops": false,
+            "struggle_power": 50,
+            "struggle_recoil_fraction": {
+              "denominator": "4",
+              "numerator": "1"
+            }
+          },
+          "repetition_resolution": "declare-draw",
+          "ruleset_id": "pokemon-champion",
+          "switching_policy": "disabled",
+          "version_group_id": 25
+        },
+        "turn_number": 1
+      },
+      "type_chart": [
+        {
+          "attacking": 1,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 6,
+          "percent": 50
+        },
+        {
+          "attacking": 1,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 8,
+          "percent": 0
+        },
+        {
+          "attacking": 1,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 1,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 1,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 1,
+          "percent": 200
+        },
+        {
+          "attacking": 2,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 3,
+          "percent": 50
+        },
+        {
+          "attacking": 2,
+          "defending": 4,
+          "percent": 50
+        },
+        {
+          "attacking": 2,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 6,
+          "percent": 200
+        },
+        {
+          "attacking": 2,
+          "defending": 7,
+          "percent": 50
+        },
+        {
+          "attacking": 2,
+          "defending": 8,
+          "percent": 0
+        },
+        {
+          "attacking": 2,
+          "defending": 9,
+          "percent": 200
+        },
+        {
+          "attacking": 2,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 14,
+          "percent": 50
+        },
+        {
+          "attacking": 2,
+          "defending": 15,
+          "percent": 200
+        },
+        {
+          "attacking": 2,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 2,
+          "defending": 17,
+          "percent": 200
+        },
+        {
+          "attacking": 2,
+          "defending": 18,
+          "percent": 50
+        },
+        {
+          "attacking": 3,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 2,
+          "percent": 200
+        },
+        {
+          "attacking": 3,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 6,
+          "percent": 50
+        },
+        {
+          "attacking": 3,
+          "defending": 7,
+          "percent": 200
+        },
+        {
+          "attacking": 3,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 3,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 12,
+          "percent": 200
+        },
+        {
+          "attacking": 3,
+          "defending": 13,
+          "percent": 50
+        },
+        {
+          "attacking": 3,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 3,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 4,
+          "percent": 50
+        },
+        {
+          "attacking": 4,
+          "defending": 5,
+          "percent": 50
+        },
+        {
+          "attacking": 4,
+          "defending": 6,
+          "percent": 50
+        },
+        {
+          "attacking": 4,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 8,
+          "percent": 50
+        },
+        {
+          "attacking": 4,
+          "defending": 9,
+          "percent": 0
+        },
+        {
+          "attacking": 4,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 12,
+          "percent": 200
+        },
+        {
+          "attacking": 4,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 4,
+          "defending": 18,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 3,
+          "percent": 0
+        },
+        {
+          "attacking": 5,
+          "defending": 4,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 6,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 7,
+          "percent": 50
+        },
+        {
+          "attacking": 5,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 9,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 10,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 12,
+          "percent": 50
+        },
+        {
+          "attacking": 5,
+          "defending": 13,
+          "percent": 200
+        },
+        {
+          "attacking": 5,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 5,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 2,
+          "percent": 50
+        },
+        {
+          "attacking": 6,
+          "defending": 3,
+          "percent": 200
+        },
+        {
+          "attacking": 6,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 5,
+          "percent": 50
+        },
+        {
+          "attacking": 6,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 7,
+          "percent": 200
+        },
+        {
+          "attacking": 6,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 6,
+          "defending": 10,
+          "percent": 200
+        },
+        {
+          "attacking": 6,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 15,
+          "percent": 200
+        },
+        {
+          "attacking": 6,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 6,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 2,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 3,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 4,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 8,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 7,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 12,
+          "percent": 200
+        },
+        {
+          "attacking": 7,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 14,
+          "percent": 200
+        },
+        {
+          "attacking": 7,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 7,
+          "defending": 17,
+          "percent": 200
+        },
+        {
+          "attacking": 7,
+          "defending": 18,
+          "percent": 50
+        },
+        {
+          "attacking": 8,
+          "defending": 1,
+          "percent": 0
+        },
+        {
+          "attacking": 8,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 8,
+          "percent": 200
+        },
+        {
+          "attacking": 8,
+          "defending": 9,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 14,
+          "percent": 200
+        },
+        {
+          "attacking": 8,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 8,
+          "defending": 17,
+          "percent": 50
+        },
+        {
+          "attacking": 8,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 6,
+          "percent": 200
+        },
+        {
+          "attacking": 9,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 9,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 9,
+          "defending": 11,
+          "percent": 50
+        },
+        {
+          "attacking": 9,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 13,
+          "percent": 50
+        },
+        {
+          "attacking": 9,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 15,
+          "percent": 200
+        },
+        {
+          "attacking": 9,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 9,
+          "defending": 18,
+          "percent": 200
+        },
+        {
+          "attacking": 10,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 6,
+          "percent": 50
+        },
+        {
+          "attacking": 10,
+          "defending": 7,
+          "percent": 200
+        },
+        {
+          "attacking": 10,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 9,
+          "percent": 200
+        },
+        {
+          "attacking": 10,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 10,
+          "defending": 11,
+          "percent": 50
+        },
+        {
+          "attacking": 10,
+          "defending": 12,
+          "percent": 200
+        },
+        {
+          "attacking": 10,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 15,
+          "percent": 200
+        },
+        {
+          "attacking": 10,
+          "defending": 16,
+          "percent": 50
+        },
+        {
+          "attacking": 10,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 10,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 5,
+          "percent": 200
+        },
+        {
+          "attacking": 11,
+          "defending": 6,
+          "percent": 200
+        },
+        {
+          "attacking": 11,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 9,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 10,
+          "percent": 200
+        },
+        {
+          "attacking": 11,
+          "defending": 11,
+          "percent": 50
+        },
+        {
+          "attacking": 11,
+          "defending": 12,
+          "percent": 50
+        },
+        {
+          "attacking": 11,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 16,
+          "percent": 50
+        },
+        {
+          "attacking": 11,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 11,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 3,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 4,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 5,
+          "percent": 200
+        },
+        {
+          "attacking": 12,
+          "defending": 6,
+          "percent": 200
+        },
+        {
+          "attacking": 12,
+          "defending": 7,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 11,
+          "percent": 200
+        },
+        {
+          "attacking": 12,
+          "defending": 12,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 16,
+          "percent": 50
+        },
+        {
+          "attacking": 12,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 12,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 3,
+          "percent": 200
+        },
+        {
+          "attacking": 13,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 5,
+          "percent": 0
+        },
+        {
+          "attacking": 13,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 9,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 11,
+          "percent": 200
+        },
+        {
+          "attacking": 13,
+          "defending": 12,
+          "percent": 50
+        },
+        {
+          "attacking": 13,
+          "defending": 13,
+          "percent": 50
+        },
+        {
+          "attacking": 13,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 16,
+          "percent": 50
+        },
+        {
+          "attacking": 13,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 13,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 2,
+          "percent": 200
+        },
+        {
+          "attacking": 14,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 4,
+          "percent": 200
+        },
+        {
+          "attacking": 14,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 14,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 14,
+          "percent": 50
+        },
+        {
+          "attacking": 14,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 14,
+          "defending": 17,
+          "percent": 0
+        },
+        {
+          "attacking": 14,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 3,
+          "percent": 200
+        },
+        {
+          "attacking": 15,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 5,
+          "percent": 200
+        },
+        {
+          "attacking": 15,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 15,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 15,
+          "defending": 11,
+          "percent": 50
+        },
+        {
+          "attacking": 15,
+          "defending": 12,
+          "percent": 200
+        },
+        {
+          "attacking": 15,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 15,
+          "percent": 50
+        },
+        {
+          "attacking": 15,
+          "defending": 16,
+          "percent": 200
+        },
+        {
+          "attacking": 15,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 15,
+          "defending": 18,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 2,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 16,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 16,
+          "percent": 200
+        },
+        {
+          "attacking": 16,
+          "defending": 17,
+          "percent": 100
+        },
+        {
+          "attacking": 16,
+          "defending": 18,
+          "percent": 0
+        },
+        {
+          "attacking": 17,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 2,
+          "percent": 50
+        },
+        {
+          "attacking": 17,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 4,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 8,
+          "percent": 200
+        },
+        {
+          "attacking": 17,
+          "defending": 9,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 10,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 14,
+          "percent": 200
+        },
+        {
+          "attacking": 17,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 16,
+          "percent": 100
+        },
+        {
+          "attacking": 17,
+          "defending": 17,
+          "percent": 50
+        },
+        {
+          "attacking": 17,
+          "defending": 18,
+          "percent": 50
+        },
+        {
+          "attacking": 18,
+          "defending": 1,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 2,
+          "percent": 200
+        },
+        {
+          "attacking": 18,
+          "defending": 3,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 4,
+          "percent": 50
+        },
+        {
+          "attacking": 18,
+          "defending": 5,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 6,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 7,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 8,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 9,
+          "percent": 50
+        },
+        {
+          "attacking": 18,
+          "defending": 10,
+          "percent": 50
+        },
+        {
+          "attacking": 18,
+          "defending": 11,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 12,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 13,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 14,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 15,
+          "percent": 100
+        },
+        {
+          "attacking": 18,
+          "defending": 16,
+          "percent": 200
+        },
+        {
+          "attacking": 18,
+          "defending": 17,
+          "percent": 200
+        },
+        {
+          "attacking": 18,
+          "defending": 18,
+          "percent": 100
+        }
+      ]
+    },
+    {
+      "input": {
+        "base": {
+          "attack": 134,
+          "defense": 95,
+          "hp": 91,
+          "special_attack": 100,
+          "special_defense": 100,
+          "speed": 80
+        },
+        "enumeration": {
+          "ev_values": [
+            0,
+            1,
+            4
+          ],
+          "fields": [
+            "attack"
+          ],
+          "mode": "controlled",
+          "natures": [
+            [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          ]
+        },
+        "level": 50,
+        "max_raw_profiles": 4096
+      },
+      "kind": "configuration_stats"
+    },
+    {
+      "input": {
+        "candidates": [
+          {
+            "effect_identifier": null,
+            "identifier": "245",
+            "move": {
+              "accuracy": 100,
+              "effect_identifier": null,
+              "max_pp": 5,
+              "move": {
+                "category": "physical",
+                "power": 80,
+                "type": 1
+              },
+              "move_id": 245,
+              "name": "extreme-speed",
+              "priority": 2
+            },
+            "move_id": 245,
+            "reason": "extreme-speed projection coverage is supported.",
+            "support": "supported"
+          },
+          {
+            "effect_identifier": "break_screens",
+            "identifier": "280",
+            "move": {
+              "accuracy": 100,
+              "effect_identifier": null,
+              "max_pp": 15,
+              "move": {
+                "category": "physical",
+                "power": 75,
+                "type": 2
+              },
+              "move_id": 280,
+              "name": "brick-break",
+              "priority": 0
+            },
+            "move_id": 280,
+            "reason": "brick-break projection coverage is supported.",
+            "support": "supported"
+          },
+          {
+            "effect_identifier": null,
+            "identifier": "355",
+            "move": {
+              "accuracy": 100,
+              "effect_identifier": null,
+              "max_pp": 15,
+              "move": {
+                "category": "status",
+                "power": 0,
+                "type": 3
+              },
+              "move_id": 355,
+              "name": "roost",
+              "priority": 0
+            },
+            "move_id": 355,
+            "reason": "roost projection coverage is partial.",
+            "support": "partial"
+          }
+        ],
+        "max_raw_combinations": 10000,
+        "requested_ids": [],
+        "slot_counts": []
+      },
+      "kind": "configuration_moves"
+    },
+    {
+      "input": {
+        "attacker": {
+          "abilities": [
+            {
+              "identifier": "multiscale",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            },
+            {
+              "identifier": "Multiscale",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            },
+            {
+              "identifier": "technician",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            }
+          ],
+          "can_evolve": false,
+          "items": [
+            null
+          ],
+          "max_raw_configurations": 100000,
+          "moves": {
+            "candidates": [
+              {
+                "effect_identifier": null,
+                "identifier": "245",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 5,
+                  "move": {
+                    "category": "physical",
+                    "power": 80,
+                    "type": 1
+                  },
+                  "move_id": 245,
+                  "name": "extreme-speed",
+                  "priority": 2
+                },
+                "move_id": 245,
+                "reason": "extreme-speed projection coverage is supported.",
+                "support": "supported"
+              },
+              {
+                "effect_identifier": "break_screens",
+                "identifier": "280",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 15,
+                  "move": {
+                    "category": "physical",
+                    "power": 75,
+                    "type": 2
+                  },
+                  "move_id": 280,
+                  "name": "brick-break",
+                  "priority": 0
+                },
+                "move_id": 280,
+                "reason": "brick-break projection coverage is supported.",
+                "support": "supported"
+              },
+              {
+                "effect_identifier": null,
+                "identifier": "355",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 15,
+                  "move": {
+                    "category": "status",
+                    "power": 0,
+                    "type": 3
+                  },
+                  "move_id": 355,
+                  "name": "roost",
+                  "priority": 0
+                },
+                "move_id": 355,
+                "reason": "roost projection coverage is partial.",
+                "support": "partial"
+              }
+            ],
+            "max_raw_combinations": 10000,
+            "requested_ids": [],
+            "slot_counts": []
+          },
+          "name": "dragonite",
+          "pokemon_id": 149,
+          "requested_abilities": [],
+          "ruleset_id": "pokemon-champion",
+          "stats": {
+            "base": {
+              "attack": 134,
+              "defense": 95,
+              "hp": 91,
+              "special_attack": 100,
+              "special_defense": 100,
+              "speed": 80
+            },
+            "enumeration": {
+              "ev_values": [
+                0,
+                1,
+                4
+              ],
+              "fields": [
+                "attack"
+              ],
+              "mode": "controlled",
+              "natures": [
+                [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0
+                ]
+              ]
+            },
+            "level": 50,
+            "max_raw_profiles": 4096
+          },
+          "types": [
+            16,
+            3
+          ],
+          "version_group_id": 31
+        },
+        "defender": {
+          "abilities": [
+            {
+              "identifier": "multiscale",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            },
+            {
+              "identifier": "Multiscale",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            },
+            {
+              "identifier": "technician",
+              "reason": "Repository projection marks this ability as supported.",
+              "support": "supported"
+            }
+          ],
+          "can_evolve": false,
+          "items": [
+            null
+          ],
+          "max_raw_configurations": 100000,
+          "moves": {
+            "candidates": [
+              {
+                "effect_identifier": null,
+                "identifier": "245",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 5,
+                  "move": {
+                    "category": "physical",
+                    "power": 80,
+                    "type": 1
+                  },
+                  "move_id": 245,
+                  "name": "extreme-speed",
+                  "priority": 2
+                },
+                "move_id": 245,
+                "reason": "extreme-speed projection coverage is supported.",
+                "support": "supported"
+              },
+              {
+                "effect_identifier": "break_screens",
+                "identifier": "280",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 15,
+                  "move": {
+                    "category": "physical",
+                    "power": 75,
+                    "type": 2
+                  },
+                  "move_id": 280,
+                  "name": "brick-break",
+                  "priority": 0
+                },
+                "move_id": 280,
+                "reason": "brick-break projection coverage is supported.",
+                "support": "supported"
+              },
+              {
+                "effect_identifier": null,
+                "identifier": "355",
+                "move": {
+                  "accuracy": 100,
+                  "effect_identifier": null,
+                  "max_pp": 15,
+                  "move": {
+                    "category": "status",
+                    "power": 0,
+                    "type": 3
+                  },
+                  "move_id": 355,
+                  "name": "roost",
+                  "priority": 0
+                },
+                "move_id": 355,
+                "reason": "roost projection coverage is partial.",
+                "support": "partial"
+              }
+            ],
+            "max_raw_combinations": 10000,
+            "requested_ids": [],
+            "slot_counts": []
+          },
+          "name": "dragonite",
+          "pokemon_id": 149,
+          "requested_abilities": [],
+          "ruleset_id": "pokemon-champion",
+          "stats": {
+            "base": {
+              "attack": 134,
+              "defense": 95,
+              "hp": 91,
+              "special_attack": 100,
+              "special_defense": 100,
+              "speed": 80
+            },
+            "enumeration": {
+              "ev_values": [
+                0,
+                1,
+                4
+              ],
+              "fields": [
+                "attack"
+              ],
+              "mode": "controlled",
+              "natures": [
+                [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0
+                ]
+              ]
+            },
+            "level": 50,
+            "max_raw_profiles": 4096
+          },
+          "types": [
+            16,
+            3
+          ],
+          "version_group_id": 31
+        },
+        "max_raw_pairs": 1000000,
+        "weight_assumption": "uniform_raw_configuration"
+      },
+      "kind": "configuration_space"
+    },
+    {
+      "input": {
+        "abilities": [
+          "pressure",
+          "inner-focus"
+        ],
+        "factory": "transparent_inference",
+        "items": [
+          null,
+          "choice-band"
+        ],
+        "mode": "describe",
+        "moves": [
+          null,
+          "ice-punch"
+        ]
+      },
+      "kind": "configuration_coverage"
+    },
+    {
+      "input": {
+        "candidates": [
+          {
+            "allow_no_effect": false,
+            "base_executable": true,
+            "effect_identifier": "ice_punch",
+            "mechanism_identifier": "ice_punch",
+            "repository_reason": "Frozen raw repository projection.",
+            "source": "move"
+          },
+          {
+            "allow_no_effect": false,
+            "base_executable": true,
+            "effect_identifier": "pressure",
+            "mechanism_identifier": "pressure",
+            "repository_reason": "Frozen raw repository projection.",
+            "source": "ability"
+          },
+          {
+            "allow_no_effect": true,
+            "base_executable": true,
+            "effect_identifier": null,
+            "mechanism_identifier": "none",
+            "repository_reason": "Frozen raw repository projection.",
+            "source": "item"
+          }
+        ],
+        "factory": "transparent_inference",
+        "mode": "admission",
+        "repository_mode": "factory_reconciled"
+      },
+      "kind": "configuration_coverage"
+    },
+    {
+      "input": {
+        "admission": {
+          "calculation_revision": "battle-inference.summary-exploration.v2",
+          "candidates": [
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-1",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 1,
+                "name": "basic-1",
+                "priority": 0
+              },
+              "move_id": 1,
+              "repository_reason": "Raw legal basic move.",
+              "side": "attacker",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-2",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 2,
+                "name": "basic-2",
+                "priority": 0
+              },
+              "move_id": 2,
+              "repository_reason": "Raw legal basic move.",
+              "side": "attacker",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-3",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 3,
+                "name": "basic-3",
+                "priority": 0
+              },
+              "move_id": 3,
+              "repository_reason": "Raw legal basic move.",
+              "side": "attacker",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-4",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 4,
+                "name": "basic-4",
+                "priority": 0
+              },
+              "move_id": 4,
+              "repository_reason": "Raw legal basic move.",
+              "side": "attacker",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-5",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 5,
+                "name": "basic-5",
+                "priority": 0
+              },
+              "move_id": 5,
+              "repository_reason": "Raw legal basic move.",
+              "side": "attacker",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": false,
+              "base_executable": true,
+              "effect_identifier": "multiscale",
+              "mechanism_identifier": "multiscale",
+              "move": null,
+              "move_id": null,
+              "repository_reason": "Raw legal ability.",
+              "side": "attacker",
+              "source": "ability"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "none",
+              "move": null,
+              "move_id": null,
+              "repository_reason": "Raw controlled held item.",
+              "side": "attacker",
+              "source": "item"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-101",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 101,
+                "name": "basic-101",
+                "priority": 0
+              },
+              "move_id": 101,
+              "repository_reason": "Raw legal basic move.",
+              "side": "defender",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-102",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 102,
+                "name": "basic-102",
+                "priority": 0
+              },
+              "move_id": 102,
+              "repository_reason": "Raw legal basic move.",
+              "side": "defender",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-103",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 103,
+                "name": "basic-103",
+                "priority": 0
+              },
+              "move_id": 103,
+              "repository_reason": "Raw legal basic move.",
+              "side": "defender",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": true,
+              "base_executable": true,
+              "effect_identifier": null,
+              "mechanism_identifier": "basic-104",
+              "move": {
+                "accuracy": 100,
+                "effect_identifier": null,
+                "max_pp": 10,
+                "move": {
+                  "category": "physical",
+                  "power": 40,
+                  "type": 1
+                },
+                "move_id": 104,
+                "name": "basic-104",
+                "priority": 0
+              },
+              "move_id": 104,
+              "repository_reason": "Raw legal basic move.",
+              "side": "defender",
+              "source": "move"
+            },
+            {
+              "allow_no_effect": false,
+              "base_executable": true,
+              "effect_identifier": "technician",
+              "mechanism_identifier": "technician",
+              "move": null,
+              "move_id": null,
+              "repository_reason": "Raw legal ability.",
+              "side": "defender",
+              "source": "ability"
+            },
+            {
+              "allow_no_effect": false,
+              "base_executable": true,
+              "effect_identifier": "choice-band",
+              "mechanism_identifier": "choice-band",
+              "move": null,
+              "move_id": null,
+              "repository_reason": "Raw controlled held item.",
+              "side": "defender",
+              "source": "item"
+            }
+          ],
+          "ruleset_id": "pokemon-champion",
+          "version_group_id": 25
+        },
+        "command": {
+          "attacker": {
+            "candidate_move_ids": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "fixed": {
+              "ability_identifier": "multiscale",
+              "form_id": null,
+              "item_identifier": null,
+              "level": 50,
+              "pokemon_id": 149,
+              "stat_profile_id": "max_atk_plus"
+            }
+          },
+          "attacker_policy": "uniform-random",
+          "calculation_revision": "battle-inference.summary-exploration.v2",
+          "contract_version": "one-on-one-move-pool.v1",
+          "defender": {
+            "candidate_move_ids": [
+              101,
+              102,
+              103,
+              104
+            ],
+            "fixed": {
+              "ability_identifier": "technician",
+              "form_id": 7,
+              "item_identifier": "choice-band",
+              "level": 50,
+              "pokemon_id": 461,
+              "stat_profile_id": "max_atk_plus"
+            }
+          },
+          "defender_policy": "uniform-random",
+          "dimensions": {
+            "ability": "fixed",
+            "form": "fixed",
+            "item": "fixed",
+            "level": "fixed",
+            "moves": "candidate_pool",
+            "pokemon": "fixed",
+            "special_mechanics": "disabled",
+            "stats": "fixed"
+          },
+          "mechanism_admission": "supported_only",
+          "ruleset_id": "pokemon-champion",
+          "version_group_id": 25,
+          "weight_assumption": "uniform_configuration_pair"
+        },
+        "limit": 2,
+        "offset": 1
+      },
+      "kind": "job_move_pool"
     }
-  ]
+  ],
+  "schema_version": 1
 }

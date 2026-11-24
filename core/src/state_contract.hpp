@@ -43,6 +43,10 @@ struct StateDamageQuery { BattleSide side; std::int64_t move_id; std::int32_t ge
 struct BattleStateRequest { BattleState state; std::vector<StateUpdate> updates; std::optional<BattleState> reference; std::optional<StateDamageQuery> damage; };
 /// 独立状态修正请求，不把麻痹偷偷接入旧行动排序。
 struct StatusModifiersRequest { CombatantStatus status; std::int64_t speed; Rational paralysis; DamageCategory category; Rational base_multiplier; Rational burn_multiplier; };
+/// @param value 完整正式招式配置；@return 复用状态合同验证的拥有值，不执行招式。
+[[nodiscard]] MoveSpec ReadMoveSpecValue(const Json& value);
+/// @param value 只读招式配置；@return 可重放的全部正式招式字段，不丢失 ID 或独立效果事实。
+[[nodiscard]] Json MoveSpecJson(const MoveSpec& value);
 /// @param value 只读完整状态 JSON；@return 已验证且拥有全部字段的领域状态，不执行更新或计算。
 [[nodiscard]] BattleState ReadBattleStateValue(const Json& value);
 /// @param state 只读完整领域状态；@return 全部正式状态字段，不计算速度/伤害，不产生业务副作用。

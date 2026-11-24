@@ -189,13 +189,7 @@ Json RulesJson(const InferenceRules& value) {
 Json BattlerJson(const BattlerState& value) {
   const auto& state = value.View(); const auto& spec = state.spec.View();
   auto moves = Json::array();
-  for (const auto& configured : spec.moves) {
-    const auto& move = configured.View();
-    moves.push_back({{"move_id", move.move_id}, {"name", move.name},
-        {"move", {{"type", static_cast<int>(move.move.type)}, {"category", categories.at(static_cast<std::size_t>(move.move.category))}, {"power", move.move.power}}},
-        {"max_pp", move.max_pp}, {"priority", move.priority}, {"accuracy", move.accuracy ? Json(*move.accuracy) : Json(nullptr)},
-        {"effect_identifier", move.effect_identifier ? Json(*move.effect_identifier) : Json(nullptr)}});
-  }
+  for (const auto& configured : spec.moves) moves.push_back(MoveSpecJson(configured));
   auto slots = Json::array();
   for (const auto& configured : state.move_slots) {
     const auto& slot = configured.View();
@@ -263,6 +257,16 @@ BattleState ApplyUpdate(const BattleState& state, const StateUpdate& update) {
   }, update);
 }
 } // namespace
+
+MoveSpec ReadMoveSpecValue(const Json& value) { return ReadMove(value); }
+
+Json MoveSpecJson(const MoveSpec& value) {
+  const auto& move = value.View();
+  return {{"move_id", move.move_id}, {"name", move.name},
+      {"move", {{"type", static_cast<int>(move.move.type)}, {"category", categories.at(static_cast<std::size_t>(move.move.category))}, {"power", move.move.power}}},
+      {"max_pp", move.max_pp}, {"priority", move.priority}, {"accuracy", move.accuracy ? Json(*move.accuracy) : Json(nullptr)},
+      {"effect_identifier", move.effect_identifier ? Json(*move.effect_identifier) : Json(nullptr)}};
+}
 
 BattleState ReadBattleStateValue(const Json& value) {
   RequireSchema(value, {"attacker", "defender", "rules"}, {"turn_number", "field", "phase"});

@@ -68,7 +68,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.6.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.7.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
@@ -422,6 +422,53 @@ TEST(CAbi, StatusExactFractionBoundaries) {
     const auto actual = Call(Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump());
     EXPECT_EQ(actual.status, status); EXPECT_FALSE(actual.body.contains("results"));
   }
+}
+
+/// 原始成员预算先于归并，非法类型/空维度均整批拒绝，不保留前后成功操作。
+TEST(CAbi, ConfigurationRawBudgetsAndStrictBoundaries) {
+  const auto baseline = FixtureOperation("hp");
+  auto stats = FixtureOperation("configuration_stats");
+  stats["input"]["level"] = 1;
+  stats["input"]["enumeration"] = {{"mode", "controlled"}, {"fields", Json::array({"attack"})},
+      {"ev_values", Json::array({0, 1, 2, 3})}, {"natures", Json::array({Json::array({1, 1, 1, 1, 1})})}};
+  stats["input"]["max_raw_profiles"] = 3;
+  std::vector<std::pair<Json, pbi_status_v1>> failures{{stats, PBI_RESOURCE_LIMIT_V1}};
+  auto invalid = stats; invalid["input"]["max_raw_profiles"] = true; failures.push_back({invalid, PBI_INVALID_INPUT_V1});
+  invalid = stats; invalid["input"]["enumeration"]["natures"][0][0] = false; failures.push_back({invalid, PBI_INVALID_INPUT_V1});
+  invalid = stats; invalid["input"]["enumeration"]["fields"] = Json::array({"unknown"}); failures.push_back({invalid, PBI_UNSUPPORTED_V1});
+  invalid = stats; invalid["input"]["max_raw_profiles"] = 4; invalid["input"]["enumeration"]["ev_values"] = Json::array();
+  failures.push_back({invalid, PBI_INVALID_INPUT_V1});
+  auto moves = FixtureOperation("configuration_moves");
+  auto& candidates = moves["input"]["candidates"];
+  ASSERT_FALSE(candidates.empty()); const auto candidate = candidates[0]; candidates = Json::array({candidate, candidate, candidate});
+  moves["input"]["requested_ids"] = Json::array(); moves["input"]["slot_counts"] = Json::array({1});
+  moves["input"]["max_raw_combinations"] = 2; failures.push_back({moves, PBI_RESOURCE_LIMIT_V1});
+  auto space = FixtureOperation("configuration_space");
+  space["input"]["max_raw_pairs"] = 1; failures.push_back({space, PBI_RESOURCE_LIMIT_V1});
+  auto job = FixtureOperation("job_move_pool");
+  job["input"]["admission"]["candidates"] = Json::array(); failures.push_back({job, PBI_INVALID_INPUT_V1});
+  for (const auto& [operation, status] : failures) {
+    const auto actual = Call(Json{{"schema_version", 1}, {"operations", Json::array({baseline, operation, baseline})}}.dump());
+    EXPECT_EQ(actual.status, status); EXPECT_FALSE(actual.body.contains("results"));
+  }
+}
+
+/// 真正执行中的高维枚举读取同一取消令牌，不能等待巨大原空间枚举结束。
+TEST(CAbi, RunningConfigurationCancellation) {
+  auto operation = FixtureOperation("configuration_stats"); auto& input = operation["input"];
+  std::vector<int> evs; for (int value = 0; value <= 252; ++value) evs.push_back(value);
+  input["max_raw_profiles"] = 1000000000;
+  input["enumeration"] = {{"mode", "controlled"},
+      {"fields", Json::array({"hp", "attack", "defense", "special_attack", "special_defense", "speed"})},
+      {"ev_values", evs}, {"natures", Json::array({Json::array({1, 1, 1, 1, 1})})}};
+  const auto encoded = Json{{"schema_version", 1}, {"operations", Json::array({operation})}}.dump();
+  const auto destroy = &pbi_v1_cancel_token_destroy;
+  std::unique_ptr<pbi_cancel_token_v1, decltype(destroy)> token(pbi_v1_cancel_token_create(), destroy); ASSERT_NE(token, nullptr);
+  auto work = std::async(std::launch::async, [&encoded, pointer = token.get()] { return Call(encoded, pointer); });
+  EXPECT_EQ(work.wait_for(std::chrono::milliseconds(10)), std::future_status::timeout);
+  pbi_v1_cancel_request(token.get());
+  EXPECT_EQ(work.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+  const auto result = work.get(); EXPECT_EQ(result.status, PBI_CANCELLED_V1); EXPECT_FALSE(result.body.contains("results"));
 }
 
 /// 每次成功和失败均释放并清零；非空输出不允许被覆盖，避免泄漏原结果。

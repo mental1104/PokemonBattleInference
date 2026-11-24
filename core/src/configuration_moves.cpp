@@ -55,7 +55,11 @@ void CheckCancellation(const CancellationToken& token) {
 } // namespace
 
 ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSource source,
-                                                        std::optional<std::string> identifier) {
+                                                        std::optional<std::string> identifier,
+                                                        ConfigurationEffectFactory factory) {
+  if (factory != ConfigurationEffectFactory::standard && factory != ConfigurationEffectFactory::transparent_inference) {
+    throw std::invalid_argument("unknown configuration effect factory");
+  }
   const auto normalized = NormalizeConfigurationEffectIdentifier(std::move(identifier));
   if (source == ConfigurationEffectSource::move) {
     if (!normalized) return {"none", ConfigurationEffectStatus::no_effect, "No move effect identifier was configured.", {}};
@@ -67,6 +71,11 @@ ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSourc
   if (source == ConfigurationEffectSource::ability) {
     if (!normalized) return {"none", ConfigurationEffectStatus::no_effect, "No supported ability identifier was configured.", {}};
     if (*normalized == "inner_focus") return {*normalized, ConfigurationEffectStatus::partial, "Flinch immunity is supported; modern Intimidate immunity is not implemented.", {"intimidate_immunity"}};
+    if (factory == ConfigurationEffectFactory::transparent_inference && (*normalized == "pressure" || *normalized == "pickpocket")) {
+      // 这是原HTTP公开coverage的原文，按既有合同保留，不是新增日志本地化。
+      return {*normalized, ConfigurationEffectStatus::supported,
+          "该合法特性尚未实现；本次推演显式采用不修改战斗状态的中性假设。", {"real_ability_behavior"}};
+    }
     constexpr std::array<std::string_view, 7> abilities{"technician", "adaptability", "thick_fat", "filter", "solid_rock", "sniper", "multiscale"};
     if (std::ranges::find(abilities, *normalized) != abilities.end()) {
       return {*normalized, ConfigurationEffectStatus::supported, "Existing ability damage behavior is available through an adapter.", {}};
