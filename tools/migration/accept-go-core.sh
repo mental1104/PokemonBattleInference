@@ -25,7 +25,7 @@ cleanup() {
 }
 
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/go-tmp"
-compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/core -e GOCACHE=/build/go-cache \
+compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path \
   -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
   'cd server && go build -a -o /build/pbi-server ./cmd/pbi-server' \
   > "$POKEOP_REPORT_ROOT/server-build.log" 2>&1

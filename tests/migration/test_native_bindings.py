@@ -58,7 +58,8 @@ class TestNativeBindings:
         environment["CGO_ENABLED"] = "1"
         environment["CGO_LDFLAGS"] = environment.get("CGO_LDFLAGS", "") + " -L" + shlex.quote(str(native_library_dir))
         environment["PBI_CONTRACT_FIXTURES"] = str(ROOT / "tests/vectors")
-        for key, name in (("GOCACHE", "go-cache"), ("GOTMPDIR", "go-tmp")):
+        # 编译、模块下载及可执行临时文件均写独立构建目录，避免只读工具容器访问默认 /go。
+        for key, name in (("GOCACHE", "go-cache"), ("GOTMPDIR", "go-tmp"), ("GOPATH", "go-path")):
             directory = native_library_dir.parent / name
             directory.mkdir(parents=True, exist_ok=True)
             environment[key] = str(directory)
