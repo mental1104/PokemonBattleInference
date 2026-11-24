@@ -41,6 +41,7 @@ class FixtureServer(ThreadingHTTPServer):
         self.audit = audit
         self.state_lock = threading.Lock()
         self.dropped = False
+        self.release_drop = threading.Event()
         super().__init__(("127.0.0.1", 0), FixtureHandler)
 
     def server_bind(self) -> None:
@@ -63,6 +64,17 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         """禁用默认 stderr；结构化请求证据统一由 server.record 写入。"""
+
+    def do_POST(self) -> None:
+        """父测试确认客户端收到真实前缀后，允许首次 drop 请求关闭真实 TCP 连接。"""
+        if urlsplit(self.path).path != "/drop/interrupt":
+            self.send_error(404)
+            return
+        self.server.record(self.path, None, 204)
+        self.server.release_drop.set()
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self) -> None:
         """按 URL 的场景前缀读取真实文件，支持续传并保留请求审计。"""
@@ -109,9 +121,10 @@ class FixtureHandler(BaseHTTPRequestHandler):
                 self.server.dropped = True
         try:
             if drop_now:
-                # 宣告完整长度但只发前64KiB后断开，迫使客户端保留真实收到的前缀。
+                # 等客户端实际观察到前缀再断开，避免平台在首个delegate回调前丢弃错误响应。
                 self.wfile.write(content[offset : offset + 65536])
                 self.wfile.flush()
+                self.server.release_drop.wait(timeout=10)
                 self.connection.shutdown(socket.SHUT_RDWR)
                 self.connection.close()
                 return

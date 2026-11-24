@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import XCTest
 @testable import PokemonAppSupport
 
@@ -6,8 +9,8 @@ import XCTest
 private actor DownloadObserver {
     private var received: Int64 = 0
     /// state 是当前传输事件，返回值不用于推进下载。
-    func record(_ state: KnowledgeUpdateProgress) { if case .downloading(let value, _) = state { received = value } }
-    /// 返回最后观察到的真实落盘字节。
+    func record(_ state: KnowledgeUpdateProgress) { if case .downloading(let value, _) = state { received = max(received, value) } }
+    /// 返回实际观察过的最大前缀；跨线程投递的回调顺序不会把已经观察到的字节倒退为零。
     func bytes() -> Int64 { received }
 }
 
@@ -29,6 +32,13 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         func manifest(_ scenario: String) -> URL { server.appendingPathComponent("\(scenario)/manifest.json") }
         /// 创建新客户端复用持久暂存，模拟进程重启后没有内存传输状态的情况。
         func client() -> KnowledgeUpdateClient { KnowledgeUpdateClient(store: store, directory: downloads) }
+        /// 客户端已看到真实正文后，经独立 HTTP 控制请求切断首次下载；不修改客户端或暂存文件。
+        func interruptDownload() async throws {
+            var request = URLRequest(url: server.appendingPathComponent("drop/interrupt"))
+            request.httpMethod = "POST"
+            let (_, response) = try await URLSession.shared.data(for: request)
+            XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 204)
+        }
         /// name 为当前测试证据目录名；停止子进程后仅归档此测试的输入/响应/指针和用户配置。
         func finish(_ name: String) {
             process.terminate(); process.waitUntilExit()
@@ -103,7 +113,12 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         let value = try await fixture(); defer { value.finish("interrupted-resume") }
         let previous = try Data(contentsOf: value.pointer), source = value.manifest("drop")
         try await value.users.setKnowledgeManifestURL(source)
-        do { _ = try await value.client().update(from: source); XCTFail("truncated HTTP response was accepted") } catch { }
+        let observer = DownloadObserver(), client = value.client()
+        let transfer = Task { try await client.update(from: source) { state in Task { await observer.record(state) } } }
+        for _ in 0..<200 { if await observer.bytes() >= 8192 { break }; try await Task.sleep(for: .milliseconds(10)) }
+        let observed = await observer.bytes(); XCTAssertGreaterThanOrEqual(observed, 8192)
+        try await value.interruptDownload()
+        do { _ = try await transfer.value; XCTFail("truncated HTTP response was accepted") } catch { }
         XCTAssertEqual(try Data(contentsOf: value.pointer), previous)
         let old = await value.store.version(); XCTAssertEqual(old, value.initial)
         let partial = value.downloads.appendingPathComponent("download-\(value.candidate.sqliteSha256).partial")

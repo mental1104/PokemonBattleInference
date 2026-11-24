@@ -70,6 +70,11 @@ CORE_BUILD_DIR ?= $(REPO_ROOT)/build/core
 CMAKE ?= cmake
 export PBI_CORE_VECTOR_RUNNER := $(CORE_BUILD_DIR)/pbi_core_vectors
 export PBI_CORE_LIBRARY_DIR := $(CORE_BUILD_DIR)
+# 原生差分入口均由同一次CMake构建提供；避免已有runner在统一入口中因缺环境变量被跳过。
+export PBI_CONFIGURATION_STATS_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_stats_vectors
+export PBI_CONFIGURATION_MOVES_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_moves_vectors
+export PBI_CONFIGURATION_SPACE_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_space_vectors
+export PBI_JOB_MOVE_POOL_RUNNER := $(CORE_BUILD_DIR)/pbi_job_move_pool_vectors
 
 .PHONY: test-bindings test-native
 test-bindings: test-core
