@@ -78,7 +78,13 @@ func (worker *Worker) Serve(ctx context.Context) error {
 
 // RunOnce 原子领取并完成最多一个持久化任务；空队列返回 false，错误不会自动把任务标成成功。
 // 父 ctx 关闭表示 daemon 停机，尚未确认 case 留待租约过期恢复；用户取消则保存明确 cancelled 终态。
-func (worker *Worker) RunOnce(ctx context.Context) (bool, error) {
+func (worker *Worker) RunOnce(ctx context.Context) (worked bool, err error) {
+	// 父取消可与事务Commit竞态并产生ErrTxDone；停机出口统一暴露父ctx，保留活跃ctx下的真实存储错误。
+	defer func() {
+		if err != nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
+	}()
 	query, cancel := context.WithTimeout(ctx, worker.options.DatabaseTimeout)
 	job, err := worker.store.ClaimJob(query, worker.options.Owner, worker.options.Revision, time.Now().UTC(), worker.options.LeaseDuration)
 	cancel()

@@ -8,18 +8,30 @@ import (
 	"time"
 )
 
-const caseSelect = `SELECT c.job_id,c.sequence_no,c.configuration_pair_id,c.attacker_configuration_id,c.defender_configuration_id,to_json(c.attacker_move_ids),to_json(c.defender_move_ids),c.status,c.attempt_count,c.lease_owner,c.lease_expires_at,c.heartbeat_at,c.progress_phase,c.observed_node_count,c.observed_edge_count,c.expanded_node_count,c.frontier_count,c.action_pair_completed_count,c.action_pair_total_count,c.updated_at FROM poke_runtime.battle_inference_cases c`
+const caseFields = `c.job_id,c.sequence_no,c.configuration_pair_id,c.attacker_configuration_id,c.defender_configuration_id,to_json(c.attacker_move_ids),to_json(c.defender_move_ids),c.status,c.attempt_count,c.lease_owner,c.lease_expires_at,c.heartbeat_at,c.progress_phase,c.observed_node_count,c.observed_edge_count,c.expanded_node_count,c.frontier_count,c.action_pair_completed_count,c.action_pair_total_count,c.updated_at`
+const caseSelect = `SELECT ` + caseFields + ` FROM poke_runtime.battle_inference_cases c`
 
 // scanner 是 Row 和 Rows 的共同读取端口，返回值不保留驱动缓冲区。
 type scanner interface{ Scan(...any) error }
 
 // scanCase 读取单行并恢复租约及招式 ID；最终概率通过独立结果接口读取。
 func scanCase(row scanner) (Case, error) {
+	return scanCaseResult(row, false)
+}
+
+// scanCaseResult 在一次 Scan 读取状态与可选终态列，防止分页期间混入其他时间点的结果。
+// row 借用驱动行；withResult=true 时调用方必须在 caseSelect 后追加 resultColumns。
+func scanCaseResult(row scanner, withResult bool) (Case, error) {
 	var item Case
 	var attacker, defender []byte
 	var owner, phase *string
 	var expires, heartbeat *time.Time
-	err := row.Scan(&item.JobID, &item.Sequence, &item.Definition.PairID, &item.Definition.AttackerID, &item.Definition.DefenderID, &attacker, &defender, &item.Status, &item.Attempts, &owner, &expires, &heartbeat, &phase, &item.Progress.ObservedNodes, &item.Progress.ObservedEdges, &item.Progress.ExpandedNodes, &item.Progress.Frontier, &item.Progress.ActionPairsCompleted, &item.Progress.ActionPairsTotal, &item.UpdatedAt)
+	destinations := []any{&item.JobID, &item.Sequence, &item.Definition.PairID, &item.Definition.AttackerID, &item.Definition.DefenderID, &attacker, &defender, &item.Status, &item.Attempts, &owner, &expires, &heartbeat, &phase, &item.Progress.ObservedNodes, &item.Progress.ObservedEdges, &item.Progress.ExpandedNodes, &item.Progress.Frontier, &item.Progress.ActionPairsCompleted, &item.Progress.ActionPairsTotal, &item.UpdatedAt}
+	var record resultRecord
+	if withResult {
+		destinations = append(destinations, record.destinations()...)
+	}
+	err := row.Scan(destinations...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return item, ErrNotFound
 	}
@@ -37,6 +49,11 @@ func scanCase(row scanner) (Case, error) {
 	}
 	if owner != nil && expires != nil && heartbeat != nil {
 		item.Lease = &Lease{*owner, *expires, *heartbeat}
+	}
+	if withResult {
+		if item.Result, err = record.value(item.Status); err != nil {
+			return item, err
+		}
 	}
 	return item, nil
 }
@@ -330,35 +347,85 @@ func (store *Store) CancelUnclaimed(ctx context.Context, id string, now time.Tim
 
 // Cases 返回按 sequence 稳定分页的用例状态，过滤在分页前执行，终态不伪装成成功。
 func (store *Store) Cases(ctx context.Context, id string, statuses []Status, offset, limit int) ([]Case, int, error) {
-	if offset < 0 || limit < 1 || limit > 1000 {
-		return nil, 0, errors.New("invalid case page")
+	return store.casePage(ctx, id, CaseFilter{Statuses: statuses, Offset: offset, Limit: limit}, false)
+}
+
+// CaseFilter 是原配置查询的可组合条件；空集合/空 ConfigurationID 表示不限制对应轴。
+type CaseFilter struct {
+	Statuses        []Status
+	FailureCodes    []string
+	ConfigurationID string
+	Offset          int
+	Limit           int
+}
+
+// Validate 检查 filter 的原状态/错误码及 1..1000 仓库分页边界；HTTP 另保留旧上限 500。
+func (filter CaseFilter) Validate() error {
+	if filter.Offset < 0 || filter.Limit < 1 || filter.Limit > 1000 {
+		return errors.New("invalid case page")
 	}
-	if _, err := store.Get(ctx, id); err != nil {
+	for _, status := range filter.Statuses {
+		if status != Pending && status != Running && !terminalCase(status) {
+			return errors.New("unknown case status")
+		}
+	}
+	for _, code := range filter.FailureCodes {
+		if !ValidFailureCode(code) {
+			return errors.New("unknown inference failure code")
+		}
+	}
+	return nil
+}
+
+// FilteredCases 在同一 repeatable-read 快照返回 id 的状态、精确结果及过滤后总数，无 N+1 查询。
+// ctx 取消全部 SQL；filter 必须通过 Validate；未创建 Go definition 的旧 Python cases 同样可读取。
+func (store *Store) FilteredCases(ctx context.Context, id string, filter CaseFilter) ([]Case, int, error) {
+	return store.casePage(ctx, id, filter, true)
+}
+
+// casePage 共享旧轻量分页与完整结果分页的事务；withResults 控制是否一次扫描终态列。
+// 过滤先于 OFFSET/LIMIT，count/rows 使用同一快照，避免后台结果更新造成页面互相矛盾。
+func (store *Store) casePage(ctx context.Context, id string, filter CaseFilter, withResults bool) ([]Case, int, error) {
+	if err := filter.Validate(); err != nil {
 		return nil, 0, err
 	}
-	values := make([]string, 0, len(statuses))
-	for _, status := range statuses {
-		if status != Pending && status != Running && !terminalCase(status) {
-			return nil, 0, errors.New("unknown case status")
-		}
+	values := make([]string, 0, len(filter.Statuses))
+	for _, status := range filter.Statuses {
 		values = append(values, string(status))
+	}
+	codes := filter.FailureCodes
+	if codes == nil {
+		codes = []string{}
 	}
 	tx, err := store.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, 0, err
 	}
 	defer tx.Rollback()
-	var total int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM poke_runtime.battle_inference_cases WHERE job_id=$1 AND (cardinality($2::text[])=0 OR status=ANY($2::text[]))`, id, values).Scan(&total); err != nil {
+	// 原 results/issues 只依赖 job/progress/cases；缺 Go definition 或 execution spec 不能隐藏旧结果。
+	var exists bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM poke_runtime.battle_inference_jobs j JOIN poke_runtime.battle_inference_job_progress p ON p.job_id=j.job_id WHERE j.job_id=$1)`, id).Scan(&exists); err != nil {
 		return nil, 0, err
 	}
-	rows, err := tx.QueryContext(ctx, caseSelect+` WHERE c.job_id=$1 AND (cardinality($2::text[])=0 OR c.status=ANY($2::text[])) ORDER BY c.sequence_no OFFSET $3 LIMIT $4`, id, values, offset, limit)
+	if !exists {
+		return nil, 0, ErrNotFound
+	}
+	var total int
+	const predicate = ` WHERE c.job_id=$1 AND (cardinality($2::text[])=0 OR c.status=ANY($2::text[])) AND (cardinality($3::text[])=0 OR c.failure_code=ANY($3::text[])) AND ($4='' OR $4=c.configuration_pair_id OR $4=c.attacker_configuration_id OR $4=c.defender_configuration_id)`
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM poke_runtime.battle_inference_cases c`+predicate, id, values, codes, filter.ConfigurationID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	fields := caseFields
+	if withResults {
+		fields += "," + resultColumns
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT `+fields+` FROM poke_runtime.battle_inference_cases c`+predicate+` ORDER BY c.sequence_no OFFSET $5 LIMIT $6`, id, values, codes, filter.ConfigurationID, filter.Offset, filter.Limit)
 	if err != nil {
 		return nil, 0, err
 	}
 	items := []Case{}
 	for rows.Next() {
-		item, scanErr := scanCase(rows)
+		item, scanErr := scanCaseResult(rows, withResults)
 		if scanErr != nil {
 			rows.Close()
 			return nil, 0, scanErr

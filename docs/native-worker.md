@@ -31,3 +31,5 @@
 证据在 `/volume1/homes/mental1104/Backup/PokemonBattleInference/nativeworker-20261124/final/`，含 archive 摘要、构建/race/vet 与精确 PG 实例日志。第一次四项业务测试通过后 `go vet` 捕获外包结构体未命名字段，修正为命名字段后最终五项重跑通过；首次证据保留在相邻 `acceptance/`。自有实例退出后已自动移除，不涉及生产切换。
 
 正式 Core **0.6.0** 接入后的 `progress6/` 独立重跑 **7/7 PASS**（3.943 秒），包含上述五项及两个新增场景，`go test -a -race` 和 `go vet` 均通过：完整真实固定战斗从初始状态得到两节点一边、攻击方胜率一及期望一回合；攻守两个视角还原到同一旧结果合同，最终进度实际保存 `graph_built/2/1/1/0` 和版本。另一场景用一节点预算真实触发 `graph_node_limit`，保存资源统计及 NULL 概率，绝不编造平局。报告同时保存本轮两个静态 archive 摘要和自有 PG 日志。
+
+配置任务查询回归发现真实停机竞态：父 context 取消与 SQL Commit 同时发生，驱动可能返回 `sql.ErrTxDone`。`RunOnce` 现在仅在已有错误且父 context 确实撤销时统一返回 `ctx.Err()`；父 context 活跃时保留真实数据库、租约与内部超时错误。`configuration-jobs-final2/` 保存首次失败；修复后的 `configuration-jobs-go-all7/` 使用正式 **0.7** 库，全部 Go 包 **46 PASS / 1 专用 Swift 服务 fixture SKIP**、race/vet 通过，另对停机/租约恢复场景实际重复 **10/10 PASS**（24.198 秒），未跳过或降低原恢复断言。

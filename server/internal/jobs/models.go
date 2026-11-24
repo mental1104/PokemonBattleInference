@@ -229,6 +229,15 @@ type Result struct {
 	FailureCode, Diagnostic        *string
 }
 
+// ValidFailureCode 判断 code 是否属于原结果/诊断查询合同，不接受任意数据库文本作为有效过滤枚举。
+func ValidFailureCode(code string) bool {
+	switch code {
+	case "unsupported_mechanism", "graph_node_limit", "graph_edge_limit", "turn_limit", "solver_unresolved", "worker_crash", "calculation_revision_mismatch", "cancelled", "invalid_configuration":
+		return true
+	}
+	return false
+}
+
 // Normalize 验证 result 并约分全部精确分数，返回可安全持久化的独立值。
 func (result Result) Normalize() (Result, error) {
 	if !terminalCase(result.Status) || result.Nodes < 0 || result.Edges < 0 || result.Budget < 0 {
@@ -279,9 +288,7 @@ func (result Result) Normalize() (Result, error) {
 		if (result.Status == Cancelled) != (*result.FailureCode == "cancelled") {
 			return result, errors.New("cancelled failure code is reserved for cancelled cases")
 		}
-		switch *result.FailureCode {
-		case "unsupported_mechanism", "graph_node_limit", "graph_edge_limit", "turn_limit", "solver_unresolved", "worker_crash", "calculation_revision_mismatch", "cancelled", "invalid_configuration":
-		default:
+		if !ValidFailureCode(*result.FailureCode) {
 			return result, errors.New("unknown inference failure code")
 		}
 	}

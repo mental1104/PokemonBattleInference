@@ -9,6 +9,7 @@ export POKEOP_BUILD_ROOT="${POKEOP_BUILD_ROOT:-/volume2/docker/pokemon-migration
 export POKEOP_REPORT_ROOT="${POKEOP_REPORT_ROOT:-/volume1/homes/mental1104/Backup/PokemonBattleInference/go-server-$(date +%Y%m%d-%H%M%S)}"
 readonly nas_manager="${POKEOP_NAS_MANAGER:-/volume2/workflow/code/infra/homelab-services/tools/nas-management/nas-manage.sh}"
 readonly postgres_name="pokemon-go-server-postgres-$$"
+readonly core_directory="${PBI_VALIDATION_CORE_DIRECTORY:-/build/p3/core}"
 postgres_id=""
 server_id=""
 
@@ -24,10 +25,14 @@ cleanup() {
 }
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/go-tmp"
 trap cleanup EXIT
-# 独立重建避免共享静态库与已更新的 ABI fixture 不同版，Go 仍强制使用 -a。
+# 默认独立重建；并行开发时可显式指定已验证同版本静态库，Go 仍强制使用 -a。
+if [[ -z "${PBI_VALIDATION_CORE_DIRECTORY:-}" ]]; then
 compose run --rm --no-deps pokemon-validation sh -c \
  'cmake -S /source/core -B /build/p3/core -DCMAKE_BUILD_TYPE=Release && cmake --build /build/p3/core -j2 && ctest --test-dir /build/p3/core --output-on-failure' \
  > "$POKEOP_REPORT_ROOT/core-build.log" 2>&1
+else
+ printf 'Using explicitly supplied native archive: %s; C++ tests are not rerun in this invocation.\n' "$core_directory" > "$POKEOP_REPORT_ROOT/core-build.log"
+fi
 compose run --rm --no-deps -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
  'cd /source/server && go build -o /build/p3/pbi-db-init ./cmd/pbi-db-init' \
  > "$POKEOP_REPORT_ROOT/db-init-build.log" 2>&1
@@ -43,11 +48,12 @@ compose run --rm --no-deps -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name
 compose run --rm --no-deps -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
  pokemon-validation /build/p3/pbi-db-init --csv-root /source/submodules/pokeapi/data/v2/csv \
  > "$POKEOP_REPORT_ROOT/catalog-reuse.json" 2> "$POKEOP_REPORT_ROOT/catalog-reuse.log"
-compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/p3/core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp \
+compose run --rm --no-deps -e CGO_LDFLAGS="-L$core_directory" -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp \
  -e PBI_TEST_CORE_WORKER=/build/p3/pbi-core-worker -e PBI_TEST_CRASH_WORKER=/build/p3/pbi-crash-worker -e PBI_CONTRACT_FIXTURES=/source/tests/vectors -e PBI_TEST_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
+ -e PBI_TEST_WORKER_DAEMON=/build/p3/pbi-worker \
  -e PBI_TEST_CATALOG_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
  -e PBI_TEST_KNOWLEDGE_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" -e PBI_KNOWLEDGE_CSV_ROOT=/source/submodules/pokeapi/data/v2/csv pokemon-validation sh -c \
- 'cd /source/server && go build -a -o /build/p3/pbi-core-worker ./cmd/pbi-core-worker && go build -o /build/p3/pbi-crash-worker ./internal/workerprocess/testdata/crashing-worker && go test -a -race -count=1 -v ./... && go vet ./... && go build -a -o /build/p3/pbi-server ./cmd/pbi-server' \
+ 'cd /source/server && go build -a -o /build/p3/pbi-core-worker ./cmd/pbi-core-worker && go build -a -o /build/p3/pbi-worker ./cmd/pbi-worker && go build -o /build/p3/pbi-crash-worker ./internal/workerprocess/testdata/crashing-worker && go test -a -race -count=1 -v ./... && go test -race -count=10 -v -run ^TestDaemonStopRetainsLeasesAndRecovers$ ./internal/nativeworker && go vet ./... && go build -a -o /build/p3/pbi-server ./cmd/pbi-server' \
  > "$POKEOP_REPORT_ROOT/go-postgres.log" 2>&1
 server_id="$(compose run --rm --no-deps -d --name "pokemon-go-server-$$" --publish 127.0.0.1::41105 \
  -e PBI_LISTEN=0.0.0.0:41105 -e PBI_MIGRATE=1 -e PBI_POSTGRES_DSN="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable" \
