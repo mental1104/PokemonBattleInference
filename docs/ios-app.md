@@ -24,6 +24,8 @@ GitHub 的 `Native Core - macOS and iOS` 仅在 Ready PR 上运行。Apple SDK �
 
 验收覆盖首装中文查询真实条目、默认伤害 `99–117`、两击 KO `123/128`、麻痹后的速度 `42`、编辑保存后杀进程重启恢复、同步待提交项/连接设置重启保留，以及 iPad 横屏。测试使用独立的 `PokemonBattleInference-UITesting` 子目录；只有显式测试参数可以清理该目录，不触碰正常用户数据。xcresult 内保留各步骤截图并尝试导出独立附件，最终模拟器截图、设备选择、完整构建和测试日志在 CI artifact 的 `build/reports/app/` 中。任一机型失败仍独立运行另一机型，最终退出状态保留失败。没有通过实际运行前不将脚本存在当作验收通过。
 
+入口测试按可见按钮标签定位，同时覆盖 iPhone 底部栏和 iPad 顶部浮动导航；iPad 图鉴列表折叠时，测试点击实际侧栏按钮再搜索。麻痹测试明确点击内层原生开关，核对真实状态 `0→1` 后才重算并严格要求速度 `42`。截图同时附带完整无障碍层级；运行脚本记录构建/启动/测试/导出阶段时间和内存信息，并在每个机型完成后关闭仅由本脚本启动的模拟器，避免同时驻留。旧的长时间安装/runner 启动间隔仍需下一轮实际日志确认改善，不能归因于导出附件或将排队/环境耗时当作业务测试通过。
+
 ## Mac 与设备安装
 
 Mac 需要已安装 Xcode、iOS Simulator Runtime、XcodeGen、CMake、Boost、nlohmann-json。构建入口先生成 `build/apple/iphoneos` 和 `build/apple/iphonesimulator` 中的静态库，再由 XcodeGen 生成 `ios/PokemonBattleInference.xcodeproj`。工程把 `build/apple/$(PLATFORM_NAME)` 作为库搜索路径，同时完整编译本地 Swift Package 和资源。
