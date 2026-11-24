@@ -148,6 +148,8 @@ func NewServer(db *sql.DB) http.Handler {
 	registerJobSubmission(mux, db)
 	registerConfigurationSolver(mux, db)
 	registerLegacyDamage(mux, db)
+	registerFixedJobSubmission(mux, db)
+	registerMoveCombinations(mux, db)
 	registerFixedInference(mux, db)
 	sync := syncapi.NewHandler(syncstore.New(db), func(r *http.Request) (string, error) {
 		user := strings.TrimSpace(r.Header.Get("X-Pokeop-User"))
