@@ -12,6 +12,11 @@ import (
 // Handler 返回首批 Core HTTP 路由；无外部依赖，无启动后台任务。
 // 现有 FastAPI 路由尚未迁移，本服务不能替换原 Web 后端。
 func Handler() http.Handler {
+	return baseMux()
+}
+
+// baseMux 建立共享健康和原生计算路由，供 Core-only 与数据库服务复用。
+func baseMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health)
 	mux.HandleFunc("POST /v1/core/calculate", calculate)

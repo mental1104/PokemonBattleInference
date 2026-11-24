@@ -3,12 +3,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"pokemonbattleinference/server/internal/httpapi"
+	"pokemonbattleinference/server/internal/postgres"
+	"pokemonbattleinference/server/internal/syncstore"
 	"syscall"
 	"time"
 )
@@ -21,7 +24,24 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	server := &http.Server{Addr: address, Handler: httpapi.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
+	var db *sql.DB
+	if dsn := os.Getenv("PBI_POSTGRES_DSN"); dsn != "" {
+		startup, cancel := context.WithTimeout(ctx, 30*time.Second)
+		var err error
+		db, err = postgres.Open(startup, dsn)
+		if err == nil && os.Getenv("PBI_MIGRATE") == "1" {
+			err = postgres.Migrate(startup, db)
+			if err == nil {
+				err = syncstore.New(db).Migrate(startup)
+			}
+		}
+		cancel()
+		if err != nil {
+			log.Fatal("database initialization failed")
+		}
+		defer db.Close()
+	}
+	server := &http.Server{Addr: address, Handler: httpapi.NewServer(db), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)

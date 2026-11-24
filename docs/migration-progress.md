@@ -126,7 +126,9 @@
 - `data/knowledge/schema.v1.sql` 与 `tools/data/build_knowledge_pack.py` 从固定 PokeAPI `1567d53073a069b6c96e1c393c5c490f602e3ab5` 投影真实离线知识；15 个 CSV 与 schema 摘要计入版本。已捆绑 **413,696 bytes** SQLite，版本 **pokeapi-1567d53073a0-7e4be433ddb6**，SHA-256 **97077d1074f39a83e89aa3b0f7b0dff9bb6db7b89821e502e497bf924d86d44f**，含 1,350 宝可梦、937 招式、25 性格及 324 属性关系，并保留来源许可。
 - 实际验证完整摘要/外键/表数量，全部属性关系与原知识一致；固定 CSV 重建得到相同逻辑版本与来源，重复构建字节一致；源缺失时原产物未被覆盖。`profile-data-final/core-regression.log`：C/C++ **28/28**，迁移 pytest **16 passed / 1 skipped**（17.44 秒，跳过为 Python 工具镜像缺 Swift）。这些结果不代表后续并行编辑的 Go/同步文件已经通过。
 - Swift `KnowledgeStore` 使用只读 SQLite 与独立目录，先验证候选包再提交原子版本指针，保留旧文件；`ConfigurationStore` 独立用户库，事务内同时保存配置/稳定 ID/本地队列，软删除与重启恢复；`CalculationService` 调用同一个 C ABI，在线入口使用相同请求、不静默回退。Linux **10/10 XCTest PASS**（1.698 秒，含既有 4 个桥接测试），日志 `swift-app/swift-regression.log`。覆盖真实中文查询、99…117 伤害/123/128 二击率、85/80 速度与麻痹 42、知识更新失败/恢复、用户数据保留及注入队列失败后的事务回滚。
-- 当前只证明 Linux AppSupport 与本机 Core 闭环；在线 Swift 客户端、SwiftUI App 编译/模拟器运行、复杂推演及双设备同步仍未验收。P3/P4/P5 agent 正并行实现；用户已追加要求 P1/P2 专属 agent，但当前 root+三个 agent 达到系统四线程上限，新建被拒绝，采用批次交接后的专属轮换，不能报告五个 agent 同时运行。
+- 当前只证明 Linux AppSupport 与本机 Core 闭环；在线 Swift 计算客户端、SwiftUI App 编译/模拟器运行、复杂推演及真实双设备仍未验收。检查点 **11bbedc9bc2e07dd9f2a3d1729af4dbb1b1eaa4c** 已推送 Ready PR；[Native/App CI 45362670690](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670690) 与 [Main Gate 45362670582](https://github.com/mental1104/PokemonBattleInference/actions/runs/45362670582) 已启动，尚未确认结果。
+- P5 首批同步底层已独立实测：Go 真实隔离 PostgreSQL 三个业务测试 `-race` PASS、`go vet` PASS；实际 HTTP 服务 fixture PASS（131.71 秒），两个独立 Swift SQLite 客户端完成丢 ack 重试、重启、离线冲突/显式恢复、版本保留和删除传播，最终 cursor 均为 4；Swift **13/13、零失败/跳过**（1.797 秒）。证据在 `Backup/PokemonBattleInference/migration-p5-sync-20261124/`，详见 `migration-sync.md`。这不代表 App 同步 UI 或真机验收通过。
+- 用户要求 P1/P2 也由专属 agent 处理；最初系统四线程上限拒绝新建。在 P4/P5 首批交接释放名额后，已分别实际启动 **p1_core**（合法行动/回合/图/SCC/搜索）与 **p2_bridge**（C ABI、Go/Swift、新能力接入、真实在线/离线一致验收）。当前并行的是 P1/P2/P3 加 root；root 负责统一提交/CI、App/同步 UI 整合。P4/P5 后续按需轮换，不声称五条子任务同时运行。
 
 ## 下一步
 

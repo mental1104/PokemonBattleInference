@@ -1,0 +1,17 @@
+# P3 全量 CSV 与原物化视图需要大于通用小夹具的临时空间；只用于 maintenance。
+services:
+  pokemon-go-postgres:
+    profiles: [maintenance]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pokeop
+      POSTGRES_USER: pokeop
+      POSTGRES_HOST_AUTH_METHOD: trust
+    # 不发布端口，不挂载任何宿主数据库目录；实例退出后 tmpfs 即释放。
+    tmpfs: ["/var/lib/postgresql/data:rw,size=2147483648"]
+    mem_limit: 3g
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U pokeop -d pokeop]
+      interval: 1s
+      timeout: 2s
+      retries: 30

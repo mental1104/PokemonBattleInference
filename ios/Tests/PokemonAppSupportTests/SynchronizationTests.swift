@@ -51,7 +51,7 @@ final class SynchronizationTests: XCTestCase, @unchecked Sendable {
         let a = try ConfigurationStore(url: aURL), b = try ConfigurationStore(url: bURL)
         let transport = try HTTPSyncTransport(serverURL: server, userId: "swift-test-\(UUID().uuidString.lowercased())")
         let aClient = SyncClient(store: a, transport: transport), bClient = SyncClient(store: b, transport: transport)
-        var initial = BattleConfiguration.example(); initial.name = "shared initial"
+        var initial = BattleConfiguration.example(); initial.name = "shared initial 中文\0preserved"
         try await a.save(initial, knowledgeVersion: "knowledge-1", engineVersion: "0.4.0")
         // 服务器已提交但设备尚未保存 ack，等价于响应丢失；重启后的请求必须使用旧 operationId。
         let first = try await a.prepareSyncOperation(), firstOperation = try XCTUnwrap(first)
