@@ -142,6 +142,7 @@ func NewServer(db *sql.DB) http.Handler {
 	})
 	registerCatalog(mux, db)
 	registerAssets(mux, db)
+	registerJobs(mux, db)
 	sync := syncapi.NewHandler(syncstore.New(db), func(r *http.Request) (string, error) {
 		user := strings.TrimSpace(r.Header.Get("X-Pokeop-User"))
 		if user == "" {

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"pokemonbattleinference/server/internal/httpapi"
+	"pokemonbattleinference/server/internal/jobs"
 	"pokemonbattleinference/server/internal/postgres"
 	"pokemonbattleinference/server/internal/syncstore"
 	"syscall"
@@ -31,6 +32,9 @@ func main() {
 		db, err = postgres.Open(startup, dsn)
 		if err == nil && os.Getenv("PBI_MIGRATE") == "1" {
 			err = postgres.Migrate(startup, db)
+			if err == nil {
+				err = jobs.New(db).Migrate(startup)
+			}
 			if err == nil {
 				err = syncstore.New(db).Migrate(startup)
 			}

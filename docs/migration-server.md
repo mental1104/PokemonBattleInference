@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **16 项读取/配置/图片 API**，并接入 P5 同步处理器；复杂推演任务 API 尚未替换。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **19 项配置/知识/图片及任务查询取消 API**，并接入 P5 同步处理器；正式推演创建及计算 API 尚未替换。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -10,6 +10,7 @@
 | PostgreSQL | pgx/v5/stdlib + database/sql。显式 DSN、连接池；原六张运行表采用 additive 初始化，一笔事务/advisory lock、不 DROP、不重建已有数据；二次运行保持记录。尚未迁移 Go 自有 raw CSV 导入及物化视图管理器。 |
 | P5 接线 | NewServer(db) 挂 GET/POST /v1/sync；主进程显式迁移时调用 syncstore.Migrate；本轮真实 PG 重跑 P5 三项事务/并发/HTTP 测试通过。Swift 测试专用服务入口缺少 PBI_SYNC_TEST_SERVE_ADDR 时有一个预期 SKIP，不能记成跨语言 PASS；P5 另有独立跨语言验收。 |
 | 子进程边界 | pbi-core-worker 从 stdin 接收单批 JSON，stdout 输出唯一 Core ABI 响应。workerprocess.Execute 使用绝对可执行路径、无 shell、32 MiB 输出上限、ctx 取消回收、ABI 错误类别与信号崩溃区分。实际独立 native 子进程运行完整冻结向量、未知操作及取消；自有子进程 SIGKILL 不杀死父进程。尚未接入 PG 任务 coordinator/lease。 |
+| 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。创建 HTTP/实际 coordinator 尚未接入，不能把仓库测试当成完整推演闭环。 |
 
 ## 运行边界
 
@@ -25,13 +26,14 @@
 - `integration/catalog-initialization.log`：通用测试 PG 的 512 MiB tmpfs 在刷新原 pokemon_catalog_zh_mv 时真实 DiskFull；该实例已自动清理，失败证据保留。
 - `integration-2g/`：专属维护 Compose 使用 2 GiB tmpfs/3 GiB 内存，全量原 CSV + 八个原物化视图初始化成功。Go race 实跑 Core 3 项、HTTP/配置/目录/图片 5 项、P5 PG 3 项；共 **11 PASS / 1 专用 Swift 服务入口 SKIP**；go vet 通过。独立宿主 curl 的 Pokémon 详情/招式/特性、道具、配置列表均 HTTP 200，响应头/正文/状态及服务/PG 日志已归档，自有实例全部退出回收。
 - `worker-process.log`：独立 native worker 向量与拒绝/取消验证、真实 SIGKILL 进程隔离 **2 PASS**，race 与 go vet 通过。
+- `jobs-final/`：按当前源码独立构建 Core **0.5.0**，CTest **46/46 PASS**；全量 CSV/原 MV、自有 PG 下所有 Go 包 **18 PASS / 1 专用 Swift 服务入口 SKIP**，race/vet 通过，含新的三项任务仓库 PG 测试、一项旧指纹精确约分测试及任务 HTTP 状态/取消实测。宿主独立 curl 六条 API（包含任务列表）全部 200，自有实例已回收。中途扩大回归曾使用旧 `/build/core` 0.4.0 对新 0.5 ABI fixture 返回 unsupported；保存于 `jobs/jobs-postgres.log`，最终改为 `/build/p3/core` 独立重建，没有跳过该 Core HTTP 用例。
 - 复现：`bash tools/migration/validate-go-server.sh`。脚本只使用 manager + 已声明 maintenance run --rm、自有 tmpfs PG、不发布 DB 端口；唯一 Web 测试实例发布随机回环端口，退出仅清理本脚本精确 ID。真实知识初始化暂借既有 Python bootstrap 作为离线测试夹具，不是 Go 服务依赖。
 
 ## 剩余范围
 
-1. 原任务 API、PG coordinator 与 case lease/heartbeat/恢复/持久化幂等结果、进度与分页；现有六张表只是 schema 基础，不能代表完整生命周期已通过。
+1. 原任务创建/配置结果 API、实际 PG coordinator 与子进程调度接线。仓库 lease/heartbeat/恢复/幂等结果/进度/分页已通过独立 PG 测试，完整业务推演仍需正式 Core 回合合同和真实调度。
 2. 原 damage/calculator damage/configuration solve/search、fixed-one-on-one/step/graph、graph 导航/重算、candidate pool/move combinations/winning paths 等计算服务。依赖 P1 尚未迁完的正式回合、动态效果、图扩展/SCC 与配置求解合同。Go 仅负责知识/请求组装，不复制战斗规则。
 3. Go 原生 CSV/物化视图管理命令、生产 Go Docker 构建与独立 Worker 编排、Vue 接入、旧新全 API 差分、重启恢复和部署回滚演练。
 4. 当前同步 Core-only HTTP 计算入口仍直接 CGO，复杂推演必须接独立 Worker；子进程工具通过不等于 PG 任务系统完成。
 
-本检查点不合并、不切生产，不将 16/41 误写为 P3 完成。
+本检查点不合并、不切生产，不将 19/41 误写为 P3 完成。
