@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **28 项配置/知识/图片、任务与候选池、模板/属性求解及固定推演摘要 API**，并接入 P5 同步处理器；另有原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。原合同任务、WithSpeed求解及固定摘要已经过真实 PG/Core/独立客户端验收，其余计算/图交互 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **30 项配置/知识/图片、任务与候选池、模板/属性求解、固定推演摘要及两种伤害 API**，并接入 P5 同步处理器。原合同任务、WithSpeed求解及固定摘要已经过真实 PG/Core/独立客户端验收；现代静态计算器两项特性缺口已通过明确reference_static上下文修复，旧damage的原NameError按历史独立算法修复。其余11项计算/图交互 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -10,7 +10,8 @@
 | PostgreSQL | pgx/v5/stdlib + database/sql。显式 DSN、连接池；原六张运行表采用 additive 初始化，一笔事务/advisory lock、不 DROP、不重建已有数据；二次运行保持记录。独立 pbi-db-init 已纯 Go 导入全量固定 CSV 并创建八个原物化视图，具体事务/版本边界见下文。 |
 | P5 接线 | NewServer(db) 挂 GET/POST /v1/sync；主进程显式迁移时调用 syncstore.Migrate；本轮真实 PG 重跑 P5 三项事务/并发/HTTP 测试通过。Swift 测试专用服务入口缺少 PBI_SYNC_TEST_SERVE_ADDR 时有一个预期 SKIP，不能记成跨语言 PASS；P5 另有独立跨语言验收。 |
 | 子进程边界 | pbi-core-worker 从 stdin 接收单批 JSON，stdout 输出完整 Core ABI 响应。所有 Core HTTP 请求统一使用绝对路径子进程，缺失时 503，绝不回退进程内 CGO；原生进度和实际 PG daemon 另见 [native-worker.md](native-worker.md)。 |
-| 受限静态计算器 | POST /v1/calculator/damage 从单个 repeatable-read 快照读取原规则集、双方种族值/合法历史特性、version-aware 招式及完整属性表；Core 子进程执行 hp/stat、stage、damage 三个依赖批次。旧单轴 plus 模板不降低其他轴；快照完整 paired nature/EV/IV 保留。合法未实现特性沿旧入口返回原中文 warning。InnerFocus/Multiscale 当前静态 Core 明确 422，而旧静态入口为 200，仍属兼容缺口，不用 Go 静默抹掉机制或补倍率。 |
+| 静态计算器 1 项 | POST /v1/calculator/damage 从单个 repeatable-read 快照读取原规则集、双方种族值/合法历史特性、version-aware 招式及完整属性表；Core 子进程执行 hp/stat、stage、damage 三个依赖批次。旧单轴 plus 模板不降低其他轴；快照完整 paired nature/EV/IV 保留。合法未实现特性沿旧入口返回原中文 warning。显式reference_static保留InnerFocus/Multiscale身份及原静态无实时HP/畏缩钩子的语义，默认strict与真实回合不变；14项原完整JSON差分通过。 |
+| 旧伤害 1 项 | POST /v1/damage保留defenser拼写、原七字段、EV/4/Quiet/忽略individual_values等历史独立语义，从原全图鉴raw表读取事实；Core legacy_damage执行原责任链和随机数学，Go仅注入单位随机事实。原路由当前NameError500明确记为独立缺陷修复，不冒称修复前可用。 |
 | 任务查询 3 项与仓库 | GET jobs 列表/详情、POST 幂等取消；读取原任务表与冻结执行规格。新 jobs.Store 已实测事务创建、完整 Core 输入冻结、同 ID 不同定义拒绝、revision 过滤、SKIP LOCKED 领取、有效 owner 心跳、过期恢复不重复记账、精确任意精度结果与旧 Python 同算法指纹、晚到/重复结果、真实进度、取消宽限、终态收口及分页。真实 graph/fixed-battle coordinator/daemon 和 NDJSON 进度见 [native-worker.md](native-worker.md)。 |
 | 配置任务查询 4 项 | GET configuration-jobs 状态/results/issues、POST cancel，保持原独立 DTO、粗粒度状态、精确概率/期望回合、微秒时间、错误码过滤及 sequence 分页。结果和总数同一 repeatable-read 快照，无 N+1 查询；旧 Python 数据没有 Go definition 也可查询，结果分页不依赖 execution spec。原任意非空 explanation 读兼容保留，HTTP 非对象/损坏 JSON 仍为 null；新结果写入继续严格验证 JSON。 |
 | 原任务创建 1 项 | POST configuration-jobs 保留原 one-on-one-move-pool.v1 DTO 与 202、原内容寻址 Idempotency-Key；同一 PG repeatable-read 快照交 Core strict/factory reconciliation，收齐全部失败后才分页取得原具体 canonical case。全部能力计算、严格准入、组合、SHA/权重均由 Core 完成；单个共享 template/admission 与轻量 case 原子冻结，daemon 领取后只投影招式与槽。没有任意 Core JSON 入队入口，也不删除不支持项缩小候选池。 |
@@ -61,11 +62,11 @@
 ## 剩余范围
 
 1. 原单配置完整图 HTTP API：复用已用于真实任务创建/候选池的同快照知识与正式Core编排，保持各入口原有边界。持久任务入口已拒绝旧规则声明为partial的机制；旧同步推演允许partial并返回coverage的策略不能混用。44,100 case已采用共享模板，不重复属性矩阵。
-2. 原旧damage、fixed-one-on-one/step/graph、graph导航/重算、move combinations/winning paths 等 HTTP 适配；静态calculator两项特性差异仍需明确静态Core上下文解决。模板/EV/IV WithSpeed两入口及候选池已经真实接通，Go仅负责知识/请求组装，不重复枚举、权重或战斗规则。同步固定推演/图交互由独立切片接入，未冻结测试前不计入此27项。
+2. 原fixed-one-on-one的step/graph、graph导航/重算、move combinations、fixed jobs、winning paths 等11项HTTP适配。模板/EV/IV WithSpeed、候选池、固定摘要及两种伤害已真实接通；Go仅负责知识/请求组装，不重复枚举、权重或战斗规则。图交互由独立切片接入，未冻结测试前不计入此30项。
 3. 生产发布编排、知识版本升级/历史库接管、Vue 全 API 兼容验收、旧新全 API 差分与真实业务升级回滚。纯 Go 数据镜像与五个真实二进制的 scratch 镜像、原生 daemon 的恢复/停机，以及独立 P6 预览/健康/镜像回退证据，不等于已完成生产迁移。
 4. 所有Core HTTP已统一独立child，原配置任务创建与两条完整WithSpeed求解已接通；图交互API仍需迁移。子进程工具和graph/fixed daemon通过不等于41项旧业务整体完成；空库完整网页交付的旧BYTEA sprites导入由独立切片补齐，目录与计算通过不代表图片数据已交付。
 
-本检查点不合并、不切生产，不将 27/41 误写为 P3 完成。
+本检查点不合并、不切生产，不将 30/41 误写为 P3 完成。
 
 ## 候选池与完整配置求解
 
@@ -106,3 +107,11 @@ PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,41
 最终复现 `preparation-final/` 又从空 PG 完整导入后运行全部链路：有效原模板 `max_atk_neutral` 的实际44,100提交 **202/8.536307秒**，共享定义 **25,824,669 bytes**；新增未知性格snapshot一例，全部原HTTP/原协调器差分 **16/16 PASS、零SKIP（10.30秒）**，其中14项等价验证、2项原资料缺失500→新422的明确缺陷修复对照。`preparation-go-all/` 完整 Go 包实际PG/child/daemon **50 PASS + 1专用Swift服务fixture SKIP**，额外停机恢复 **10/10轮 PASS**，race与vet通过；不把重复10轮当成新增测试能力。两套脚本均exit0并清理自有实例。
 
 复现入口 `tools/migration/accept-go-job-submission.sh` 使用已声明 maintenance、自有空 PG、完整 CSV、原合同202、独立 daemon 成功结果、实际44100创建/运行取消、同库原 Python 差分，退出精确清理。生产服务不受影响。
+
+## 两种伤害HTTP最终验收
+
+`legacy-http-final/`从独立空PG纯Go导入完整固定CSV，真实API与独立Core0.9子进程 **33/33 PASS、零SKIP（4.62秒）**。现代calculator14项均完整JSON相同，InnerFocus/Multiscale通过明确reference_static上下文恢复原静态语义；历史`calculator-final/`的原200/新422证据保留，但不再代表当前状态。默认Core strict与真实回合不受此上下文影响。
+
+旧`/v1/damage`19项保留公开defenser/默认/null/原全图鉴10021等事实；先实证原NameError500，再只恢复历史PokemonDirector构造配方，以原真实AbilityFactory及责任链作为oracle。五个确定字段逐值比较，两个随机字段检查属于原uniform/round产生的支持集，未把独立随机抽样说成逐值一致。原UNKNOWN/Stellar/空白Type失败与六类null schema也保留明确分类；全部324属性关系与原矩阵逐格核对。原Type枚举无UNKNOWN，固定全量Pokemon type无0/新类型/缺slot1；没有在Go删除或归一化未知类型。
+
+新增全图鉴资料实际PG测试及11个现代schema子场景race通过，vet通过。`legacy-domain/release-o3-bitset.log`另有最终Release -O3/Werror的2原生+369原责任链差分通过；早期Boost左移编译告警保留，修复没有关闭告警。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-event-abi9 bash tools/migration/accept-go-legacy-damage.sh`，脚本exit0并回收全部自有实例。该批未连接生产，旧随机接口故障修复不冒充原生产迁移已完成。

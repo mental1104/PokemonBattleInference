@@ -9,6 +9,7 @@ export POKEOP_REPORT_ROOT="${POKEOP_REPORT_ROOT:-/volume1/homes/mental1104/Backu
 readonly nas_manager="${POKEOP_NAS_MANAGER:-/volume2/workflow/code/infra/homelab-services/tools/nas-management/nas-manage.sh}"
 readonly postgres_name="pokemon-go-calculator-pg-$$"
 readonly server_name="pokemon-go-calculator-api-$$"
+readonly core_directory="${PBI_VALIDATION_CORE_DIRECTORY:-/build/p3/calculator-core}"
 postgres_id=""
 server_id=""
 # 参数只传给本项目已声明维护服务；不改变通用模板或部署常驻服务。
@@ -17,8 +18,9 @@ compose(){ bash "$nas_manager" compose -p pokemon-migration-validation -f "$POKE
 cleanup(){ if [[ -n "$server_id" ]]; then docker logs "$server_id" > "$POKEOP_REPORT_ROOT/server.log" 2>&1; docker stop "$server_id" > /dev/null; fi; if [[ -n "$postgres_id" ]]; then docker logs "$postgres_id" > "$POKEOP_REPORT_ROOT/postgres.log" 2>&1; docker stop "$postgres_id" > /dev/null; fi; }
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/go-tmp"
 trap cleanup EXIT
-compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/p3/calculator-core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
- 'cmake -S /source/core -B /build/p3/calculator-core -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF && cmake --build /build/p3/calculator-core --target pbi_abi -j2 && cd /source/server && mkdir -p /build/p3/calculator && go build -a -o /build/p3/calculator/pbi-core-worker ./cmd/pbi-core-worker && go build -a -o /build/p3/calculator/pbi-server ./cmd/pbi-server && CGO_ENABLED=0 go build -o /build/p3/calculator/pbi-db-init ./cmd/pbi-db-init && go test -race -count=1 -run ^TestCalculator -v ./internal/httpapi && go vet ./internal/catalog ./internal/httpapi' \
+# 显式已验证archive避免并行Core编辑混合；未指定时仍从当前源码真实构建。
+compose run --rm --no-deps -e CGO_LDFLAGS="-L$core_directory" -e PBI_VALIDATION_CORE_DIRECTORY="${PBI_VALIDATION_CORE_DIRECTORY:-}" -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
+ 'if [ -z "$PBI_VALIDATION_CORE_DIRECTORY" ]; then cmake -S /source/core -B /build/p3/calculator-core -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF && cmake --build /build/p3/calculator-core --target pbi_abi -j2 || exit; fi; cd /source/server && mkdir -p /build/p3/calculator && go build -a -o /build/p3/calculator/pbi-core-worker ./cmd/pbi-core-worker && go build -a -o /build/p3/calculator/pbi-server ./cmd/pbi-server && CGO_ENABLED=0 go build -o /build/p3/calculator/pbi-db-init ./cmd/pbi-db-init && go test -race -count=1 -run ^TestCalculator -v ./internal/httpapi && go vet ./internal/catalog ./internal/httpapi' \
  > "$POKEOP_REPORT_ROOT/build.log" 2>&1
 postgres_id="$(compose run --rm --no-deps -d --name "$postgres_name" pokemon-go-postgres)"
 for attempt in {1..30}; do if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop > /dev/null 2>&1; then break; fi; sleep .2; done

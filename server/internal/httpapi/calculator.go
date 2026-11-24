@@ -475,8 +475,10 @@ func (handler calculatorHandler) calculate(ctx context.Context, input calculator
 		values = append(values, staged[index*5:index*5+5]...)
 		battlers[index].Stats = valuesSpread(values)
 	}
+	// 原静态HTTP没有实时HP/畏缩上下文；明确传Core参考静态模式，保留能力身份而不在Go抹掉机制。
 	damageOperation := struct {
 		Kind         string            `json:"kind"`
+		Context      string            `json:"context"`
 		Generation   int               `json:"generation_id"`
 		VersionGroup int               `json:"version_group_id"`
 		Attacker     calculatorBattler `json:"attacker"`
@@ -487,7 +489,7 @@ func (handler calculatorHandler) calculate(ctx context.Context, input calculator
 			Power    int    `json:"power"`
 		} `json:"move"`
 		Chart []catalog.TypeFactor `json:"type_chart"`
-	}{Kind: "damage", Generation: snapshot.Rules.Generation, VersionGroup: snapshot.Rules.VersionGroup, Attacker: battlers[0], Defender: battlers[1], Chart: snapshot.Chart}
+	}{Kind: "damage", Context: "reference_static", Generation: snapshot.Rules.Generation, VersionGroup: snapshot.Rules.VersionGroup, Attacker: battlers[0], Defender: battlers[1], Chart: snapshot.Chart}
 	damageOperation.Move.Type = snapshot.Move.Type
 	damageOperation.Move.Category = snapshot.Move.Category
 	damageOperation.Move.Power = snapshot.Move.Power

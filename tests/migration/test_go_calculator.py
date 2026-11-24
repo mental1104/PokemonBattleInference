@@ -201,10 +201,10 @@ class TestGoCalculator:
         assert actual.json() == expected.json()
 
     @pytest.mark.parametrize("ability", ["inner-focus", "multiscale"])
-    def test_dynamic_ability_gap_is_explicit(
+    def test_reference_static_dynamic_abilities_match_original(
         self, legacy_calculator: TestClient, go_calculator: httpx.Client, ability: str
     ) -> None:
-        """记录当前静态 Core 的实际边界：旧无动态钩子为200，新明确422，绝不宣称完整兼容。"""
+        """显式reference_static复现旧无动态hook的200/完整结果；不猜满HP，也不改变默认strict或真实回合。"""
         command = CalculateDamageWithAbilitiesRequest(
             attacker=CalculatorPokemonWithAbilityInput(pokemon_id=212, ability_identifier="technician", stat_preset="max_atk_plus"),
             defender=CalculatorPokemonWithAbilityInput(pokemon_id=149, ability_identifier=ability, stat_preset="max_hp_def_plus"),
@@ -213,6 +213,5 @@ class TestGoCalculator:
         body = command.model_dump(mode="json")
         expected = legacy_calculator.post("/v1/calculator/damage", json=body)
         actual = go_calculator.post("/v1/calculator/damage", json=body)
-        assert expected.status_code == 200, expected.text
-        assert actual.status_code == 422, actual.text
-        assert actual.json()["error"]["code"] == "unsupported"
+        assert expected.status_code == actual.status_code == 200, (expected.text, actual.text)
+        assert actual.json() == expected.json()
