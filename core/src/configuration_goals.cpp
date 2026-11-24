@@ -15,11 +15,8 @@ bool NormalizedText(std::string_view value) {
 }
 /// @param pokemon 原静态目标字段；@param level 原统一等级；@return 复用直接伤害的快照。
 DamagePokemon StaticPokemon(const ConfigurationGoalPokemon& pokemon, std::int32_t level) {
-  // 原Multiscale只实现modify_battle_damage，InnerFocus只拦畏缩；
-  // 此处明确复现无battle_state的旧DamageContext，而不猜测满HP或偷偷更改通用damage入口。
-  const auto ability = pokemon.ability == DamageAbility::multiscale || pokemon.ability == DamageAbility::inner_focus
-      ? DamageAbility::none : pokemon.ability;
-  return {level, pokemon.types, pokemon.stats, ability, pokemon.item, false, std::nullopt};
+  // 只投影原目标快照；能力的参考静态解释由唯一typed入口负责，不在目标/直接伤害复制规则。
+  return {level, pokemon.types, pokemon.stats, pokemon.ability, pokemon.item, false, std::nullopt};
 }
 /// @param goal 单条已准备目标；拒绝非法方向、档口和所需回合，不自动放宽约束。
 void ValidateGoal(const ConfigurationDamageGoal& goal) {
@@ -49,7 +46,7 @@ ConfigurationDamageGoalResult ConfigurationGoalEvaluator::Evaluate(const Configu
   ValidateGoal(goal);
   auto attacker = StaticPokemon(goal.kind == ConfigurationGoalKind::attack ? subject : goal.target, level);
   auto defender = StaticPokemon(goal.kind == ConfigurationGoalKind::attack ? goal.target : subject, level);
-  auto damage = CalculateDamage({attacker, defender, goal.move, policy_, DamageWeather::none, DamageTerrain::none, {}}, knowledge_);
+  auto damage = CalculateReferenceStaticDamage({attacker, defender, goal.move, policy_, DamageWeather::none, DamageTerrain::none, {}}, knowledge_);
   const auto policy = goal.roll_policy.value_or(goal.kind == ConfigurationGoalKind::attack
       ? ConfigurationDamageRollPolicy::minimum : ConfigurationDamageRollPolicy::maximum);
   const auto selected = policy == ConfigurationDamageRollPolicy::minimum ? std::ranges::min(damage.rolls) : std::ranges::max(damage.rolls);

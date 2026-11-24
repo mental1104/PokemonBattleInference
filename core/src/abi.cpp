@@ -10,6 +10,9 @@
 #include "configuration_contract.hpp"
 #include "configuration_goals_contract.hpp"
 #include "configuration_spread_search_contract.hpp"
+#include "event_analysis_contract.hpp"
+#include "event_analysis_batch_contract.hpp"
+#include "legacy_damage_contract.hpp"
 
 #include <nlohmann/json.hpp>
 #include "pbi/cancellation.hpp"
@@ -47,11 +50,13 @@ struct StatRequest { pbi::StatInput input; pbi::NatureEffect nature; };
 struct StageRequest { std::int64_t value; std::int32_t stage; };
 /// KO 请求拥有伤害档位副本，不借用解析器内部节点。
 struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
-/// 直接伤害请求拥有领域输入与知识快照，并记录原有兼容代际身份。
-struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
+/// 显式控制原静态上下文；不以隐式bool改变已发布的能力边界。
+enum class DamageRequestContext { standard, reference_static };
+/// 直接伤害两种上下文在协议边界明确区分；默认保持已发布的严格动态能力边界。
+struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; DamageRequestContext context; };
 /// 完整能力配置复用领域性格选择和能力公式。
 struct ProfileRequest { pbi::StatProfile input; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest, TurnRequest, FixedBattleRequest, ConfigurationStatsRequest, ConfigurationMovesRequest, ConfigurationSpaceRequest, ConfigurationCoverageRequest, JobMovePoolRequest, ConfigurationTemplatesRequest, ConfigurationSpreadSearchRequest>;
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest, GraphRequest, LegalActionsRequest, TurnRequest, FixedBattleRequest, ConfigurationStatsRequest, ConfigurationMovesRequest, ConfigurationSpaceRequest, ConfigurationCoverageRequest, JobMovePoolRequest, ConfigurationTemplatesRequest, ConfigurationSpreadSearchRequest, EventAnalysisRequest, ConfigurationEventAnalysisRequest, LegacyDamageRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
@@ -79,7 +84,13 @@ pbi::NatureEffect ReadNature(const Json& value) {
 /// @param value 只读操作对象；@param remaining_rolls 当前批次余量；@return 拥有所有快照的伤害请求。
 DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
   RequireSchema(value, {"kind", "generation_id", "attacker", "defender", "move", "type_chart"},
-      {"policy", "weather", "terrain", "defender_side", "critical", "spread", "protect_reduced", "multi_target", "version_group_id"});
+      {"policy", "weather", "terrain", "defender_side", "critical", "spread", "protect_reduced", "multi_target", "version_group_id", "context"});
+  auto context = DamageRequestContext::standard;
+  if (value.contains("context")) {
+    if (!value.at("context").is_string()) throw RequestError(PBI_INVALID_INPUT_V1, "damage context must be a string");
+    if (value.at("context") != "reference_static") throw RequestError(PBI_UNSUPPORTED_V1, "unsupported damage context");
+    context = DamageRequestContext::reference_static;
+  }
   const auto generation = ReadInt32(value.at("generation_id"));
   auto policy = pbi::DamagePolicyForGeneration(generation);
   if (value.contains("version_group_id") && pbi::GenerationForVersionGroup(ReadInt32(value.at("version_group_id"))) != generation) {
@@ -106,7 +117,7 @@ DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
   if (value.contains("spread")) input.spread = ReadBool(value.at("spread"));
   if (value.contains("protect_reduced")) input.protect_reduced = ReadBool(value.at("protect_reduced"));
   if (value.contains("multi_target")) input.multi_target = ReadBool(value.at("multi_target"));
-  return {std::move(input), ReadTypeChart(value.at("type_chart")), generation};
+  return {std::move(input), ReadTypeChart(value.at("type_chart")), generation, context};
 }
 
 /// 解码单条计算，并限制实际批次伤害槽位总量。
@@ -128,6 +139,9 @@ std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t 
   if (kind == "job_move_pool") return {ReadJobMovePoolRequest(object, stop), 0};
   if (kind == "configuration_templates") return {ReadConfigurationTemplatesRequest(object, stop), 0};
   if (kind == "configuration_spread_search") return {ReadConfigurationSpreadSearchRequest(object, stop), 0};
+  if (kind == "event_analysis") return {ReadEventAnalysisRequest(object, remaining_nodes, remaining_edges, stop), 0};
+  if (kind == "configuration_event_analysis") return {ReadConfigurationEventAnalysisRequest(object, remaining_nodes, remaining_edges, stop), 0};
+  if (kind == "legacy_damage") return {ReadLegacyDamageRequest(object), 0};
   if (kind == "battle_turn") {
     auto request = ReadTurnRequest(object, remaining_rolls);
     const auto consumed = request.state.View().rules.View().damage_policy.random_damage_multipliers.size();
@@ -211,7 +225,10 @@ Json Evaluate(const KoRequest& request) {
 
 /// @param request 只读完整伤害请求；@return 同一 Core 的完整伤害/trace/KO 协议结果。
 Json Evaluate(const DamageRequest& request) {
-  return DamageJson(pbi::CalculateDamage(request.input, request.knowledge), request.generation);
+  const auto result = request.context == DamageRequestContext::reference_static
+      ? pbi::CalculateReferenceStaticDamage(request.input, request.knowledge)
+      : pbi::CalculateDamage(request.input, request.knowledge);
+  return DamageJson(result, request.generation);
 }
 /// @param request 只读状态更新请求；@return 纯 Core 的完整状态/键等价/可选伤害结果。
 Json Evaluate(const BattleStateRequest& request) { return EvaluateBattleState(request); }
@@ -224,7 +241,7 @@ Json Evaluate(const LegalActionsRequest& request) { return EvaluateLegalActions(
 
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v8"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v9"}};
 }
 
 /// 按操作编码完整结果并限制整批内存；失败前不提交外部字节，也不积累所有图的 JSON 树。
@@ -350,6 +367,15 @@ pbi_status_v1 pbi_v1_compute_with_progress(const std::uint8_t* request, std::siz
       if (const auto* graph = std::get_if<GraphRequest>(&value)) {
         remaining_nodes -= graph->graph.Nodes().size();
         remaining_edges -= graph->graph.Edges().size();
+      } else if (const auto* event = std::get_if<EventAnalysisRequest>(&value)) {
+        remaining_nodes -= event->artifact.graph.topology.Nodes().size();
+        remaining_edges -= event->artifact.graph.topology.Edges().size();
+      } else if (const auto* batch = std::get_if<ConfigurationEventAnalysisRequest>(&value)) {
+        // 各组已在同一余量中解码，扣除原拓扑后，后续其他操作也必须共享批次总配额。
+        for (const auto& group : batch->groups) {
+          remaining_nodes -= group.analysis.artifact.graph.topology.Nodes().size();
+          remaining_edges -= group.analysis.artifact.graph.topology.Edges().size();
+        }
       } else if (const auto* fixed = std::get_if<FixedBattleRequest>(&value)) {
         // 对生成图预留请求中的有限上限，多个推演不能各自占用完整批次配额。
         generated_nodes -= *fixed->options.graph_limits.max_nodes;
@@ -372,6 +398,9 @@ pbi_status_v1 pbi_v1_compute_with_progress(const std::uint8_t* request, std::siz
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, JobMovePoolRequest>) return EvaluateJobMovePool(value, stop);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationTemplatesRequest>) return EvaluateConfigurationTemplates(value, stop);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationSpreadSearchRequest>) return EvaluateConfigurationSpreadSearch(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, EventAnalysisRequest>) return EvaluateEventAnalysis(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, ConfigurationEventAnalysisRequest>) return EvaluateConfigurationEventAnalysis(value, stop);
+        else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, LegacyDamageRequest>) return EvaluateLegacyDamage(value);
         else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, FixedBattleRequest>) {
           pbi::GraphProgressObserver observer;
           if (progress) observer = [progress, user_data, index](const pbi::GraphBuildProgress& current) {

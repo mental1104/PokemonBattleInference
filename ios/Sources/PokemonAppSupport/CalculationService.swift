@@ -128,7 +128,13 @@ private struct PokemonInput: Encodable {
         level = configuration.level; types = pokemon.types.map(\.id); self.stats = stats; ability = configuration.ability; item = configuration.item; canEvolve = pokemon.canEvolve
     }
 }
-private struct DamageInput: Encodable { let kind = "damage"; let generationId: Int; let attacker: PokemonInput; let defender: PokemonInput; let move: MoveInput; let typeChart: [TypeEfficacy]; let weather: WeatherRule; let terrain: TerrainRule; let critical: Bool }
+private struct DamageInput: Encodable {
+    let kind = "damage"
+    // 离线编辑器没有动态战斗状态；明确使用原静态上下文，在线与离线发送同一个请求。
+    let context = "reference_static"
+    let generationId: Int; let attacker: PokemonInput; let defender: PokemonInput; let move: MoveInput
+    let typeChart: [TypeEfficacy]; let weather: WeatherRule; let terrain: TerrainRule; let critical: Bool
+}
 private struct MajorStatusInput: Encodable { let kind = "paralysis" }
 private struct StatusSnapshotInput: Encodable {
     let major: MajorStatusInput?

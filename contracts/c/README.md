@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入、任务 ID 或持久化副作用。可选同步进度回调仅观察真实构图计数，不能被解释为结果已成功提交。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.8.0` / `calculation-rules.v8`，在完整候选/严格准入/具体任务规划之上加入原模板目标与完整 EV/IV 搜索；回合和固定战斗仍由真实结构化管线驱动，不接受测试脚本 expander。C ABI/schema 仍为 v1。不表示完整官方宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.9.0` / `calculation-rules.v9`，新增精确事件/配置加权分析、独立旧伤害责任链及显式reference_static伤害上下文；完整候选/模板/EV、回合和固定战斗仍由同一Core执行。C ABI/schema仍v1，旧25个数学样本保持不变，33个共享样本增加8个原Python oracle。不表示完整官方规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -44,6 +44,11 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | configuration_space | input：双方完整四维命令、权重假设和原pair预算 | 原等价分区、丰富代表、全部coverage、精确配置对权重，详见 [配置合同](configuration.v1.md) |
 | configuration_coverage | input：显式三来源描述列表或完整admission事实及composition | 完整factory描述/缺失能力或真实strict裁定，不提前过滤不可选候选 |
 | job_move_pool | input：原完整job命令、关联准入快照、offset/limit | 整池strict后原具体case/canonical pair与sideSHA、全局分母和有界页面 |
+| configuration_templates | 扁平generation_id、subject_base、templates及伤害/速度目标、type_chart | 完整原WithSpeed模板候选或首失败证据，详见[配置合同](configuration.v1.md) |
+| configuration_spread_search | 扁平generation_id、subject_base、natures及目标、type_chart | 原EV/IV/性格搜索、排序及独立范围，详见[配置合同](configuration.v1.md) |
+| event_analysis | revision/run ID、完整紧凑原图、observer与结构化query | 原精确事件概率、条件概率/分布、路径组覆盖与实际成本，详见[事件合同](event-analysis.v1.md) |
+| configuration_event_analysis | 全部未求解原图/查询组、配置权重、完整分母与未解析权重 | 各组真实分析及保持原分母的加权结果，详见[事件合同](event-analysis.v1.md) |
+| legacy_damage | 原双方level/base/basepoint/nature/types、move、random_unit及type_chart | 独立旧七字段伤害与准备证据，详见[旧责任链合同](legacy-damage.v1.md) |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 
@@ -63,7 +68,9 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 可选 `weather` 为 none/harsh_sunlight/rain/sandstorm/hail/snow；`terrain` 为 none/electric_terrain/psychic_terrain/grassy_terrain/misty_terrain；`defender_side` 含三个必填布尔 reflect/light_screen/aurora_veil。可选布尔 critical/spread/protect_reduced/multi_target 默认 false。原合同中会心跳过屏障、屏障和极光幕可以叠加，protect_reduced 仅表示削减钩子，不能代替完整回合守住判定。
 
-可选 `policy` 按 `core/include/pbi/damage.hpp` 的 DamagePolicy 同名字段覆盖代际默认值；所有原策略字段均保留。倍率必须有限且非负，三个天气防御倍率允许 null 禁用；随机倍率数组非空，可重复、无序和包含零，保持槽位权重。multiscale_damage_multiplier 和 burn_physical_attack_multiplier 在原直接链也不消费，仅属于完整策略快照，不能凭它们声称执行满 HP/灼伤状态效果。multiscale/inner_focus 需要动态战斗状态，当前直接入口显式返回 UNSUPPORTED；后续状态/效果迁移接入后再扩大支持。
+可选 `policy` 按 `core/include/pbi/damage.hpp` 的 DamagePolicy 同名字段覆盖代际默认值；所有原策略字段均保留。倍率必须有限且非负，三个天气防御倍率允许 null 禁用；随机倍率数组非空，可重复、无序和包含零，保持槽位权重。multiscale_damage_multiplier 和 burn_physical_attack_multiplier 在原直接链也不消费，仅属于完整策略快照，不能凭它们声称执行满 HP/灼伤状态效果。
+
+省略`context`保持已发布严格边界，multiscale/inner_focus仍UNSUPPORTED。显式`context:"reference_static"`才调用原静态无实时HP/畏缩上下文，允许保留这两个已知能力身份且不触发动态hook；其他天气/场地/道具/屏障/进化/接地事实仍按输入执行，不清空能力或换成none。未知context为UNSUPPORTED、非字符串为INVALID_INPUT，未知能力仍拒绝。Swift离线直接计算和在线请求使用同一显式上下文；完整战斗中的多重鳞片/精神力由正式回合效果执行，不能用此上下文替代。
 
 伤害链依原顺序使用 binary64 倍率并 floor，不把它改成另一套官方 4096 定点机制，也不添加最小 1 伤害钳制。整数除法保留 Python int/int 的 nearest/ties-to-even 舍入，中间整数任意精度。阶段能力与返回伤害的 int64 越界明确返回 RESOURCE_LIMIT；概率始终是精确有理数。trace 保留 key/stage/source/reason 以及可空 multiplier/min_multiplier/max_multiplier，随机首末值沿用原语义，并非无序数组的真实最小/最大值。
 

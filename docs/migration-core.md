@@ -181,3 +181,19 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 新增独立公共 C ABI 回归使用合法 20 个目标与最大合法随机档，先确认 pbi_v1_compute 已运行 30 毫秒，再从另一线程取消。修复前模板和 EV 均实际返回 PBI_INTERNAL_ERROR / internal_error，而非 cancelled；`configuration-cancellation-20261124/red-valid.log` 保存两个真实 RED，另一个准备错误的早期输入保留历史日志但没有计为有效复现。
 
 两个自有 codec 现在捕获纯求值器的 runtime_error 后重新检查同一取消令牌，将实际取消转换为既有 RequestError(PBI_CANCELLED_V1)，非取消异常保持原语义。模板输出候选时也检查取消。没有修改 abi.cpp、版本或共享 golden。冻结 fresh 的 103 项正常检查及选定六项 ABI sanitizer 均包含这两个真实运行中取消 GREEN；批次前面已经完成的 hp 结果也整批撤销，不发布部分 results。两 codec 与新 `configuration_cancellation_test.cpp` 的三源清单见该取消证据根 `frozen-sources.sha256`。
+
+## 明确的 reference_static 伤害上下文（2026-11-24，待公共 v9 context 注册）
+
+新增唯一 typed 入口 `CalculateReferenceStaticDamage`，与默认 `CalculateDamage` 共用同一个私有验证和伤害阶段链。默认严格入口继续拒绝 Multiscale/InnerFocus；显式参考静态入口只接受这两种已知能力在原无实时 HP/畏缩 DamageContext 中没有伤害 hook 的语义，未知枚举仍拒绝。它保留输入能力身份，不猜测满 HP，不清空能力，也不复制完整 Pokémon/policy 来绕过严格验证。显式天气、场地、屏障、进化、接地、道具及所有原伤害标志均照原链处理；真实回合动态层没有改动。
+
+模板目标的 StaticPokemon 现在仅投影原快照字段，并改用同一 typed 入口，消除目标与直接静态伤害各自维护两能力归一规则的重复。目标快照原本的 can_evolve=false / grounding=null 语义仍保留。默认伤害、显式参考静态与真实回合是不同调用合同，不能在 Go 清空能力或借模板操作间接计算。
+
+证据根 `reference-static-damage-20261124/`：
+
+- `native.log`：新增 **3/3 GoogleTest PASS**，覆盖两侧两能力组合、原 16 档 99..117 不减半、默认仍拒绝、完整输入不变、其他静态事实保留及未知/知识缺失/变化招式拒绝。
+- `differential.log`：**1/1 pytest PASS**（0.31 秒），含 **192** 个原完整静态责任链案例，覆盖全部九种能力的双侧组合、九代际、全部天气/场地、道具、进化/接地、屏障/会心/范围/保护/多目标和自定义无序随机档，逐字段比较所有 rolls、trace、基础伤害与精确 KO。
+- `all-native.log` / `all-san.log`：将新 damage/goal 实现与冻结的全部旧纯 Core 测试对象/库重新合链，分别 **85/85 GoogleTest PASS**（42 毫秒）及 **85/85 ASan/UBSan/leak PASS**（1.491 秒）；包含原真实回合六项，确认动态 Multiscale/InnerFocus 仍按原 HP/畏缩机制处理。
+- `shared-differential.log`：实际重链模板/EV runner 后，静态伤害一项、模板三项、EV 两项 **6/6 pytest PASS**（24.93 秒），确认目标/搜索复用新入口没有改变任何旧候选或证据。
+- 独立 `tests/vectors/reference-static-damage.v1.json` 两项完整 operation 带 context=reference_static。全部 expected 来自原 calculate_damage_rolls、原责任链 trace/base 和原 estimate_ko_chance（16 档概率可精确表示为 Fraction），然后才核对 Core；没有从 Core 输出反推预期。两个合法 Dragonite 静态快照分别覆盖 Multiscale 无实时 HP（OHKO=9/16）以及 InnerFocus/ExpertBelt/Reflect/多目标（OHKO=1/4）。
+
+七个源/测试/golden 文件的最终清单为该证据根 `frozen-sources.sha256`。依主 agent 指示，本批尚未自行修改 CMake、公共 ABI kind/optional context、版本或旧共享 golden；公共注册及 Go/Swift 消费由主 agent 统一接入，不将 typed 结果冒称已完成 HTTP 200 兼容验收。

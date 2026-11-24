@@ -130,8 +130,8 @@ class AdmissionResult(_Contract):
 class Envelope(_Contract):
     """当前成功版本的完整结果。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.8.0"]
-    rules_version: Literal["calculation-rules.v8"]
+    engine_version: Literal["0.9.0"]
+    rules_version: Literal["calculation-rules.v9"]
     results: tuple[Annotated[JobResult | AdmissionResult, Field(discriminator="kind")], ...]
 
 
@@ -144,8 +144,8 @@ class Error(_Contract):
 class FailedEnvelope(_Contract):
     """整个批次失败，严格拒绝多余results字段。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.8.0"]
-    rules_version: Literal["calculation-rules.v8"]
+    engine_version: Literal["0.9.0"]
+    rules_version: Literal["calculation-rules.v9"]
     error: Error
 
 

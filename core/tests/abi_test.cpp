@@ -68,7 +68,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.8.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.9.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));

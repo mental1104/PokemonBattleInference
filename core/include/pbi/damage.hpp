@@ -17,7 +17,7 @@ enum class PokemonType {
 };
 /// 直接伤害分类；变化招式必须由回合/效果层处理，不能返回虚构伤害。
 enum class DamageCategory { physical, special, status };
-/// 战斗快照已识别的特性；直接伤害入口对仍需动态 HP/畏缩处理的特性明确报 unsupported。
+/// 战斗快照已识别的特性；默认严格伤害入口对动态HP/畏缩特性报unsupported，显式参考静态入口另有合同。
 enum class DamageAbility { none, technician, adaptability, thick_fat, filter, solid_rock, sniper, multiscale, inner_focus };
 /// 当前直接伤害支持的道具；锁招和道具消耗不属于本次纯计算。
 enum class DamageItem { none, life_orb, choice_band, choice_specs, expert_belt, eviolite };
@@ -201,5 +201,10 @@ void ValidateDamagePolicy(const DamagePolicy& policy);
 /// @param input 只读战斗/策略快照；@param knowledge 完整所需相克知识，不保留引用。
 /// @return 完整随机档位与 trace；非法输入/不支持规则明确失败，非有限或越界输出抛出 overflow_error。
 [[nodiscard]] DamageResult CalculateDamage(const DamageInput& input, const TypeChartSnapshot& knowledge);
+/// @param input 原无实时HP/畏缩状态的完整DamageContext；显式环境/进化/接地等事实全部保留。
+/// @param knowledge 同一完整属性相克知识；@return 原静态链完整档位/trace，不猜测满HP或施加动态效果。
+/// 仅明确接受Multiscale/InnerFocus在原静态链没有伤害hook的语义；未知标识仍拒绝。
+/// 与默认CalculateDamage共用唯一阶段实现，不修改输入、复制大policy或影响真实回合动态层。
+[[nodiscard]] DamageResult CalculateReferenceStaticDamage(const DamageInput& input, const TypeChartSnapshot& knowledge);
 
 } // namespace pbi

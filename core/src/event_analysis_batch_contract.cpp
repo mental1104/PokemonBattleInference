@@ -26,28 +26,29 @@ ConfigurationEventAnalysisRequest ReadConfigurationEventAnalysisRequest(const Js
 
 Json EvaluateConfigurationEventAnalysis(const ConfigurationEventAnalysisRequest& request, CancellationToken stop) {
   CheckStop(stop);
-  std::vector<ConfigurationEventGroup> groups;
-  for (const auto& group : request.groups) {
-    CheckStop(stop);
-    try {
+  try {
+    std::vector<ConfigurationEventGroup> groups;
+    for (const auto& group : request.groups) {
+      CheckStop(stop);
       groups.push_back({group.configuration_id, group.configuration_weight,
           AnalyzeBattleEvents(group.analysis.artifact, group.analysis.query, group.analysis.observer, stop)});
-    } catch (const std::runtime_error&) {
-      CheckStop(stop);
-      throw;
     }
-  }
-  const auto summary = AggregateConfigurationEvents(std::move(groups), request.total_configuration_count, request.unresolved_configuration_weight, stop);
-  auto encoded = Json::array();
-  for (const auto& group : summary.groups) {
+    const auto summary = AggregateConfigurationEvents(std::move(groups), request.total_configuration_count, request.unresolved_configuration_weight, stop);
+    auto encoded = Json::array();
+    for (const auto& group : summary.groups) {
+      CheckStop(stop);
+      encoded.push_back({{"configuration_id", group.configuration_id}, {"configuration_weight", FractionJson(group.configuration_weight)}, {"analysis", EventAnalysisResultJson(group.analysis, stop)}});
+    }
+    const auto& coverage = summary.coverage;
+    return {{"kind", "configuration_event_analysis"}, {"groups", std::move(encoded)}, {"coverage", {{"total_configuration_count", coverage.total_configuration_count.str()},
+        {"analyzed_configuration_count", coverage.analyzed_configuration_count}, {"event_possible_configuration_count", coverage.event_possible_configuration_count},
+        {"analyzed_configuration_weight", FractionJson(coverage.analyzed_configuration_weight)}, {"event_possible_configuration_weight", FractionJson(coverage.event_possible_configuration_weight)},
+        {"unresolved_configuration_weight", FractionJson(coverage.unresolved_configuration_weight)}}},
+        {"weighted_metrics", {{"event_probability", FractionJson(summary.event_probability)}, {"event_win_joint_probability", FractionJson(summary.event_win_joint_probability)}}}};
+  } catch (const std::runtime_error&) {
+    // 聚合/编码与逐组求解共用同一取消语义，阶段交接时取消也不能落到INTERNAL_ERROR。
     CheckStop(stop);
-    encoded.push_back({{"configuration_id", group.configuration_id}, {"configuration_weight", FractionJson(group.configuration_weight)}, {"analysis", EventAnalysisResultJson(group.analysis, stop)}});
+    throw;
   }
-  const auto& coverage = summary.coverage;
-  return {{"kind", "configuration_event_analysis"}, {"groups", std::move(encoded)}, {"coverage", {{"total_configuration_count", coverage.total_configuration_count.str()},
-      {"analyzed_configuration_count", coverage.analyzed_configuration_count}, {"event_possible_configuration_count", coverage.event_possible_configuration_count},
-      {"analyzed_configuration_weight", FractionJson(coverage.analyzed_configuration_weight)}, {"event_possible_configuration_weight", FractionJson(coverage.event_possible_configuration_weight)},
-      {"unresolved_configuration_weight", FractionJson(coverage.unresolved_configuration_weight)}}},
-      {"weighted_metrics", {{"event_probability", FractionJson(summary.event_probability)}, {"event_win_joint_probability", FractionJson(summary.event_win_joint_probability)}}}};
 }
 } // namespace pbi::contract

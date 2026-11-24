@@ -7,6 +7,8 @@
 
 namespace pbi {
 namespace {
+/// 默认严格入口与原无实时状态DamageContext的明确边界，不作为外部可配置规则注册表。
+enum class AbilityContext { strict, reference_static };
 
 /// 验证连续的有限枚举，防止 C++ 调用者通过强制转换绕过不支持规则检查。
 /// @tparam T 领域枚举类型；@param value 输入值；@param first 最小值；@param last 最大值。
@@ -80,13 +82,16 @@ void ValidatePolicy(const DamagePolicy& policy) {
   for (const auto value : policy.random_damage_multipliers) RequireMultiplier(value);
 }
 
-/// @param pokemon 只读战斗快照；基础输入约束沿用原 BattlePokemon。
-void ValidatePokemon(const DamagePokemon& pokemon) {
+/// @param pokemon 只读战斗快照；@param context 严格或明确参考静态上下文，基础约束沿用原BattlePokemon。
+void ValidatePokemon(const DamagePokemon& pokemon, AbilityContext context) {
   if (pokemon.level < 1 || pokemon.types.empty()) {
     throw std::invalid_argument("pokemon must have a positive level and nonempty types");
   }
   for (const auto type : pokemon.types) RequireEnum(type, PokemonType::normal, PokemonType::fairy);
-  RequireEnum(pokemon.ability, DamageAbility::none, DamageAbility::sniper);
+  // 原两种能力仅有modify_battle_damage/volatile hook；静态链没有它们的修正阶段。
+  // 保留输入能力身份，不以none覆盖领域事实，也不将未知枚举当中性能力。
+  RequireEnum(pokemon.ability, DamageAbility::none,
+      context == AbilityContext::strict ? DamageAbility::sniper : DamageAbility::inner_focus);
   RequireEnum(pokemon.item, DamageItem::none, DamageItem::eviolite);
   if (pokemon.grounding) RequireEnum(*pokemon.grounding, Grounding::grounded, Grounding::airborne);
 }
@@ -229,7 +234,7 @@ public:
     }
   }
 
-  /// 防守特性和攻击道具保留独立阶段来源；不支持的动态特性在解析时明确拒绝。
+  /// 防守特性和攻击道具保留独立阶段来源；本阶段仅执行原静态链已有hook。
   void FinalEffects() {
     const auto& policy = input_.policy;
     const auto ability = input_.defender.ability;
@@ -271,6 +276,26 @@ private:
   double effectiveness_ = 1.0;
   std::vector<DamageTrace> trace_;
 };
+/// @param input 只读完整伤害输入；@param knowledge 同一相克快照；@param context 明确能力上下文。
+/// @return 共用唯一验证/阶段链的完整结果；参考静态不复制policy或改变其他输入事实。
+DamageResult ComputeDamage(const DamageInput& input, const TypeChartSnapshot& knowledge, AbilityContext context) {
+  ValidatePokemon(input.attacker, context);
+  ValidatePokemon(input.defender, context);
+  ValidatePolicy(input.policy);
+  RequireEnum(input.move.type, PokemonType::normal, PokemonType::fairy);
+  RequireEnum(input.move.category, DamageCategory::physical, DamageCategory::status);
+  RequireEnum(input.weather, DamageWeather::none, DamageWeather::snow);
+  RequireEnum(input.terrain, DamageTerrain::none, DamageTerrain::misty);
+  if (input.move.category == DamageCategory::status) throw UnsupportedRule("status moves do not deal direct damage");
+  if (input.move.power <= 0) throw std::invalid_argument("damaging moves must have positive power");
+  Calculation calculation(input);
+  calculation.Base();
+  calculation.Typing(knowledge);
+  calculation.BattleFlags();
+  calculation.Environment();
+  calculation.FinalEffects();
+  return calculation.Finish();
+}
 } // namespace
 
 void ValidateDamagePolicy(const DamagePolicy& policy) { ValidatePolicy(policy); }
@@ -348,22 +373,11 @@ std::string_view DamageStageName(DamageStage value) {
 }
 
 DamageResult CalculateDamage(const DamageInput& input, const TypeChartSnapshot& knowledge) {
-  ValidatePokemon(input.attacker);
-  ValidatePokemon(input.defender);
-  ValidatePolicy(input.policy);
-  RequireEnum(input.move.type, PokemonType::normal, PokemonType::fairy);
-  RequireEnum(input.move.category, DamageCategory::physical, DamageCategory::status);
-  RequireEnum(input.weather, DamageWeather::none, DamageWeather::snow);
-  RequireEnum(input.terrain, DamageTerrain::none, DamageTerrain::misty);
-  if (input.move.category == DamageCategory::status) throw UnsupportedRule("status moves do not deal direct damage");
-  if (input.move.power <= 0) throw std::invalid_argument("damaging moves must have positive power");
-  Calculation calculation(input);
-  calculation.Base();
-  calculation.Typing(knowledge);
-  calculation.BattleFlags();
-  calculation.Environment();
-  calculation.FinalEffects();
-  return calculation.Finish();
+  return ComputeDamage(input, knowledge, AbilityContext::strict);
+}
+
+DamageResult CalculateReferenceStaticDamage(const DamageInput& input, const TypeChartSnapshot& knowledge) {
+  return ComputeDamage(input, knowledge, AbilityContext::reference_static);
 }
 
 } // namespace pbi

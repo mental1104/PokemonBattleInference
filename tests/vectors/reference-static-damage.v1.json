@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "oracle": "original calculate_damage_rolls, complete chain trace and estimate_ko_chance with 16 slots",
+  "cases": [
+    {
+      "name": "multiscale-reference-static",
+      "operation": {
+        "kind": "damage",
+        "generation_id": 9,
+        "attacker": {
+          "level": 50,
+          "types": [
+            16,
+            3
+          ],
+          "stats": {
+            "hp": 198,
+            "attack": 182,
+            "defense": 115,
+            "special_attack": 120,
+            "special_defense": 120,
+            "speed": 100
+          },
+          "ability": "inner_focus",
+          "item": "none",
+          "can_evolve": false,
+          "grounding": null
+        },
+        "defender": {
+          "level": 50,
+          "types": [
+            16,
+            3
+          ],
+          "stats": {
+            "hp": 198,
+            "attack": 182,
+            "defense": 115,
+            "special_attack": 120,
+            "special_defense": 120,
+            "speed": 100
+          },
+          "ability": "multiscale",
+          "item": "none",
+          "can_evolve": false,
+          "grounding": null
+        },
+        "move": {
+          "type": 15,
+          "category": "physical",
+          "power": 75
+        },
+        "type_chart": [
+          {
+            "attacking": 15,
+            "defending": 16,
+            "percent": 200
+          },
+          {
+            "attacking": 15,
+            "defending": 3,
+            "percent": 200
+          }
+        ],
+        "policy": {
+          "terrain_boost_multiplier": 1.3,
+          "misty_terrain_dragon_multiplier": 0.5,
+          "weather_boost_multiplier": 1.5,
+          "weather_weaken_multiplier": 0.5,
+          "sandstorm_rock_spdef_multiplier": 1.5,
+          "snow_ice_defense_multiplier": 1.5,
+          "hail_ice_defense_multiplier": null,
+          "screen_single_target_multiplier": 0.5,
+          "screen_multi_target_multiplier": 0.6666666666666666,
+          "aurora_veil_single_target_multiplier": 0.5,
+          "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+          "critical_hit_multiplier": 1.5,
+          "spread_move_multiplier": 0.75,
+          "protect_damage_multiplier": 0.25,
+          "same_type_attack_bonus_multiplier": 1.5,
+          "technician_base_power_threshold": 60,
+          "technician_base_power_multiplier": 1.5,
+          "adaptability_stab_multiplier": 2.0,
+          "thick_fat_damage_multiplier": 0.5,
+          "filter_damage_multiplier": 0.75,
+          "sniper_critical_multiplier": 1.5,
+          "multiscale_damage_multiplier": 0.5,
+          "life_orb_damage_multiplier": 1.3,
+          "choice_item_attack_multiplier": 1.5,
+          "expert_belt_damage_multiplier": 1.2,
+          "eviolite_defense_multiplier": 1.5,
+          "burn_physical_attack_multiplier": 0.5,
+          "random_damage_multipliers": [
+            0.85,
+            0.86,
+            0.87,
+            0.88,
+            0.89,
+            0.9,
+            0.91,
+            0.92,
+            0.93,
+            0.94,
+            0.95,
+            0.96,
+            0.97,
+            0.98,
+            0.99,
+            1.0
+          ]
+        },
+        "weather": "none",
+        "terrain": "none",
+        "defender_side": {
+          "reflect": false,
+          "light_screen": false,
+          "aurora_veil": false
+        },
+        "critical": false,
+        "spread": false,
+        "protect_reduced": false,
+        "multi_target": false,
+        "context": "reference_static"
+      },
+      "expected": {
+        "kind": "damage",
+        "damage_ruleset_id": "python-compatible.gen9.v1",
+        "rolls": [
+          183,
+          185,
+          187,
+          190,
+          192,
+          194,
+          196,
+          198,
+          200,
+          203,
+          205,
+          207,
+          209,
+          211,
+          213,
+          216
+        ],
+        "defender_hp": 198,
+        "base_damage": 54,
+        "trace": [
+          {
+            "key": "stab",
+            "stage": "stab",
+            "source": "stab",
+            "reason": "Same-type attack bonus.",
+            "multiplier": 1.0,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "type_effectiveness",
+            "stage": "type_effectiveness",
+            "source": "type_effectiveness",
+            "reason": "Type effectiveness multiplier.",
+            "multiplier": 4.0,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "random",
+            "stage": "random",
+            "source": "random",
+            "reason": "Pokemon damage random roll range.",
+            "multiplier": null,
+            "min_multiplier": 0.85,
+            "max_multiplier": 1.0
+          }
+        ],
+        "ohko": {
+          "numerator": "9",
+          "denominator": "16"
+        },
+        "two_hit": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "guaranteed_ohko": false,
+        "guaranteed_two_hit": true
+      }
+    },
+    {
+      "name": "inner-focus-reference-static",
+      "operation": {
+        "kind": "damage",
+        "generation_id": 9,
+        "attacker": {
+          "level": 50,
+          "types": [
+            16,
+            3
+          ],
+          "stats": {
+            "hp": 198,
+            "attack": 182,
+            "defense": 115,
+            "special_attack": 120,
+            "special_defense": 120,
+            "speed": 100
+          },
+          "ability": "inner_focus",
+          "item": "expert_belt",
+          "can_evolve": false,
+          "grounding": null
+        },
+        "defender": {
+          "level": 50,
+          "types": [
+            16,
+            3
+          ],
+          "stats": {
+            "hp": 167,
+            "attack": 182,
+            "defense": 115,
+            "special_attack": 120,
+            "special_defense": 120,
+            "speed": 100
+          },
+          "ability": "inner_focus",
+          "item": "none",
+          "can_evolve": false,
+          "grounding": "airborne"
+        },
+        "move": {
+          "type": 15,
+          "category": "physical",
+          "power": 75
+        },
+        "type_chart": [
+          {
+            "attacking": 15,
+            "defending": 16,
+            "percent": 200
+          },
+          {
+            "attacking": 15,
+            "defending": 3,
+            "percent": 200
+          }
+        ],
+        "policy": {
+          "terrain_boost_multiplier": 1.3,
+          "misty_terrain_dragon_multiplier": 0.5,
+          "weather_boost_multiplier": 1.5,
+          "weather_weaken_multiplier": 0.5,
+          "sandstorm_rock_spdef_multiplier": 1.5,
+          "snow_ice_defense_multiplier": 1.5,
+          "hail_ice_defense_multiplier": null,
+          "screen_single_target_multiplier": 0.5,
+          "screen_multi_target_multiplier": 0.6666666666666666,
+          "aurora_veil_single_target_multiplier": 0.5,
+          "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+          "critical_hit_multiplier": 1.5,
+          "spread_move_multiplier": 0.75,
+          "protect_damage_multiplier": 0.25,
+          "same_type_attack_bonus_multiplier": 1.5,
+          "technician_base_power_threshold": 60,
+          "technician_base_power_multiplier": 1.5,
+          "adaptability_stab_multiplier": 2.0,
+          "thick_fat_damage_multiplier": 0.5,
+          "filter_damage_multiplier": 0.75,
+          "sniper_critical_multiplier": 1.5,
+          "multiscale_damage_multiplier": 0.5,
+          "life_orb_damage_multiplier": 1.3,
+          "choice_item_attack_multiplier": 1.5,
+          "expert_belt_damage_multiplier": 1.2,
+          "eviolite_defense_multiplier": 1.5,
+          "burn_physical_attack_multiplier": 0.5,
+          "random_damage_multipliers": [
+            0.85,
+            0.86,
+            0.87,
+            0.88,
+            0.89,
+            0.9,
+            0.91,
+            0.92,
+            0.93,
+            0.94,
+            0.95,
+            0.96,
+            0.97,
+            0.98,
+            0.99,
+            1.0
+          ]
+        },
+        "weather": "none",
+        "terrain": "none",
+        "defender_side": {
+          "reflect": true,
+          "light_screen": false,
+          "aurora_veil": false
+        },
+        "critical": false,
+        "spread": false,
+        "protect_reduced": false,
+        "multi_target": true,
+        "context": "reference_static"
+      },
+      "expected": {
+        "kind": "damage",
+        "damage_ruleset_id": "python-compatible.gen9.v1",
+        "rolls": [
+          146,
+          148,
+          150,
+          152,
+          153,
+          155,
+          157,
+          158,
+          160,
+          162,
+          164,
+          165,
+          167,
+          169,
+          171,
+          172
+        ],
+        "defender_hp": 167,
+        "base_damage": 54,
+        "trace": [
+          {
+            "key": "stab",
+            "stage": "stab",
+            "source": "stab",
+            "reason": "Same-type attack bonus.",
+            "multiplier": 1.0,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "type_effectiveness",
+            "stage": "type_effectiveness",
+            "source": "type_effectiveness",
+            "reason": "Type effectiveness multiplier.",
+            "multiplier": 4.0,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "screen:reflect",
+            "stage": "screen",
+            "source": "screen:reflect",
+            "reason": "Reflect reduces physical direct damage on defender side.",
+            "multiplier": 0.6666666666666666,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "item:expert_belt",
+            "stage": "final_damage",
+            "source": "item:expert_belt",
+            "reason": "Expert Belt boosts super-effective damage.",
+            "multiplier": 1.2,
+            "min_multiplier": null,
+            "max_multiplier": null
+          },
+          {
+            "key": "random",
+            "stage": "random",
+            "source": "random",
+            "reason": "Pokemon damage random roll range.",
+            "multiplier": null,
+            "min_multiplier": 0.85,
+            "max_multiplier": 1.0
+          }
+        ],
+        "ohko": {
+          "numerator": "1",
+          "denominator": "4"
+        },
+        "two_hit": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "guaranteed_ohko": false,
+        "guaranteed_two_hit": true
+      }
+    }
+  ]
+}

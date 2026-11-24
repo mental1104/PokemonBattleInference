@@ -181,6 +181,16 @@
 
 ## 下一步
 
+### 0.9公共集成与稳定移动端验收基线（22:00）
+
+固定 **c0b048e1c49de9483692c77788498267049ac135** 的[Main Gate 45404217710](https://github.com/mental1104/PokemonBattleInference/actions/runs/45404217710)与[Native/App 45404217482](https://github.com/mental1104/PokemonBattleInference/actions/runs/45404217482) **全PASS**：原生Core/Go/Swift、两SDK、未签名device App及iPhone **9/9 UI**（445.511秒）/iPad **9/9 UI**（485.084秒），两端均真实完成任务提交/精确结果/运行中取消、在线离线一致、iPhone上传→iPad拉取与同步重启。此前两处Form结果行定位已由实际UI复验修复，原严格99–117/123/128/85→42断言不变。该提交是可固定的阶段验收基线；真机签名/物理安装仍HUMAN_PENDING。完整日志在`apple-results-c0b048e-20261124/`。
+
+Root在Git登记的`abi9-verification`固定a8806ec基线上整合 **0.9.0 / calculation-rules.v9**，没有混入后续透明假设/graph编辑。新增正式event_analysis/configuration_event_analysis/legacy_damage及damage的显式reference_static context；原25数学样本逐字段不变，8个原Python oracle追加后共享33例。直接伤害默认strict仍拒绝两动态特性，显式静态入口不改能力身份或通过Go清空效果。事件组/普通graph共用批次原拓扑配额，取消撤销整批；反事实测试端口未伪装公开重新推演。
+
+`event-abi9-20261124/`：完整 **111/111 CTest PASS**；迁移pytest **60 PASS / 140明确外部环境SKIP**（114.49秒），其中全部纯Core新旧差分与Go33共享调用实跑。专用Swift先独立 **20 PASS / 5无服务URL SKIP**，随后`swift-live/`真实Swift→Go→PG→daemon/Core **25/25 PASS、零SKIP**（16.613秒），覆盖33共享样本、实际在线/同步与旧任务完成/运行取消。selected public ASan/UBSan/leak仍在运行：完整33例、256次ownership和32并发已PASS，大规模节点配额边界仍活跃（只报告真实进程，未重启/缩小断言）；不能将当前状态称111全ASan。
+
+Release首轮失败是新legacy Exact原地Boost移位在GCC14 -O3触发stringop-overflow，修为有界53位bit_set构造后，同-O3/-Werror的369原oracle通过，重新全量111也通过。首次Swift及Python/Go严格版本断言仍为0.8导致失败，已同步0.9后重验；没有删除/放宽数学和错误断言。三种失败日志全部保留。源码冻结与保留工作区审计见publication-sources.json；后续Core透明/图投影及HTTP草稿不混入本批。
+
 ### 21:30后的稳定提交与Apple反馈
 
 `ac206b9`保存原solver/search40/40；`06d471a`保存真实RED→GREEN的模板/EV运行中取消；`d8f6779`保存同一工厂完整capability事实（默认25操作输出不变）；`cfb83fd`保存事件/配置加权/真实双runner反事实纯域；`a8806ec`保存原fixed摘要19/19。Root只保存已冻结文件，P2后续SHA抽取/graph、P1静态damage及P3旧damage未成熟编辑不混入这些提交。

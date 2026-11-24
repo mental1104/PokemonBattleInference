@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.8.0",
+  "engine_version": "0.9.0",
   "results": [
     {
       "kind": "hp",
@@ -3496,8 +3496,883 @@
           "speed_margin": -43
         }
       ]
+    },
+    {
+      "kind": "event_analysis",
+      "calculation_revision": "analysis-v1",
+      "inference_run_id": "run-unique",
+      "observer": "attacker",
+      "query": {
+        "predicate": {
+          "battle_event_kinds": [
+            "action-blocked"
+          ],
+          "transition_event_types": [],
+          "side": "attacker",
+          "side_role": "any",
+          "move_id": null,
+          "effect_identifier": "paralysis",
+          "event_id": null,
+          "outcome_id": null
+        },
+        "occurrence_mode": "any",
+        "turn_range": null,
+        "min_occurrences": "1",
+        "max_occurrences": null,
+        "distribution_count_limit": 2,
+        "distribution_turn_limit": 2,
+        "max_key_event_summaries": 32
+      },
+      "baseline_win_probability": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "baseline_loss_probability": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "baseline_draw_probability": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "event_probability": {
+        "numerator": "2",
+        "denominator": "3"
+      },
+      "event_win_joint_probability": {
+        "numerator": "1",
+        "denominator": "6"
+      },
+      "win_given_event": {
+        "status": "defined",
+        "value": {
+          "numerator": "1",
+          "denominator": "4"
+        },
+        "condition_probability": {
+          "numerator": "2",
+          "denominator": "3"
+        }
+      },
+      "win_given_not_event": {
+        "status": "defined",
+        "value": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "condition_probability": {
+          "numerator": "1",
+          "denominator": "3"
+        }
+      },
+      "first_occurrence_distribution": [
+        {
+          "key": "first:never",
+          "probability": {
+            "numerator": "1",
+            "denominator": "3"
+          }
+        },
+        {
+          "key": "first:turn:1",
+          "probability": {
+            "numerator": "2",
+            "denominator": "3"
+          }
+        },
+        {
+          "key": "first:turn:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "first:after:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        }
+      ],
+      "occurrence_count_distribution": [
+        {
+          "key": "count:0",
+          "probability": {
+            "numerator": "1",
+            "denominator": "3"
+          }
+        },
+        {
+          "key": "count:1",
+          "probability": {
+            "numerator": "2",
+            "denominator": "3"
+          }
+        },
+        {
+          "key": "count:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "count:3+",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        }
+      ],
+      "path_group_coverage": {
+        "total_edge_count": 2,
+        "matching_edge_count": 2,
+        "total_event_path_group_count": 3,
+        "matching_event_path_group_count": 2
+      },
+      "key_events": [
+        {
+          "event_type": "custom",
+          "battle_event_kind": "action-blocked",
+          "actor": "attacker",
+          "target": null,
+          "move_id": null,
+          "effect_identifier": "paralysis",
+          "event_id": "turn-1:action-blocked:attacker:none:none:paralysis:none:none:none",
+          "outcome_id": "action-blocked",
+          "path_group_count": 2
+        }
+      ],
+      "original_probability_preserved": true,
+      "computation_cost": {
+        "original_node_count": 3,
+        "original_edge_count": 2,
+        "product_node_count": 4,
+        "product_edge_count": 3,
+        "exact_solver_run_count": 12
+      }
+    },
+    {
+      "kind": "event_analysis",
+      "calculation_revision": "analysis-v1",
+      "inference_run_id": "run-unique",
+      "observer": "attacker",
+      "query": {
+        "predicate": {
+          "battle_event_kinds": [],
+          "transition_event_types": [],
+          "side": null,
+          "side_role": "any",
+          "move_id": null,
+          "effect_identifier": null,
+          "event_id": "closed",
+          "outcome_id": null
+        },
+        "occurrence_mode": "any",
+        "turn_range": null,
+        "min_occurrences": "2",
+        "max_occurrences": null,
+        "distribution_count_limit": 2,
+        "distribution_turn_limit": 2,
+        "max_key_event_summaries": 32
+      },
+      "baseline_win_probability": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "baseline_loss_probability": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "baseline_draw_probability": {
+        "numerator": "1",
+        "denominator": "1"
+      },
+      "event_probability": {
+        "numerator": "1",
+        "denominator": "1"
+      },
+      "event_win_joint_probability": {
+        "numerator": "0",
+        "denominator": "1"
+      },
+      "win_given_event": {
+        "status": "defined",
+        "value": {
+          "numerator": "0",
+          "denominator": "1"
+        },
+        "condition_probability": {
+          "numerator": "1",
+          "denominator": "1"
+        }
+      },
+      "win_given_not_event": {
+        "status": "undefined-zero-condition",
+        "value": null,
+        "condition_probability": {
+          "numerator": "0",
+          "denominator": "1"
+        }
+      },
+      "first_occurrence_distribution": [
+        {
+          "key": "first:never",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "first:turn:1",
+          "probability": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "first:turn:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "first:after:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        }
+      ],
+      "occurrence_count_distribution": [
+        {
+          "key": "count:0",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "count:1",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "count:2",
+          "probability": {
+            "numerator": "0",
+            "denominator": "1"
+          }
+        },
+        {
+          "key": "count:3+",
+          "probability": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        }
+      ],
+      "path_group_coverage": {
+        "total_edge_count": 1,
+        "matching_edge_count": 1,
+        "total_event_path_group_count": 1,
+        "matching_event_path_group_count": 1
+      },
+      "key_events": [
+        {
+          "event_type": "custom",
+          "battle_event_kind": null,
+          "actor": null,
+          "target": null,
+          "move_id": null,
+          "effect_identifier": null,
+          "event_id": "closed",
+          "outcome_id": "repeat",
+          "path_group_count": 1
+        }
+      ],
+      "original_probability_preserved": true,
+      "computation_cost": {
+        "original_node_count": 1,
+        "original_edge_count": 1,
+        "product_node_count": 4,
+        "product_edge_count": 4,
+        "exact_solver_run_count": 12
+      }
+    },
+    {
+      "kind": "configuration_event_analysis",
+      "groups": [
+        {
+          "configuration_id": "one",
+          "configuration_weight": {
+            "numerator": "1",
+            "denominator": "4"
+          },
+          "analysis": {
+            "kind": "event_analysis",
+            "calculation_revision": "analysis-v1",
+            "inference_run_id": "run-unique",
+            "observer": "attacker",
+            "query": {
+              "predicate": {
+                "battle_event_kinds": [
+                  "action-blocked"
+                ],
+                "transition_event_types": [],
+                "side": "attacker",
+                "side_role": "any",
+                "move_id": null,
+                "effect_identifier": "paralysis",
+                "event_id": null,
+                "outcome_id": null
+              },
+              "occurrence_mode": "any",
+              "turn_range": null,
+              "min_occurrences": "1",
+              "max_occurrences": null,
+              "distribution_count_limit": 2,
+              "distribution_turn_limit": 2,
+              "max_key_event_summaries": 32
+            },
+            "baseline_win_probability": {
+              "numerator": "1",
+              "denominator": "2"
+            },
+            "baseline_loss_probability": {
+              "numerator": "1",
+              "denominator": "2"
+            },
+            "baseline_draw_probability": {
+              "numerator": "0",
+              "denominator": "1"
+            },
+            "event_probability": {
+              "numerator": "2",
+              "denominator": "3"
+            },
+            "event_win_joint_probability": {
+              "numerator": "1",
+              "denominator": "6"
+            },
+            "win_given_event": {
+              "status": "defined",
+              "value": {
+                "numerator": "1",
+                "denominator": "4"
+              },
+              "condition_probability": {
+                "numerator": "2",
+                "denominator": "3"
+              }
+            },
+            "win_given_not_event": {
+              "status": "defined",
+              "value": {
+                "numerator": "1",
+                "denominator": "1"
+              },
+              "condition_probability": {
+                "numerator": "1",
+                "denominator": "3"
+              }
+            },
+            "first_occurrence_distribution": [
+              {
+                "key": "first:never",
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "3"
+                }
+              },
+              {
+                "key": "first:turn:1",
+                "probability": {
+                  "numerator": "2",
+                  "denominator": "3"
+                }
+              },
+              {
+                "key": "first:turn:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "first:after:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              }
+            ],
+            "occurrence_count_distribution": [
+              {
+                "key": "count:0",
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "3"
+                }
+              },
+              {
+                "key": "count:1",
+                "probability": {
+                  "numerator": "2",
+                  "denominator": "3"
+                }
+              },
+              {
+                "key": "count:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "count:3+",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              }
+            ],
+            "path_group_coverage": {
+              "total_edge_count": 2,
+              "matching_edge_count": 2,
+              "total_event_path_group_count": 3,
+              "matching_event_path_group_count": 2
+            },
+            "key_events": [
+              {
+                "event_type": "custom",
+                "battle_event_kind": "action-blocked",
+                "actor": "attacker",
+                "target": null,
+                "move_id": null,
+                "effect_identifier": "paralysis",
+                "event_id": "turn-1:action-blocked:attacker:none:none:paralysis:none:none:none",
+                "outcome_id": "action-blocked",
+                "path_group_count": 2
+              }
+            ],
+            "original_probability_preserved": true,
+            "computation_cost": {
+              "original_node_count": 3,
+              "original_edge_count": 2,
+              "product_node_count": 4,
+              "product_edge_count": 3,
+              "exact_solver_run_count": 12
+            }
+          }
+        },
+        {
+          "configuration_id": "two",
+          "configuration_weight": {
+            "numerator": "1",
+            "denominator": "2"
+          },
+          "analysis": {
+            "kind": "event_analysis",
+            "calculation_revision": "analysis-v1",
+            "inference_run_id": "run-unique",
+            "observer": "attacker",
+            "query": {
+              "predicate": {
+                "battle_event_kinds": [
+                  "action-blocked"
+                ],
+                "transition_event_types": [],
+                "side": "attacker",
+                "side_role": "any",
+                "move_id": null,
+                "effect_identifier": "paralysis",
+                "event_id": null,
+                "outcome_id": null
+              },
+              "occurrence_mode": "any",
+              "turn_range": null,
+              "min_occurrences": "1",
+              "max_occurrences": null,
+              "distribution_count_limit": 2,
+              "distribution_turn_limit": 2,
+              "max_key_event_summaries": 32
+            },
+            "baseline_win_probability": {
+              "numerator": "1",
+              "denominator": "1"
+            },
+            "baseline_loss_probability": {
+              "numerator": "0",
+              "denominator": "1"
+            },
+            "baseline_draw_probability": {
+              "numerator": "0",
+              "denominator": "1"
+            },
+            "event_probability": {
+              "numerator": "0",
+              "denominator": "1"
+            },
+            "event_win_joint_probability": {
+              "numerator": "0",
+              "denominator": "1"
+            },
+            "win_given_event": {
+              "status": "undefined-zero-condition",
+              "value": null,
+              "condition_probability": {
+                "numerator": "0",
+                "denominator": "1"
+              }
+            },
+            "win_given_not_event": {
+              "status": "defined",
+              "value": {
+                "numerator": "1",
+                "denominator": "1"
+              },
+              "condition_probability": {
+                "numerator": "1",
+                "denominator": "1"
+              }
+            },
+            "first_occurrence_distribution": [
+              {
+                "key": "first:never",
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "first:turn:1",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "first:turn:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "first:after:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              }
+            ],
+            "occurrence_count_distribution": [
+              {
+                "key": "count:0",
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "count:1",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "count:2",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              },
+              {
+                "key": "count:3+",
+                "probability": {
+                  "numerator": "0",
+                  "denominator": "1"
+                }
+              }
+            ],
+            "path_group_coverage": {
+              "total_edge_count": 1,
+              "matching_edge_count": 0,
+              "total_event_path_group_count": 1,
+              "matching_event_path_group_count": 0
+            },
+            "key_events": [],
+            "original_probability_preserved": true,
+            "computation_cost": {
+              "original_node_count": 2,
+              "original_edge_count": 1,
+              "product_node_count": 2,
+              "product_edge_count": 1,
+              "exact_solver_run_count": 12
+            }
+          }
+        }
+      ],
+      "coverage": {
+        "total_configuration_count": "3",
+        "analyzed_configuration_count": 2,
+        "event_possible_configuration_count": 1,
+        "analyzed_configuration_weight": {
+          "numerator": "3",
+          "denominator": "4"
+        },
+        "event_possible_configuration_weight": {
+          "numerator": "1",
+          "denominator": "4"
+        },
+        "unresolved_configuration_weight": {
+          "numerator": "1",
+          "denominator": "4"
+        }
+      },
+      "weighted_metrics": {
+        "event_probability": {
+          "numerator": "1",
+          "denominator": "6"
+        },
+        "event_win_joint_probability": {
+          "numerator": "1",
+          "denominator": "24"
+        }
+      }
+    },
+    {
+      "kind": "legacy_damage",
+      "formula": "",
+      "min_damage": "102",
+      "max_damage": "121",
+      "random_damage": "112",
+      "min_damage_percent": 29.9,
+      "max_damage_percent": 35.4,
+      "random_damage_percent": 32.8,
+      "attacker_stats": [
+        "341",
+        "236",
+        "236",
+        "236",
+        "236",
+        "236"
+      ],
+      "defender_stats": [
+        "341",
+        "236",
+        "236",
+        "236",
+        "236",
+        "236"
+      ],
+      "random_multiplier": 0.93
+    },
+    {
+      "kind": "legacy_damage",
+      "formula": "",
+      "min_damage": "252",
+      "max_damage": "300",
+      "random_damage": "276",
+      "min_damage_percent": 136.2,
+      "max_damage_percent": 162.1,
+      "random_damage_percent": 149.1,
+      "attacker_stats": [
+        "185",
+        "127",
+        "127",
+        "140",
+        "127",
+        "127"
+      ],
+      "defender_stats": [
+        "185",
+        "127",
+        "127",
+        "127",
+        "127",
+        "127"
+      ],
+      "random_multiplier": 0.93
+    },
+    {
+      "kind": "legacy_damage",
+      "formula": "",
+      "min_damage": "51",
+      "max_damage": "61",
+      "random_damage": "51",
+      "min_damage_percent": 27.5,
+      "max_damage_percent": 32.9,
+      "random_damage_percent": 27.5,
+      "attacker_stats": [
+        "185",
+        "140",
+        "127",
+        "114",
+        "127",
+        "127"
+      ],
+      "defender_stats": [
+        "185",
+        "127",
+        "127",
+        "127",
+        "127",
+        "127"
+      ],
+      "random_multiplier": 0.85
+    },
+    {
+      "kind": "damage",
+      "damage_ruleset_id": "python-compatible.gen9.v1",
+      "rolls": [
+        183,
+        185,
+        187,
+        190,
+        192,
+        194,
+        196,
+        198,
+        200,
+        203,
+        205,
+        207,
+        209,
+        211,
+        213,
+        216
+      ],
+      "defender_hp": 198,
+      "base_damage": 54,
+      "trace": [
+        {
+          "key": "stab",
+          "stage": "stab",
+          "source": "stab",
+          "reason": "Same-type attack bonus.",
+          "multiplier": 1.0,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "type_effectiveness",
+          "stage": "type_effectiveness",
+          "source": "type_effectiveness",
+          "reason": "Type effectiveness multiplier.",
+          "multiplier": 4.0,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "random",
+          "stage": "random",
+          "source": "random",
+          "reason": "Pokemon damage random roll range.",
+          "multiplier": null,
+          "min_multiplier": 0.85,
+          "max_multiplier": 1.0
+        }
+      ],
+      "ohko": {
+        "numerator": "9",
+        "denominator": "16"
+      },
+      "two_hit": {
+        "numerator": "1",
+        "denominator": "1"
+      },
+      "guaranteed_ohko": false,
+      "guaranteed_two_hit": true
+    },
+    {
+      "kind": "damage",
+      "damage_ruleset_id": "python-compatible.gen9.v1",
+      "rolls": [
+        146,
+        148,
+        150,
+        152,
+        153,
+        155,
+        157,
+        158,
+        160,
+        162,
+        164,
+        165,
+        167,
+        169,
+        171,
+        172
+      ],
+      "defender_hp": 167,
+      "base_damage": 54,
+      "trace": [
+        {
+          "key": "stab",
+          "stage": "stab",
+          "source": "stab",
+          "reason": "Same-type attack bonus.",
+          "multiplier": 1.0,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "type_effectiveness",
+          "stage": "type_effectiveness",
+          "source": "type_effectiveness",
+          "reason": "Type effectiveness multiplier.",
+          "multiplier": 4.0,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "screen:reflect",
+          "stage": "screen",
+          "source": "screen:reflect",
+          "reason": "Reflect reduces physical direct damage on defender side.",
+          "multiplier": 0.6666666666666666,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "item:expert_belt",
+          "stage": "final_damage",
+          "source": "item:expert_belt",
+          "reason": "Expert Belt boosts super-effective damage.",
+          "multiplier": 1.2,
+          "min_multiplier": null,
+          "max_multiplier": null
+        },
+        {
+          "key": "random",
+          "stage": "random",
+          "source": "random",
+          "reason": "Pokemon damage random roll range.",
+          "multiplier": null,
+          "min_multiplier": 0.85,
+          "max_multiplier": 1.0
+        }
+      ],
+      "ohko": {
+        "numerator": "1",
+        "denominator": "4"
+      },
+      "two_hit": {
+        "numerator": "1",
+        "denominator": "1"
+      },
+      "guaranteed_ohko": false,
+      "guaranteed_two_hit": true
     }
   ],
-  "rules_version": "calculation-rules.v8",
+  "rules_version": "calculation-rules.v9",
   "schema_version": 1
 }
