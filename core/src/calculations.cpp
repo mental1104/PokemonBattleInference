@@ -79,7 +79,7 @@ std::int64_t ApplyStatStage(std::int64_t value, std::int32_t stage) {
   return ToInt64(result < 1 ? Integer{1} : result);
 }
 
-KoChance EstimateKoChance(std::span<const std::int32_t> rolls,
+KoChance EstimateKoChance(std::span<const std::int64_t> rolls,
                           std::int32_t defender_hp) {
   if (rolls.empty()) {
     throw std::invalid_argument("rolls must not be empty");
@@ -95,12 +95,14 @@ KoChance EstimateKoChance(std::span<const std::int32_t> rolls,
                             std::lower_bound(sorted.begin(), sorted.end(), defender_hp);
   Integer two_hits = 0;
   for (const auto first : sorted) {
-    const auto threshold = std::int64_t{defender_hp} - first;
+    // 新伤害入口返回 int64 档位；差值和二击保证判定使用任意精度，避免边界溢出。
+    const Integer threshold = Integer{defender_hp} - first;
     two_hits += sorted.end() -
-                std::lower_bound(sorted.begin(), sorted.end(), threshold);
+                std::lower_bound(sorted.begin(), sorted.end(), threshold,
+                    [](std::int64_t value, const Integer& limit) { return Integer{value} < limit; });
   }
   return {Rational{ohko_hits, count}, Rational{two_hits, Integer{count * count}},
-          sorted.front() >= defender_hp, sorted.front() * 2 >= defender_hp};
+          sorted.front() >= defender_hp, Integer{sorted.front()} * 2 >= defender_hp};
 }
 
 } // namespace pbi

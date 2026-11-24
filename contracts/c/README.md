@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入，也没有任务 ID、进度或持久化副作用。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.1.0`，首批规则标识为 `modern-calculations.v1`；不表示完整宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前引擎为 `0.2.0`，规则集合标识为 `calculation-rules.v2`；原四种计算不改变数学语义，新版本增加直接伤害。C ABI/schema 仍为 v1。不表示完整宝可梦规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -31,10 +31,29 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | stat | 上述字段及 nature_tenths：9/10/11 | value：int64 |
 | stage | value：int64，stage：int32 且 -6…6 | value：int64，至少 1；原 value 必须正数 |
 | ko | defender_hp：正 int32，rolls：非空 int32 数组 | ohko、two_hit：精确分子/分母字符串；guaranteed_ohko、guaranteed_two_hit：布尔值 |
+| damage | generation_id、attacker、defender、move、type_chart；可选策略/环境/标志详见下文 | int64 rolls、base_damage、defender_hp、完整 trace、精确 KO 和 damage_ruleset_id |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 
 概率分子、分母使用任意精度整数与精确有理数，不经过 double；零规范为 `0/1`。HTTP 小数展示或 Swift UI 展示转换不能反过来作为计算输入的精确概率来源。
+
+### 直接伤害输入与版本边界
+
+共享六操作向量的最后一项是完整最小请求。`attacker`/`defender` 必填 `level`、`types`（PokeAPI 1…18）和 `stats`（hp/attack/defense/special_attack/special_defense/speed）；可选 `ability`、`item`、`can_evolve`、`grounding`。未填效果表示明确无效果；显式名称必须是以下支持项，未知名称不回退：
+
+- ability：none、technician、adaptability、thick_fat、filter、solid_rock、sniper。
+- item：none、life_orb、choice_band、choice_specs、expert_belt、eviolite。
+- grounding：null（原最小飞行属性推断）、grounded、airborne。
+
+`move` 必填 `type`、`category`（physical/special）和正 `power`。变化招式返回 UNSUPPORTED。`type_chart` 为 `{attacking, defending, percent}` 数组，每个实际使用的属性配对必须有一条知识；缺失为 UNSUPPORTED，重复/负倍率为 INVALID_INPUT，最多 324 项。Core 不内置第二张属性表。
+
+`generation_id` 必须是 1…9；可选 `version_group_id` 使用原 resolver 的 1…31 映射，必须与 generation 一致。输出 `python-compatible.genN.v1` 指原 Python 已建模的部分 profile，包括会心、沙暴/雪天防御和场地倍率，**不表示完整官方历代机制**。当前注入的知识决定实际属性相克。
+
+可选 `weather` 为 none/harsh_sunlight/rain/sandstorm/hail/snow；`terrain` 为 none/electric_terrain/psychic_terrain/grassy_terrain/misty_terrain；`defender_side` 含三个必填布尔 reflect/light_screen/aurora_veil。可选布尔 critical/spread/protect_reduced/multi_target 默认 false。原合同中会心跳过屏障、屏障和极光幕可以叠加，protect_reduced 仅表示削减钩子，不能代替完整回合守住判定。
+
+可选 `policy` 按 `core/include/pbi/damage.hpp` 的 DamagePolicy 同名字段覆盖代际默认值；所有原策略字段均保留。倍率必须有限且非负，三个天气防御倍率允许 null 禁用；随机倍率数组非空，可重复、无序和包含零，保持槽位权重。multiscale_damage_multiplier 和 burn_physical_attack_multiplier 在原直接链也不消费，仅属于完整策略快照，不能凭它们声称执行满 HP/灼伤状态效果。multiscale/inner_focus 需要动态战斗状态，当前直接入口显式返回 UNSUPPORTED；后续状态/效果迁移接入后再扩大支持。
+
+伤害链依原顺序使用 binary64 倍率并 floor，不把它改成另一套官方 4096 定点机制，也不添加最小 1 伤害钳制。整数除法保留 Python int/int 的 nearest/ties-to-even 舍入，中间整数任意精度。阶段能力与返回伤害的 int64 越界明确返回 RESOURCE_LIMIT；概率始终是精确有理数。trace 保留 key/stage/source/reason 以及可空 multiplier/min_multiplier/max_multiplier，随机首末值沿用原语义，并非无序数组的真实最小/最大值。
 
 v1 资源上限声明在头文件：8 MiB 请求、4,096 操作、单操作 65,536 伤害槽位、批次合计 1,048,576 槽位；解析深度最多 16。超限失败，不截断后重新归一化。这些是当前 ABI 批次预算，不能混同后续状态图的节点/边/回合截断合同。
 

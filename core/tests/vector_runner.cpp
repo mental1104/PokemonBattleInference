@@ -64,7 +64,7 @@ std::string Execute(std::istream& input) {
     output << pbi::ApplyStatStage(value, stage);
   } else if (operation == "ko") {
     const auto hp = Read<std::int32_t>(input);
-    std::vector<std::int32_t> rolls;
+    std::vector<std::int64_t> rolls;
     while (input >> std::ws && !input.eof()) {
       rolls.push_back(Read<std::int32_t>(input));
     }

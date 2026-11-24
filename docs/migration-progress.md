@@ -7,7 +7,7 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级与给定伤害档位 KO，使用任意精度精确分数；其余完整计算与图推演待迁移，macOS 未验证。 |
+| P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级、直接伤害/部分代际策略与精确 KO；新伤害在 Linux 通过，首批已通过 macOS，新批次 Apple CI 待验证。速度状态、完整战斗/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
 | P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
@@ -83,11 +83,26 @@
 - 独立读取 ZIP 的 `Info.plist`：同时存在 **ios-arm64** 和 **ios-arm64-simulator**，平台均为 ios，后者明确标为 simulator；两个静态库均为实际 ar archive；两个平台的 C 头与本仓库完全一致，均有 `_pbi_v1_compute` 导出与非空 `PokemonCore.swiftmodule`。JUnit 确认为 6 tests / 0 failure / 0 error / 0 skipped。
 - 以上仅证明首批 Core/Swift 桥接的真实编译和 macOS 调用；尚无 SwiftUI App 或模拟器运行测试、设备安装、离线包/用户库及同步，因此 P1–P6 整体依然未通过，Goal 未完成。今晚 Mac 的身份/签名/物理设备操作仍按 Human 边界，工具可执行事项由 Agent 承担。
 
+## 直接伤害与规则切片（2026-11-24）
+
+证据根：`/volume1/homes/mental1104/Backup/PokemonBattleInference/damage-20261124/`。
+
+- 新增 `core/include/pbi/damage.hpp` 与 `core/src/damage.cpp`：纯 typed 输入、原策略全部字段、18 属性标识、知识快照注入、1…9 兼容 profile、1…31 版本组映射，保留完整直接链顺序和 trace。未知标识/缺失知识明确失败。完整动态战斗状态/效果尚未迁移；multiscale/inner_focus 在该入口显式 UNSUPPORTED，不冒充已支持。
+- 概率仍为 `boost::rational<cpp_int>`。原 Python 的直接伤害倍率本来使用 binary64，此处保留原 floor 与乘法顺序；int/int 采用任意精度正确舍入到 binary64，避免先转分子的双重舍入。边界测试捕获了 scaled 超出 int64 而最终伤害合法的情况，已保留任意精度中间 floor，没有缩小测试输入。
+- 直接计算结果经 `damage` C ABI 操作接入既有 Go/Swift；共享向量扩为六操作，新增全部 16 档 **99…117**、二击率 **123/128**、trace/版本的完整冻结响应。引擎 `0.2.0`，规则集合 `calculation-rules.v2`，C ABI/schema 仍 v1，单独 `damage_ruleset_id=python-compatible.genN.v1` 标记原部分 profile，不宣称完整官方历代机制。
+- 内部 KO 档位扩为 int64 以直接接受伤害输出；门槛差值和两击保证判定用任意精度，覆盖 INT64_MIN/MAX 混合边界。既有 v1 `ko` JSON 输入仍按原 int32 合同验证。
+- 新 Python 差分通过真实 `pbi_v1_compute` 入口，覆盖 **4,540** 输入：冻结样本、全部 **18×18** 配对、**3,072** 组组合、九代际 **1,134** 个自定义策略组合及 **9** 个大整数边界；逐个比较全部 **61,300** 档位、base、完整 trace 的 key/stage/source/reason/倍率和精确 KO，无浮点容差放宽。
+- `validate-nas.sh all`：C/C++ **18/18**；完整 Python **579 passed / 1 skipped**（32.13 秒，跳过为 Python 镜像没有 Swift），临时真实 PostgreSQL 回归通过；Go race/vet PASS；专用 Swift **4/4 PASS**，包含完整伤害共享向量；Web **95/95** 和生产构建 PASS。原始日志在 `final/`。
+- ASan/UBSan/leak **18/18 PASS**（21.14 秒），含新伤害错误/预算/快照与并发、取消、循环释放，日志 `sanitizer.log`。
+- 独立 NAS curl 验收当前实际 Go 服务：HTTP **200** 完整六操作响应一致；未知操作 **422** 无部分结果。证据在 `http/`，自有容器与随机回环端口退出清理，不触碰生产。
+- 新实测：`python -m tests.migration.test_core_damage --runner /build/core/pbi_abi_vectors --count 10000 --repeats 5 --output /reports/damage-benchmark.json`，每次全部结果核对后记录。Python 中位 **0.468292 秒**；C++ 进程 **0.528825 秒**，后者额外包含 JSON、精确 KO、进程与 IPC；不宣称纯函数/全引擎提速。报告在 `docs/benchmarks/core-damage-20261124.json`，原始在 `final/`。
+- 本批 Apple/macOS CI 尚待提交后实际运行；不能用先前 `738919a` 的绿灯替代新批验证。
+
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-Apple CI 已实际通过，下一轮继续迁移完整伤害、规则、速度效果与不可变状态，再接回合/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因首批通过而标记 PASS。
+先完成本批伤害的 Apple CI，再迁移速度状态效果与不可变状态，继续回合/动态效果/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
 
 ## 恢复提示
 

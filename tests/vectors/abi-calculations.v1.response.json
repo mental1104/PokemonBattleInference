@@ -1,12 +1,24 @@
 {
   "schema_version": 1,
-  "engine_version": "0.1.0",
-  "rules_version": "modern-calculations.v1",
+  "engine_version": "0.2.0",
+  "rules_version": "calculation-rules.v2",
   "results": [
     {"kind": "hp", "value": 202},
     {"kind": "stat", "value": 200},
     {"kind": "stage", "value": 73},
     {"kind": "ko", "ohko": {"numerator": "1", "denominator": "3"}, "two_hit": {"numerator": "5", "denominator": "9"}, "guaranteed_ohko": false, "guaranteed_two_hit": false},
-    {"kind": "hp", "value": 231}
+    {"kind": "hp", "value": 231},
+    {
+      "kind": "damage", "damage_ruleset_id": "python-compatible.gen9.v1",
+      "rolls": [99, 100, 101, 102, 104, 105, 106, 107, 108, 109, 111, 112, 113, 114, 115, 117],
+      "defender_hp": 202, "base_damage": 39,
+      "trace": [
+        {"key": "stab", "stage": "stab", "source": "stab", "reason": "Same-type attack bonus.", "multiplier": 1.5, "min_multiplier": null, "max_multiplier": null},
+        {"key": "type_effectiveness", "stage": "type_effectiveness", "source": "type_effectiveness", "reason": "Type effectiveness multiplier.", "multiplier": 2.0, "min_multiplier": null, "max_multiplier": null},
+        {"key": "random", "stage": "random", "source": "random", "reason": "Pokemon damage random roll range.", "multiplier": null, "min_multiplier": 0.85, "max_multiplier": 1.0}
+      ],
+      "ohko": {"numerator": "0", "denominator": "1"}, "two_hit": {"numerator": "123", "denominator": "128"},
+      "guaranteed_ohko": false, "guaranteed_two_hit": false
+    }
   ]
 }

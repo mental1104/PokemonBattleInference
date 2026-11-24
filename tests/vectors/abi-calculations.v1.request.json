@@ -5,6 +5,20 @@
     {"kind": "stat", "base": 130, "iv": 31, "ev": 252, "level": 50, "nature_tenths": 11},
     {"kind": "stage", "value": 110, "stage": -1},
     {"kind": "ko", "rolls": [1, 1, 3], "defender_hp": 3},
-    {"kind": "hp", "base": 45, "iv": 31, "ev": 0, "level": 100}
+    {"kind": "hp", "base": 45, "iv": 31, "ev": 0, "level": 100},
+    {
+      "kind": "damage",
+      "generation_id": 9,
+      "attacker": {
+        "level": 50, "types": [7, 9],
+        "stats": {"hp": 177, "attack": 182, "defense": 120, "special_attack": 67, "special_defense": 100, "speed": 85}
+      },
+      "defender": {
+        "level": 50, "types": [18],
+        "stats": {"hp": 202, "attack": 85, "defense": 85, "special_attack": 130, "special_defense": 150, "speed": 80}
+      },
+      "move": {"type": 9, "category": "physical", "power": 40},
+      "type_chart": [{"attacking": 9, "defending": 18, "percent": 200}]
+    }
   ]
 }

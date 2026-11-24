@@ -41,7 +41,7 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.1.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.2.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
@@ -81,6 +81,59 @@ TEST(CAbi, ResourceLimits) {
   for (int i = 0; i < 17; ++i) request["operations"].push_back(maximum_rolls);
   EXPECT_EQ(Call(request.dump()).status, PBI_RESOURCE_LIMIT_V1);
   EXPECT_EQ(Call(R"({"schema_version":1,"operations":[{"kind":"stage","value":9223372036854775807,"stage":6}]})").status, PBI_RESOURCE_LIMIT_V1);
+}
+
+/// 伤害协议对未知机制/缺失知识与非法字段做精确分类，任一失败都撤销整批结果。
+TEST(CAbi, DamageKnowledgeRulesAndValidation) {
+  const auto fixture = Json::parse(Fixture("abi-calculations.v1.request.json"));
+  const auto baseline = fixture.at("operations").back();
+  std::vector<std::pair<Json, pbi_status_v1>> failures;
+  auto input = baseline;
+  input["type_chart"] = Json::array();
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["attacker"]["ability"] = "multiscale";
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["defender"]["ability"] = "inner_focus";
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["weather"] = "future_weather";
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["move"]["category"] = "status";
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["generation_id"] = 10;
+  failures.push_back({input, PBI_UNSUPPORTED_V1});
+  input = baseline; input["version_group_id"] = 31;
+  EXPECT_EQ(Call(Json{{"schema_version", 1}, {"operations", Json::array({input})}}.dump()).status, PBI_OK_V1);
+  input["version_group_id"] = 1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["type_chart"].push_back(input["type_chart"].front());
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["move"]["power"] = true;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["critical"] = 1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["attacker"]["extra"] = 1;
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["policy"] = {{"extra", 1}};
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["policy"] = {{"life_orb_damage_multiplier", nullptr}};
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["policy"] = {{"random_damage_multipliers", Json::array()}};
+  failures.push_back({input, PBI_INVALID_INPUT_V1});
+  input = baseline; input["policy"] = {{"random_damage_multipliers", std::vector<double>(65537, 1.0)}};
+  failures.push_back({input, PBI_RESOURCE_LIMIT_V1});
+  input = baseline; input["policy"] = {{"random_damage_multipliers", std::vector<double>{1e100}}};
+  failures.push_back({input, PBI_RESOURCE_LIMIT_V1});
+  for (const auto& [operation, status] : failures) {
+    const Json request{{"schema_version", 1}, {"operations", Json::array({baseline, operation, baseline})}};
+    const auto result = Call(request.dump());
+    EXPECT_EQ(result.status, status) << operation;
+    EXPECT_FALSE(result.body.contains("results"));
+  }
+  input = baseline;
+  input["policy"] = {{"random_damage_multipliers", std::vector<double>(65536, 1.0)}};
+  Json request{{"schema_version", 1}, {"operations", Json::array()}};
+  for (int index = 0; index < 17; ++index) request["operations"].push_back(input);
+  EXPECT_EQ(Call(request.dump()).status, PBI_RESOURCE_LIMIT_V1);
 }
 
 /// 每次成功和失败均释放并清零；非空输出不允许被覆盖，避免泄漏原结果。

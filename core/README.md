@@ -1,6 +1,6 @@
 # C++ Core（P1 进行中）
 
-当前可运行切片是现代能力值、能力等级和给定伤害档位的 KO 概率。`pbi_core` 是纯 C++20 静态库；不依赖数据库、HTTP、UI、CSV 或平台服务，不修改输入，状态只存在于调用栈和局部值中。
+当前可运行切片是现代能力值、能力等级、直接伤害及给定伤害档位的 KO 概率。`pbi_core` 是纯 C++20 静态库；不依赖数据库、HTTP、UI、CSV 或平台服务，不修改输入，状态只存在于调用栈和局部值中。
 
 ## 构建与统一验证
 
@@ -47,7 +47,10 @@ bash tools/migration/validate-nas.sh all
 - 能力公式保留原整数输入形状，使用任意精度中间值并检查 int64 返回边界。在超过 IEEE-754 精确整数范围的非正常配置上，Python 原 float 除法可能舍入，新 Core 按数学整数公式处理；该边界由整数 oracle 验证，不宣称这类输入与旧 float 逐位相同。正式合法等级/IV/EV 范围内的已测向量没有行为差异。
 - KO 输入中的重复档位各自保留随机权重；两击为有序的独立抽样。排序+二分计数与 Python 逐对枚举一致；144 组变长/重复/边界向量做精确比较。原 Python 展示小数只用于核对展示值，新 Core 结果保留分数。
 - KO 不执行任何回合结束回血、扣血等效果。当前 API 没有这种输入，不能将它当作完整回合推演入口。
+- 直接伤害通过 `DamageInput` 与 `TypeChartSnapshot` 注入策略、属性知识和双方快照。顺序保留原基础威力/能力阶段 floor、STAB/相克、屏障/会心/范围/保护、天气/场地、特性/道具、随机档位；每项 trace 与 Python 对照。binary64 仅用于原链已有的伤害倍率，概率不使用浮点数。整数比值使用任意精度分子/分母并正确舍入到 binary64，避免大整数先转 double 的双重舍入。
+- 原代际 profile 与版本组解析迁入 Core，保持部分规则身份。输入不支持的特性/道具/天气/场地/变化招式或缺少知识时明确失败。multiscale/inner_focus、灼伤及其他实时 HP/状态效果仍归后续动态战斗层；完整边界及策略覆盖见 `contracts/c/README.md`。
 - `pbi_core_vectors` 是差分/benchmark 的进程适配器，每行支持 `hp`、`stat`、`stage`、`ko`。结果精确编码为整数或 `numerator/denominator`；不支持的操作及非法输入逐行返回 `ERROR`，不终止下一条向量。它不作为正式跨语言 ABI。
+- `pbi_abi_vectors` 每行直接调用真实 `pbi_v1_compute`，原样返回其完整 JSON 并释放结果。伤害差分使用这个入口，正式 Go/Swift 调用仍链接同一库。
 
 实现中曾发现当前环境 `cpp_rational` 的 `0 / 16` 未规范化且与零不相等，原测试实际捕获该问题；已改用 `boost::rational<cpp_int>`，保留零概率、相消为零和 200 位分母测试。没有通过放宽相等断言绕过。
 
@@ -61,4 +64,4 @@ bash tools/migration/validate-nas.sh all
 PYTHONPATH=submodules/common/python:. python tools/migration/benchmark_calculations.py --runner build/core/pbi_core_vectors --output /tmp/pbi-calculations-benchmark.json
 ```
 
-完整伤害、规则集、速度状态效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux/macOS 验证，详见 `contracts/c/README.md`；iPhoneOS/Simulator 的 Core/Swift 静态产物和 XCFramework 也已通过真实 GitHub CI 构建及产物核验。尚无 App/模拟器运行或真机验收，P1/P2 仍均为 IN_PROGRESS。
+速度状态效果、完整规则集/动态伤害效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。首批 C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux/macOS 验证，详见 `contracts/c/README.md`；首批 iPhoneOS/Simulator 的 Core/Swift 静态产物和 XCFramework 也已通过真实 GitHub CI 构建及产物核验。新伤害批次的验证记录见 `docs/migration-progress.md`。尚无 App/模拟器运行或真机验收，P1/P2 仍均为 IN_PROGRESS。

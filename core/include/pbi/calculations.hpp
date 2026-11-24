@@ -52,7 +52,7 @@ struct KoChance {
 /// @param rolls 只读伤害档位，重复值仍代表独立随机槽；不得为空。
 /// @param defender_hp 防守方当前 HP，必须大于 0。
 /// @return 新的精确概率结果；非法输入抛出 std::invalid_argument。
-[[nodiscard]] KoChance EstimateKoChance(std::span<const std::int32_t> rolls,
+[[nodiscard]] KoChance EstimateKoChance(std::span<const std::int64_t> rolls,
                           std::int32_t defender_hp);
 
 } // namespace pbi

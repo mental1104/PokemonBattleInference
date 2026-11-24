@@ -1,9 +1,13 @@
-// C ABI 只负责协议、所有权与错误隔离，计算规则由 calculations.cpp 唯一实现。
+// C ABI 只负责协议、所有权与错误隔离，计算规则由 typed Core 唯一实现。
 #include "pbi_core.h"
 #include "pbi/calculations.hpp"
+#include "pbi/damage.hpp"
 
 #include <nlohmann/json.hpp>
 #include <atomic>
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -34,15 +38,17 @@ public:
   pbi_status_v1 code;
 };
 
-/// 固定协议在边界转换为四种静态计算输入，不把 JSON 传进领域层。
+/// 固定协议在边界转换为静态计算输入，不把 JSON 传进领域层。
 struct HpRequest { pbi::StatInput input; };
 /// 非 HP 输入保存显式性格枚举，不使用浮点倍率。
 struct StatRequest { pbi::StatInput input; pbi::NatureEffect nature; };
 /// 能力等级输入独立于能力配置，允许完整 int64 能力值。
 struct StageRequest { std::int64_t value; std::int32_t stage; };
 /// KO 请求拥有伤害档位副本，不借用解析器内部节点。
-struct KoRequest { std::vector<std::int32_t> rolls; std::int32_t hp; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest>;
+struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
+/// 直接伤害请求拥有领域输入与知识快照，并记录原有兼容代际身份。
+struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
@@ -99,6 +105,150 @@ pbi::NatureEffect ReadNature(const Json& value) {
   }
 }
 
+/// 检查带可选字段的固定 schema；未知参数不能静默丢失。
+/// @param value 只读对象；@param required 必填字段；@param optional 可选字段。
+void RequireSchema(const Json& value, std::initializer_list<std::string_view> required,
+                   std::initializer_list<std::string_view> optional = {}) {
+  if (!value.is_object()) throw RequestError(PBI_INVALID_INPUT_V1, "expected an object");
+  for (const auto field : required) {
+    if (!value.contains(field)) throw RequestError(PBI_INVALID_INPUT_V1, "missing required field");
+  }
+  for (const auto& field : value.items()) {
+    if (std::find(required.begin(), required.end(), field.key()) == required.end() &&
+        std::find(optional.begin(), optional.end(), field.key()) == optional.end()) {
+      throw RequestError(PBI_INVALID_INPUT_V1, "unknown object field");
+    }
+  }
+}
+
+/// @param value JSON 布尔值；@return 原值，数字/字符串不进行隐式转换。
+bool ReadBool(const Json& value) {
+  if (!value.is_boolean()) throw RequestError(PBI_INVALID_INPUT_V1, "expected a boolean");
+  return value.get<bool>();
+}
+
+/// @param value JSON 数值；@return 有限非负 binary64，拒绝 bool/null 和非有限数。
+double ReadMultiplier(const Json& value) {
+  if (!value.is_number()) throw RequestError(PBI_INVALID_INPUT_V1, "expected a numeric multiplier");
+  const double number = value.get<double>();
+  if (!std::isfinite(number) || number < 0) throw RequestError(PBI_INVALID_INPUT_V1, "invalid damage multiplier");
+  return number;
+}
+
+/// 把协议有限标识转换成按声明顺序排列的领域枚举，不提供 UNKNOWN 回退。
+/// @tparam Enum 领域枚举；@tparam Size 合同中枚举项数；@param value 字符串值；@param names 固定名称。
+/// @return 对应枚举；未知名称为 UNSUPPORTED，错误 JSON 类型为 INVALID_INPUT。
+template <class Enum, std::size_t Size>
+Enum ReadEnum(const Json& value, const std::array<std::string_view, Size>& names) {
+  if (!value.is_string()) throw RequestError(PBI_INVALID_INPUT_V1, "expected an enum string");
+  const auto name = value.get<std::string>();
+  const auto found = std::find(names.begin(), names.end(), name);
+  if (found == names.end()) throw RequestError(PBI_UNSUPPORTED_V1, "unsupported damage rule identifier");
+  return static_cast<Enum>(found - names.begin());
+}
+
+/// @param value 一侧只读 JSON 快照；@return 完整能力、属性和静态效果领域输入。
+pbi::DamagePokemon ReadPokemon(const Json& value) {
+  RequireSchema(value, {"level", "types", "stats"}, {"ability", "item", "can_evolve", "grounding"});
+  const auto& stats = value.at("stats");
+  RequireFields(stats, {"hp", "attack", "defense", "special_attack", "special_defense", "speed"});
+  pbi::DamagePokemon result{ReadInt32(value.at("level")), {},
+      {ReadInt32(stats.at("hp")), ReadInt32(stats.at("attack")), ReadInt32(stats.at("defense")),
+       ReadInt32(stats.at("special_attack")), ReadInt32(stats.at("special_defense")), ReadInt32(stats.at("speed"))},
+      pbi::DamageAbility::none, pbi::DamageItem::none, false, std::nullopt};
+  if (!value.at("types").is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "types must be an array");
+  for (const auto& type : value.at("types")) result.types.push_back(static_cast<pbi::PokemonType>(ReadInt32(type)));
+  if (value.contains("ability")) result.ability = ReadEnum<pbi::DamageAbility>(value.at("ability"),
+      std::array<std::string_view, 7>{"none", "technician", "adaptability", "thick_fat", "filter", "solid_rock", "sniper"});
+  if (value.contains("item")) result.item = ReadEnum<pbi::DamageItem>(value.at("item"),
+      std::array<std::string_view, 6>{"none", "life_orb", "choice_band", "choice_specs", "expert_belt", "eviolite"});
+  if (value.contains("can_evolve")) result.can_evolve = ReadBool(value.at("can_evolve"));
+  if (value.contains("grounding") && !value.at("grounding").is_null()) result.grounding = ReadEnum<pbi::Grounding>(value.at("grounding"),
+      std::array<std::string_view, 2>{"grounded", "airborne"});
+  return result;
+}
+
+/// 按显式字段更新策略的新副本；字段映射仅在序列化边界，不充当运行时规则注册表。
+/// @param value 只读策略覆盖对象；@param baseline 由代际解析的默认策略副本。
+/// @return 新策略；未知字段或非法倍率明确失败。
+pbi::DamagePolicy ReadPolicy(const Json& value, pbi::DamagePolicy baseline) {
+  using Policy = pbi::DamagePolicy;
+  static constexpr std::array<std::pair<std::string_view, double Policy::*>, 23> multipliers{{
+      {"terrain_boost_multiplier", &Policy::terrain_boost_multiplier},
+      {"misty_terrain_dragon_multiplier", &Policy::misty_terrain_dragon_multiplier},
+      {"weather_boost_multiplier", &Policy::weather_boost_multiplier}, {"weather_weaken_multiplier", &Policy::weather_weaken_multiplier},
+      {"screen_single_target_multiplier", &Policy::screen_single_target_multiplier}, {"screen_multi_target_multiplier", &Policy::screen_multi_target_multiplier},
+      {"aurora_veil_single_target_multiplier", &Policy::aurora_veil_single_target_multiplier}, {"aurora_veil_multi_target_multiplier", &Policy::aurora_veil_multi_target_multiplier},
+      {"critical_hit_multiplier", &Policy::critical_hit_multiplier}, {"spread_move_multiplier", &Policy::spread_move_multiplier},
+      {"protect_damage_multiplier", &Policy::protect_damage_multiplier}, {"same_type_attack_bonus_multiplier", &Policy::same_type_attack_bonus_multiplier},
+      {"technician_base_power_multiplier", &Policy::technician_base_power_multiplier}, {"adaptability_stab_multiplier", &Policy::adaptability_stab_multiplier},
+      {"thick_fat_damage_multiplier", &Policy::thick_fat_damage_multiplier}, {"filter_damage_multiplier", &Policy::filter_damage_multiplier},
+      {"sniper_critical_multiplier", &Policy::sniper_critical_multiplier}, {"multiscale_damage_multiplier", &Policy::multiscale_damage_multiplier},
+      {"life_orb_damage_multiplier", &Policy::life_orb_damage_multiplier}, {"choice_item_attack_multiplier", &Policy::choice_item_attack_multiplier},
+      {"expert_belt_damage_multiplier", &Policy::expert_belt_damage_multiplier}, {"eviolite_defense_multiplier", &Policy::eviolite_defense_multiplier},
+      {"burn_physical_attack_multiplier", &Policy::burn_physical_attack_multiplier}}};
+  static constexpr std::array<std::pair<std::string_view, std::optional<double> Policy::*>, 3> optionals{{
+      {"sandstorm_rock_spdef_multiplier", &Policy::sandstorm_rock_spdef_multiplier},
+      {"snow_ice_defense_multiplier", &Policy::snow_ice_defense_multiplier}, {"hail_ice_defense_multiplier", &Policy::hail_ice_defense_multiplier}}};
+  if (!value.is_object()) throw RequestError(PBI_INVALID_INPUT_V1, "policy must be an object");
+  for (const auto& field : value.items()) {
+    const auto multiplier = std::find_if(multipliers.begin(), multipliers.end(), [&](const auto& entry) { return entry.first == field.key(); });
+    const auto optional = std::find_if(optionals.begin(), optionals.end(), [&](const auto& entry) { return entry.first == field.key(); });
+    if (multiplier != multipliers.end()) baseline.*(multiplier->second) = ReadMultiplier(field.value());
+    else if (optional != optionals.end()) baseline.*(optional->second) = field.value().is_null() ? std::nullopt : std::optional{ReadMultiplier(field.value())};
+    else if (field.key() == "technician_base_power_threshold") baseline.technician_base_power_threshold = ReadInt32(field.value());
+    else if (field.key() == "random_damage_multipliers") {
+      if (!field.value().is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "random multipliers must be an array");
+      if (field.value().size() > kMaxRolls) throw RequestError(PBI_RESOURCE_LIMIT_V1, "damage roll budget exceeded");
+      baseline.random_damage_multipliers.clear();
+      for (const auto& number : field.value()) baseline.random_damage_multipliers.push_back(ReadMultiplier(number));
+    } else throw RequestError(PBI_INVALID_INPUT_V1, "unknown damage policy field");
+  }
+  return baseline;
+}
+
+/// @param value 只读操作对象；@param remaining_rolls 当前批次余量；@return 拥有所有快照的伤害请求。
+DamageRequest ReadDamage(const Json& value, std::size_t remaining_rolls) {
+  RequireSchema(value, {"kind", "generation_id", "attacker", "defender", "move", "type_chart"},
+      {"policy", "weather", "terrain", "defender_side", "critical", "spread", "protect_reduced", "multi_target", "version_group_id"});
+  const auto generation = ReadInt32(value.at("generation_id"));
+  auto policy = pbi::DamagePolicyForGeneration(generation);
+  if (value.contains("version_group_id") && pbi::GenerationForVersionGroup(ReadInt32(value.at("version_group_id"))) != generation) {
+    throw RequestError(PBI_INVALID_INPUT_V1, "version group does not match generation");
+  }
+  if (value.contains("policy")) policy = ReadPolicy(value.at("policy"), std::move(policy));
+  if (policy.random_damage_multipliers.size() > remaining_rolls) throw RequestError(PBI_RESOURCE_LIMIT_V1, "damage roll budget exceeded");
+  const auto& move = value.at("move");
+  RequireFields(move, {"type", "category", "power"});
+  pbi::DamageInput input{ReadPokemon(value.at("attacker")), ReadPokemon(value.at("defender")),
+      {static_cast<pbi::PokemonType>(ReadInt32(move.at("type"))),
+       ReadEnum<pbi::DamageCategory>(move.at("category"), std::array<std::string_view, 3>{"physical", "special", "status"}), ReadInt32(move.at("power"))},
+      std::move(policy), pbi::DamageWeather::none, pbi::DamageTerrain::none, {}, false, false, false, false};
+  if (value.contains("weather")) input.weather = ReadEnum<pbi::DamageWeather>(value.at("weather"),
+      std::array<std::string_view, 6>{"none", "harsh_sunlight", "rain", "sandstorm", "hail", "snow"});
+  if (value.contains("terrain")) input.terrain = ReadEnum<pbi::DamageTerrain>(value.at("terrain"),
+      std::array<std::string_view, 5>{"none", "electric_terrain", "psychic_terrain", "grassy_terrain", "misty_terrain"});
+  if (value.contains("defender_side")) {
+    const auto& side = value.at("defender_side");
+    RequireFields(side, {"reflect", "light_screen", "aurora_veil"});
+    input.defender_side = {ReadBool(side.at("reflect")), ReadBool(side.at("light_screen")), ReadBool(side.at("aurora_veil"))};
+  }
+  if (value.contains("critical")) input.critical = ReadBool(value.at("critical"));
+  if (value.contains("spread")) input.spread = ReadBool(value.at("spread"));
+  if (value.contains("protect_reduced")) input.protect_reduced = ReadBool(value.at("protect_reduced"));
+  if (value.contains("multi_target")) input.multi_target = ReadBool(value.at("multi_target"));
+  const auto& chart = value.at("type_chart");
+  if (!chart.is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "type chart must be an array");
+  if (chart.size() > 324) throw RequestError(PBI_RESOURCE_LIMIT_V1, "type chart budget exceeded");
+  std::vector<pbi::TypeEfficacy> entries;
+  for (const auto& entry : chart) {
+    RequireFields(entry, {"attacking", "defending", "percent"});
+    entries.push_back({static_cast<pbi::PokemonType>(ReadInt32(entry.at("attacking"))),
+                      static_cast<pbi::PokemonType>(ReadInt32(entry.at("defending"))), ReadInt32(entry.at("percent"))});
+  }
+  return {std::move(input), pbi::TypeChartSnapshot{std::move(entries)}, generation};
+}
+
 /// 解码单条计算，并限制实际批次伤害槽位总量。
 /// @param object 只读 JSON 操作；@param remaining_rolls 尚可拥有的槽位预算。
 /// @return 类型化操作和消耗的槽位数；不修改调用方预算。
@@ -107,6 +257,11 @@ std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t 
     throw RequestError(PBI_INVALID_INPUT_V1, "operation kind must be a string");
   }
   const auto kind = object.at("kind").get<std::string>();
+  if (kind == "damage") {
+    auto request = ReadDamage(object, remaining_rolls);
+    const auto count = request.input.policy.random_damage_multipliers.size();
+    return {std::move(request), count};
+  }
   if (kind == "hp") {
     RequireFields(object, {"kind", "base", "iv", "ev", "level"});
     return {HpRequest{ReadStat(object)}, 0};
@@ -128,7 +283,7 @@ std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t 
     if (rolls.size() > kMaxRolls || rolls.size() > remaining_rolls) {
       throw RequestError(PBI_RESOURCE_LIMIT_V1, "damage roll budget exceeded");
     }
-    std::vector<std::int32_t> values;
+    std::vector<std::int64_t> values;
     values.reserve(rolls.size());
     for (const auto& value : rolls) values.push_back(ReadInt32(value));
     const auto count = values.size();
@@ -161,9 +316,27 @@ Json Evaluate(const KoRequest& request) {
           {"guaranteed_ohko", result.guaranteed_ohko}, {"guaranteed_two_hit", result.guaranteed_two_hit}};
 }
 
+/// @param request 只读完整伤害请求；@return 档位、完整 trace 及规范 Core 的精确 KO 结果。
+Json Evaluate(const DamageRequest& request) {
+  const auto result = pbi::CalculateDamage(request.input, request.knowledge);
+  const auto ko = pbi::EstimateKoChance(result.rolls, result.defender_hp);
+  auto trace = Json::array();
+  for (const auto& entry : result.trace) {
+    trace.push_back({{"key", pbi::DamageSourceName(entry.key)}, {"stage", pbi::DamageStageName(entry.stage)},
+        {"source", pbi::DamageSourceName(entry.source)}, {"reason", entry.reason},
+        {"multiplier", entry.multiplier ? Json(*entry.multiplier) : Json(nullptr)},
+        {"min_multiplier", entry.min_multiplier ? Json(*entry.min_multiplier) : Json(nullptr)},
+        {"max_multiplier", entry.max_multiplier ? Json(*entry.max_multiplier) : Json(nullptr)}});
+  }
+  return {{"kind", "damage"}, {"damage_ruleset_id", "python-compatible.gen" + std::to_string(request.generation) + ".v1"},
+      {"rolls", result.rolls}, {"defender_hp", result.defender_hp}, {"base_damage", result.base_damage}, {"trace", std::move(trace)},
+      {"ohko", FractionJson(ko.ohko)}, {"two_hit", FractionJson(ko.two_hit)},
+      {"guaranteed_ohko", ko.guaranteed_ohko}, {"guaranteed_two_hit", ko.guaranteed_two_hit}};
+}
+
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "modern-calculations.v1"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v2"}};
 }
 
 /// @param code 稳定错误枚举；@return 静态 ASCII 名称，无所有权转移。
@@ -264,6 +437,8 @@ pbi_status_v1 pbi_v1_compute(const std::uint8_t* request, std::size_t request_si
     return WriteError(error.code, error.what(), output);
   } catch (const nlohmann::json::exception&) {
     return WriteError(PBI_INVALID_INPUT_V1, "invalid JSON request", output);
+  } catch (const pbi::UnsupportedDamageRule& error) {
+    return WriteError(PBI_UNSUPPORTED_V1, error.what(), output);
   } catch (const std::invalid_argument& error) {
     return WriteError(PBI_INVALID_INPUT_V1, error.what(), output);
   } catch (const std::overflow_error&) {

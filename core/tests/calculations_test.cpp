@@ -37,7 +37,7 @@ TEST(StatStage, Boundaries) {
 
 /// 16 档随机值保留原 246/256 二击率，同时禁止浮点近似。
 TEST(KoChance, ReferenceRolls) {
-  const std::vector<std::int32_t> rolls{99, 100, 101, 102, 104, 105, 106, 107,
+  const std::vector<std::int64_t> rolls{99, 100, 101, 102, 104, 105, 106, 107,
                                        108, 109, 111, 112, 113, 114, 115, 117};
   const auto result = EstimateKoChance(rolls, 202);
   EXPECT_EQ(result.ohko, Rational{0});
@@ -49,13 +49,17 @@ TEST(KoChance, ReferenceRolls) {
 
 /// 非二进制概率、重复档位和极端伤害均精确统计，输入快照不变。
 TEST(KoChance, DuplicateWeightsAndIntegerEdges) {
-  const std::vector<std::int32_t> rolls{1, 1, 3};
+  const std::vector<std::int64_t> rolls{1, 1, 3};
   const auto result = EstimateKoChance(rolls, 3);
   EXPECT_EQ(result.ohko, Rational{1} / 3);
   EXPECT_EQ(result.two_hit, Rational{5} / 9);
-  EXPECT_EQ(rolls, (std::vector<std::int32_t>{1, 1, 3}));
-  const std::vector<std::int32_t> extreme{std::numeric_limits<std::int32_t>::max()};
+  EXPECT_EQ(rolls, (std::vector<std::int64_t>{1, 1, 3}));
+  const std::vector<std::int64_t> extreme{std::numeric_limits<std::int64_t>::max()};
   EXPECT_TRUE(EstimateKoChance(extreme, 1).guaranteed_two_hit);
+  const std::vector<std::int64_t> mixed{std::numeric_limits<std::int64_t>::min(),
+                                        std::numeric_limits<std::int64_t>::max()};
+  EXPECT_EQ(EstimateKoChance(mixed, 1).two_hit, Rational{1} / 4);
+  EXPECT_FALSE(EstimateKoChance(mixed, 1).guaranteed_two_hit);
   EXPECT_THROW(static_cast<void>(EstimateKoChance({}, 1)), std::invalid_argument);
   EXPECT_THROW(static_cast<void>(EstimateKoChance(rolls, 0)), std::invalid_argument);
 }
