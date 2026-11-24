@@ -7,6 +7,7 @@ from fractions import Fraction
 from typing import Any
 
 from pokeop.domain.battle.battle_events import BattleEvent, BattleEventKind
+from pokeop.domain.battle.inference_outcome import BattleSide
 from pokeop.domain.battle.transitions import TransitionEventSummary
 
 from .graph_solver import (

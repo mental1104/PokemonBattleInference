@@ -57,6 +57,7 @@
 4. **BASE-DOC-001**：README 描述顶层 `pokeapi-sprites` submodule，但当前 `.gitmodules` 与 Git submodule 状态仅登记 common/pokeapi；原 Compose 仍有顶层/嵌套只读来源兼容。后续资产打包和部署须明确实际数据来源，不能声称顶层已就绪。
 5. 原 KO 展示结果为 `float`，其他推演概率为 `Fraction`。新 Core 的概率统一精确；既有 HTTP 展示字段在边界转换，同时保存精确值，不将这一差异称为原推演算法缺陷。
 6. 当前能力配置只有软删除及时间戳，没有双设备同步 revision、队列、change-log 或冲突副本。它是 P5 的新增需求，不能用当前 CRUD 冒充同步完成。
+7. **BASE-EXPLANATION-001（2026-11-24 新增实证，独立修复）**：原 `application/solver/graph_explanation.py` 在读取合法 MOVE_USED 路径时引用未导入的 BattleSide，实际抛 NameError。原 worker 的 `_explanation_json` 捕获该异常，因此通常成功战斗原先实际保存 explanation_json=None，并没有可用的根行动归因。RED 保留于 `root-action-explanation-20261124/differential.log`（两项原差分都在原函数失败，未将 C++ 输出冒称通过）。独立补回唯一缺失 import 后，才用该修复后的原函数验证新 Core opt-in；不把该增强冒称未修参考的原有成功行为。原文件一行导入及本说明由主 agent 单独提交，与 Core 迁移实现分开。
 
 原 benchmark 的 JSON/Markdown 保留于 `docs/benchmarks/`。只读容器未挂载外部 Git 元数据，所以原报告 `environment.commit` 为 `unknown`；对应 `pokeop/` 已核对与 `10c422e` 无内容差异。该报告不含 PostgreSQL 写入测量，不能从两个截断配置推断全空间吞吐或原生改写收益。
 
