@@ -35,6 +35,7 @@ type Report struct {
 	InsertedRows      int64         `json:"inserted_rows"`
 	Reused            bool          `json:"reused"`
 	Tables            []TableReport `json:"tables"`
+	Sprites           *SpriteReport `json:"sprites,omitempty"`
 }
 
 // columnsSQL 只引用嵌入模型的列名，用驱动转义而不是拼接外部 CSV header。

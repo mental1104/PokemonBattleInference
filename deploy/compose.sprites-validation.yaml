@@ -1,0 +1,5 @@
+# 图片导入专项只读来源；必须由调用方明确提供完整源或自有空库验收样本，不扩大通用模板权限。
+services:
+  pokemon-validation:
+    volumes:
+      - ${PBI_SPRITES_SOURCE_ROOT:?Set an explicit PokeAPI sprites source root}:/sprites-source:ro

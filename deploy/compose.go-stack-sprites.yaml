@@ -1,0 +1,6 @@
+# 仅在显式提供完整本地 sprites 源时叠加；图片只读导入BYTEA，不放入API/前端镜像。
+services:
+  db-init:
+    volumes:
+      - ${PBI_STACK_SPRITES_ROOT:?Set the complete local PokeAPI sprites source}:/sprites-source:ro
+    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, /sprites-source, --sprites-commit, "${PBI_SPRITES_SOURCE_COMMIT:-}"]

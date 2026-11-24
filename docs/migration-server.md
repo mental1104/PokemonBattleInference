@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **27 项配置/知识/图片、任务与候选池、模板/属性求解 API**，并接入 P5 同步处理器；另有原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。原合同任务与WithSpeed求解已经过真实 PG/Core/独立客户端验收，其余计算/图交互 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **28 项配置/知识/图片、任务与候选池、模板/属性求解及固定推演摘要 API**，并接入 P5 同步处理器；另有原静态计算器的受限实现，下文明确保留两项特性兼容缺口，不能计为完整迁移。原合同任务、WithSpeed求解及固定摘要已经过真实 PG/Core/独立客户端验收，其余计算/图交互 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -16,6 +16,8 @@
 | 原任务创建 1 项 | POST configuration-jobs 保留原 one-on-one-move-pool.v1 DTO 与 202、原内容寻址 Idempotency-Key；同一 PG repeatable-read 快照交 Core strict/factory reconciliation，收齐全部失败后才分页取得原具体 canonical case。全部能力计算、严格准入、组合、SHA/权重均由 Core 完成；单个共享 template/admission 与轻量 case 原子冻结，daemon 领取后只投影招式与槽。没有任意 Core JSON 入队入口，也不删除不支持项缩小候选池。 |
 | 候选池 1 项 | GET inference/candidate-pools/{pokemon_id} 从同RR快照向独立Core提交所有合法招式事实，不隐藏不支持项；完整status/selectable/reason/missing与原factory reconciliation一致。七种Pokemon及原业务错误/重复query最后值真实同库13/13逐字段差分通过。 |
 | 配置求解 2 项 | POST configuration_solver/solve与search-spreads保留原WithSpeed合同；单RR冻结所有主体/目标/合法性与属性表，Core准备actual stats/target Speed后调用正式.8模板或EV/IV搜索。完整候选/首失败/严格速度/性格选项/独立区间及中文说明均保留；Go不枚举投入、不求伤害/阈值或比较速度。 |
+
+| 固定推演摘要 1 项 | POST inference/fixed-one-on-one 保留原strict准入、Core规范招式顺序/初始状态/正式求解及完整工厂能力集合；真实Go→独立child与原Python同PG19/19全字段差分通过。预算截断、原不支持招式/特性和资料缺失保持明确错误，不伪造成功概率。step/graph/navigation尚未完成。 |
 
 ## 运行边界
 
@@ -72,6 +74,18 @@
 `solver-final/` 从空PG纯Go导入后，真实旧两HTTP→独立Core **0.8**→旧DTO，与原FastAPI同库 **40/40 PASS、零SKIP（2.47秒）**；32项完整JSON相同，8项显式null的框架校验只比较422分类。覆盖攻/防/混合、纯速度/伤害加速度、paired snapshot与重复显式模板顺序、pressure降级warning、100级InnerFocus/Multiscale原静态语义、全部候选或完整首失败、25性格选项、EV/IV六字段独立范围、原400错误及省略默认/忽略extra。不是把一次damage结果改名为反推，也不以metadata-only响应冒充求解。
 
 初轮模板8项失败源于.8模板IV/EV应为六顺序数组而误传了.7统计操作使用的对象；原日志保留，纯DTO映射修复后完整30项再通过，随后上述空库40项最终通过。两项针对真实25-op HTTP/独立Core与完整知识读取的Go race、vet通过；没有重跑仍在并行开发的其他代理未冻结用例。两个专属验收脚本 `accept-go-candidate-pools.sh`、`accept-go-configuration-solver.sh` 均exit0并精确回收自有API/PG。
+
+## 纯 Go sprites BYTEA 初始化（2026-11-24）
+
+固定推演摘要证据 `fixed-http-20261124/http-second/`：**19/19 PASS、零SKIP（73.82秒）**，完整JSON含机制集合、两个观察方、实际多招式及uniform选择、100级与原预算/拒绝边界。薄模板投影器实际Core结果一致及非法选择的race测试通过。首轮15PASS/3FAIL完整保留，三项双方实际均422（原strict拒绝BulletPunch、显式边预算下原100级图截断）；修正正向样本并保留拒绝场景后得到最终19项，未放宽strict或删除错误断言。Core+ABI使用同一新完整capability布局fresh构建，不能混旧Core archive。
+
+`pbi-db-init --sprites-root`补齐独立图片导入，沿用原两张表、完整路径/变体元数据、原排序NUL分隔manifest和完成批次幂等。同摘要不重写BYTEA；变更保留asset_id与first_seen，源删除仅在整次事务成功后失效；导入完成刷新原两个图片MV。显式来源只读，未指定则不碰图库。完整来源和API/前端镜像分离，可叠加 `compose.go-stack-sprites.yaml` 挂给db-init。
+
+`sprites-go-20261124/knowledge-fixed/`的真实PG/race测试通过，包括两连接同时重跑、变更/删除、以及真实PG trigger在第二个文件拒绝写入后的整批回滚。原177 CSV的1,051,800记录类型/摘要及原资料查询回归也通过，vet通过。初轮发现精简镜像没有系统mime.types导致txt变为octet-stream，补齐原Python内置常用MIME后通过；失败日志保留。
+
+`actual-source/`从空PG纯Go导入CSV及PokeAPI/sprites固定c0542f7c51215d9672439012838c99f520596cbd的五张真实PNG（149/212/242、life-orb、fire），首次/复用回执与原Python importer全部业务列/原字节严格相同；五条公开图片HTTP逐字节相同、Content-Type与ETag/304通过，**6/6 pytest PASS、零SKIP（0.41秒）**。每个下载均与GitHub原blob SHA一致，原版权/CC0文本与source.json保存在Download的专项输入旁。该五图是自有空库验收样本，**不是全量sprites导入证明**；尚未重跑带图片的整套Docker/Vue浏览器。
+
+Python专项ruff与strict mypy通过，bash syntax/diff检查通过。没有连接生产数据库、将样本导入历史图库或将全量资源放进源码/运行镜像。
 
 ## 原合同任务创建的真实闭环
 

@@ -1,4 +1,4 @@
-// pbi-db-init 显式导入固定知识 CSV 并建立运行表，HTTP 进程不承担静态知识迁移。
+// pbi-db-init 显式导入固定知识 CSV、可选 sprites BYTEA 并建立运行表，HTTP 进程不承担静态知识迁移。
 package main
 
 import (
@@ -23,6 +23,8 @@ func main() { os.Exit(run()) }
 func run() int {
 	root := flag.String("csv-root", "", "fixed PokeAPI CSV root directory")
 	refresh := flag.Bool("refresh-views", false, "refresh existing compatible materialized views")
+	sprites := flag.String("sprites-root", "", "optional complete PokeAPI sprites repository or sprites directory")
+	spritesCommit := flag.String("sprites-commit", "", "optional explicit sprites source commit marker")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "--csv-root is required")
@@ -37,6 +39,15 @@ func run() int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "knowledge initialization failed: %v\n", err)
 		return 1
+	}
+	// 图片源只有显式传入才扫描；复用原完整来源失效规则，不用不完整下载静默覆盖历史图片库。
+	if *sprites != "" {
+		spriteReport, spriteErr := knowledge.InitializeSprites(ctx, dsn, *sprites, *spritesCommit)
+		if spriteErr != nil {
+			fmt.Fprintf(os.Stderr, "sprite initialization failed: %v\n", spriteErr)
+			return 1
+		}
+		report.Sprites = &spriteReport
 	}
 	db, err := postgres.Open(ctx, dsn)
 	if err != nil {
