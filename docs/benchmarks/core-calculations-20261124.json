@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "operation": "modern-non-hp-stat-batch",
+  "case_count": 20000,
+  "repeats": 5,
+  "platform": "Linux-5.10.55+-x86_64-with-glibc2.41",
+  "python_version": "3.11.17",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "binary_sha256": "8459af76c3458d4751178ce398f890df42490b5a82faa5f0b384cf9c77c55fd3",
+  "result_sha256": "cf6eb710b70c16762babfed388c35d3c8d1ca8bde13c4ade857a2932fd6031fa",
+  "python": {
+    "seconds": [
+      0.00722098799815285,
+      0.006590195000171661,
+      0.01389639300032286,
+      0.0072189169986813795,
+      0.014007452999067027
+    ],
+    "median_seconds": 0.00722098799815285
+  },
+  "cpp_process": {
+    "seconds": [
+      0.039386029999150196,
+      0.025507315000140807,
+      0.03783014500004356,
+      0.03321017700000084,
+      0.0259301250007411
+    ],
+    "median_seconds": 0.03321017700000084
+  }
+}

@@ -113,8 +113,10 @@ make compose-init
 ## 测试
 
 ```bash
-pytest tests
+make test
 ```
+
+macOS/Linux 使用相同入口：先 CMake/CTest，再运行原 Python 回归与真实 C++ 差分。Core 构建依赖、单独验证及 NAS 隔离验证见 [core/README.md](core/README.md)。前端继续使用 `cd web && npm test && npm run build`。
 
 ## 第三方数据与许可
 

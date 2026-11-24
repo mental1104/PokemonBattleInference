@@ -5,15 +5,9 @@ export PS1 :=
 
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-# --- Common repo resolution (prefer ~/code/common, fallback to ../common) ---
-PREFERRED_COMMON_ROOT := $(HOME)/code/common
-FALLBACK_COMMON_ROOT := $(abspath $(REPO_ROOT)/../common)
-COMMON_ROOT ?= $(PREFERRED_COMMON_ROOT)
-# Normalize to absolute path for downstream usage
+# 迁移验证必须使用本仓库固定版本的 common，避免相邻源码悄悄改变行为基线。
+COMMON_ROOT ?= $(REPO_ROOT)/submodules/common
 COMMON_ROOT := $(abspath $(COMMON_ROOT))
-ifeq ($(wildcard $(COMMON_ROOT)),)
-  COMMON_ROOT := $(FALLBACK_COMMON_ROOT)
-endif
 
 # Ensure repo sources are importable alongside the shared common/python package.
 PYTHONPATH_LIST := $(REPO_ROOT)
@@ -68,8 +62,19 @@ CLEAN_PATTERNS := \
 install:
 	python3 -m pip install -r requirements.txt --break-system-packages
 
-test:
+test: test-core
 	pytest
+
+# macOS/Linux 使用同一入口；外部构建目录允许 NAS 源码保持只读挂载。
+CORE_BUILD_DIR ?= $(REPO_ROOT)/build/core
+CMAKE ?= cmake
+export PBI_CORE_VECTOR_RUNNER := $(CORE_BUILD_DIR)/pbi_core_vectors
+
+.PHONY: test-core
+test-core:
+	$(CMAKE) -S "$(REPO_ROOT)/core" -B "$(CORE_BUILD_DIR)" -DCMAKE_BUILD_TYPE=Release
+	$(CMAKE) --build "$(CORE_BUILD_DIR)" --parallel 2
+	ctest --test-dir "$(CORE_BUILD_DIR)" --output-on-failure
 
 coverage:
 	pytest --cov=pokeop/domain --cov=pokeop/application --cov-report=term-missing

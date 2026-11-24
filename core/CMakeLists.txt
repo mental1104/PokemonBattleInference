@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.20)
+project(PokemonBattleCore VERSION 0.1.0 LANGUAGES CXX)
+
+find_package(Boost REQUIRED)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+add_library(pbi_core STATIC src/calculations.cpp)
+target_compile_features(pbi_core PUBLIC cxx_std_20)
+target_include_directories(pbi_core PUBLIC include)
+target_link_libraries(pbi_core PUBLIC Boost::headers)
+set_target_properties(pbi_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# 这个无平台依赖的批量入口供 Python 差分验证使用，不承担 HTTP 或持久化职责。
+add_executable(pbi_core_vectors tests/vector_runner.cpp)
+target_link_libraries(pbi_core_vectors PRIVATE pbi_core)
+
+include(CTest)
+if(BUILD_TESTING)
+  find_package(GTest CONFIG REQUIRED)
+  add_executable(pbi_core_tests tests/calculations_test.cpp)
+  target_link_libraries(pbi_core_tests PRIVATE pbi_core GTest::gtest_main)
+  include(GoogleTest)
+  gtest_discover_tests(pbi_core_tests)
+endif()
