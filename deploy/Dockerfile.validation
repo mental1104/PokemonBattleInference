@@ -1,0 +1,12 @@
+# 仅用于迁移验证的一次性工具环境；在线镜像不携带这些测试及 C++ 构建依赖。
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ make cmake libboost-dev libgtest-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /requirements.txt
+# common 的顶层初始化依赖沿用当前 backend 镜像；httpx 为 HTTP 测试客户端。
+RUN pip install --no-cache-dir -r /requirements.txt \
+    genanki pypdf clickhouse-connect pymongo motor redis pycryptodome matplotlib \
+    ruamel.yaml orjson ujson 'psycopg[binary]' httpx==0.28.1
+WORKDIR /source

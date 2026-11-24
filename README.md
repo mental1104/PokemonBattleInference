@@ -2,6 +2,8 @@
 
 一个用于宝可梦对战推演与伤害计算的 FastAPI 服务。
 
+跨平台 Monorepo 迁移在独立分支进行：[进度与恢复入口](docs/migration-progress.md)、[Python/Vue 行为基线与模块映射](docs/migration-baseline.md)。现有在线运行时仍为 Python。
+
 ## 项目结构
 
 ```
