@@ -47,6 +47,7 @@ done
 [[ "$ready" == 1 ]]
 # 业务请求由另一个 Swift 容器经项目网络访问服务，不在 API 容器内部执行客户端。
 compose run --rm --no-deps -e "PBI_ONLINE_TEST_URL=http://$server_name:41105" \
-  -e PBI_ONLINE_REPORT_DIRECTORY=/reports/contracts pokemon-swift-validation \
+  -e PBI_ONLINE_REPORT_DIRECTORY=/reports/contracts \
+  -e PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY=/reports/knowledge-http pokemon-swift-validation \
   bash tools/migration/test-swift.sh "$swift_core" > "$POKEOP_REPORT_ROOT/swift-online.log" 2>&1
 printf 'Swift online/offline acceptance passed. Reports: %s\n' "$POKEOP_REPORT_ROOT"

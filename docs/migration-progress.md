@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 正式十一阶段回合、动态效果、不可变 BFS、SCC/精确求解与真实 fixed_battle 已完成 Python 差分和实际 benchmark。四维配置候选正在登记整合；目标搜索、结果聚合和事件分析仍待迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | 0.6 C ABI/进度回调及 Go 独立 child 已实测，58/58 CTest、Go race/vet 通过；固定提交的 ASan/Swift 与新一轮 Apple 验证继续进行。历史 SDK 产物不能代替新版本验收。 |
-| P3 Go 服务端 | IN_PROGRESS | 原 19/41 API、纯 Go 全 CSV/原 MV 初始化、HTTP 全原生调用进程隔离及 PG 持久化 Worker 已实测。固定战斗真实进度/结果、取消/停机恢复 7 项通过；任务创建、其余计算/图 API 与 Web 闭环仍待补。 |
+| P2 跨语言集成 | IN_PROGRESS | 0.6 C ABI/进度及 Go child、58/58 CTest/ASan 与 Go race/vet 通过；固定树 Swift 17 PASS/3 SKIP，独立 HTTP 计算 2/2 通过。新 Apple Core 58/58，Swift 知识夹具启动失败待修，SDK/App 未进入本轮。 |
+| P3 Go 服务端 | IN_PROGRESS | 原 19/41 完整 API 加一个受限 calculator 入口、纯 Go 全 CSV/原 MV 初始化、HTTP 全原生进程隔离及 PG Worker 已实测。固定战斗进度/结果、取消/停机恢复 7 项通过；任务创建、其余计算/图 API 与 Web 闭环仍待补。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 未签名 device App 与两 SDK 构建成功；最近 iPhone 3/4 UI 测试通过，麻痹切换及 iPad 导航定位失败已修，尚待新 CI。在线复杂任务 UI 和真机未验收。 |
 | P5 数据同步 | IN_PROGRESS | Go HTTP/PG 与两个独立 SQLite 客户端的离线队列、幂等重试、显式冲突、删除与 cursor 收敛 13/13 通过；知识下载/Range 续传/原子安装有实际 HTTP 测试。完整 App 更新 UI 与真机双设备仍待验收。 |
 | P6 部署与回归 | IN_PROGRESS | 无 Python/shell/编译器的 scratch API/数据镜像已实际构建并黑盒验收；完整四角色部署、Web 接入、健康检查周期和升级回滚仍待补。旧生产与数据库保持原状。 |
@@ -154,6 +154,10 @@
 - **89b7db9** 保存 Swift 知识更新客户端、来源设置和界面，严格下载预算、校验与 Range 续传使用真实 HTTP 夹具；安装失败/取消保留旧包及用户库。工具镜像 Swift **20 tests / 3 explicit skip / 0 failure**（17 项实跑，缺独立在线/同步 URL 的三项明确跳过）；此前双 SQLite/Go/PG 的同步 13/13 仍是独立实测证据。
 - 最近已推送 **fc068e3** 的 [Main Gate 45369481139](https://github.com/mental1104/PokemonBattleInference/actions/runs/45369481139) **PASS**，[Native/App 45369481161](https://github.com/mental1104/PokemonBattleInference/actions/runs/45369481161) **FAIL**。可移植取消修复使 macOS CTest **49/49**、两个 SDK 库与未签名 device App 构建通过；iPhone 查询、保存重启、同步设置 **3/4 PASS**，麻痹开关仍为 0、速度 85 而非 42；iPad 四项均在旧 TabBar 入口定位失败。不能写成数学计算错误或 App 启动失败。
 - 产物 **14912441828** 已下载独立验 SHA-256 **bfa53a53334acb55c0711fcf804e66df3141e51deafd334441f5e415489b8fba**，ZIP/完整日志在 `app-sync-20261124/`。实际截图/无障碍层级显示 iPhone 命中整行而非内层 UISwitch，iPad 正常启动并使用顶部浮动按钮。修复保留严格 `0→1→42`、全入口可见中文标签和横屏断言，增加层级/阶段时间及只关闭自启模拟器；Swift parse、bash syntax、diff 检查通过，修复结果以新 CI 为准。
+- **63f4d8e** 已将四维候选登记为真实 Core/CTest/runner：完整 **70/70 CTest PASS**（2.27 秒）及配置差分 **7/7 PASS**（1.31 秒），冻结 17 文件摘要匹配。保留默认四招选择、raw 成员预算、精确权重、覆盖字段及 Python 代表标签；标签格式已避免比当前 iOS/macOS 最低版本更新的浮点 `to_chars` 依赖。该空间的等价类代表不冒充旧 job-v1 的全部具体 case/canonical 身份，后者单独迁移。
+- 固定 **76a40a0** 的完整 ASan/UBSan/leak **58/58 PASS**（139.75 秒），Go `-count=1 -race` **14/14** 与 vet PASS，GCC13 **58/58**、Swift **17 PASS / 3 SKIP**。固定 **a74d98e** 的独立 Swift→HTTP→child 计算 **2/2 PASS**，但整套为 **18 PASS / 1 FAIL / 1 SKIP**：取消更新方法中两条失败记录，包含一次 invalidEndpoint。原无审计日志已被 fixture 清理，不能声称确认根因；带审计重复 12 轮 **36/36 PASS**。已明确修复代码中 ready 文件非原子发布/空串可成为相对 URL 的窗口，并补始终保存 ready/启动状态/HTTP 审计；没有延长等待或降低 8192 字节/取消/续传断言。
+- **4637deb** 新 `/v1/calculator/damage` 通过同 PG 原 FastAPI 的 **14/14** 验收（1.50 秒），其中 **12 项完全等价、两项明确记录已知差异**：旧静态入口的 InnerFocus/Multiscale 为 200，新静态 Core 为 unsupported 422。因此记 **19 个完整 API + 1 个受限 API**，不称 20 个完整迁移。实际 hp/stat→stage→damage 三批独立 child、不可变配置软删快照、原错误和全部 JSON/null 字段已对照；11 个严格输入子场景 race 与 vet 通过。
+- 已推 **4995551** 的 [Main Gate 45380518072](https://github.com/mental1104/PokemonBattleInference/actions/runs/45380518072) **PASS**；[Native 45380518035](https://github.com/mental1104/PokemonBattleInference/actions/runs/45380518035) **FAIL**：macOS Core **58/58 PASS**（6.44 秒）、迁移 pytest **28 PASS / 1 FAIL**，三个 Swift 知识 HTTP fixture 均未就绪且 stderr 为空，SDK/device App/模拟器未执行。产物 **14914260663** ZIP SHA-256 **39e50c2d92e902e060cfbdb1668300a5b13deae6baa7cbc77aba3dda862f9d9e** 已独立匹配，原日志/ZIP 在 `knowledge-ready-20261124/`。Linux 的 ready 窗口不作为本次 Mac 启动失败已证实原因；补丁额外直接选择父测试的真实 Python、去除回环夹具反向 DNS 依赖并记录启动阶段，等待 Apple 实证。修后 Linux Swift **17 PASS / 3 explicit SKIP**（2.270 秒），三个实际更新测试均通过。
 
 ## 下一步
 

@@ -16,6 +16,8 @@ export TMPDIR="$build_base/swift-tmp"
 export CLANG_MODULE_CACHE_PATH="$build_base/swift-modules"
 export SWIFTPM_MODULECACHE_OVERRIDE="$build_base/swift-modules"
 export PBI_CONTRACT_FIXTURES="$source_root/tests/vectors"
+# 先在正常父环境解析真实 Python 路径，Swift 子进程直接执行同一解释器，避免 PATH launcher 歧义。
+export PBI_KNOWLEDGE_TEST_PYTHON="${PBI_KNOWLEDGE_TEST_PYTHON:-$(python3 -c 'import sys; print(sys.executable)')}"
 exec "${PBI_SWIFT:-swift}" test --package-path "$source_root/ios" \
   --scratch-path "$build_base/swift-$abi_hash-$core_hash" \
   --cache-path "$build_base/swift-cache" --config-path "$build_base/swift-config" \

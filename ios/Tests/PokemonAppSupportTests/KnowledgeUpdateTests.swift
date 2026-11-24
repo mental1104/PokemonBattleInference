@@ -35,7 +35,7 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
             if let report = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY"] {
                 let target = URL(fileURLWithPath: report).appendingPathComponent(name).appendingPathComponent(root.lastPathComponent)
                 try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-                for path in ["http.jsonl", "fixture.stderr.log", "manifest.json", "installed/current.json", "users.sqlite"] {
+                for path in ["ready.txt", "fixture-startup.txt", "http.jsonl", "fixture.stderr.log", "manifest.json", "installed/current.json", "users.sqlite"] {
                     try? FileManager.default.copyItem(at: root.appendingPathComponent(path), to: target.appendingPathComponent(path.replacingOccurrences(of: "/", with: "-")))
                 }
             }
@@ -60,10 +60,12 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         let users = try ConfigurationStore(url: root.appendingPathComponent("users.sqlite"))
         let configuration = BattleConfiguration.example()
         try await users.save(configuration, knowledgeVersion: initial.dataVersion, engineVersion: "0.5.0")
-        let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        let process = Process()
+        let python = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_TEST_PYTHON"]
+        process.executableURL = URL(fileURLWithPath: python ?? "/usr/bin/env")
         let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let ready = root.appendingPathComponent("ready.txt")
-        process.arguments = ["python3", source.appendingPathComponent("tests/fixtures/knowledge_http_server.py").path,
+        process.arguments = (python == nil ? ["python3", "-u"] : ["-u"]) + [source.appendingPathComponent("tests/fixtures/knowledge_http_server.py").path,
             "--directory", root.path, "--ready-file", ready.path, "--audit", root.appendingPathComponent("http.jsonl").path]
         let errorLog = root.appendingPathComponent("fixture.stderr.log")
         guard FileManager.default.createFile(atPath: errorLog.path, contents: nil) else { throw StorageFailure.fileOperation("cannot create HTTP fixture log") }
@@ -72,18 +74,25 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         try process.run()
         try errors.close()
         for _ in 0..<200 {
-            if FileManager.default.fileExists(atPath: ready.path), let server = URL(string: try String(contentsOf: ready, encoding: .utf8)) {
+            // URL(string: "") 可创建相对 URL；只有完整回环 HTTP 地址才代表服务已就绪。
+            if let address = try? String(contentsOf: ready, encoding: .utf8), let server = URL(string: address),
+               server.scheme == "http", server.host == "127.0.0.1", server.port != nil, server.path.isEmpty {
                 return Fixture(root: root, server: server, process: process, initial: initial, candidate: candidate, store: store, users: users, configuration: configuration)
             }
             if !process.isRunning { break }
             try await Task.sleep(for: .milliseconds(25))
         }
+        // 超时先记录实际启动身份/状态；诊断不包含环境变量或连接凭据。
+        let startup = "executable=\(process.executableURL?.path ?? "")\npid=\(process.processIdentifier)\nrunning=\(process.isRunning)\n"
+        try? startup.write(to: root.appendingPathComponent("fixture-startup.txt"), atomically: true, encoding: .utf8)
         if process.isRunning { process.terminate(); process.waitUntilExit() }
         let diagnostic = String((try? String(contentsOf: errorLog, encoding: .utf8))?.prefix(8192) ?? "")
         if let report = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY"] {
             let target = URL(fileURLWithPath: report).appendingPathComponent("fixture-startup-failure").appendingPathComponent(root.lastPathComponent)
             try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-            try? FileManager.default.copyItem(at: errorLog, to: target.appendingPathComponent("fixture.stderr.log"))
+            for path in ["ready.txt", "fixture-startup.txt", "fixture.stderr.log"] {
+                try? FileManager.default.copyItem(at: root.appendingPathComponent(path), to: target.appendingPathComponent(path))
+            }
         }
         try? FileManager.default.removeItem(at: root)
         throw StorageFailure.fileOperation("HTTP fixture did not become ready: \(diagnostic)")

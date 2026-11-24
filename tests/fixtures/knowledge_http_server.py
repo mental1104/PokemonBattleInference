@@ -7,11 +7,13 @@ import argparse
 import json
 import signal
 import socket
+import sys
 import threading
 import time
 from enum import Enum
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from urllib.parse import urlsplit
 
 
@@ -40,6 +42,12 @@ class FixtureServer(ThreadingHTTPServer):
         self.state_lock = threading.Lock()
         self.dropped = False
         super().__init__(("127.0.0.1", 0), FixtureHandler)
+
+    def server_bind(self) -> None:
+        """绑定固定回环地址并记录端口；本机验收不需要 HTTPServer 的反向 DNS 查询。"""
+        TCPServer.server_bind(self)
+        self.server_name = "127.0.0.1"
+        self.server_port = self.server_address[1]
 
     def record(self, path: str, byte_range: str | None, status: int) -> None:
         """追加 path/Range/status 协议证据，文件位于本测试拥有的目录。"""
@@ -119,6 +127,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     """读取自有包/报告路径并启动回环临时端口；父测试终止此进程完成回收。"""
+    print("fixture: entered main", file=sys.stderr, flush=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--ready-file", type=Path, required=True)
@@ -127,8 +136,13 @@ def main() -> None:
     # Linux Swift 从调度线程启动 Process 时可继承被屏蔽的 SIGTERM；夹具显式恢复自己的终止信号。
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
+    print("fixture: binding loopback", file=sys.stderr, flush=True)
     with FixtureServer(arguments.directory, arguments.audit) as server:
-        arguments.ready_file.write_text(f"http://127.0.0.1:{server.server_port}", encoding="ascii")
+        # 先写完整地址再原子发布，父进程不能把刚创建的空文件当作就绪握手。
+        pending_ready = arguments.ready_file.with_name(f"{arguments.ready_file.name}.pending")
+        pending_ready.write_text(f"http://127.0.0.1:{server.server_port}", encoding="ascii")
+        pending_ready.replace(arguments.ready_file)
+        print("fixture: ready", file=sys.stderr, flush=True)
         server.serve_forever()
 
 
