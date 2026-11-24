@@ -61,4 +61,4 @@ bash tools/migration/validate-nas.sh all
 PYTHONPATH=submodules/common/python:. python tools/migration/benchmark_calculations.py --runner build/core/pbi_core_vectors --output /tmp/pbi-calculations-benchmark.json
 ```
 
-完整伤害、规则集、速度状态效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux 验证，详见 `contracts/c/README.md`；macOS/iOS 正通过用户授权的 CI 验证，完成前仍未验证。P1/P2 均为 IN_PROGRESS。
+完整伤害、规则集、速度状态效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux/macOS 验证，详见 `contracts/c/README.md`；iPhoneOS/Simulator 的 Core/Swift 静态产物和 XCFramework 也已通过真实 GitHub CI 构建及产物核验。尚无 App/模拟器运行或真机验收，P1/P2 仍均为 IN_PROGRESS。

@@ -55,4 +55,4 @@ Go 在每次调用内拥有令牌、C 输入副本和结果。监视 context 的
 
 本地统一入口：`make test` 或 `make test-native`。仅缺少未显式配置的 Go/Swift 工具时，pytest 会说明能力缺失并 SKIP；显式工具/库配置错误必须 FAIL。NAS 的 `validate-nas.sh bindings` 委托两个声明的 maintenance 工具环境，弥补 Python 镜像未含 Swift 的能力；不是把其跳过结果算成通过。
 
-macOS/iOS 由用户已授权的 GitHub Ready-PR CI 实际验证，结果以 workflow/job 日志为准；在 CI 完成前未验证。Apple SDK 编译不需要登录或签名。`build-apple-core.sh` 准备设备/模拟器 archive、Swift 模块和 C ABI XCFramework，不安装 App、不执行签名、不代表 iPhone/iPad 真机验收。
+macOS/iOS 已由用户授权的 [GitHub Ready-PR CI 45343368822](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822) 实际验证：macOS CTest 13/13、差分和双语言委托 6/6 无跳过；arm64 iPhoneOS/Simulator archive、Swift 模块和 C ABI XCFramework 均构建成功。下载的 ZIP 校验值、两个平台与共享头已独立核验，证据见 `docs/migration-progress.md`。Apple SDK 编译不需要登录或签名，不安装 App、不执行签名、不代表模拟器运行或 iPhone/iPad 真机验收。

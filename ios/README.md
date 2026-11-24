@@ -6,6 +6,6 @@ Linux Swift 6.0.3 已完成实际构建和 4 项 XCTest：完整共享结果/版
 
 本地在同环境构建 Core 后，用 `make test-native` 或 `bash tools/migration/test-swift.sh "$PWD/build/core"`。脚本把所有可执行临时文件及缓存放在构建目录旁，并按静态库校验值隔离 scratch，保证链接当前 Core。
 
-用户已授权使用 GitHub macOS CI 自动验证 Apple 目标。`build-apple-core.sh` 在 Mac 的现有 Xcode 环境中构建 arm64 iPhoneOS/Simulator Core、Swift module 和 C ABI XCFramework；不需要 Apple 登录、Team 或签名。实际状态以 CI 记录为准。
+用户授权的 [GitHub macOS CI](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822) 已通过：Xcode 16.4、Swift 6.1.2，macOS 原生测试和 arm64 iPhoneOS/Simulator Core、Swift module、C ABI XCFramework 构建成功。下载产物的校验值、平台与共享头已独立核对。`build-apple-core.sh` 无需 Apple 登录、Team 或签名；这些结果不代表 App 或模拟器运行通过。
 
 当前尚无 SwiftUI App、SQLite 图鉴/用户数据、配置编辑、在线任务及数据同步，因此 P4/P5 不能标记 PASS。晚上接通用户 Mac 后可继续本地构建和后续应用安装；Apple 登录/Team、设备信任、Developer Mode 和真机安装授权仍由 Human 完成。可通过工具执行的构建和诊断由 Agent 完成，不要求 Human 代跑终端命令。

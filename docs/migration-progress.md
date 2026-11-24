@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级与给定伤害档位 KO，使用任意精度精确分数；其余完整计算与图推演待迁移，macOS 未验证。 |
-| P2 跨语言集成 | IN_PROGRESS | 版本化 C ABI、Go/Swift Linux 实际调用与并发/取消/内存测试已通过；Apple 目标正在准备 GitHub CI 实测。 |
+| P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
 | P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
 | P5 数据同步 | NOT_STARTED | 数据包与用户同步协议待实现。 |
@@ -27,7 +27,7 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | IN_PROGRESS | 用户有 Mac、预计晚上才开放访问；已授权先用 GitHub macOS runner 无签名验证，不把终端操作交由 Human 代跑。CI 成功前仍未验证。 |
+| macOS / Xcode 构建 | PASS | GitHub macOS 15 arm64 / Xcode 16.4 已实测通过首批原生测试和 Apple SDK 构建；不代表 SwiftUI App、模拟器运行或真机验收。 |
 | Apple 登录、Team、签名 | HUMAN_PENDING | Human 在 Xcode 登录 Apple Account、选择 Signing Team；不购买资格。 |
 | iPhone/iPad 安装及验收 | HUMAN_PENDING | 工程可构建后，由 Human 连接设备、信任、启用 Developer Mode 并按固定向量验收。 |
 | HomeLab 生产切换、正式备份、最终合并 | HUMAN_PENDING | 只在替代能力完成验证并获得明确授权后执行。 |
@@ -75,14 +75,24 @@
 - Native Core [45342676029](https://github.com/mental1104/PokemonBattleInference/actions/runs/45342676029)：macOS 原生步骤 PASS，CTest **13/13**、Python 差分和 Go/Swift 委托 **6/6**（77.66 秒，无跳过）。iOS 配置失败：`Could NOT find Boost (missing: Boost_INCLUDE_DIR)`；同机 macOS 已成功发现依赖，不能把它误记为未安装。
 - 修正位置：`build-apple-core.sh`，为 iOS 交叉编译显式提供已安装、平台无关的 Boost headers 和 nlohmann_json CMake package 路径，继续由实际 SDK 编译 C++。没有跳过 Apple 步骤或降低断言；等待修正后的 CI。
 
+修正提交 **`738919aa0ea5900d1de852d864630a6a22e01dc9`** 的实际 CI 结果：
+
+- Native Core [45343368822](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822)：**PASS**，包括 native tests、iPhoneOS/Simulator 编译与 XCFramework 打包；macOS CTest **13/13**，差分/Go/Swift 委托 **6/6，无跳过**（60.80 秒）。实际工具链为 Xcode **16.4 (16F6)**、Swift **6.1.2**、AppleClang **17.0.0**、Go **1.23.12**、CMake **4.5.0**。
+- Main Gate [45343368873](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368873)：**PASS**，包括原后端、Web 测试及生产构建。
+- 已下载并核对 [Apple 产物 14896444554](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822/artifacts/14896444554)：ZIP SHA-256 **`7fb8c6fabeb9809873108a579c418df9e00081c295df605e7b885052a2ab5f86`** 与 GitHub digest 完全一致。永久保存在上述 Backup 根的 `native-apple-738919a.zip`，最终 job 日志为 `github-apple-45343368822.log`，失败首次 ZIP/日志也保留，未用成功文件覆盖。
+- 独立读取 ZIP 的 `Info.plist`：同时存在 **ios-arm64** 和 **ios-arm64-simulator**，平台均为 ios，后者明确标为 simulator；两个静态库均为实际 ar archive；两个平台的 C 头与本仓库完全一致，均有 `_pbi_v1_compute` 导出与非空 `PokemonCore.swiftmodule`。JUnit 确认为 6 tests / 0 failure / 0 error / 0 skipped。
+- 以上仅证明首批 Core/Swift 桥接的真实编译和 macOS 调用；尚无 SwiftUI App 或模拟器运行测试、设备安装、离线包/用户库及同步，因此 P1–P6 整体依然未通过，Goal 未完成。今晚 Mac 的身份/签名/物理设备操作仍按 Human 边界，工具可执行事项由 Agent 承担。
+
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-先取得 GitHub macOS/iOS CI 实测结果并修复实际问题；继续迁移完整伤害、规则、速度效果与不可变状态，再接回合/图/SCC/搜索/事件分析。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因首批通过而标记 PASS。
+Apple CI 已实际通过，下一轮继续迁移完整伤害、规则、速度效果与不可变状态，再接回合/图/SCC/搜索/事件分析，并复用已接通的 C ABI/双语言入口扩大闭环。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因首批通过而标记 PASS。
 
 ## 恢复提示
 
 最近三个已提交基线检查点：`12d9c10`（P0/合同/隔离环境）、`aef5b9d`（生成 SQL 空白规范化）、`6a94e88`（Web 测试定位修正）。之后的 Core 提交以分支 `git log` 为准。
+
+跨语言检查点：`c42acac`（C ABI/Go/Swift 实际闭环）、`425c9b8`（用户授权 Ready-PR CI）、`738919a`（Apple 交叉编译依赖发现修复；远端完整 CI 全绿）。后续纯记录提交不改变这些已经验证的代码；不为文档状态更新重复运行整套 SDK 构建，下一次代码变更再推送并运行 CI。
 
 先查看本文件和 `core/README.md`，然后 `git status --short`。原完整回归已经通过，不在没有新行为改动或失败的情况下重复执行 6 分钟图 benchmark；下一轮应继续实现缺失能力。当前没有需要观察的遗留计算任务；一次性验证均已结束。
