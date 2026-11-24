@@ -17,12 +17,17 @@ jobs:
   apple-core:
     if: github.event.pull_request.draft == false
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       PBI_CORE_LIBRARY_DIR: ${{ github.workspace }}/build/core
       PBI_CORE_VECTOR_RUNNER: ${{ github.workspace }}/build/core/pbi_core_vectors
     steps:
       - uses: actions/checkout@v4
+      - name: Initialize pinned knowledge source
+        shell: bash
+        run: |
+          git config submodule.submodules/pokeapi.url https://github.com/PokeAPI/pokeapi.git
+          git submodule update --init --depth 1 submodules/pokeapi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -33,7 +38,7 @@ jobs:
       - name: Install native dependencies
         shell: bash
         run: |
-          brew install boost googletest nlohmann-json cmake
+          brew install boost googletest nlohmann-json cmake xcodegen jq
           python -m pip install -r requirements.txt
       - name: Record actual toolchains
         shell: bash
@@ -59,6 +64,9 @@ jobs:
           set -o pipefail
           export CMAKE_PREFIX_PATH="$(brew --prefix boost):$(brew --prefix nlohmann-json)"
           bash tools/migration/build-apple-core.sh "$PWD/build/apple" 2>&1 | tee build/reports/apple-build.log
+      - name: Build App and run iPhone and iPad acceptance
+        shell: bash
+        run: bash tools/migration/validate-apple-app.sh "$PWD"
       - name: Preserve actual reports and Apple artifacts
         if: always()
         uses: actions/upload-artifact@v4

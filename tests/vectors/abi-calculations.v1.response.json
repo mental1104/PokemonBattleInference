@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "engine_version": "0.3.0",
-  "rules_version": "calculation-rules.v3",
+  "engine_version": "0.4.0",
+  "rules_version": "calculation-rules.v4",
   "results": [
     {"kind": "hp", "value": 202},
     {"kind": "stat", "value": 200},
@@ -417,6 +417,17 @@
       "attacker_speed": 56,
       "defender_speed": 80,
       "damage": null
+    },
+    {
+      "kind": "profile",
+      "stats": {
+        "hp": 177,
+        "attack": 200,
+        "defense": 120,
+        "special_attack": 67,
+        "special_defense": 100,
+        "speed": 85
+      }
     }
   ]
 }

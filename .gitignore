@@ -164,3 +164,7 @@ cython_debug/
 .devcontainer/
 .github/
 .vscode/
+
+# XcodeGen 工程和 Swift Package 构建缓存由源配置重新生成。
+ios/*.xcodeproj/
+ios/.build/

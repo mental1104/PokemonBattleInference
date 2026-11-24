@@ -7,11 +7,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 能力值/性格/等级、直接伤害/部分代际策略与精确 KO 已通过 Linux/macOS/Apple SDK；新增不可变状态/StateKey/PP/锁招及独立速度/灼伤修正已通过 Linux，状态批次 Apple CI 待执行。完整回合/动态效果/图推演仍待迁移。 |
+| P1 C++ Core | IN_PROGRESS | 能力值/直接伤害/精确 KO、不可变状态/StateKey/PP/锁招及独立状态修正已通过 Linux/macOS/Apple SDK；新增完整性格 profile 已通过 Linux 差分。完整回合/动态效果/图推演仍待迁移。 |
 | P2 跨语言集成 | IN_PROGRESS | 首批 C ABI/Go/Swift 在 Linux/macOS 实际调用通过；arm64 iPhoneOS/Simulator 静态库、Swift 模块及 XCFramework 已由 CI 构建并核验。完整 Core 能力仍待迁移和接入。 |
-| P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
-| P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
-| P5 数据同步 | NOT_STARTED | 数据包与用户同步协议待实现。 |
+| P3 Go 服务端 | IN_PROGRESS | Core HTTP 已实际验收；旧 API/PG/Worker 迁移并行开发中，新增部分待统一集成验证。生产仍为 Python。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 查询/计算/配置保存的 AppSupport 在 Linux 实测，SwiftUI 与工程已落地；实际 App 构建、模拟器和真机仍未验证。 |
+| P5 数据同步 | IN_PROGRESS | 版本化知识 SQLite 与失败恢复已有真实验证；独立用户库/本地队列已实测，PG/双设备同步仍在开发，尚未验证收敛。 |
 | P6 部署与回归 | IN_PROGRESS | 已加入统一原生测试入口与隔离验证；用户已授权 GitHub macOS/iOS CI。旧部署/数据库保持原状，未切换生产。 |
 
 ## 已确认的边界与决策
@@ -114,13 +114,25 @@
 - `validate-nas.sh all` PASS：C/C++ **27/27**；Python **583 passed / 1 skipped**（34.45 秒，缺 Swift 的工具镜像明确跳过），真实临时 PostgreSQL 回归通过；Go race/vet PASS；专用 Swift **4/4 PASS**（1.176 秒），Web **95/95** 和构建通过。日志 `final/`。
 - ASan/UBSan/leak **27/27 PASS**（31.45 秒），日志 `sanitizer.log`；独立 NAS curl 访问实际 Go 服务，八操作 HTTP **200** 与冻结响应完整一致，未知操作 **422** 无部分结果，证据 `http/`，实例退出清理。
 - 边界测试曾捕获负分母输入导致 INTERNAL_ERROR（`vectors/core-regression.log`）；在交给有理数构造前统一分母符号后，原 **0001/-0003 → -1/3** 精确断言通过。分数输入每个分子/分母最多 1024 位；每状态最多 256 更新，所有原始/参考/更新策略槽位共同计入批次预算，超限显式失败。
-- 已知边界：effect 标识支持原 ASCII 规范化，非 ASCII 机制标识明确 UNSUPPORTED；中文展示名/来源正常保留。multiscale/inner_focus 可完整存入状态，动态效果执行仍待迁移，直接伤害入口保持明确 UNSUPPORTED。完整回合、状态图与 App/同步尚未完成；本批 Apple CI 待提交后实际验证。
+- 已知边界：effect 标识支持原 ASCII 规范化，非 ASCII 机制标识明确 UNSUPPORTED；中文展示名/来源正常保留。multiscale/inner_focus 可完整存入状态，动态效果执行仍待迁移，直接伤害入口保持明确 UNSUPPORTED。完整回合、状态图与 App/同步尚未完成。
+- 提交 **`e8a8b2749c9148eaa9ba44107e57db702cda79ed`** 的 [Native Core 45356308995](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308995) **PASS**：macOS CTest **27/27**、迁移/Go/Swift 委托 **13/13，无跳过**（73.87 秒）；[Main Gate 45356308957](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308957) **PASS**。iPhoneOS/Simulator SDK 库均实际构建成功，尚未运行 App。
+- 已独立核验 [Apple 产物 14902881683](https://github.com/mental1104/PokemonBattleInference/actions/runs/45356308995/artifacts/14902881683)：ZIP SHA-256 **`4a90a8ac8c41407065ad35bfc202761329854e40b976ff937347405a16e935ca`** 与 GitHub digest 一致；两个平台各含六个实际 arm64 Mach-O 对象，LC_BUILD_VERSION 分别为 iOS **2** 与 Simulator **7**，共享 C 头与仓库相同、含 compute 导出、Swift module 非空，JUnit 无失败/错误/跳过。ZIP、完整 job 日志与核验脚本/JSON 在本节证据根。
+
+## 离线知识与 AppSupport 检查点（2026-11-24，待统一提交）
+
+证据根：`/volume1/homes/mental1104/Backup/PokemonBattleInference/app-20261124/`。
+
+- 新纯 Core `profile` 操作统一处理完整六项能力和性格轴，客户端仅投影输入，未在 Swift 重写公式；引擎 **0.4.0** / **calculation-rules.v4**，ABI/schema 仍 v1。新增冻结共享 profile；全部 **25×64=1,600** 配置的 **9,600** 能力字段与原 Python `NATURES`/`calculate_actual_stats` 精确一致。
+- `data/knowledge/schema.v1.sql` 与 `tools/data/build_knowledge_pack.py` 从固定 PokeAPI `1567d53073a069b6c96e1c393c5c490f602e3ab5` 投影真实离线知识；15 个 CSV 与 schema 摘要计入版本。已捆绑 **413,696 bytes** SQLite，版本 **pokeapi-1567d53073a0-7e4be433ddb6**，SHA-256 **97077d1074f39a83e89aa3b0f7b0dff9bb6db7b89821e502e497bf924d86d44f**，含 1,350 宝可梦、937 招式、25 性格及 324 属性关系，并保留来源许可。
+- 实际验证完整摘要/外键/表数量，全部属性关系与原知识一致；固定 CSV 重建得到相同逻辑版本与来源，重复构建字节一致；源缺失时原产物未被覆盖。`profile-data-final/core-regression.log`：C/C++ **28/28**，迁移 pytest **16 passed / 1 skipped**（17.44 秒，跳过为 Python 工具镜像缺 Swift）。这些结果不代表后续并行编辑的 Go/同步文件已经通过。
+- Swift `KnowledgeStore` 使用只读 SQLite 与独立目录，先验证候选包再提交原子版本指针，保留旧文件；`ConfigurationStore` 独立用户库，事务内同时保存配置/稳定 ID/本地队列，软删除与重启恢复；`CalculationService` 调用同一个 C ABI，在线入口使用相同请求、不静默回退。Linux **10/10 XCTest PASS**（1.698 秒，含既有 4 个桥接测试），日志 `swift-app/swift-regression.log`。覆盖真实中文查询、99…117 伤害/123/128 二击率、85/80 速度与麻痹 42、知识更新失败/恢复、用户数据保留及注入队列失败后的事务回滚。
+- 当前只证明 Linux AppSupport 与本机 Core 闭环；在线 Swift 客户端、SwiftUI App 编译/模拟器运行、复杂推演及双设备同步仍未验收。P3/P4/P5 agent 正并行实现；用户已追加要求 P1/P2 专属 agent，但当前 root+三个 agent 达到系统四线程上限，新建被拒绝，采用批次交接后的专属轮换，不能报告五个 agent 同时运行。
 
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-先完成状态批次 Apple CI。为尽早形成设备可用闭环，将已验证查询/计算能力接入真实 SwiftUI App 与离线 SQLite；同时保留并继续推进完整合法行动、回合/动态效果/图/SCC/搜索/事件分析及 Go API/Worker 迁移。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
+统一提交已验证 Core/离线知识/AppSupport 与 SwiftUI 工程，执行实际 iPhone/iPad App CI，并处理真实编译/运行反馈；继续完整合法行动、回合/动态效果/图/SCC/搜索/事件分析及 Go API/Worker 和同步迁移。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因当前切片通过而标记 PASS。
 
 ## 恢复提示
 

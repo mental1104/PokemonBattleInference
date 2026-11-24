@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "data_version": "pokeapi-1567d53073a0-7e4be433ddb6",
+  "source_revision": "1567d53073a069b6c96e1c393c5c490f602e3ab5",
+  "input_sha256": "7e4be433ddb618d9a281c3a3a1f4243d58d10848927a7280f6994686c5e41b7f",
+  "sqlite_sha256": "97077d1074f39a83e89aa3b0f7b0dff9bb6db7b89821e502e497bf924d86d44f",
+  "byte_size": 413696,
+  "counts": {
+    "pokemon": 1350,
+    "pokemon_stats": 8100,
+    "pokemon_types": 2115,
+    "pokemon_abilities": 2917,
+    "moves": 937,
+    "types": 21,
+    "natures": 25,
+    "abilities": 367,
+    "type_efficacy": 324
+  },
+  "sources": [
+    {
+      "file": "abilities.csv",
+      "sha256": "f014f8fbe81e30b09bf36b281b0fbb1a88593e26513300e4317c3ab65fb95634"
+    },
+    {
+      "file": "ability_names.csv",
+      "sha256": "351f00037a8f02c2c4000230854324a59329dbeb6c529e6b7f2198ce0e7cb8cf"
+    },
+    {
+      "file": "move_names.csv",
+      "sha256": "d4be0857cfb9725f341b43525546f0f504708f984fd2b70222391d967b4f81bb"
+    },
+    {
+      "file": "moves.csv",
+      "sha256": "d4e8292524f38c0883dafc9778264cf4a08ccbf35337422ec1677890070c9885"
+    },
+    {
+      "file": "nature_names.csv",
+      "sha256": "a44591fd49fec9a0d1ac6e616c9cd8fdd11284be2bbf1c7cf630e24d37040d06"
+    },
+    {
+      "file": "natures.csv",
+      "sha256": "3536990f6adeaa1735551a6afe798649d22426e161c937da09d3ae9a5381309c"
+    },
+    {
+      "file": "pokemon.csv",
+      "sha256": "5b03f86e9e5fd8ccb33260ab755468d0c2d1099bc900a9b2024a99e21468c759"
+    },
+    {
+      "file": "pokemon_abilities.csv",
+      "sha256": "888cfb9101028a6a569ed9a4dab00e07e628daab665284e41ad0e73ed8c09c7c"
+    },
+    {
+      "file": "pokemon_species.csv",
+      "sha256": "75ded2f9498e38a9714a4b37ea1f43024bef12f1d2a52702393c35212d875875"
+    },
+    {
+      "file": "pokemon_species_names.csv",
+      "sha256": "618280064cae9958d781d96834b1cab8d89dea4e2ef819a64130536c37d7b650"
+    },
+    {
+      "file": "pokemon_stats.csv",
+      "sha256": "01974c40d3d1855839b2f5d9366c9f49b79ed2854d41ae121a4ec7659a005982"
+    },
+    {
+      "file": "pokemon_types.csv",
+      "sha256": "9f67b663ea488cb779f1672b06da372c6c05145f58ce15b3b9526ff334913cbd"
+    },
+    {
+      "file": "schema.v1.sql",
+      "sha256": "775726ea39503bba129c5f3fe365961982ba91f773a3fbfb00c0eaf7c3a5e087"
+    },
+    {
+      "file": "type_efficacy.csv",
+      "sha256": "cdd7de4066680414d0a2433af805f139f425d6350cbf998ecab559a0fe8ff587"
+    },
+    {
+      "file": "type_names.csv",
+      "sha256": "e9c930030dc42743e724215b819f4f3e2aca5ebb618e95417a228b30581dde11"
+    },
+    {
+      "file": "types.csv",
+      "sha256": "37f039c8d722f47d51ba1c5c5ecf9b7007235b1a9a1af2827645c777b70307c8"
+    }
+  ]
+}

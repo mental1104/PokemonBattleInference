@@ -1,6 +1,6 @@
 # 仅 Linux Swift 调用验证；不能替代 Apple SDK、Xcode 或 iOS 真机构建。
 FROM swift:6.0
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends cmake make g++ libboost-dev libgtest-dev nlohmann-json3-dev \
+    && apt-get install -y --no-install-recommends cmake make g++ libboost-dev libgtest-dev nlohmann-json3-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /source

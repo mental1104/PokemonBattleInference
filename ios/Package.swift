@@ -11,11 +11,15 @@ let cppRuntime = "c++"
 let package = Package(
     name: "PokemonCore",
     platforms: [.iOS(.v16), .macOS(.v13)],
-    products: [.library(name: "PokemonCore", targets: ["PokemonCore"])],
+    products: [.library(name: "PokemonCore", targets: ["PokemonCore"]),
+               .library(name: "PokemonAppSupport", targets: ["PokemonAppSupport"])],
     targets: [
         .systemLibrary(name: "CPokemonCore"),
+        .systemLibrary(name: "CSQLite", pkgConfig: "sqlite3", providers: [.apt(["libsqlite3-dev"])]),
         .target(name: "PokemonCore", dependencies: ["CPokemonCore"],
                 linkerSettings: [.linkedLibrary("pbi_abi"), .linkedLibrary("pbi_core"), .linkedLibrary(cppRuntime)]),
-        .testTarget(name: "PokemonCoreTests", dependencies: ["PokemonCore"])
+        .target(name: "PokemonAppSupport", dependencies: ["PokemonCore", "CSQLite"], resources: [.process("Resources")]),
+        .testTarget(name: "PokemonCoreTests", dependencies: ["PokemonCore"]),
+        .testTarget(name: "PokemonAppSupportTests", dependencies: ["PokemonAppSupport"])
     ]
 )

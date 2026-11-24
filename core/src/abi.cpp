@@ -2,6 +2,7 @@
 #include "pbi_core.h"
 #include "pbi/calculations.hpp"
 #include "pbi/damage.hpp"
+#include "pbi/profile.hpp"
 #include "json_contract.hpp"
 #include "state_contract.hpp"
 
@@ -42,7 +43,9 @@ struct StageRequest { std::int64_t value; std::int32_t stage; };
 struct KoRequest { std::vector<std::int64_t> rolls; std::int32_t hp; };
 /// 直接伤害请求拥有领域输入与知识快照，并记录原有兼容代际身份。
 struct DamageRequest { pbi::DamageInput input; pbi::TypeChartSnapshot knowledge; std::int32_t generation; };
-using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest>;
+/// 完整能力配置复用领域性格选择和能力公式。
+struct ProfileRequest { pbi::StatProfile input; };
+using Operation = std::variant<HpRequest, StatRequest, StageRequest, KoRequest, DamageRequest, BattleStateRequest, StatusModifiersRequest, ProfileRequest>;
 
 /// @param token 只读借用的可空令牌；已取消时抛出 RequestError，无副作用。
 void CheckCancelled(const pbi_cancel_token_v1* token) {
@@ -108,6 +111,12 @@ std::pair<Operation, std::size_t> ReadOperation(const Json& object, std::size_t 
     throw RequestError(PBI_INVALID_INPUT_V1, "operation kind must be a string");
   }
   const auto kind = object.at("kind").get<std::string>();
+  if (kind == "profile") {
+    RequireFields(object, {"kind", "base", "ivs", "evs", "level", "decreased_stat_id", "increased_stat_id"});
+    return {ProfileRequest{{ReadBattleStats(object.at("base")), ReadBattleStats(object.at("ivs")), ReadBattleStats(object.at("evs")),
+        ReadInt32(object.at("level")), static_cast<pbi::NatureAxis>(ReadInt32(object.at("decreased_stat_id"))),
+        static_cast<pbi::NatureAxis>(ReadInt32(object.at("increased_stat_id")))}}, 0};
+  }
   if (kind == "battle_state") {
     auto [request, consumed] = ReadBattleStateRequest(object, remaining_rolls);
     return {std::move(request), consumed};
@@ -175,10 +184,12 @@ Json Evaluate(const DamageRequest& request) {
 Json Evaluate(const BattleStateRequest& request) { return EvaluateBattleState(request); }
 /// @param request 只读状态修正请求；@return 精确倍率和独立速度修正。
 Json Evaluate(const StatusModifiersRequest& request) { return EvaluateStatusModifiers(request); }
+/// @param request 只读完整配置；@return 同一 Core 计算的六项实际能力。
+Json Evaluate(const ProfileRequest& request) { return {{"kind", "profile"}, {"stats", BattleStatsJson(pbi::CalculateStats(request.input))}}; }
 
 /// @return 所有成功/失败响应共有的版本信息，新对象无共享状态。
 Json Envelope() {
-  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v3"}};
+  return {{"schema_version", 1}, {"engine_version", PBI_ENGINE_VERSION}, {"rules_version", "calculation-rules.v4"}};
 }
 
 /// @param code 稳定错误枚举；@return 静态 ASCII 名称，无所有权转移。

@@ -799,6 +799,36 @@
         "phase": "action-selection"
       },
       "damage_query": null
+    },
+    {
+      "kind": "profile",
+      "base": {
+        "hp": 70,
+        "attack": 130,
+        "defense": 100,
+        "special_attack": 55,
+        "special_defense": 80,
+        "speed": 65
+      },
+      "ivs": {
+        "hp": 31,
+        "attack": 31,
+        "defense": 31,
+        "special_attack": 31,
+        "special_defense": 31,
+        "speed": 31
+      },
+      "evs": {
+        "hp": 252,
+        "attack": 252,
+        "defense": 0,
+        "special_attack": 0,
+        "special_defense": 0,
+        "speed": 0
+      },
+      "level": 50,
+      "decreased_stat_id": 4,
+      "increased_stat_id": 2
     }
   ]
 }

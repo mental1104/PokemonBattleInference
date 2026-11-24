@@ -1,10 +1,22 @@
 #include "pbi/calculations.hpp"
+#include "pbi/profile.hpp"
 #include <gtest/gtest.h>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 
 namespace pbi {
+
+/// 整个六项配置由 Core 选择性格；与既有共享种族/IV/EV向量保持一致。
+TEST(Stats, CompleteProfileNatureAxes) {
+  const StatProfile profile{{70,130,100,55,80,65}, {31,31,31,31,31,31}, {252,252,0,0,0,0}, 50,
+      NatureAxis::special_attack, NatureAxis::attack};
+  EXPECT_EQ(CalculateStats(profile), (BattleStats{177,200,120,67,100,85}));
+  auto neutral = profile; neutral.decreased = NatureAxis::attack;
+  EXPECT_EQ(CalculateStats(neutral), (BattleStats{177,182,120,75,100,85}));
+  auto invalid = profile; invalid.decreased = static_cast<NatureAxis>(1);
+  EXPECT_THROW(static_cast<void>(CalculateStats(invalid)), UnsupportedRule);
+}
 
 /// 锁定原测试中的巨钳螳螂与仙子伊布能力配置及 floor 顺序。
 TEST(Stats, ReferenceProfiles) {

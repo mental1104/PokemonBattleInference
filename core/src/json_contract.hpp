@@ -55,6 +55,18 @@ inline std::int32_t ReadInt32(const Json& value) {
   return static_cast<std::int32_t>(integer);
 }
 
+/// @param value 只读六项整数对象；@return 完整能力数据，禁止缺失或未知字段。
+inline BattleStats ReadBattleStats(const Json& value) {
+  RequireFields(value, {"hp", "attack", "defense", "special_attack", "special_defense", "speed"});
+  return {ReadInt32(value.at("hp")), ReadInt32(value.at("attack")), ReadInt32(value.at("defense")),
+          ReadInt32(value.at("special_attack")), ReadInt32(value.at("special_defense")), ReadInt32(value.at("speed"))};
+}
+/// @param value 只读六项能力；@return 完整协议对象，不执行数值计算。
+inline Json BattleStatsJson(const BattleStats& value) {
+  return {{"hp", value.hp}, {"attack", value.attack}, {"defense", value.defense},
+          {"special_attack", value.special_attack}, {"special_defense", value.special_defense}, {"speed", value.speed}};
+}
+
 
 /// 检查带可选字段的固定 schema；未知参数不能静默丢失。
 /// @param value 只读对象；@param required 必填字段；@param optional 可选字段。
