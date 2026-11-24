@@ -15,3 +15,29 @@ services:
       interval: 1s
       timeout: 2s
       retries: 30
+  pokemon-go-image:
+    profiles: [maintenance]
+    image: pokemon-go-server:migration
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.go
+      target: server
+    user: "1026:100"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,size=16777216"]
+    mem_limit: 1g
+  pokemon-go-db-init-image:
+    profiles: [maintenance]
+    image: pokemon-go-db-init:migration
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.go
+      target: db-init
+    user: "1026:100"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,size=16777216"]
+    mem_limit: 1g

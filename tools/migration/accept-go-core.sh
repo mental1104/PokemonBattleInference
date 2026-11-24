@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 用途：独立 curl 客户端验收实际 Go 服务进程，含 CGO/Core 完整计算和错误响应。
-# 输入：已构建的 /build/core 库与可选构建/报告目录变量；不读取生产凭据。
+# 输入：当前源码与可选构建/报告目录变量；独立重建 ABI，不读取生产凭据。
 # 输出：请求、状态、响应头/正文和容器日志保存到 Backup；退出码 0 表示完整比较通过。
 # 副作用：构建当前 Go 可执行文件，启动自有 run --rm 容器，仅发布随机回环端口，退出清理。
 set -euo pipefail
@@ -25,12 +25,12 @@ cleanup() {
 }
 
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/go-tmp"
-compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path \
+compose run --rm --no-deps -e CGO_LDFLAGS=-L/build/p3/core -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path \
   -e GOTMPDIR=/build/go-tmp pokemon-validation sh -c \
-  'cd server && go build -a -o /build/pbi-server ./cmd/pbi-server' \
+  'cmake -S core -B /build/p3/core -DCMAKE_BUILD_TYPE=Release && cmake --build /build/p3/core --target pbi_abi -j2 && cd server && go build -a -o /build/p3/pbi-server ./cmd/pbi-server && go build -a -o /build/p3/pbi-core-worker ./cmd/pbi-core-worker' \
   > "$POKEOP_REPORT_ROOT/server-build.log" 2>&1
 container_id="$(compose run --rm --no-deps -d --name "pbi-core-acceptance-$$" \
-  --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 pokemon-validation /build/pbi-server)"
+  --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 pokemon-validation /build/p3/pbi-server)"
 trap cleanup EXIT
 readonly endpoint="http://$(docker port "$container_id" 41105/tcp)"
 for attempt in {1..30}; do

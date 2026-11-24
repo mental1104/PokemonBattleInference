@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,9 +46,15 @@ func main() {
 		}
 		defer db.Close()
 	}
-	server := &http.Server{Addr: address, Handler: httpapi.NewServer(db), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
+	// 计算 handler 最长 30 秒；额外五秒用于可靠写出 504，socket 超时不能替代子进程取消。
+	server := &http.Server{Addr: address, Handler: httpapi.NewServer(db), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 35 * time.Second,
+		BaseContext: func(_ net.Listener) context.Context { return ctx },
+	}
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		<-ctx.Done()
+		// BaseContext 先取消正在计算的子进程，再等待 HTTP 响应退出；main 必须等到回收完成。
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdown); err != nil {
@@ -58,4 +65,5 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
+	<-shutdownDone
 }
