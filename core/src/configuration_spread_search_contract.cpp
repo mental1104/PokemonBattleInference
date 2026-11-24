@@ -67,20 +67,25 @@ ConfigurationSpreadSearchRequest ReadConfigurationSpreadSearchRequest(const Json
 
 Json EvaluateConfigurationSpreadSearch(const ConfigurationSpreadSearchRequest& request, CancellationToken stop) {
   CheckStop(stop);
-  const ConfigurationGoalEvaluator evaluator{request.policy, request.knowledge, stop};
-  const auto solved = SearchConfigurationSpreads(request.input, evaluator, stop);
-  auto candidates = Json::array();
-  for (const auto& candidate : solved.candidates) {
+  try {
+    const ConfigurationGoalEvaluator evaluator{request.policy, request.knowledge, stop};
+    const auto solved = SearchConfigurationSpreads(request.input, evaluator, stop);
+    auto candidates = Json::array();
+    for (const auto& candidate : solved.candidates) {
+      CheckStop(stop);
+      auto options = Json::array();
+      for (const auto& nature : candidate.nature_options) options.push_back({{"identifier", nature.identifier}, {"label", nature.label}});
+      candidates.push_back({{"candidate_id", candidate.candidate_id}, {"nature_id", candidate.nature_id}, {"nature_label", candidate.nature_label},
+          {"nature_options", std::move(options)}, {"evs", ConfigurationStatsJson(candidate.evs)}, {"ivs", ConfigurationStatsJson(candidate.ivs)},
+          {"ev_ranges", RangesJson(candidate.ev_ranges)}, {"iv_ranges", RangesJson(candidate.iv_ranges)}, {"stats", ConfigurationStatsJson(candidate.stats)},
+          {"goals", ConfigurationGoalResultsJson(candidate.goals, request.generation)}, {"speed_goals", ConfigurationSpeedGoalResultsJson(candidate.speed_goals)}});
+    }
+    return {{"kind", "configuration_spread_search"}, {"reachable", solved.Reachable()}, {"candidates", std::move(candidates)},
+        {"rejected_goals", ConfigurationGoalResultsJson(solved.rejected_goals, request.generation)},
+        {"rejected_speed_goals", ConfigurationSpeedGoalResultsJson(solved.rejected_speed_goals)}};
+  } catch (const std::runtime_error&) {
     CheckStop(stop);
-    auto options = Json::array();
-    for (const auto& nature : candidate.nature_options) options.push_back({{"identifier", nature.identifier}, {"label", nature.label}});
-    candidates.push_back({{"candidate_id", candidate.candidate_id}, {"nature_id", candidate.nature_id}, {"nature_label", candidate.nature_label},
-        {"nature_options", std::move(options)}, {"evs", ConfigurationStatsJson(candidate.evs)}, {"ivs", ConfigurationStatsJson(candidate.ivs)},
-        {"ev_ranges", RangesJson(candidate.ev_ranges)}, {"iv_ranges", RangesJson(candidate.iv_ranges)}, {"stats", ConfigurationStatsJson(candidate.stats)},
-        {"goals", ConfigurationGoalResultsJson(candidate.goals, request.generation)}, {"speed_goals", ConfigurationSpeedGoalResultsJson(candidate.speed_goals)}});
+    throw;
   }
-  return {{"kind", "configuration_spread_search"}, {"reachable", solved.Reachable()}, {"candidates", std::move(candidates)},
-      {"rejected_goals", ConfigurationGoalResultsJson(solved.rejected_goals, request.generation)},
-      {"rejected_speed_goals", ConfigurationSpeedGoalResultsJson(solved.rejected_speed_goals)}};
 }
 } // namespace pbi::contract

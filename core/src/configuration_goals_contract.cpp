@@ -115,13 +115,22 @@ ConfigurationTemplatesRequest ReadConfigurationTemplatesRequest(const Json& valu
 
 Json EvaluateConfigurationTemplates(const ConfigurationTemplatesRequest& request, CancellationToken stop) {
   CheckStop(stop);
-  const ConfigurationGoalEvaluator evaluator{request.policy, request.knowledge, stop};
-  const auto solved = evaluator.SolveTemplates(request.input);
-  CheckStop(stop);
-  auto candidates = Json::array();
-  for (const auto& candidate : solved.candidates) candidates.push_back({{"preset_key", candidate.preset_key}, {"stats", ConfigurationStatsJson(candidate.stats)},
-      {"goals", ConfigurationGoalResultsJson(candidate.goals, request.generation)}, {"speed_goals", ConfigurationSpeedGoalResultsJson(candidate.speed_goals)}});
-  return {{"kind", "configuration_templates"}, {"reachable", solved.Reachable()}, {"candidates", std::move(candidates)},
-      {"rejected_goals", ConfigurationGoalResultsJson(solved.rejected_goals, request.generation)}, {"rejected_speed_goals", ConfigurationSpeedGoalResultsJson(solved.rejected_speed_goals)}};
+  try {
+    const ConfigurationGoalEvaluator evaluator{request.policy, request.knowledge, stop};
+    const auto solved = evaluator.SolveTemplates(request.input);
+    CheckStop(stop);
+    auto candidates = Json::array();
+    for (const auto& candidate : solved.candidates) {
+      CheckStop(stop);
+      candidates.push_back({{"preset_key", candidate.preset_key}, {"stats", ConfigurationStatsJson(candidate.stats)},
+          {"goals", ConfigurationGoalResultsJson(candidate.goals, request.generation)}, {"speed_goals", ConfigurationSpeedGoalResultsJson(candidate.speed_goals)}});
+    }
+    return {{"kind", "configuration_templates"}, {"reachable", solved.Reachable()}, {"candidates", std::move(candidates)},
+        {"rejected_goals", ConfigurationGoalResultsJson(solved.rejected_goals, request.generation)}, {"rejected_speed_goals", ConfigurationSpeedGoalResultsJson(solved.rejected_speed_goals)}};
+  } catch (const std::runtime_error&) {
+    // 纯域在各模板/目标边界抛出的取消信号必须保留同源cancelled状态，不能变为INTERNAL_ERROR。
+    CheckStop(stop);
+    throw;
+  }
 }
 } // namespace pbi::contract
