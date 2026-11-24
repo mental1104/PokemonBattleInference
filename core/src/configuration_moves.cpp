@@ -52,6 +52,19 @@ ConfigurationSupport Support(ConfigurationEffectStatus status) {
 void CheckCancellation(const CancellationToken& token) {
   if (token.Requested()) throw std::runtime_error("configuration move enumeration cancelled");
 }
+/// @param coverage 拥有的基础描述，其missing可保留原unsupported_aspects。
+/// @param capabilities 拥有的完整原子能力；@return 同一事实源派生的strict缺失和完整描述。
+ConfigurationEffectCoverage WithCapabilities(ConfigurationEffectCoverage coverage,
+                                             std::vector<ConfigurationEffectCapability> capabilities) {
+  for (const auto& capability : capabilities) {
+    if (capability.status == ConfigurationEffectStatus::unsupported &&
+        std::ranges::find(coverage.missing_capabilities, capability.identifier) == coverage.missing_capabilities.end()) {
+      coverage.missing_capabilities.push_back(capability.identifier);
+    }
+  }
+  coverage.capabilities = std::move(capabilities);
+  return coverage;
+}
 } // namespace
 
 ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSource source,
@@ -63,9 +76,17 @@ ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSourc
   const auto normalized = NormalizeConfigurationEffectIdentifier(std::move(identifier));
   if (source == ConfigurationEffectSource::move) {
     if (!normalized) return {"none", ConfigurationEffectStatus::no_effect, "No move effect identifier was configured.", {}};
-    if (*normalized == "ice_punch") return {*normalized, ConfigurationEffectStatus::supported, "Ice Punch uses the standard physical move execution pipeline.", {"freeze_secondary_effect"}};
-    if (*normalized == "fake_out") return {*normalized, ConfigurationEffectStatus::supported, "Fake Out adds a first-turn gate and a typed flinch attempt.", {}};
-    if (*normalized == "brick_break") return {*normalized, ConfigurationEffectStatus::supported, "Brick Break uses the standard physical move execution pipeline.", {"screen_break"}};
+    if (*normalized == "ice_punch") return WithCapabilities({*normalized, ConfigurationEffectStatus::supported, "Ice Punch uses the standard physical move execution pipeline.", {}}, {
+        {"common_physical_damage", ConfigurationEffectStatus::supported, "Accuracy, PP, type effectiveness and damage use the common pipeline."},
+        {"freeze_secondary_effect", ConfigurationEffectStatus::unsupported, "The non-volatile freeze status is outside issue #28."}});
+    if (*normalized == "fake_out") return WithCapabilities({*normalized, ConfigurationEffectStatus::supported, "Fake Out adds a first-turn gate and a typed flinch attempt.", {}}, {
+        {"common_physical_damage", ConfigurationEffectStatus::supported, "Accuracy, PP and direct damage use the common pipeline."},
+        {"first_turn_gate", ConfigurationEffectStatus::supported, "The move is allowed only while BattlerState.is_first_turn is true."},
+        {"priority_ordering", ConfigurationEffectStatus::supported, "MoveSpec priority is handled by the common action order policy."},
+        {"flinch_secondary_effect", ConfigurationEffectStatus::supported, "A typed volatile-status attempt is emitted after damage."}});
+    if (*normalized == "brick_break") return WithCapabilities({*normalized, ConfigurationEffectStatus::supported, "Brick Break uses the standard physical move execution pipeline.", {}}, {
+        {"common_physical_damage", ConfigurationEffectStatus::supported, "Accuracy, PP, type effectiveness and damage use the common pipeline."},
+        {"screen_break", ConfigurationEffectStatus::unsupported, "Reflect, Light Screen and Aurora Veil removal is outside issue #28."}});
     return {*normalized, ConfigurationEffectStatus::unsupported, "The move effect is not implemented for this ruleset.", {}};
   }
   if (source == ConfigurationEffectSource::ability) {
@@ -73,8 +94,9 @@ ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSourc
     if (*normalized == "inner_focus") return {*normalized, ConfigurationEffectStatus::partial, "Flinch immunity is supported; modern Intimidate immunity is not implemented.", {"intimidate_immunity"}};
     if (factory == ConfigurationEffectFactory::transparent_inference && (*normalized == "pressure" || *normalized == "pickpocket")) {
       // 这是原HTTP公开coverage的原文，按既有合同保留，不是新增日志本地化。
-      return {*normalized, ConfigurationEffectStatus::supported,
-          "该合法特性尚未实现；本次推演显式采用不修改战斗状态的中性假设。", {"real_ability_behavior"}};
+      return WithCapabilities({*normalized, ConfigurationEffectStatus::supported,
+          "该合法特性尚未实现；本次推演显式采用不修改战斗状态的中性假设。", {}}, {
+          {"real_ability_behavior", ConfigurationEffectStatus::unsupported, "真实特性行为未纳入当前 domain，结果只覆盖中性占位假设。"}});
     }
     constexpr std::array<std::string_view, 7> abilities{"technician", "adaptability", "thick_fat", "filter", "solid_rock", "sniper", "multiscale"};
     if (std::ranges::find(abilities, *normalized) != abilities.end()) {
@@ -93,6 +115,27 @@ ConfigurationEffectCoverage DescribeConfigurationEffect(ConfigurationEffectSourc
     return {*normalized, ConfigurationEffectStatus::unsupported, "The item identifier is not implemented for this ruleset.", {}};
   }
   throw std::invalid_argument("unknown configuration effect source");
+}
+
+ConfigurationMechanismCoverage SummarizeConfigurationMechanisms(std::span<const ConfigurationEffectRecord> records,
+                                                               CancellationToken cancellation) {
+  constexpr std::array<std::string_view, 3> sources{"move", "ability", "item"};
+  std::set<std::string> included, excluded;
+  for (const auto& record : records) {
+    CheckCancellation(cancellation);
+    const auto source = static_cast<std::size_t>(record.source);
+    if (source >= sources.size()) throw std::invalid_argument("unknown configuration effect source");
+    const auto key = std::string{sources[source]} + ':' + record.coverage.identifier;
+    if (record.coverage.status == ConfigurationEffectStatus::unsupported) excluded.insert(key);
+    else included.insert(key);
+    for (const auto& capability : record.coverage.capabilities) {
+      const auto capability_key = key + ':' + capability.identifier;
+      if (capability.status == ConfigurationEffectStatus::unsupported) excluded.insert(capability_key);
+      else included.insert(capability_key);
+    }
+  }
+  for (const auto& value : excluded) included.erase(value);
+  return {{included.begin(), included.end()}, {excluded.begin(), excluded.end()}};
 }
 
 std::string ConfigurationMoveOrderKey(const ConfigurationMove& configured) {

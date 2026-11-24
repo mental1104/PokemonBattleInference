@@ -2,6 +2,7 @@
 
 #include "pbi/cancellation.hpp"
 #include "pbi/state.hpp"
+#include <span>
 
 namespace pbi {
 /// Repository 的基础可执行性与当前工厂的机制覆盖必须分别保留。
@@ -12,13 +13,24 @@ enum class ConfigurationEffectStatus { supported, partial, unsupported, no_effec
 enum class ConfigurationEffectSource { move, ability, item };
 /// 通用标准工厂与旧HTTP推演的透明中性占位composition显式分开。
 enum class ConfigurationEffectFactory { standard, transparent_inference };
+/// 原工厂的一项完整子能力事实，保留supported/unsupported与原文原因。
+struct ConfigurationEffectCapability {
+  std::string identifier;
+  ConfigurationEffectStatus status;
+  std::string reason;
+};
 /// 原工厂的可执行覆盖快照；缺失子能力保留为严格任务准入的独立依据。
 struct ConfigurationEffectCoverage {
   std::string identifier;
   ConfigurationEffectStatus status;
   std::string reason;
   std::vector<std::string> missing_capabilities;
+  std::vector<ConfigurationEffectCapability> capabilities{};
 };
+/// 描述所属来源和完整工厂事实，不从展示字符串反解析来源。
+struct ConfigurationEffectRecord { ConfigurationEffectSource source; ConfigurationEffectCoverage coverage; };
+/// 原推演摘要的稳定排序included/excluded集合，不能用strict缺失列表替代capability事实。
+struct ConfigurationMechanismCoverage { std::vector<std::string> included; std::vector<std::string> excluded; };
 /// 一条原合法候选的完整纳入/排除记录，命令排除不冒充机制不支持。
 struct ConfigurationCandidateCoverage {
   std::string identifier;
@@ -69,6 +81,11 @@ struct ConfigurationMoveSpace {
 [[nodiscard]] ConfigurationEffectCoverage DescribeConfigurationEffect(
     ConfigurationEffectSource source, std::optional<std::string> identifier,
     ConfigurationEffectFactory factory = ConfigurationEffectFactory::standard);
+/// @param records 实际参与推演的完整工厂记录，只读且可含重复来源/标识。
+/// @param cancellation 同源协作取消；@return 原_mechanism_coverage的互斥排序集合。
+/// 保留旧行为：unsupported_aspects用于strict准入，不冒充capabilities加入摘要集合。
+[[nodiscard]] ConfigurationMechanismCoverage SummarizeConfigurationMechanisms(
+    std::span<const ConfigurationEffectRecord> records, CancellationToken cancellation = {});
 /// @param input 只读合法候选池和枚举边界；@param cancellation 可空共享取消令牌。
 /// @return 真实过滤、候选归并、唯一 ID 组合和精确成员数；超预算整次失败。
 [[nodiscard]] ConfigurationMoveSpace EnumerateConfigurationMoves(

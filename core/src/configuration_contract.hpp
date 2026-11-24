@@ -20,7 +20,10 @@ struct ConfigurationSpaceRequest {
 /// 一个显式机制描述查询，不隐式从展示名猜测效果。
 struct ConfigurationEffectQuery { ConfigurationEffectSource source; std::optional<std::string> identifier; ConfigurationEffectFactory factory; };
 /// 纯描述列表，不执行准入或候选过滤。
-struct ConfigurationDescriptionQueries { std::vector<ConfigurationEffectQuery> effects; };
+struct ConfigurationDescriptionQueries {
+  std::vector<ConfigurationEffectQuery> effects;
+  bool include_capabilities = false;
+};
 /// 完整strict准入事实，不接受外层预裁定的supported状态。
 struct ConfigurationAdmissionQueries { std::vector<ConfigurationAdmissionInput> candidates; };
 /// 无枚举副作用的完整覆盖查询，空维度也可独立完成严格准入。

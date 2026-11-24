@@ -357,10 +357,11 @@ ConfigurationCoverageRequest ReadConfigurationCoverageRequest(const Json& value,
     return {std::move(result)};
   }
   if (mode != "describe") throw RequestError(PBI_UNSUPPORTED_V1, "unsupported configuration coverage mode");
-  RequireSchema(input, {"moves", "abilities", "items"}, {"mode", "factory"});
+  RequireSchema(input, {"moves", "abilities", "items"}, {"mode", "factory", "include_capabilities"});
   const auto factory = input.contains("factory") ? ReadEnum<ConfigurationEffectFactory>(input.at("factory"), factories)
       : ConfigurationEffectFactory::standard;
   ConfigurationDescriptionQueries result;
+  if (input.contains("include_capabilities")) result.include_capabilities = ReadBool(input.at("include_capabilities"));
   constexpr std::array<std::string_view, 3> fields{"moves", "abilities", "items"};
   for (std::size_t index = 0; index < fields.size(); ++index) {
     RequireArray(input.at(fields[index]));
@@ -429,12 +430,27 @@ Json EvaluateConfigurationCoverage(const ConfigurationCoverageRequest& request, 
     Projection projection{stop};
     if (const auto* queries = std::get_if<ConfigurationDescriptionQueries>(&request.queries)) {
       auto effects = Json::array();
+      std::vector<ConfigurationEffectRecord> records;
       for (const auto& query : queries->effects) {
-        auto effect = Effect(DescribeConfigurationEffect(query.source, query.identifier, query.factory));
+        const auto description = DescribeConfigurationEffect(query.source, query.identifier, query.factory);
+        auto effect = Effect(description);
+        if (queries->include_capabilities) {
+          auto capabilities = Json::array();
+          for (const auto& capability : description.capabilities) capabilities.push_back({{"identifier", capability.identifier},
+              {"status", effect_names.at(static_cast<std::size_t>(capability.status))}, {"reason", capability.reason}});
+          effect["capabilities"] = std::move(capabilities);
+          records.push_back({query.source, description});
+        }
         effect["source"] = source_names.at(static_cast<std::size_t>(query.source));
         effect["factory"] = factories.at(static_cast<std::size_t>(query.factory)); projection.Append(effects, std::move(effect));
       }
-      return Json{{"kind", "configuration_coverage"}, {"mode", "describe"}, {"effects", std::move(effects)}};
+      Json result{{"kind", "configuration_coverage"}, {"mode", "describe"}, {"effects", std::move(effects)}};
+      if (queries->include_capabilities) {
+        const auto coverage = SummarizeConfigurationMechanisms(records, stop);
+        result["included_mechanisms"] = coverage.included;
+        result["excluded_mechanisms"] = coverage.excluded;
+      }
+      return result;
     }
     auto candidates = Json::array();
     for (const auto& candidate : std::get<ConfigurationAdmissionQueries>(request.queries).candidates) {
