@@ -36,6 +36,12 @@ GitHub 的 `Native Core - macOS and iOS` 仅在 Ready PR 上运行。Apple SDK �
 
 入口测试按可见按钮标签定位，同时覆盖 iPhone 底部栏和 iPad 顶部浮动导航；iPad 图鉴列表折叠时，测试点击实际侧栏按钮再搜索。麻痹测试明确点击内层原生开关，核对真实状态 `0→1` 后才重算并严格要求速度 `42`。截图同时附带完整无障碍层级；运行脚本记录构建/启动/测试/导出阶段时间和内存信息，并在每个机型完成后关闭仅由本脚本启动的模拟器，避免同时驻留。旧的长时间安装/runner 启动间隔仍需下一轮实际日志确认改善，不能归因于导出附件或将排队/环境耗时当作业务测试通过。
 
+## 5dc4dad 的实际 Apple 结果
+
+[Native/App 45399177231](https://github.com/mental1104/PokemonBattleInference/actions/runs/45399177231) 的macOS Core、Go/Swift、两SDK与未签名device App构建全部通过；Mac独占Go/PG/daemon真实服务也完成Swift在线/同步/任务测试。iPhone、iPad分别 **8/9 UI通过**：两端都完成原在线任务提交、精确结果、真实运行中取消、跨模拟器同步/重启，查询/保存/设置也通过。
+
+本轮仍为FAIL：iPhone在线/离线比较在读取two-hit-probability时找不到元素，iPad离线计算在读取attacker-speed时找不到元素；各自对应的另一机型相同数值断言通过。失败点是Form结果行的无障碍查询，不是数值不一致。UITest现对每个独立懒加载结果行先实际滚动显示，严格99–117、123/128、85/42断言不变；Swift语法检查通过，修复效果仍须后续Apple实跑。完整原日志/产物在 `Backup/PokemonBattleInference/apple-abi8-ui-20261124/`。上一版全绿的aa498cb仍是较早的阶段验收基线。
+
 ## Mac 与设备安装
 
 Mac 需要已安装 Xcode、iOS Simulator Runtime、XcodeGen、CMake、Boost、nlohmann-json；真实UI验收另需Go、Python、jq和完整PostgreSQL工具。CI优先探测已有PG工具，缺少时安装postgresql@16。构建入口先生成 `build/core` 原生Mac库与 `build/apple/iphoneos` / `build/apple/iphonesimulator` 静态库，再由XcodeGen生成工程。App把 `build/apple/$(PLATFORM_NAME)` 作为库搜索路径，同时完整编译本地Swift Package和资源。

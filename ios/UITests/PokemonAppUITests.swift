@@ -43,7 +43,10 @@ final class PokemonAppUITests: XCTestCase {
         reveal(damage)
         XCTAssertTrue(damage.waitForExistence(timeout: 15), "Native result must appear")
         XCTAssertEqual(damage.label, "伤害"); XCTAssertEqual(damage.value as? String, "99–117")
+        // Form 各结果行独立懒加载；上一行出现不保证 KO 或速度已经进入无障碍树。
+        reveal(metric("two-hit-probability"))
         XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
+        reveal(metric("attacker-speed"))
         XCTAssertEqual(metric("attacker-speed").value as? String, "85")
         capture("offline-damage-exact-ko")
         let paralysis = app.switches["attacker-paralyzed"]
@@ -146,13 +149,17 @@ final class PokemonAppUITests: XCTestCase {
         selectTab("计算")
         reveal(app.buttons["calculate-offline"]); app.buttons["calculate-offline"].tap()
         reveal(metric("calculation-source")); waitForValue(metric("calculation-source"), value: "本机离线")
+        reveal(metric("damage-range"))
         XCTAssertEqual(metric("damage-range").value as? String, "99–117")
+        reveal(metric("two-hit-probability"))
         XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
         reveal(app.buttons["calculate-online"], upward: false); app.buttons["calculate-online"].tap()
         reveal(metric("calculation-source"))
         let origin = "服务器 \(services.serverURL.host ?? "")\(services.serverURL.port.map { ":\($0)" } ?? "")"
         waitForValue(metric("calculation-source"), value: origin)
+        reveal(metric("damage-range"))
         XCTAssertEqual(metric("damage-range").value as? String, "99–117")
+        reveal(metric("two-hit-probability"))
         XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
         reveal(metric("calculation-engine-version")); XCTAssertEqual(metric("calculation-engine-version").value as? String, services.engineVersion)
         reveal(metric("calculation-rules-version")); XCTAssertEqual(metric("calculation-rules-version").value as? String, services.rulesVersion)
