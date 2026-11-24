@@ -4,12 +4,14 @@
 
 ## 当前状态（2026-11-24）
 
+2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
+
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 正式十一阶段回合、动态效果、不可变 BFS、SCC/精确求解与真实 fixed_battle 已完成 Python 差分和实际 benchmark。四维配置候选正在登记整合；目标搜索、结果聚合和事件分析仍待迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | 0.6 C ABI/进度及 Go child、58/58 CTest/ASan 与 Go race/vet 通过；固定树 Swift 17 PASS/3 SKIP，独立 HTTP 计算 2/2 通过。新 Apple Core 58/58，Swift 知识夹具启动失败待修，SDK/App 未进入本轮。 |
-| P3 Go 服务端 | IN_PROGRESS | 原 19/41 完整 API 加一个受限 calculator 入口、纯 Go 全 CSV/原 MV 初始化、HTTP 全原生进程隔离及 PG Worker 已实测。固定战斗进度/结果、取消/停机恢复 7 项通过；任务创建、其余计算/图 API 与 Web 闭环仍待补。 |
+| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、四维候选、全部44,100具体case与1,024严格准入差分已通过；结果聚合独立成熟待登记。完整目标/EV搜索、事件分析仍在迁移。 |
+| P2 跨语言集成 | IN_PROGRESS | 0.7正式19操作、77/77 CTest、8/8新增ABI差分、Go14项race/vet、Swift17 PASS/3 SKIP通过；新ABI选定5项ASan通过，未冒称77全ASan。Apple仍须实际复验。 |
+| P3 Go 服务端 | IN_PROGRESS | 原23/41完整API加一个受限calculator；新增四查询36/36同PG差分，所有Go包46 PASS/1专用fixture SKIP、race/vet及取消恢复10轮通过。实际创建/共享冻结模板及其余计算API仍待补。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 未签名 device App 与两 SDK 构建成功；最近 iPhone 3/4 UI 测试通过，麻痹切换及 iPad 导航定位失败已修，尚待新 CI。在线复杂任务 UI 和真机未验收。 |
 | P5 数据同步 | IN_PROGRESS | Go HTTP/PG 与两个独立 SQLite 客户端的离线队列、幂等重试、显式冲突、删除与 cursor 收敛 13/13 通过；知识下载/Range 续传/原子安装有实际 HTTP 测试。完整 App 更新 UI 与真机双设备仍待验收。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、真实 Chromium 原 Vue 计算、Docker 健康故障恢复、两个 Go 镜像回退和独立 PG 备份恢复已实测；原 BYTEA 图片初始化、复杂任务完整 Web 与正式生产升级仍待补。旧生产保持原状。 |
@@ -161,6 +163,9 @@
 - **4a4f0c0** 保存完整推演知识只读端口；七只 Pokémon 的全字段 416,820 字节快照与原 repository 同 PG 差分通过，Go **7/7 race、零跳过**及 vet 通过，详见 `migration-server.md`。新 **b040471** 的 [Main Gate 45382143497](https://github.com/mental1104/PokemonBattleInference/actions/runs/45382143497) **FAIL** 于收集新 calculator 测试：`ModuleNotFoundError: httpx`。原因是 0.28.1 只在工具 Dockerfile 安装，未进入 CI 使用的公共 requirements。已将相同实测版本加入 `requirements.txt`、移除工具层重复来源；从空 venv 仅安装公共依赖后 **624 项测试完整收集成功**（2.66 秒），不是宣称这 624 项已经执行。证据 `main-dependencies-20261124/`，后续由新 Main/Native CI 验证。
 - **74c75e1** 的 [Main Gate 45383272271](https://github.com/mental1104/PokemonBattleInference/actions/runs/45383272271) **PASS**，缺失 httpx 修复已由实际 CI 验证。[Native 45383272152](https://github.com/mental1104/PokemonBattleInference/actions/runs/45383272152) **FAIL**：macOS **70/70 CTest PASS**（6.83 秒），HTTP fixture 已正常启动，Swift 三个更新方法中取消/边界通过，首次截断没有实际收到字节，故 Range 续传三条严格断言失败。产物 **14914788001** ZIP SHA-256 **4871c342d90eb03a170c37b333a1931c50c9e6ad485d24a9b8578f8e1e2aae34** 已匹配，证据 `drop-control-20261124/`。**1534d5f** 让测试在观察到真实至少 8192 字节后，经独立 HTTP 控制请求断开 TCP，再验证磁盘前缀/206/重启/旧数据；未改生产下载算法或放宽断言。同时 Makefile 显式传递已经注册的配置 runner，避免其七项纯域差分在统一 Native 入口因缺环境被跳过。
 - 四角色验收 `stack-20261124/explicit-network/` **PASS**：原 Vue/Nginx→Go→Core 真实浏览器计算 **114–135**、390px 布局无溢出、13-op 完整向量；Docker STOP 后 unhealthy/CONT 后 healthy；公开 HTTP 配置经两个不同 Go image 回退和 PG dump→独立库恢复后完整 JSON 不变。详细 image/备份摘要及作用边界见 `go-stack-validation.md`。Worker 在栈中启动但本场景没有伪造缺失的任务创建接口；截图暴露的图片缺失与原 BYTEA sprite 初始化明确列入剩余范围。所有自有实例/网络均已精确清理。
+- **fc03956**：正式 **0.7.0 / calculation-rules.v7**，统一19操作向量，原13项输入/数学结果不变；新配置stats/moves/space、两模式coverage及严格job_move_pool均通过真实C ABI。最终 **77/77 CTest**（3.20秒）、新增ABI **8/8差分**（5.97秒，含完整44,100身份/关联准入/32MiB分页边界）、Go bridge/process **14项race/vet**；Swift **17 PASS / 3 explicit SKIP**。新ABI、19golden、真实配置运行取消及ownership/concurrent选定 **5/5 ASan/UBSan/leak PASS**（39.62秒），这是新路径选择集，不是77项全量。P1纯域完整58项sanitizer证据另列。报告与20个P2冻结源摘要在 `configuration-abi-20261124/`，九个P1纯源摘要在 `job-move-pool-20261124/`。
+- **79c325e**：原四个configuration-jobs查询/取消/results/issues真实同PG差分 **36/36 PASS**（30完整JSON+6 schema状态），支持过滤前分页、last query值、历史非JSON说明、原Python创建而无GoDefinition的任务。API计数 **23/41完整+1受限calculator**。全部Go包 **46 PASS / 1专用Swift服务fixture SKIP**、race/vet通过；另Daemon父取消恢复 **10/10 PASS**（24.198秒），包含root对取消/SQL Commit竞态的明确错误归一。原负cursor导致500按已记录缺陷单独修为422。报告在 `p3-server-20261124/configuration-jobs-final3/`、`configuration-jobs-go-all7/`，早期真实失败均保留。
+- **1534d5f** 固定树最终 `make test-native CORE_BUILD_DIR=/build/root-fixture-core6`：**70 CTest、35 pytest PASS / 16 SKIP**（52.71秒），七个已登记配置差分现全部实际执行。跳过是14个未提供独立calculator URL的场景、一个未提供PG快照和一个工具镜像无Swift；独立Swift **17 PASS / 3 SKIP**已实跑，不能把环境缺失称通过。
 
 ## 下一步
 
