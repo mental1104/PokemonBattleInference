@@ -4,7 +4,7 @@
 
 ## 构建与统一验证
 
-依赖 C++20 编译器、CMake 3.20+、Boost headers；测试另需 GoogleTest 的 CMake package。Debian 验证镜像使用 GCC 14.2、Boost 1.83、GoogleTest 1.16。CMake 不在构建时下载依赖。
+依赖 C++20 编译器、CMake 3.20+、Boost headers；默认 C ABI 适配器另需 nlohmann_json，测试另需 GoogleTest 的 CMake package。纯计算库可用 `PBI_BUILD_ABI=OFF` 排除 JSON 适配器。Debian 验证镜像使用 GCC 14.2、Boost 1.83、GoogleTest 1.16。CMake 不在构建时下载依赖。
 
 从仓库根执行 macOS/Linux 共用入口：
 
@@ -12,7 +12,7 @@
 make test
 ```
 
-它先构建 Core 并执行 CTest，再运行全部 Python 测试（包括通过真实 C++ 进程的差分）。Python/common 依赖沿用项目要求；Makefile 默认使用当前仓库固定版本的 common submodule，允许显式 `COMMON_ROOT` 覆盖。
+它先构建 Core 并执行 CTest，再运行全部 Python 测试（包括通过真实 C++ 进程的差分及 Go/Swift 原生测试委托）。缺少未显式配置的语言工具时会明确 SKIP，配置错误会 FAIL。Python/common 依赖沿用项目要求；Makefile 默认使用当前仓库固定版本的 common submodule，允许显式 `COMMON_ROOT` 覆盖。
 
 只验证 Core：
 
@@ -61,4 +61,4 @@ bash tools/migration/validate-nas.sh all
 PYTHONPATH=submodules/common/python:. python tools/migration/benchmark_calculations.py --runner build/core/pbi_core_vectors --output /tmp/pbi-calculations-benchmark.json
 ```
 
-完整伤害、规则集、速度状态效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。Go/Swift 调用、C ABI、取消/批量/内存合同、macOS/iOS 构建也尚未验证；P1 仍为 IN_PROGRESS。
+完整伤害、规则集、速度状态效果、不可变战斗状态、StateKey、效果分发、回合解析、概率转移、状态图、SCC、图求解、配置搜索与事件分析尚未迁移。C ABI 和 Go/Swift 实际调用、取消/批量/内存合同已在 Linux 验证，详见 `contracts/c/README.md`；macOS/iOS 正通过用户授权的 CI 验证，完成前仍未验证。P1/P2 均为 IN_PROGRESS。

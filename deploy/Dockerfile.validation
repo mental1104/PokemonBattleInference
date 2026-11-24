@@ -9,4 +9,8 @@ COPY requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt \
     genanki pypdf clickhouse-connect pymongo motor redis pycryptodome matplotlib \
     ruamel.yaml orjson ujson 'psycopg[binary]' httpx==0.28.1
+# 跨语言验证使用同一 C ABI；保留上面的 Python 层缓存。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nlohmann-json3-dev golang-go \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /source

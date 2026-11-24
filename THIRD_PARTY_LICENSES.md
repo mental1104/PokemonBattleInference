@@ -12,6 +12,10 @@ The C++ core also uses Boost.Multiprecision and Boost.Rational headers
 not linked into the production core. These are explicit CMake dependencies;
 their sources are not copied into this repository.
 
+The C ABI JSON adapter uses nlohmann/json under the MIT/Expat license.
+The pure computation target can be built with `PBI_BUILD_ABI=OFF` and does not
+depend on this adapter library.
+
 Pokemon and Pokemon character names are trademarks of Nintendo. This project is
 not affiliated with or endorsed by Nintendo, Game Freak, Creatures, The Pokemon
 Company, or PokeAPI.
@@ -48,6 +52,30 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## nlohmann/json (MIT/Expat)
+
+Copyright 2013-2022 Niels Lohmann
+Copyright 2009 Florian Loitsch
+Copyright 2008-2009 Bjoern Hoehrmann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Boost
 

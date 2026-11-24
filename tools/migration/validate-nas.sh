@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 用途：NAS 上复现迁移验证；输入为 core 或 all（默认），无需生产凭据。
+# 用途：NAS 上复现迁移验证；输入为 core、bindings 或 all（默认），无需生产凭据。
 # 依赖：已声明的 maintenance Compose、Docker、Bash、初始化的 Git submodule。
 # 输出：Backup 中保存日志、junit 与环境清单；构建缓存只写独立 SSD 目录。
 # 副作用：构建测试镜像，all 模式启动自有临时 PostgreSQL；退出时仅停止该实例。
@@ -28,8 +28,8 @@ cleanup() {
 }
 
 case "$validation_mode" in
-  core|all) ;;
-  *) printf 'Usage: %s [core|all]\n' "$0" >&2; exit 2 ;;
+  core|bindings|all) ;;
+  *) printf 'Usage: %s [core|bindings|all]\n' "$0" >&2; exit 2 ;;
 esac
 mkdir -p "$POKEOP_BUILD_ROOT" "$POKEOP_REPORT_ROOT"
 compose build pokemon-validation > "$POKEOP_REPORT_ROOT/environment-build.log" 2>&1
@@ -49,8 +49,14 @@ if [[ "$validation_mode" == all ]]; then
     > "$POKEOP_REPORT_ROOT/web-build.log" 2>&1
 else
   compose run --rm --no-deps pokemon-validation sh -c \
-    'make test-core CORE_BUILD_DIR=/build/core && PBI_CORE_VECTOR_RUNNER=/build/core/pbi_core_vectors python -m pytest tests/migration -q -o cache_dir=/tmp/pytest-cache' \
+    'make test-core CORE_BUILD_DIR=/build/core && PBI_CORE_VECTOR_RUNNER=/build/core/pbi_core_vectors PBI_CORE_LIBRARY_DIR=/build/core python -m pytest tests/migration -q -o cache_dir=/tmp/pytest-cache' \
     > "$POKEOP_REPORT_ROOT/core-regression.log" 2>&1
+fi
+if [[ "$validation_mode" != core ]]; then
+  compose build pokemon-swift-validation > "$POKEOP_REPORT_ROOT/swift-environment-build.log" 2>&1
+  compose run --rm --no-deps pokemon-swift-validation sh -c \
+    'cmake -S core -B /build/swift-core -DCMAKE_BUILD_TYPE=Release && cmake --build /build/swift-core -j2 && ctest --test-dir /build/swift-core --output-on-failure && bash tools/migration/test-swift.sh /build/swift-core' \
+    > "$POKEOP_REPORT_ROOT/swift-regression.log" 2>&1
 fi
 compose run --rm --no-deps pokemon-validation python -m pip freeze \
   > "$POKEOP_REPORT_ROOT/python-environment.txt"

@@ -1,0 +1,4 @@
+module CPokemonCore [system] {
+  header "../../../contracts/c/pbi_core.h"
+  export *
+}

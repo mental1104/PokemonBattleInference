@@ -69,6 +69,14 @@ test: test-core
 CORE_BUILD_DIR ?= $(REPO_ROOT)/build/core
 CMAKE ?= cmake
 export PBI_CORE_VECTOR_RUNNER := $(CORE_BUILD_DIR)/pbi_core_vectors
+export PBI_CORE_LIBRARY_DIR := $(CORE_BUILD_DIR)
+
+.PHONY: test-bindings test-native
+test-bindings: test-core
+	pytest tests/migration/test_native_bindings.py
+
+test-native: test-core
+	pytest tests/migration
 
 .PHONY: test-core
 test-core:

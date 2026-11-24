@@ -8,15 +8,15 @@
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 已实现现代能力值/性格、能力等级与给定伤害档位 KO，使用任意精度精确分数；其余完整计算与图推演待迁移，macOS 未验证。 |
-| P2 跨语言集成 | NOT_STARTED | 统一 C ABI、Go/Swift 调用及 Apple 目标尚待实现与验证。 |
-| P3 Go 服务端 | NOT_STARTED | 现有在线运行时仍是 Python；不得切换生产。 |
+| P2 跨语言集成 | IN_PROGRESS | 版本化 C ABI、Go/Swift Linux 实际调用与并发/取消/内存测试已通过；Apple 目标正在准备 GitHub CI 实测。 |
+| P3 Go 服务端 | IN_PROGRESS | 新 Core HTTP 入口已实际验收；41 项旧 API、Worker、PostgreSQL 尚未迁移，生产仍为 Python。 |
 | P4 iOS/iPadOS | NOT_STARTED | 应用、离线数据、模拟器与真机闭环待实现。 |
 | P5 数据同步 | NOT_STARTED | 数据包与用户同步协议待实现。 |
-| P6 部署与回归 | NOT_STARTED | 保留旧 Compose、Python、测试和所有数据库。 |
+| P6 部署与回归 | IN_PROGRESS | 已加入统一原生测试入口与隔离验证；用户已授权 GitHub macOS/iOS CI。旧部署/数据库保持原状，未切换生产。 |
 
 ## 已确认的边界与决策
 
-- 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不推送、不切换生产。
+- 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不切换生产。2026-11-24 用户明确要求“先拿 github CI 测”，已授权推送本分支并开 Ready PR 以运行 CI；不启用自动合并。
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。
 - `common` 与 `pokeapi` 从现有本地 submodule 初始化，分别固定于 `39e85858`、`1567d530`；没有更新上游版本。
 - Python 的 `pokeop/` 暂时保留原路径，避免在替代能力验证前破坏导入、CSV symlink、测试或部署；最终迁往 `legacy/`。
@@ -27,7 +27,7 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | HUMAN_PENDING | 当前为 Linux/NAS，无已确认可操作的 Mac；准备跨平台工程后在 Mac 执行实际构建，不能推定通过。 |
+| macOS / Xcode 构建 | IN_PROGRESS | 用户有 Mac、预计晚上才开放访问；已授权先用 GitHub macOS runner 无签名验证，不把终端操作交由 Human 代跑。CI 成功前仍未验证。 |
 | Apple 登录、Team、签名 | HUMAN_PENDING | Human 在 Xcode 登录 Apple Account、选择 Signing Team；不购买资格。 |
 | iPhone/iPad 安装及验收 | HUMAN_PENDING | 工程可构建后，由 Human 连接设备、信任、启用 Developer Mode 并按固定向量验收。 |
 | HomeLab 生产切换、正式备份、最终合并 | HUMAN_PENDING | 只在替代能力完成验证并获得明确授权后执行。 |
@@ -52,11 +52,28 @@
 - 新批次 benchmark：`python tools/migration/benchmark_calculations.py --runner /build/core/pbi_core_vectors --output /reports/core-calculations-benchmark.json`；20,000 非 HP 配置，5 次采样，全部结果逐字一致。Python 中位数 **7.221 ms**，C++ 进程 **33.210 ms**（含进程/文本/IO）。原始 JSON 已保存到 `docs/benchmarks/core-calculations-20261124.json`；共享 NAS 有其他负载，未测 C ABI 直接调用或完整战斗性能，不声称提速。
 - 原 Python 计算、所有业务表、原部署定义和 submodule revision 保留。新增 Boost/GoogleTest 许可已登记。不更新 CI、不自动推送或合并。
 
+## C ABI 与双语言实际调用（2026-11-24）
+
+本节覆盖的新工作在原报告旁保存：`/volume1/homes/mental1104/Backup/PokemonBattleInference/abi-20261124/`。上节“不更新 CI/不推送”描述的是首批历史检查点，现已被用户明确 CI 授权更新，仍不合并/不切换生产。
+
+- `contracts/c/pbi_core.h` 为唯一 C 头，JSON 批次先转换成 typed C++ variant，再复用现有计算库。明确 malloc/release 所有权、异常/错误码、版本、单向原子取消、并发和整批原子结果；无新增计算规则实现。
+- 实测 C/C++ **13/13**；含 C 编译器、字段/整数/未知规则、8 MiB/操作/伤害槽位/深度/结果溢出预算、反复释放、32 并发和已确认运行中的取消。最终 ASan/UBSan/leak **13/13 PASS**（14.20 秒），日志 `sanitizer-final.log`。
+- Go **4 项测试 PASS**（bridge 3 + 真实回环 HTTP 1），`-race`、`go vet`、实际服务构建通过；Go 1.24.4。首次执行因容器 `/tmp` 为 noexec 失败，改用专用 `GOTMPDIR=/build/go-tmp` 后通过，未调整通用模板权限。
+- Swift **4 项 XCTest PASS**（Swift 6.0.3 Linux），实际导入同一 C 头并链接 Core 静态库；完整五操作共享向量、版本、错误、32 并发与运行中 Task 取消通过。首次 manifest 受 noexec 影响，改为专用可执行构建临时目录。日志 `swift-test-fixed.log`、`bindings-final/swift-regression.log`。
+- `bash tools/migration/validate-nas.sh all`：CTest **13/13**、pytest **576 passed / 1 skipped**（22.09 秒）；唯一跳过为 Python 工具镜像没有 Swift，随后专用 Swift maintenance 实际 **4/4 PASS**。Web **95/95** 和生产构建通过。原始证据在 `unified/`，不将 SKIP 伪装成 PASS。
+- 为解决外部静态库缓存问题，Go 委托测试/交付构建使用 `-a`；Swift scratch 使用两个 archive 的 SHA-256。修正后 `validate-nas.sh bindings` 再次通过：CTest **13/13**、Python/Go 委托 **5 passed / 1 skipped**（12.42 秒）及 Swift **4/4**（1.223 秒）。
+- 独立 curl 在 NAS 进程访问一次性 Go 服务容器：**HTTP 200** 与完整冻结响应一致（202、200、73、1/3 与 5/9、231 及版本），未知操作 **422** 且无部分 results；请求、响应头/状态/正文和服务日志在 `http/`。实例与随机回环端口已清理，不涉及生产。
+- SwiftUI、知识/用户 SQLite、旧 API/Worker/PG、同步和生产切换尚未实现。当前 Go 同步入口不隔离 SIGSEGV/abort，复杂推演后续必须放在独立 Worker 进程。
+
+### 用户授权的 GitHub CI
+
+新增 `.github/workflows/native-core.yml`：只响应 main 目标 PR 的 opened/ready_for_review/reopened/synchronize，所有 job 以 `draft == false` 保护；没有新增 push/schedule/manual 触发器。计划实际验证 macOS C++/Go/Swift/差分，并用现有 Xcode SDK 构建 arm64 iPhoneOS + Simulator 静态库、Swift 模块和 C ABI XCFramework；无 Apple 登录、Team、签名或设备安装。当前尚未取得 CI 结果，不能标记 Apple PASS。
+
 ## 下一步
 
 `BASE-WEB-001` 已独立修正并通过上述完整 Web 回归：将 Pokémon/招式选择限定在防守目标弹窗，并增加保存按钮可用断言，未改业务代码或删减原断言。
 
-优先让首批能力通过版本化 C ABI 被 Go 实际调用，形成可运行的跨语言闭环；并继续迁移完整伤害、规则、速度效果与不可变状态，再接回合/图/SCC/搜索/事件分析。C ABI 需要明确内存、异常、错误码、线程、取消和批量语义；不得将当前测试进程协议冒充正式 ABI。P2–P6 全部要求、macOS/iOS 真实构建和 Human 双设备验收均仍保留；P1 不能因首批通过而标记 PASS。
+先取得 GitHub macOS/iOS CI 实测结果并修复实际问题；继续迁移完整伤害、规则、速度效果与不可变状态，再接回合/图/SCC/搜索/事件分析。P2–P6 全部要求和 Human 双设备验收均仍保留；P1/P2 不能因首批通过而标记 PASS。
 
 ## 恢复提示
 

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.1.0",
+  "rules_version": "modern-calculations.v1",
+  "results": [
+    {"kind": "hp", "value": 202},
+    {"kind": "stat", "value": 200},
+    {"kind": "stage", "value": 73},
+    {"kind": "ko", "ohko": {"numerator": "1", "denominator": "3"}, "two_hit": {"numerator": "5", "denominator": "9"}, "guaranteed_ohko": false, "guaranteed_two_hit": false},
+    {"kind": "hp", "value": 231}
+  ]
+}

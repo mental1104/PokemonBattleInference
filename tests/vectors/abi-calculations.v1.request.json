@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {"kind": "hp", "base": 95, "iv": 31, "ev": 252, "level": 50},
+    {"kind": "stat", "base": 130, "iv": 31, "ev": 252, "level": 50, "nature_tenths": 11},
+    {"kind": "stage", "value": 110, "stage": -1},
+    {"kind": "ko", "rolls": [1, 1, 3], "defender_hp": 3},
+    {"kind": "hp", "base": 45, "iv": 31, "ev": 0, "level": 100}
+  ]
+}
