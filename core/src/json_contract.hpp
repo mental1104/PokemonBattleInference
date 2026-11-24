@@ -110,8 +110,9 @@ Enum ReadEnum(const Json& value, const std::array<std::string_view, Size>& names
   return static_cast<Enum>(found - names.begin());
 }
 
-/// @param value 一侧只读 JSON 快照；@return 完整能力、属性和静态效果领域输入。
-inline pbi::DamagePokemon ReadPokemon(const Json& value) {
+/// @param value 一侧只读JSON；@param interpreted_ability 空值严格解析原字段，非空为调用处已验证上下文的明确解释。
+/// @return 同一schema/字段读取结果；助手不自行允许未知标识或选择透明假设。
+inline pbi::DamagePokemon ReadPokemonWithInterpretedAbility(const Json& value, std::optional<pbi::DamageAbility> interpreted_ability) {
   RequireSchema(value, {"level", "types", "stats"}, {"ability", "item", "can_evolve", "grounding"});
   const auto& stats = value.at("stats");
   RequireFields(stats, {"hp", "attack", "defense", "special_attack", "special_defense", "speed"});
@@ -121,7 +122,8 @@ inline pbi::DamagePokemon ReadPokemon(const Json& value) {
       pbi::DamageAbility::none, pbi::DamageItem::none, false, std::nullopt};
   if (!value.at("types").is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "types must be an array");
   for (const auto& type : value.at("types")) result.types.push_back(static_cast<pbi::PokemonType>(ReadInt32(type)));
-  if (value.contains("ability")) result.ability = ReadEnum<pbi::DamageAbility>(value.at("ability"),
+  if (interpreted_ability) result.ability = *interpreted_ability;
+  else if (value.contains("ability")) result.ability = ReadEnum<pbi::DamageAbility>(value.at("ability"),
       std::array<std::string_view, 9>{"none", "technician", "adaptability", "thick_fat", "filter", "solid_rock", "sniper", "multiscale", "inner_focus"});
   if (value.contains("item")) result.item = ReadEnum<pbi::DamageItem>(value.at("item"),
       std::array<std::string_view, 6>{"none", "life_orb", "choice_band", "choice_specs", "expert_belt", "eviolite"});
@@ -130,6 +132,8 @@ inline pbi::DamagePokemon ReadPokemon(const Json& value) {
       std::array<std::string_view, 2>{"grounded", "airborne"});
   return result;
 }
+/// @param value 一侧只读JSON快照；@return 完整严格字段解释，没有未知能力中性回退。
+inline pbi::DamagePokemon ReadPokemon(const Json& value) { return ReadPokemonWithInterpretedAbility(value, std::nullopt); }
 
 /// 固定策略字段的输入/输出映射，仅用于 JSON 适配，不注册任何运行时规则。
 using Policy = pbi::DamagePolicy;

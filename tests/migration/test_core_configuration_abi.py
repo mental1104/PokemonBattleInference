@@ -301,8 +301,8 @@ class CoverageResult(_Contract):
 class Envelope(_Contract):
     """当前正式版本和严格成功结果；不能将错误伪装为空结果。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.9.0"]
-    rules_version: Literal["calculation-rules.v9"]
+    engine_version: Literal["0.10.0"]
+    rules_version: Literal["calculation-rules.v10"]
     results: tuple[Annotated[StatsResult | MovesResult | SpaceResult | CoverageResult, Field(discriminator="kind")], ...]
 
 

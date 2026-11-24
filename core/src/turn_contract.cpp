@@ -1,4 +1,5 @@
 #include "turn_contract.hpp"
+#include "state_graph_projection_contract.hpp"
 
 #include <algorithm>
 #include <array>
@@ -200,7 +201,7 @@ TurnRequest ReadTurnRequest(const Json& value, std::size_t remaining_rolls) {
 FixedBattleRequest ReadFixedBattleRequest(const Json& value, std::size_t remaining_rolls,
     std::size_t available_nodes, std::size_t available_edges) {
   RequireSchema(value, {"kind", "state", "type_chart", "attacker_policy", "defender_policy", "observer"},
-      {"turn_limits", "graph_limits", "max_equation_nodes", "include_graph", "progress_interval"});
+      {"turn_limits", "graph_limits", "max_equation_nodes", "include_graph", "progress_interval", "include_representative_paths"});
   auto state = ReadInputState(value.at("state"), remaining_rolls);
   FixedBattleOptions options;
   options.attacker_policy = ReadEnum<ActionPolicy>(value.at("attacker_policy"), policies);
@@ -223,7 +224,8 @@ FixedBattleRequest ReadFixedBattleRequest(const Json& value, std::size_t remaini
     options.max_equation_nodes = Limit(value.at("max_equation_nodes"), std::numeric_limits<std::size_t>::max());
   options.progress_interval = value.contains("progress_interval") ? Limit(value.at("progress_interval"), std::numeric_limits<std::size_t>::max()) : 100;
   return {std::move(state), ReadTypeChart(value.at("type_chart")), options,
-      value.contains("include_graph") ? ReadBool(value.at("include_graph")) : false};
+      value.contains("include_graph") ? ReadBool(value.at("include_graph")) : false,
+      value.contains("include_representative_paths") ? ReadBool(value.at("include_representative_paths")) : false};
 }
 
 Json EvaluateTurn(const TurnRequest& request, CancellationToken stop) {
@@ -251,6 +253,7 @@ Json EvaluateFixedBattle(const FixedBattleRequest& request, const GraphProgressO
   result["truncations"] = TruncationsJson(computation.graph);
   result["unsupported_aspects"] = CoverageJson(computation.unsupported_aspects);
   result["graph"] = request.include_graph ? FullGraphJson(computation.graph, stop) : Json(nullptr);
+  if (request.include_representative_paths) result["representative_paths"] = RepresentativeBattlePathsJson(ProjectRepresentativeBattlePaths(computation.graph, stop), stop);
   return result;
 }
 } // namespace pbi::contract

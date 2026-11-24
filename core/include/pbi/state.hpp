@@ -94,12 +94,19 @@ private:
   MoveSpecData data_;
 };
 
-/// 不变宝可梦拥有值；复用已存在的能力/属性/效果快照，不持有外部知识句柄。
+/// 原Transparent工厂的两个显式中性假设，真实能力行为尚未实现，不能作为strict支持。
+enum class TransparentNeutralAbility { pressure, pickpocket };
+/// @param identifier 原规范化repository标识；@return 仅白名单两项的显式假设，其他标识没有中性回退。
+[[nodiscard]] std::optional<TransparentNeutralAbility> FindTransparentNeutralAbility(std::string_view identifier);
+/// @param ability 已验证透明假设；@return 原真实标识，不将其写成UNKNOWN/none。
+[[nodiscard]] std::string_view TransparentNeutralAbilityIdentifier(TransparentNeutralAbility ability);
+/// 不变宝可梦拥有值；透明原始标识是解释元数据，机械能力仍按原UNKNOWN参与StateKey。
 struct PokemonSpecData {
   std::int64_t pokemon_id;
   std::string name;
   DamagePokemon pokemon;
   std::vector<MoveSpec> moves;
+  std::optional<TransparentNeutralAbility> transparent_ability = std::nullopt;
 };
 /// 已验证的不变宝可梦，强制 1…100 级、正能力、1…2 属性和 1…4 唯一招式。
 class PokemonSpec {
@@ -110,7 +117,7 @@ public:
   [[nodiscard]] const PokemonSpecData& View() const noexcept { return data_; }
   /// @param move_id 当前已配置的招式 ID；@return 借用至配置销毁前的招式；缺失明确失败。
   [[nodiscard]] const MoveSpec& Move(std::int64_t move_id) const;
-  /// @param other 只读配置；@return 除展示名外是否语义相等，招式/属性顺序保留。
+  /// @param other 只读配置；@return 原语义相等；透明raw标识与展示名不改变原UNKNOWN键，招式/属性顺序保留。
   [[nodiscard]] bool operator==(const PokemonSpec& other) const;
 private:
   PokemonSpecData data_;

@@ -9,10 +9,10 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | .9事件/配置加权、独立旧伤害及明确静态上下文已登记，111/111 CTest、60原差分/委托通过；所选6 ABI ASan全过。透明工厂与完整图交互纯域已分别验证、组合.10在编译，winning纯搜索仍在迁移。 |
-| P2 跨语言集成 | IN_PROGRESS | .9共享33个原oracle样本Go/Swift一致，真实Swift→Go→PG→daemon/Core25/25零SKIP；所选6项public ASan/UBSan/leak PASS。最新.9 Apple Core/桥接/两SDK通过，iPhone9/9、iPad8/9；取消用例输入被截为前缀，完整候选池及断言保留，逐项输入修复待新CI。c0仍为双模拟器全绿基线。 |
-| P3 Go 服务端 | IN_PROGRESS | 原32/41完整API已保存；新旧damage33/33、fixed-job/组合24/24真实同PG/daemon通过。solver40/40、固定摘要19/19、44,100任务和取消恢复已验；剩余9条图/单步/旅程/winning HTTP尚未完成。 |
-| P4 iOS/iPadOS | IN_PROGRESS | c0b048e基本范围已实际Apple验证：两SDK/device App、iPhone9/9/iPad9/9全通过，含真实在线任务、取消、结果与双模拟器同步；真机签名/物理安装及体验HUMAN_PENDING。 |
+| P1 C++ Core | IN_PROGRESS | .10图投影、获胜路径与冻结事实查询正式组合131/131 CTest、93差分/委托通过；旧.9所选6 ABI sanitizer全过。任务归因/Summary截断、旅程factory context及独立状态门禁仍在补，不能仅按已迁函数数宣告P1完整。 |
+| P2 跨语言集成 | IN_PROGRESS | .10共享39原oracle样本Go/Swift一致；本版Swift25项20通过/5真实HTTP未配置明确skip，.9实际服务链25/25证据保留。新Apple仍待复验；.9 iPhone9/9、iPad8/9的取消输入失败已修逐项等待，未降低候选/断言。 |
+| P3 Go 服务端 | IN_PROGRESS | 原路由覆盖38/41；新增5条完整图/导航24/24及winning3/3真实PG/原Python逐字段通过，完整841/16095图无裁事件。剩step、dragonite-vs-weavile、casegraph三路；原任务归因/摘要预算及独立结果溯源还在收尾，路由覆盖不等于全部业务已验完。 |
+| P4 iOS/iPadOS | IN_PROGRESS | c0双模拟器各9/9且图标版0.8.0(2)已在iPhone15Pro签名安装/启动；用户现要求先继续迭代、暂停后续手机操作。新版本独立溯源展示在接线，完整双真机体验仍HUMAN_PENDING。 |
 | P5 数据同步 | PASS | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；新增纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。全量图库/带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
@@ -20,6 +20,7 @@
 
 - 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不切换生产。2026-11-24 用户明确要求“先拿 github CI 测”，已授权推送本分支并开 Ready PR 以运行 CI；不启用自动合并。
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。
+- 用户完成iPhone15Pro首版安装与开发者信任后，明确要求“先不装，先继续迭代”。保留已有App，后续只进行代码/CI工作，不自动更新、安装或启动手机；这不暂停原重构Goal。
 - `common` 与 `pokeapi` 从现有本地 submodule 初始化，分别固定于 `39e85858`、`1567d530`；没有更新上游版本。
 - Python 的 `pokeop/` 暂时保留原路径，避免在替代能力验证前破坏导入、CSV symlink、测试或部署；最终迁往 `legacy/`。
 - PostgreSQL 测试会删除测试 schema，因此只允许连接本次创建的临时 PostgreSQL；禁止填入生产 URL。验证服务不发布数据库端口。

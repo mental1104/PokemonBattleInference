@@ -115,8 +115,8 @@ class FixedResult(_Contract):
 class TurnEnvelope(_Contract):
     """当前正式版本与完整结果，错误或缺失 results 不能解码成成功。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.9.0"]
-    rules_version: Literal["calculation-rules.v9"]
+    engine_version: Literal["0.10.0"]
+    rules_version: Literal["calculation-rules.v10"]
     results: tuple[Annotated[TurnResult | FixedResult, Field(discriminator="kind")], ...]
 
 

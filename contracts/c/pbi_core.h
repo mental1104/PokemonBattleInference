@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 /// v1 固定资源合同；调用方可以在复制大输入前拒绝超限，不重复计算规则。
-#define PBI_V1_MAX_REQUEST_BYTES (8u * 1024u * 1024u)
+#define PBI_V1_MAX_REQUEST_BYTES (32u * 1024u * 1024u)
 #define PBI_V1_MAX_OPERATIONS 4096u
 #define PBI_V1_MAX_ROLLS 65536u
 #define PBI_V1_MAX_TOTAL_ROLLS (1024u * 1024u)
@@ -89,7 +89,7 @@ void pbi_v1_cancel_token_destroy(pbi_cancel_token_v1* token) PBI_NOEXCEPT;
 
 /// 执行版本化 JSON 批次；按输入顺序返回，任一错误/取消使整批无业务结果。
 /// @param request 只读 UTF-8 字节，借用至函数返回；不得为 NULL。
-/// @param request_size 实际字节数，不含结束符，最多 8 MiB。
+/// @param request_size 实际字节数，不含结束符，最多 32 MiB（引擎0.10起）。
 /// @param cancellation 可为 NULL；非 NULL 时借用至函数返回，不修改调用者数据。
 /// @param output 必须非 NULL 且 data=NULL/size=0；成功或错误 JSON 的所有权转给调用者。
 /// @return 稳定状态码；参数无效或内存耗尽时可能无 JSON。任何 C++ 异常均被隔离。

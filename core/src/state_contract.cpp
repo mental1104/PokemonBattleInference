@@ -121,13 +121,25 @@ MoveSpec ReadMove(const Json& value) {
 }
 /// @param value 不变配置对象；@return 拥有一到四招的完整领域配置。
 PokemonSpec ReadSpec(const Json& value) {
-  RequireFields(value, {"pokemon_id", "name", "pokemon", "moves"});
+  RequireSchema(value, {"pokemon_id", "name", "pokemon", "moves"}, {"ability_context"});
   const auto& moves = value.at("moves");
   if (!moves.is_array()) throw RequestError(PBI_INVALID_INPUT_V1, "moves must be an array");
   if (moves.size() > 4) throw RequestError(PBI_RESOURCE_LIMIT_V1, "configured move budget exceeded");
   std::vector<MoveSpec> configured;
   for (const auto& move : moves) configured.push_back(ReadMove(move));
-  return PokemonSpec{{ReadInteger(value.at("pokemon_id")), value.at("name").get<std::string>(), ReadPokemon(value.at("pokemon")), std::move(configured)}};
+  std::optional<TransparentNeutralAbility> transparent_ability;
+  if (value.contains("ability_context")) {
+    if (!value.at("ability_context").is_string()) throw RequestError(PBI_INVALID_INPUT_V1, "ability context must be a string");
+    if (value.at("ability_context") != "transparent_inference") throw RequestError(PBI_UNSUPPORTED_V1, "unsupported battle ability context");
+    const auto& pokemon = value.at("pokemon");
+    if (pokemon.contains("ability")) {
+      if (!pokemon.at("ability").is_string()) throw RequestError(PBI_INVALID_INPUT_V1, "ability must be a string");
+      transparent_ability = FindTransparentNeutralAbility(pokemon.at("ability").get<std::string>());
+    }
+  }
+  // 只有显式context与白名单同时成立，才由Core声明原UNKNOWN解释；Go仍传真实原始能力。
+  const auto pokemon = transparent_ability ? ReadPokemonWithInterpretedAbility(value.at("pokemon"), DamageAbility::none) : ReadPokemon(value.at("pokemon"));
+  return PokemonSpec{{ReadInteger(value.at("pokemon_id")), value.at("name").get<std::string>(), pokemon, std::move(configured), transparent_ability}};
 }
 /// @param value 一方状态对象；@return 拥有并验证所有动态字段的节点。
 BattlerState ReadBattler(const Json& value) {
@@ -195,7 +207,13 @@ Json BattlerJson(const BattlerState& value) {
     const auto& slot = configured.View();
     slots.push_back({{"move_id", slot.move_id}, {"current_pp", slot.current_pp}, {"max_pp", slot.max_pp}, {"disabled", slot.disabled}, {"locked", slot.locked}, {"slot_id", slot.slot_id}});
   }
-  return {{"spec", {{"pokemon_id", spec.pokemon_id}, {"name", spec.name}, {"pokemon", PokemonJson(spec.pokemon)}, {"moves", std::move(moves)}}},
+  auto pokemon = PokemonJson(spec.pokemon);
+  Json specification{{"pokemon_id", spec.pokemon_id}, {"name", spec.name}, {"pokemon", std::move(pokemon)}, {"moves", std::move(moves)}};
+  if (spec.transparent_ability) {
+    specification["pokemon"]["ability"] = TransparentNeutralAbilityIdentifier(*spec.transparent_ability);
+    specification["ability_context"] = "transparent_inference";
+  }
+  return {{"spec", std::move(specification)},
       {"current_hp", state.current_hp}, {"move_slots", std::move(slots)}, {"stages", state.stages.Values()}, {"status", StatusJson(state.status)},
       {"last_move_id", state.last_move_id ? Json(*state.last_move_id) : Json(nullptr)}, {"choice_lock_move_id", state.choice_lock_move_id ? Json(*state.choice_lock_move_id) : Json(nullptr)},
       {"item_consumed", state.item_consumed}, {"is_first_turn", state.is_first_turn}};

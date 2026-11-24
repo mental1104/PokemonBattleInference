@@ -9,6 +9,13 @@ export POKEOP_BUILD_ROOT="${POKEOP_BUILD_ROOT:-/volume2/docker/pokemon-migration
 export POKEOP_REPORT_ROOT="${POKEOP_REPORT_ROOT:-/volume1/homes/mental1104/Backup/PokemonBattleInference/fixed-inference-$(date +%Y%m%d-%H%M%S)}"
 readonly nas_manager="${POKEOP_NAS_MANAGER:-/volume2/workflow/code/infra/homelab-services/tools/nas-management/nas-manage.sh}"
 readonly core_directory="${PBI_VALIDATION_CORE_DIRECTORY:?Set the verified matching Core/ABI archive directory inside the maintenance container}"
+# 显式选择同一真实环境的验收集合；默认仍为已交付summary，graph/all绝不静默缩减。
+case "${PBI_FIXED_INFERENCE_SUITE:-summary}" in
+  summary) test_files=(tests/migration/test_go_fixed_inference.py) ;;
+  graph) test_files=(tests/migration/test_go_fixed_graph.py) ;;
+  all) test_files=(tests/migration/test_go_fixed_inference.py tests/migration/test_go_fixed_graph.py) ;;
+  *) printf 'Unsupported fixed inference acceptance suite\n' >&2; exit 2 ;;
+esac
 readonly postgres_name="pbi-fixed-inference-pg-$$"
 readonly server_name="pbi-fixed-inference-api-$$"
 postgres_id=""
@@ -58,6 +65,6 @@ done
 compose run --rm --no-deps -e "PBI_FIXED_INFERENCE_URL=http://$server_name:41105" \
   -e "PBI_FIXED_INFERENCE_POSTGRES_URL=postgresql+psycopg://pokeop@$postgres_name:5432/pokeop" \
   -e PBI_FIXED_INFERENCE_REPORT_DIRECTORY=/reports/http pokemon-validation \
-  python -m pytest tests/migration/test_go_fixed_inference.py -v -o cache_dir=/tmp/pytest-cache --junitxml=/reports/http.xml \
+  python -m pytest "${test_files[@]}" -v -o cache_dir=/tmp/pytest-cache --junitxml=/reports/http.xml \
   > "$POKEOP_REPORT_ROOT/differential.log" 2>&1
 printf 'Fixed inference HTTP acceptance passed. Reports: %s\n' "$POKEOP_REPORT_ROOT"

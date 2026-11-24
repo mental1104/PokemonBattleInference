@@ -68,10 +68,21 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.9.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.10.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
+}
+
+/// 图节点切片可能超过旧8MiB，0.10明确允许更大的完整输入；不放宽其他操作/拓扑预算。
+TEST(CAbi, CompleteInputMayExceedTheOldEightMiBTransportLimit) {
+  const auto small = R"({"schema_version":1,"operations":[{"kind":"hp","base":80,"iv":31,"ev":0,"level":50}]})";
+  const auto request = std::string(8 * 1024 * 1024, ' ') + small;
+  ASSERT_GT(request.size(), 8U * 1024U * 1024U);
+  ASSERT_LT(request.size(), PBI_V1_MAX_REQUEST_BYTES);
+  const auto result = Call(request);
+  ASSERT_EQ(result.status, PBI_OK_V1);
+  EXPECT_EQ(result.body.at("results").at(0).at("value"), 155);
 }
 
 /// 类型错误、未知字段/操作/版本及领域错误必须保留明确错误码，不能得到部分结果。
@@ -95,7 +106,7 @@ TEST(CAbi, InvalidAndUnsupportedRequests) {
 
 /// 字节/深度/操作预算和结果溢出均为资源错误，不静默截断。
 TEST(CAbi, ResourceLimits) {
-  EXPECT_EQ(Call(std::string(8 * 1024 * 1024 + 1, ' ')).status, PBI_RESOURCE_LIMIT_V1);
+  EXPECT_EQ(Call(std::string(PBI_V1_MAX_REQUEST_BYTES + 1, ' ')).status, PBI_RESOURCE_LIMIT_V1);
   EXPECT_EQ(Call(std::string(20, '[') + "0" + std::string(20, ']')).status, PBI_RESOURCE_LIMIT_V1);
   Json request{{"schema_version", 1}, {"operations", Json::array()}};
   for (int i = 0; i < 4097; ++i) request["operations"].push_back({{"kind", "stage"}, {"value", 1}, {"stage", 0}});

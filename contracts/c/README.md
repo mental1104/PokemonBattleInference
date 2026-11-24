@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入、任务 ID 或持久化副作用。可选同步进度回调仅观察真实构图计数，不能被解释为结果已成功提交。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.9.0` / `calculation-rules.v9`，新增精确事件/配置加权分析、独立旧伤害责任链及显式reference_static伤害上下文；完整候选/模板/EV、回合和固定战斗仍由同一Core执行。C ABI/schema仍v1，旧25个数学样本保持不变，33个共享样本增加8个原Python oracle。不表示完整官方规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.10.0` / `calculation-rules.v10`，新增完整图投影、获胜路径及冻结事实按需查询；精确事件、配置加权、旧伤害与reference_static上下文保持。C ABI/schema仍v1，共享39个原oracle样本，前36个数学/投影结果保持不变；新查询说明见[图查询合同](graph-query.v1.md)。不表示完整官方规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -49,6 +49,9 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | event_analysis | revision/run ID、完整紧凑原图、observer与结构化query | 原精确事件概率、条件概率/分布、路径组覆盖与实际成本，详见[事件合同](event-analysis.v1.md) |
 | configuration_event_analysis | 全部未求解原图/查询组、配置权重、完整分母与未解析权重 | 各组真实分析及保持原分母的加权结果，详见[事件合同](event-analysis.v1.md) |
 | legacy_damage | 原双方level/base/basepoint/nature/types、move、random_unit及type_chart | 独立旧七字段伤害与准备证据，详见[旧责任链合同](legacy-damage.v1.md) |
+| state_graph_projection | mode、完整node/outgoing_edges/cumulative_probability及节点或单步查询 | Core唯一分组身份、全部替代历史、精确累计概率与完整战报 |
+| winning_paths | 原完整图、graph_id/revision、胜者及分页参数 | 原有限DFS、联合行动归并、精确覆盖、循环引用和分页cursor |
+| fixed_graph_query | 原完整fixed_request、预期版本/规模及小query | 同冻结事实重建typed完整图后直接导航/获胜路径查询，不输出整图JSON |
 
 未知字段、缺失字段、bool/float 冒充整数、越界整数均拒绝。未知 kind、schema version 或性格倍率明确返回 UNSUPPORTED。KO 的重复槽位保留等概率权重，不处理回血/残余伤害；完整领域边界和极端整数行为差异见 `core/README.md`。
 
@@ -74,7 +77,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 伤害链依原顺序使用 binary64 倍率并 floor，不把它改成另一套官方 4096 定点机制，也不添加最小 1 伤害钳制。整数除法保留 Python int/int 的 nearest/ties-to-even 舍入，中间整数任意精度。阶段能力与返回伤害的 int64 越界明确返回 RESOURCE_LIMIT；概率始终是精确有理数。trace 保留 key/stage/source/reason 以及可空 multiplier/min_multiplier/max_multiplier，随机首末值沿用原语义，并非无序数组的真实最小/最大值。
 
-v1 资源上限声明在头文件：8 MiB 请求、4,096 操作、单操作 65,536 伤害槽位、批次合计 1,048,576 槽位；解析深度最多 16。超限失败，不截断后重新归一化。这些是当前 ABI 批次预算，不能混同后续状态图的节点/边/回合截断合同。
+v1 资源上限声明在头文件：本版请求上限32 MiB、结果上限仍32 MiB，4,096 操作、单操作 65,536 伤害槽位、批次合计 1,048,576 槽位；解析深度最多 16。投影的大十进制节点ID和精确概率受整体请求字节预算约束，不沿用其他旧输入的1024位局部保护；旧通用字段限制保留。超限失败，不截断后重新归一化。重建查询与fixed推演共用生成图配额，不能用小查询绕过批次预算；这些保护不能混同原状态图的节点/边/回合截断合同。
 
 ## 取消与并发
 

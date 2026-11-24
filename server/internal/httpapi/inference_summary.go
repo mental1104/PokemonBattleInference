@@ -98,7 +98,8 @@ type inferenceNativeResult struct {
 		Status string              `json:"status"`
 		Value  *calculatorFraction `json:"value"`
 	} `json:"expected_turns"`
-	Graph json.RawMessage `json:"graph"`
+	Graph json.RawMessage               `json:"graph"`
+	Paths []inferenceRepresentativePath `json:"representative_paths"`
 }
 
 // inferenceDisplayProbability 将Core分数转换为原展示DTO；任何缺失/非法分母明确失败。

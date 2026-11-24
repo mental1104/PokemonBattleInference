@@ -21,6 +21,7 @@ struct FixedBattleRequest {
   TypeChartSnapshot knowledge;
   FixedBattleOptions options;
   bool include_graph;
+  bool include_representative_paths = false;
 };
 /// @param value 正式单步请求；@param remaining_rolls 批次策略槽位余量；@return 全部已验证拥有输入。
 [[nodiscard]] TurnRequest ReadTurnRequest(const Json& value, std::size_t remaining_rolls);

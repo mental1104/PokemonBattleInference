@@ -176,6 +176,18 @@ bool MoveSpec::operator==(const MoveSpec& other) const {
   return std::tie(data_.move_id, data_.move, data_.max_pp, data_.priority, data_.accuracy, data_.effect_identifier) ==
          std::tie(other.data_.move_id, other.data_.move, other.data_.max_pp, other.data_.priority, other.data_.accuracy, other.data_.effect_identifier);
 }
+std::optional<TransparentNeutralAbility> FindTransparentNeutralAbility(std::string_view identifier) {
+  if (identifier == "pressure") return TransparentNeutralAbility::pressure;
+  if (identifier == "pickpocket") return TransparentNeutralAbility::pickpocket;
+  return std::nullopt;
+}
+std::string_view TransparentNeutralAbilityIdentifier(TransparentNeutralAbility ability) {
+  switch (ability) {
+    case TransparentNeutralAbility::pressure: return "pressure";
+    case TransparentNeutralAbility::pickpocket: return "pickpocket";
+  }
+  throw UnsupportedRule("unsupported transparent ability identifier");
+}
 PokemonSpec::PokemonSpec(PokemonSpecData data) : data_(std::move(data)) {
   const auto& pokemon = data_.pokemon;
   if (data_.pokemon_id <= 0 || !NormalizedText(data_.name) || pokemon.level < 1 || pokemon.level > 100) throw std::invalid_argument("invalid pokemon identity or level");
@@ -184,6 +196,11 @@ PokemonSpec::PokemonSpec(PokemonSpecData data) : data_(std::move(data)) {
     if (static_cast<int>(type) < 1 || static_cast<int>(type) > 18) throw std::invalid_argument("invalid pokemon type");
   }
   RequireEnum(pokemon.ability, DamageAbility::inner_focus); RequireEnum(pokemon.item, DamageItem::eviolite);
+  if (data_.transparent_ability) {
+    static_cast<void>(TransparentNeutralAbilityIdentifier(*data_.transparent_ability));
+    // 原DamageAbility.from_identifier将两项及None/none都解析为UNKNOWN；既有Core枚举none是该UNKNOWN的历史ABI拼写。
+    if (pokemon.ability != DamageAbility::none) throw std::invalid_argument("transparent unknown assumption conflicts with a known mechanical ability");
+  }
   if (pokemon.grounding) RequireEnum(*pokemon.grounding, Grounding::airborne);
   const auto& stats = pokemon.stats;
   for (const auto stat : {stats.hp, stats.attack, stats.defense, stats.special_attack, stats.special_defense, stats.speed}) {
@@ -201,6 +218,7 @@ const MoveSpec& PokemonSpec::Move(std::int64_t move_id) const {
   throw std::invalid_argument("move is not configured for pokemon");
 }
 bool PokemonSpec::operator==(const PokemonSpec& other) const {
+  // 透明raw标识只解释原UNKNOWN假设，不进入原PokemonSpecKey或改变状态去重关系。
   return data_.pokemon_id == other.data_.pokemon_id && data_.pokemon == other.data_.pokemon && data_.moves == other.data_.moves;
 }
 InferenceRules::InferenceRules(InferenceRulesData data) : data_(std::move(data)) {

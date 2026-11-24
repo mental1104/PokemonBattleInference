@@ -81,6 +81,10 @@ export PBI_CONFIGURATION_SPREAD_SEARCH_RUNNER := $(CORE_BUILD_DIR)/pbi_configura
 export PBI_EVENT_ANALYSIS_RUNNER := $(CORE_BUILD_DIR)/pbi_event_analysis_vectors
 export PBI_LEGACY_DAMAGE_RUNNER := $(CORE_BUILD_DIR)/pbi_legacy_damage_vectors
 export PBI_REFERENCE_STATIC_DAMAGE_RUNNER := $(CORE_BUILD_DIR)/pbi_reference_static_damage_vectors
+export PBI_STATE_GRAPH_PROJECTION_RUNNER := $(CORE_BUILD_DIR)/pbi_state_graph_projection_vectors
+export PBI_WINNING_PATHS_RUNNER := $(CORE_BUILD_DIR)/pbi_winning_paths_vectors
+export PBI_FIXED_GRAPH_QUERY_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_graph_query_vectors
+export PBI_TRANSPARENT_TURN_RUNNER := $(CORE_BUILD_DIR)/pbi_turn_vectors
 
 .PHONY: test-bindings test-native
 test-bindings: test-core

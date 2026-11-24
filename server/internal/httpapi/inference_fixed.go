@@ -22,10 +22,11 @@ type fixedInferenceHandler struct {
 	core  calculatorHandler
 }
 
-// registerFixedInference 挂接原summary-only路由；mux与db由调用方拥有，不启动后台生命周期。
+// registerFixedInference 挂接原summary和共享图族路由；mux与db由调用方拥有，不启动后台生命周期。
 func registerFixedInference(mux *http.ServeMux, db *sql.DB) {
 	handler := fixedInferenceHandler{catalog.New(db), calculatorHandler{worker: configuredWorker()}}
 	mux.HandleFunc("POST /v1/inference/fixed-one-on-one", handler.summary)
+	registerFixedGraphRoutes(mux, handler)
 }
 
 // inferenceRequestError 区分旧业务拒绝与基础设施错误，不携带SQL/连接串或worker路径。
@@ -316,13 +317,28 @@ func inferencePokemon(value inferenceNativeBattler, profileKey string) inference
 		map[string]string{"moves": strings.Join(labels, ","), "stats": "preset:" + profileKey, "ability": pokemon.Ability, "item": pokemon.Item}}
 }
 
-// solve 在同一原子Core批次读取完整机制集合并求解固定战斗，最后才组装旧HTTP摘要。
-// ctx控制child生命周期；prepared只读，任何未知/截断都返回明确失败而不是零概率。
+// inferenceComputation 持有同一Core调用的摘要和原始图结果，图创建不再重复求解。
+type inferenceComputation struct {
+	summary inferenceSummary
+	native  inferenceNativeResult
+	engineVersion string
+	rulesVersion string
+}
+
+// solve 保留原summary入口签名；ctx取消传播到唯一Core调用，只返回完整摘要或原错误。
 func (handler fixedInferenceHandler) solve(ctx context.Context, input inferenceFixedRequest, prepared inferencePrepared) (inferenceSummary, error) {
-	results, err := handler.core.batch(ctx, []any{inferenceOperation{"configuration_coverage", prepared.metadata}, prepared.operation})
+	result, err := handler.calculate(ctx, input, prepared)
+	return result.summary, err
+}
+
+// calculate 在同一原子Core批次读取机制并求解固定战斗，保留同一次结果的完整图供原graph入口使用。
+// ctx控制child生命周期；prepared只读，任何未知/截断都返回明确失败而不是零概率。
+func (handler fixedInferenceHandler) calculate(ctx context.Context, input inferenceFixedRequest, prepared inferencePrepared) (inferenceComputation, error) {
+	envelope, err := handler.core.batchEnvelope(ctx, []any{inferenceOperation{"configuration_coverage", prepared.metadata}, prepared.operation})
 	if err != nil {
-		return inferenceSummary{}, err
+		return inferenceComputation{}, err
 	}
+	results := envelope.Results
 	var metadata struct {
 		Kind     string   `json:"kind"`
 		Mode     string   `json:"mode"`
@@ -332,7 +348,7 @@ func (handler fixedInferenceHandler) solve(ctx context.Context, input inferenceF
 	var result inferenceNativeResult
 	if json.Unmarshal(results[0], &metadata) != nil || metadata.Kind != "configuration_coverage" || metadata.Mode != "describe" || metadata.Included == nil || metadata.Excluded == nil ||
 		json.Unmarshal(results[1], &result) != nil || result.Kind != "fixed_battle" || result.Observer != "attacker" || result.Statistics.Nodes < 1 {
-		return inferenceSummary{}, errors.New("invalid native fixed inference response")
+		return inferenceComputation{}, errors.New("invalid native fixed inference response")
 	}
 	if result.Status != "solved" {
 		diagnostics := result.Diagnostics
@@ -348,23 +364,23 @@ func (handler fixedInferenceHandler) solve(ctx context.Context, input inferenceF
 		if len(diagnostics) == 0 {
 			diagnostics = []string{result.Status}
 		}
-		return inferenceSummary{}, &inferenceRequestError{status: 422, code: "fixed_battle_not_completely_solved", message: "battle graph was not completely solved: " + strings.Join(diagnostics, "; ")}
+		return inferenceComputation{}, &inferenceRequestError{status: 422, code: "fixed_battle_not_completely_solved", message: "battle graph was not completely solved: " + strings.Join(diagnostics, "; ")}
 	}
 	win, err := inferenceDisplayProbability(result.Win)
 	if err != nil {
-		return inferenceSummary{}, err
+		return inferenceComputation{}, err
 	}
 	loss, err := inferenceDisplayProbability(result.Loss)
 	if err != nil {
-		return inferenceSummary{}, err
+		return inferenceComputation{}, err
 	}
 	draw, err := inferenceDisplayProbability(result.Draw)
 	if err != nil {
-		return inferenceSummary{}, err
+		return inferenceComputation{}, err
 	}
 	expected, err := inferenceDisplayExpected(result.Expected.Status, result.Expected.Value)
 	if err != nil {
-		return inferenceSummary{}, err
+		return inferenceComputation{}, err
 	}
 	warnings := []string{}
 	for _, excluded := range metadata.Excluded {
@@ -379,9 +395,9 @@ func (handler fixedInferenceHandler) solve(ctx context.Context, input inferenceF
 		diagnostics = []string{}
 	}
 	stats := result.Statistics
-	return inferenceSummary{input.Ruleset, input.Version, "attacker", prepared.attacker, prepared.defender, win, loss, draw, expected,
+	return inferenceComputation{inferenceSummary{input.Ruleset, input.Version, "attacker", prepared.attacker, prepared.defender, win, loss, draw, expected,
 		inferencePolicy(input.AttackerPolicy), inferencePolicy(input.DefenderPolicy),
 		inferenceGraphSummary{stats.Nodes, stats.Edges, stats.MaxTurn, stats.Closed, stats.ReachableCycle, len(truncations) == 0, truncations},
 		[]json.RawMessage{}, metadata.Included, metadata.Excluded, 100,
-		inferenceCompleteness{len(truncations) == 0, result.Status, truncations, diagnostics, warnings}}, nil
+		inferenceCompleteness{len(truncations) == 0, result.Status, truncations, diagnostics, warnings}}, result, envelope.EngineVersion, envelope.RulesVersion}, nil
 }

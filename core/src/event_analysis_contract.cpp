@@ -1,4 +1,6 @@
 #include "event_analysis_contract.hpp"
+#include "event_record_contract.hpp"
+#include "projection_number_contract.hpp"
 
 namespace pbi::contract {
 namespace {
@@ -22,11 +24,17 @@ std::size_t Index(const Json& value) {
 std::optional<BattleSide> Side(const Json& value) {
   return value.is_null() ? std::nullopt : std::optional{ReadEnum<BattleSide>(value, sides)};
 }
-/// @param value 可空精确十进制整数；@return 完整值，避免经浮点丢精度。
-std::optional<Integer> Number(const Json& value) { return value.is_null() ? std::nullopt : std::optional{ReadDecimalInteger(value)}; }
-/// @param value 与真实turn/fixed_battle输出一致的随机/业务事件对象。
+/// 唯一事件读取器的两个明确数值合同；旧operation保持默认1024，只有projection选择整体请求预算。
+enum class EventNumberBudget { legacy_1024, projection_request };
+/// @param value 可空精确整数；@param budget 当前operation明确数值合同；@param stop 同源取消。
+/// @return 完整拥有整数，旧入口不扩大1024位约束，projection不削减原长路径。
+std::optional<Integer> Number(const Json& value, EventNumberBudget budget = EventNumberBudget::legacy_1024, CancellationToken stop = {}) {
+  if (value.is_null()) return std::nullopt;
+  return budget == EventNumberBudget::projection_request ? ReadProjectionInteger(value, stop) : ReadDecimalInteger(value);
+}
+/// @param value 与真实turn/fixed_battle输出一致的事件；@param budget 当前明确数值合同；@param stop 同源取消。
 /// @return 完整类型化事件；业务事实与附带随机身份冲突时拒绝，不从文案恢复语义。
-PathEvent ReadEvent(const Json& value) {
+PathEvent ReadPathEventImpl(const Json& value, EventNumberBudget budget, CancellationToken stop) {
   if (!value.is_object() || !value.contains("kind")) throw RequestError(PBI_INVALID_INPUT_V1, "event requires a kind");
   const bool business = value.at("kind") == "battle";
   if (business) RequireFields(value, {"kind", "event_type", "event_id", "outcome_id", "numeric_value", "battle_kind", "turn_number",
@@ -36,18 +44,18 @@ PathEvent ReadEvent(const Json& value) {
     if (value.at("kind") != "random") throw RequestError(PBI_INVALID_INPUT_V1, "unsupported event kind");
   }
   const TransitionEvent identity{{ReadEnum<TransitionEventType>(value.at("event_type"), random_types),
-      value.at("event_id").get<std::string>(), value.at("outcome_id").get<std::string>(), Number(value.at("numeric_value"))}};
+      value.at("event_id").get<std::string>(), value.at("outcome_id").get<std::string>(), Number(value.at("numeric_value"), budget, stop)}};
   if (!business) return identity;
   BattleEvent fact{{ReadEnum<BattleEventKind>(value.at("battle_kind"), business_kinds), ReadInteger(value.at("turn_number")),
       Side(value.at("actor")), Side(value.at("target")), value.at("move_id").is_null() ? std::nullopt : std::optional{ReadInteger(value.at("move_id"))},
       value.at("source_identifier").is_null() ? std::nullopt : std::optional{value.at("source_identifier").get<std::string>()},
-      Number(value.at("value")), Number(value.at("before")), Number(value.at("after"))}};
+      Number(value.at("value"), budget, stop), Number(value.at("before"), budget, stop), Number(value.at("after"), budget, stop)}};
   if (fact.Identity() != identity) throw RequestError(PBI_INVALID_INPUT_V1, "battle event facts conflict with random identity");
   return fact;
 }
-/// @param value 一条边完整替代路径数组；@param stop 同源取消。
+/// @param value 一条边完整替代路径数组；@param stop 同源取消；@param budget 当前operation数值合同。
 /// @return 原EventSummary严格归一和等价路径归并，条件概率不得被当作绝对概率。
-EventSummary ReadPaths(const Json& value, CancellationToken stop) {
+EventSummary ReadEventSummaryImpl(const Json& value, CancellationToken stop, EventNumberBudget budget) {
   RequireArray(value);
   std::vector<WeightedEventPath> paths;
   for (const auto& path : value) {
@@ -55,11 +63,17 @@ EventSummary ReadPaths(const Json& value, CancellationToken stop) {
     RequireFields(path, {"events", "probability"});
     RequireArray(path.at("events"));
     std::vector<PathEvent> events;
-    for (const auto& event : path.at("events")) { CheckStop(stop); events.push_back(ReadEvent(event)); }
-    paths.push_back({std::move(events), ReadFraction(path.at("probability"))});
+    for (const auto& event : path.at("events")) { CheckStop(stop); events.push_back(ReadPathEventImpl(event, budget, stop)); }
+    paths.push_back({std::move(events), budget == EventNumberBudget::projection_request ? ReadProjectionFraction(path.at("probability"), stop) : ReadFraction(path.at("probability"))});
   }
   return EventSummary{std::move(paths)};
 }
+} // namespace
+
+PathEvent ReadPathEventValue(const Json& value) { return ReadPathEventImpl(value, EventNumberBudget::legacy_1024, {}); }
+EventSummary ReadEventSummaryValue(const Json& value, CancellationToken stop) { return ReadEventSummaryImpl(value, stop, EventNumberBudget::legacy_1024); }
+EventSummary ReadProjectionEventSummaryValue(const Json& value, CancellationToken stop) { return ReadEventSummaryImpl(value, stop, EventNumberBudget::projection_request); }
+namespace {
 /// @param value 原完整查询；@return 不在codec计算命中/历史满足性的类型化查询。
 EventQuery ReadQuery(const Json& value) {
   RequireSchema(value, {"predicate"}, {"occurrence_mode", "turn_range", "min_occurrences", "max_occurrences", "distribution_count_limit", "distribution_turn_limit", "max_key_event_summaries"});
@@ -142,7 +156,7 @@ EventAnalysisRequest ReadEventAnalysisRequest(const Json& value, std::size_t ava
   for (auto& edge : topology["edges"]) {
     CheckStop(stop);
     if (!edge.is_object() || !edge.contains("event_paths")) throw RequestError(PBI_INVALID_INPUT_V1, "event topology edge requires complete event_paths");
-    events.push_back(ReadPaths(edge.at("event_paths"), stop));
+    events.push_back(ReadEventSummaryValue(edge.at("event_paths"), stop));
     edge.erase("event_paths");
   }
   auto parsed = ReadGraphRequest(topology, available_nodes, available_edges, stop);

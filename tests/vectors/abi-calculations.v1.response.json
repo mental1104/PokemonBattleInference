@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "results": [
     {
       "kind": "hp",
@@ -4371,8 +4371,1049 @@
       },
       "guaranteed_ohko": false,
       "guaranteed_two_hit": true
+    },
+    {
+      "kind": "state_graph_projection",
+      "mode": "node",
+      "projection": {
+        "node": {
+          "node_id": "0",
+          "turn_number": 1,
+          "phase": "action-selection",
+          "outcome": "non-terminal",
+          "termination_reason": null,
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "ability": "unknown",
+            "item": "choice_band",
+            "current_hp": 177,
+            "max_hp": 177,
+            "moves": [
+              {
+                "move_id": 1,
+                "current_pp": 30,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 2,
+                "current_pp": 15,
+                "max_pp": 15,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 3,
+                "current_pp": 10,
+                "max_pp": 10,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 4,
+                "current_pp": 20,
+                "max_pp": 20,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": null,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": true
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "ability": "unknown",
+            "item": "life_orb",
+            "current_hp": 202,
+            "max_hp": 202,
+            "moves": [
+              {
+                "move_id": 101,
+                "current_pp": 30,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 102,
+                "current_pp": 15,
+                "max_pp": 15,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 103,
+                "current_pp": 10,
+                "max_pp": 10,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 104,
+                "current_pp": 20,
+                "max_pp": 20,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": null,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": true
+          },
+          "field": {
+            "weather": null,
+            "terrain": null,
+            "attacker_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            },
+            "defender_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            }
+          },
+          "terminal": false,
+          "has_outgoing_edges": true
+        },
+        "cumulative_probability": {
+          "numerator": "3",
+          "denominator": "5",
+          "decimal": 0.6,
+          "percent": 60.0
+        },
+        "transition_groups": [
+          {
+            "group_id": "tg-0-action-selection-042954af9d808c1e",
+            "kind": "action-selection",
+            "label_key": "battle.transition.action-selection",
+            "probability": {
+              "numerator": "3",
+              "denominator": "4",
+              "decimal": 0.75,
+              "percent": 75.0
+            },
+            "selection_probability": {
+              "numerator": "3",
+              "denominator": "4",
+              "decimal": 0.75,
+              "percent": 75.0
+            },
+            "attacker_action": {
+              "side": "attacker",
+              "action_type": "move",
+              "move_id": 2
+            },
+            "defender_action": {
+              "side": "defender",
+              "action_type": "move",
+              "move_id": 101
+            },
+            "raw_result_count": 1,
+            "distinct_outcome_count": 1,
+            "summary": {
+              "minimum_damage": null,
+              "maximum_damage": null,
+              "minimum_hp_loss": null,
+              "maximum_hp_loss": null
+            },
+            "expanded": false,
+            "outcomes": []
+          },
+          {
+            "group_id": "tg-0-action-selection-3541a48d140da0a3",
+            "kind": "action-selection",
+            "label_key": "battle.transition.action-selection",
+            "probability": {
+              "numerator": "1",
+              "denominator": "4",
+              "decimal": 0.25,
+              "percent": 25.0
+            },
+            "selection_probability": {
+              "numerator": "1",
+              "denominator": "4",
+              "decimal": 0.25,
+              "percent": 25.0
+            },
+            "attacker_action": {
+              "side": "attacker",
+              "action_type": "move",
+              "move_id": 1
+            },
+            "defender_action": {
+              "side": "defender",
+              "action_type": "move",
+              "move_id": 101
+            },
+            "raw_result_count": 1,
+            "distinct_outcome_count": 1,
+            "summary": {
+              "minimum_damage": null,
+              "maximum_damage": null,
+              "minimum_hp_loss": null,
+              "maximum_hp_loss": null
+            },
+            "expanded": false,
+            "outcomes": []
+          }
+        ]
+      }
+    },
+    {
+      "kind": "state_graph_projection",
+      "mode": "step",
+      "step": {
+        "depth": 1,
+        "source_node_id": "0",
+        "edge_id": "1",
+        "target_node_id": "2",
+        "edge_probability": {
+          "numerator": "2",
+          "denominator": "3",
+          "decimal": 0.6666666666666666,
+          "percent": 66.66666666666666
+        },
+        "cumulative_probability": {
+          "numerator": "2",
+          "denominator": "3",
+          "decimal": 0.6666666666666666,
+          "percent": 66.66666666666666
+        },
+        "event_paths": [
+          {
+            "random_results": [
+              {
+                "event_type": "damage_roll",
+                "event_id": "root-damage",
+                "outcome_id": "roll-1",
+                "numeric_value": "20"
+              }
+            ],
+            "damage_rolls": [
+              {
+                "raw_roll_index": 1,
+                "raw_roll_value": "86",
+                "final_damage": "20",
+                "actual_hp_loss": "20"
+              }
+            ],
+            "battle_events": [
+              {
+                "kind": "damage",
+                "turn_number": 1,
+                "actor": "attacker",
+                "target": "defender",
+                "move_id": 418,
+                "source_identifier": "move",
+                "value": "20",
+                "before_value": null,
+                "after_value": null
+              }
+            ]
+          },
+          {
+            "random_results": [
+              {
+                "event_type": "damage_roll",
+                "event_id": "root-damage",
+                "outcome_id": "roll-2",
+                "numeric_value": "21"
+              }
+            ],
+            "damage_rolls": [
+              {
+                "raw_roll_index": 2,
+                "raw_roll_value": "87",
+                "final_damage": "21",
+                "actual_hp_loss": "20"
+              }
+            ],
+            "battle_events": [
+              {
+                "kind": "damage",
+                "turn_number": 1,
+                "actor": "attacker",
+                "target": "defender",
+                "move_id": 418,
+                "source_identifier": "move",
+                "value": "20",
+                "before_value": null,
+                "after_value": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "state_graph_projection",
+      "mode": "node",
+      "projection": {
+        "node": {
+          "node_id": "100010001000100010000",
+          "turn_number": 1,
+          "phase": "action-selection",
+          "outcome": "non-terminal",
+          "termination_reason": null,
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "ability": "unknown",
+            "item": "choice_band",
+            "current_hp": 177,
+            "max_hp": 177,
+            "moves": [
+              {
+                "move_id": 1,
+                "current_pp": 30,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 2,
+                "current_pp": 15,
+                "max_pp": 15,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 3,
+                "current_pp": 10,
+                "max_pp": 10,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 4,
+                "current_pp": 20,
+                "max_pp": 20,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": null,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": true
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "ability": "unknown",
+            "item": "life_orb",
+            "current_hp": 202,
+            "max_hp": 202,
+            "moves": [
+              {
+                "move_id": 101,
+                "current_pp": 30,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 102,
+                "current_pp": 15,
+                "max_pp": 15,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 103,
+                "current_pp": 10,
+                "max_pp": 10,
+                "disabled": false,
+                "locked": false
+              },
+              {
+                "move_id": 104,
+                "current_pp": 20,
+                "max_pp": 20,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": null,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": true
+          },
+          "field": {
+            "weather": null,
+            "terrain": null,
+            "attacker_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            },
+            "defender_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            }
+          },
+          "terminal": false,
+          "has_outgoing_edges": true
+        },
+        "cumulative_probability": {
+          "numerator": "1",
+          "denominator": "1",
+          "decimal": 1.0,
+          "percent": 100.0
+        },
+        "transition_groups": [
+          {
+            "group_id": "tg-100010001000100010000-action-selection-38fb52f2ec6be672",
+            "kind": "action-selection",
+            "label_key": "battle.transition.action-selection",
+            "probability": {
+              "numerator": "1",
+              "denominator": "1",
+              "decimal": 1.0,
+              "percent": 100.0
+            },
+            "selection_probability": {
+              "numerator": "1",
+              "denominator": "1",
+              "decimal": 1.0,
+              "percent": 100.0
+            },
+            "attacker_action": {
+              "side": "attacker",
+              "action_type": "move",
+              "move_id": 1
+            },
+            "defender_action": {
+              "side": "defender",
+              "action_type": "move",
+              "move_id": 101
+            },
+            "raw_result_count": 1,
+            "distinct_outcome_count": 1,
+            "summary": {
+              "minimum_damage": null,
+              "maximum_damage": null,
+              "minimum_hp_loss": null,
+              "maximum_hp_loss": null
+            },
+            "expanded": false,
+            "outcomes": []
+          }
+        ]
+      }
+    },
+    {
+      "graph_id": "stored-graph",
+      "calculation_revision": "battle-inference.test.v1",
+      "winner": "attacker",
+      "sort": "shortest-high-probability",
+      "configuration": {
+        "configuration_key": "cfg-82999744c74abe4dc6280cb2",
+        "attacker": {
+          "pokemon_id": 212,
+          "name": "scizor",
+          "level": 50,
+          "ability_identifier": "multiscale",
+          "item_identifier": "choice_band",
+          "move_ids": [
+            418
+          ]
+        },
+        "defender": {
+          "pokemon_id": 700,
+          "name": "sylveon",
+          "level": 50,
+          "ability_identifier": "unknown",
+          "item_identifier": "unknown",
+          "move_ids": [
+            585
+          ]
+        }
+      },
+      "winner_probability": {
+        "numerator": "1",
+        "denominator": "1",
+        "decimal": 1.0,
+        "percent": 100.0
+      },
+      "returned_probability": {
+        "numerator": "3",
+        "denominator": "4",
+        "decimal": 0.75,
+        "percent": 75.0
+      },
+      "returned_coverage": {
+        "numerator": "3",
+        "denominator": "4",
+        "decimal": 0.75,
+        "percent": 75.0
+      },
+      "path_groups": [
+        {
+          "path_key": "wp-e64665c2d8887f4b046b8acd",
+          "terminal_turn": 2,
+          "probability": {
+            "numerator": "1",
+            "denominator": "2",
+            "decimal": 0.5,
+            "percent": 50.0
+          },
+          "raw_path_count": "2",
+          "raw_history_count_estimate": "2",
+          "terminal_reasons": [
+            "knockout"
+          ],
+          "terminal_node_ids": [
+            "1",
+            "2"
+          ],
+          "actions": [
+            {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 8,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            }
+          ],
+          "representative_path": [
+            {
+              "source_node_id": "0",
+              "edge_id": "1",
+              "target_node_id": "2"
+            }
+          ],
+          "damage_values": [
+            "10",
+            "11"
+          ],
+          "attacker_remaining_hp_values": [
+            176,
+            177
+          ],
+          "defender_remaining_hp_values": [
+            0
+          ],
+          "key_events": [
+            {
+              "kind": "fainted",
+              "actor": "defender",
+              "target": null,
+              "move_id": null,
+              "source_identifier": "roll-10"
+            },
+            {
+              "kind": "fainted",
+              "actor": "defender",
+              "target": null,
+              "move_id": null,
+              "source_identifier": "roll-11"
+            }
+          ]
+        },
+        {
+          "path_key": "wp-9ce36a488b1b00ed00ca130a",
+          "terminal_turn": 2,
+          "probability": {
+            "numerator": "1",
+            "denominator": "4",
+            "decimal": 0.25,
+            "percent": 25.0
+          },
+          "raw_path_count": "1",
+          "raw_history_count_estimate": "1",
+          "terminal_reasons": [
+            "knockout"
+          ],
+          "terminal_node_ids": [
+            "3"
+          ],
+          "actions": [
+            {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 252,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 252,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            }
+          ],
+          "representative_path": [
+            {
+              "source_node_id": "0",
+              "edge_id": "2",
+              "target_node_id": "3"
+            }
+          ],
+          "damage_values": [
+            "12"
+          ],
+          "attacker_remaining_hp_values": [
+            175
+          ],
+          "defender_remaining_hp_values": [
+            0
+          ],
+          "key_events": [
+            {
+              "kind": "fainted",
+              "actor": "defender",
+              "target": null,
+              "move_id": null,
+              "source_identifier": "fake-out"
+            }
+          ]
+        }
+      ],
+      "prefix_tree": {
+        "prefix_key": "root",
+        "depth": 0,
+        "action": null,
+        "probability": {
+          "numerator": "3",
+          "denominator": "4",
+          "decimal": 0.75,
+          "percent": 75.0
+        },
+        "raw_path_count": "3",
+        "terminal_path_keys": [],
+        "children": [
+          {
+            "prefix_key": "prefix-893aa429abe91f84db9e",
+            "depth": 1,
+            "action": {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 252,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 252,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            },
+            "probability": {
+              "numerator": "1",
+              "denominator": "4",
+              "decimal": 0.25,
+              "percent": 25.0
+            },
+            "raw_path_count": "1",
+            "terminal_path_keys": [
+              "wp-9ce36a488b1b00ed00ca130a"
+            ],
+            "children": []
+          },
+          {
+            "prefix_key": "prefix-d57f1b36915735171e95",
+            "depth": 1,
+            "action": {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 8,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            },
+            "probability": {
+              "numerator": "1",
+              "denominator": "2",
+              "decimal": 0.5,
+              "percent": 50.0
+            },
+            "raw_path_count": "2",
+            "terminal_path_keys": [
+              "wp-e64665c2d8887f4b046b8acd"
+            ],
+            "children": []
+          }
+        ]
+      },
+      "cycle_references": [],
+      "next_cursor": "eyJjYWxjdWxhdGlvbl9yZXZpc2lvbiI6ImJhdHRsZS1pbmZlcmVuY2UudGVzdC52MSIsImNvbmZpZ3VyYXRpb25fa2V5IjoiY2ZnLTgyOTk5NzQ0Yzc0YWJlNGRjNjI4MGNiMiIsImdyYXBoX2lkIjoic3RvcmVkLWdyYXBoIiwib2Zmc2V0IjoyLCJzb3J0Ijoic2hvcnRlc3QtaGlnaC1wcm9iYWJpbGl0eSIsInYiOjEsIndpbm5lciI6ImF0dGFja2VyIn0",
+      "has_more": true,
+      "query_complete": true,
+      "traversal_truncated": false,
+      "kind": "winning_paths"
+    },
+    {
+      "graph_id": "stored-graph",
+      "calculation_revision": "battle-inference.test.v1",
+      "winner": "attacker",
+      "sort": "shortest-high-probability",
+      "configuration": {
+        "configuration_key": "cfg-82999744c74abe4dc6280cb2",
+        "attacker": {
+          "pokemon_id": 212,
+          "name": "scizor",
+          "level": 50,
+          "ability_identifier": "multiscale",
+          "item_identifier": "choice_band",
+          "move_ids": [
+            418
+          ]
+        },
+        "defender": {
+          "pokemon_id": 700,
+          "name": "sylveon",
+          "level": 50,
+          "ability_identifier": "unknown",
+          "item_identifier": "unknown",
+          "move_ids": [
+            585
+          ]
+        }
+      },
+      "winner_probability": {
+        "numerator": "1",
+        "denominator": "1",
+        "decimal": 1.0,
+        "percent": 100.0
+      },
+      "returned_probability": {
+        "numerator": "1",
+        "denominator": "2",
+        "decimal": 0.5,
+        "percent": 50.0
+      },
+      "returned_coverage": {
+        "numerator": "1",
+        "denominator": "2",
+        "decimal": 0.5,
+        "percent": 50.0
+      },
+      "path_groups": [
+        {
+          "path_key": "wp-7eaacc0bcf9b37189f8a4604",
+          "terminal_turn": 3,
+          "probability": {
+            "numerator": "1",
+            "denominator": "2",
+            "decimal": 0.5,
+            "percent": 50.0
+          },
+          "raw_path_count": "1",
+          "raw_history_count_estimate": "1",
+          "terminal_reasons": [
+            "knockout"
+          ],
+          "terminal_node_ids": [
+            "2"
+          ],
+          "actions": [
+            {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 8,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            },
+            {
+              "turn_number": 2,
+              "attacker_move_id": 280,
+              "defender_move_id": 8,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            }
+          ],
+          "representative_path": [
+            {
+              "source_node_id": "0",
+              "edge_id": "0",
+              "target_node_id": "1"
+            },
+            {
+              "source_node_id": "1",
+              "edge_id": "2",
+              "target_node_id": "2"
+            }
+          ],
+          "damage_values": [
+            "5",
+            "20"
+          ],
+          "attacker_remaining_hp_values": [
+            177
+          ],
+          "defender_remaining_hp_values": [
+            0
+          ],
+          "key_events": [
+            {
+              "kind": "fainted",
+              "actor": "defender",
+              "target": null,
+              "move_id": null,
+              "source_identifier": "exit"
+            }
+          ]
+        }
+      ],
+      "prefix_tree": {
+        "prefix_key": "root",
+        "depth": 0,
+        "action": null,
+        "probability": {
+          "numerator": "1",
+          "denominator": "2",
+          "decimal": 0.5,
+          "percent": 50.0
+        },
+        "raw_path_count": "1",
+        "terminal_path_keys": [],
+        "children": [
+          {
+            "prefix_key": "prefix-d57f1b36915735171e95",
+            "depth": 1,
+            "action": {
+              "turn_number": 1,
+              "attacker_move_id": 280,
+              "defender_move_id": 8,
+              "attacker_source_identifier": "policy",
+              "defender_source_identifier": "policy",
+              "ambiguous": false,
+              "alternatives": [
+                {
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy"
+                }
+              ]
+            },
+            "probability": {
+              "numerator": "1",
+              "denominator": "2",
+              "decimal": 0.5,
+              "percent": 50.0
+            },
+            "raw_path_count": "1",
+            "terminal_path_keys": [],
+            "children": [
+              {
+                "prefix_key": "prefix-2c14b5416e6a8e36ed1c",
+                "depth": 2,
+                "action": {
+                  "turn_number": 2,
+                  "attacker_move_id": 280,
+                  "defender_move_id": 8,
+                  "attacker_source_identifier": "policy",
+                  "defender_source_identifier": "policy",
+                  "ambiguous": false,
+                  "alternatives": [
+                    {
+                      "attacker_move_id": 280,
+                      "defender_move_id": 8,
+                      "attacker_source_identifier": "policy",
+                      "defender_source_identifier": "policy"
+                    }
+                  ]
+                },
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "2",
+                  "decimal": 0.5,
+                  "percent": 50.0
+                },
+                "raw_path_count": "1",
+                "terminal_path_keys": [
+                  "wp-7eaacc0bcf9b37189f8a4604"
+                ],
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "cycle_references": [
+        {
+          "source_node_id": "1",
+          "edge_id": "1",
+          "target_node_id": "0",
+          "prefix_depth": 1,
+          "component_id": null
+        }
+      ],
+      "next_cursor": null,
+      "has_more": false,
+      "query_complete": false,
+      "traversal_truncated": false,
+      "kind": "winning_paths"
+    },
+    {
+      "graph_id": "stored-graph",
+      "calculation_revision": "battle-inference.test.v1",
+      "winner": "attacker",
+      "sort": "shortest-high-probability",
+      "configuration": {
+        "configuration_key": "cfg-8c37b2d3d37c5ea46cdfe006",
+        "attacker": {
+          "pokemon_id": 212,
+          "name": "scizor",
+          "level": 50,
+          "ability_identifier": "unknown",
+          "item_identifier": "choice_band",
+          "move_ids": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "defender": {
+          "pokemon_id": 700,
+          "name": "sylveon",
+          "level": 50,
+          "ability_identifier": "unknown",
+          "item_identifier": "life_orb",
+          "move_ids": [
+            101,
+            102,
+            103,
+            104
+          ]
+        }
+      },
+      "winner_probability": null,
+      "returned_probability": {
+        "numerator": "0",
+        "denominator": "1",
+        "decimal": 0.0,
+        "percent": 0.0
+      },
+      "returned_coverage": null,
+      "path_groups": [],
+      "prefix_tree": {
+        "prefix_key": "root",
+        "depth": 0,
+        "action": null,
+        "probability": {
+          "numerator": "0",
+          "denominator": "1",
+          "decimal": 0.0,
+          "percent": 0.0
+        },
+        "raw_path_count": "0",
+        "terminal_path_keys": [],
+        "children": []
+      },
+      "cycle_references": [
+        {
+          "source_node_id": "0",
+          "edge_id": "0",
+          "target_node_id": "0",
+          "prefix_depth": 0,
+          "component_id": null
+        }
+      ],
+      "next_cursor": null,
+      "has_more": false,
+      "query_complete": false,
+      "traversal_truncated": false,
+      "kind": "winning_paths"
     }
   ],
-  "rules_version": "calculation-rules.v9",
+  "rules_version": "calculation-rules.v10",
   "schema_version": 1
 }

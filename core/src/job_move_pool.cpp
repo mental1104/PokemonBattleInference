@@ -1,7 +1,7 @@
 #include "pbi/job_move_pool.hpp"
+#include "sha256.hpp"
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <limits>
 
 namespace pbi {
@@ -83,53 +83,7 @@ std::string SidePayload(const JobFixedPokemon& fixed, const std::vector<std::int
   }
   return result + ']';
 }
-/// @param text 原ensure_ascii=True的完整UTF-8字节；@return 小写SHA-256摘要。
-/// 仅用于旧side配置身份，按FIPS180-4分块；common正式C++子模块无对应SHA256可复用。
-std::string Sha256(const std::string& text) {
-  constexpr std::array<std::uint32_t, 64> constants{
-      0x428a2f98U,0x71374491U,0xb5c0fbcfU,0xe9b5dba5U,0x3956c25bU,0x59f111f1U,0x923f82a4U,0xab1c5ed5U,
-      0xd807aa98U,0x12835b01U,0x243185beU,0x550c7dc3U,0x72be5d74U,0x80deb1feU,0x9bdc06a7U,0xc19bf174U,
-      0xe49b69c1U,0xefbe4786U,0x0fc19dc6U,0x240ca1ccU,0x2de92c6fU,0x4a7484aaU,0x5cb0a9dcU,0x76f988daU,
-      0x983e5152U,0xa831c66dU,0xb00327c8U,0xbf597fc7U,0xc6e00bf3U,0xd5a79147U,0x06ca6351U,0x14292967U,
-      0x27b70a85U,0x2e1b2138U,0x4d2c6dfcU,0x53380d13U,0x650a7354U,0x766a0abbU,0x81c2c92eU,0x92722c85U,
-      0xa2bfe8a1U,0xa81a664bU,0xc24b8b70U,0xc76c51a3U,0xd192e819U,0xd6990624U,0xf40e3585U,0x106aa070U,
-      0x19a4c116U,0x1e376c08U,0x2748774cU,0x34b0bcb5U,0x391c0cb3U,0x4ed8aa4aU,0x5b9cca4fU,0x682e6ff3U,
-      0x748f82eeU,0x78a5636fU,0x84c87814U,0x8cc70208U,0x90befffaU,0xa4506cebU,0xbef9a3f7U,0xc67178f2U};
-  if (text.size() > std::numeric_limits<std::uint64_t>::max() / 8) throw std::length_error("job identity is too large for SHA256");
-  const auto bits = static_cast<std::uint64_t>(text.size()) * 8;
-  std::vector<unsigned char> message(text.begin(), text.end());
-  message.push_back(0x80);
-  while (message.size() % 64 != 56) message.push_back(0);
-  for (int byte = 7; byte >= 0; --byte) message.push_back(static_cast<unsigned char>(bits >> (byte * 8)));
-  std::array<std::uint32_t, 8> state{0x6a09e667U,0xbb67ae85U,0x3c6ef372U,0xa54ff53aU,0x510e527fU,0x9b05688cU,0x1f83d9abU,0x5be0cd19U};
-  for (std::size_t block = 0; block < message.size(); block += 64) {
-    std::array<std::uint32_t, 64> schedule{};
-    for (std::size_t index = 0; index < 16; ++index) for (std::size_t byte = 0; byte < 4; ++byte) {
-      schedule[index] = (schedule[index] << 8) | message[block + index * 4 + byte];
-    }
-    for (std::size_t index = 16; index < schedule.size(); ++index) {
-      const auto first = schedule[index - 15], second = schedule[index - 2];
-      const auto sigma0 = std::rotr(first, 7) ^ std::rotr(first, 18) ^ (first >> 3);
-      const auto sigma1 = std::rotr(second, 17) ^ std::rotr(second, 19) ^ (second >> 10);
-      schedule[index] = schedule[index - 16] + sigma0 + schedule[index - 7] + sigma1;
-    }
-    auto working = state;
-    for (std::size_t index = 0; index < schedule.size(); ++index) {
-      const auto s1 = std::rotr(working[4], 6) ^ std::rotr(working[4], 11) ^ std::rotr(working[4], 25);
-      const auto choose = (working[4] & working[5]) ^ (~working[4] & working[6]);
-      const auto t1 = working[7] + s1 + choose + constants[index] + schedule[index];
-      const auto s0 = std::rotr(working[0], 2) ^ std::rotr(working[0], 13) ^ std::rotr(working[0], 22);
-      const auto majority = (working[0] & working[1]) ^ (working[0] & working[2]) ^ (working[1] & working[2]);
-      working = {t1 + s0 + majority, working[0], working[1], working[2], working[3] + t1, working[4], working[5], working[6]};
-    }
-    for (std::size_t index = 0; index < state.size(); ++index) state[index] += working[index];
-  }
-  constexpr char hex[] = "0123456789abcdef";
-  std::string digest;
-  digest.reserve(64);
-  for (const auto value : state) for (int nibble = 7; nibble >= 0; --nibble) digest += hex[(value >> (nibble * 4)) & 15];
-  return digest;
-}
+
 } // namespace
 
 JobMovePool::JobMovePool(JobMovePoolInput input) : input_(std::move(input)), attacker_count_(0), defender_count_(0) {
@@ -165,8 +119,8 @@ JobMovePoolCase JobMovePool::CaseAt(std::size_t ordinal) const {
   const auto first = SidePayload(input_.attacker.fixed, attacker, false), second = SidePayload(input_.defender.fixed, defender, false);
   auto pair_id = "one-on-one-configuration:[" + JsonString(input_.contract_version, false) + ',' + JsonString(input_.ruleset_id, false) + ',' +
       std::to_string(input_.version_group_id) + ',' + JsonString(input_.calculation_revision, false) + ",[" + first + "],[" + second + "]]";
-  const auto attacker_id = "one-on-one-side-" + Sha256("[\"attacker\"," + SidePayload(input_.attacker.fixed, attacker, true) + ']');
-  const auto defender_id = "one-on-one-side-" + Sha256("[\"defender\"," + SidePayload(input_.defender.fixed, defender, true) + ']');
+  const auto attacker_id = "one-on-one-side-" + detail::Sha256("[\"attacker\"," + SidePayload(input_.attacker.fixed, attacker, true) + ']');
+  const auto defender_id = "one-on-one-side-" + detail::Sha256("[\"defender\"," + SidePayload(input_.defender.fixed, defender, true) + ']');
   return {ordinal, std::move(pair_id), attacker_id, defender_id, std::move(attacker), std::move(defender), Rational{Integer{1}, Integer{CaseCount()}}};
 }
 

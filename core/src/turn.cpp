@@ -357,6 +357,8 @@ std::vector<UnsupportedAspect> StandardTurnResolver::CoverageLimitations(const B
       if (effect == MoveEffect::brick_break) result.push_back({EffectSource::move, "brick_break", "screen_break"});
     }
     if (battler.spec.View().pokemon.ability == DamageAbility::inner_focus) result.push_back({EffectSource::ability, "inner_focus", "intimidate_immunity"});
+    if (battler.spec.View().transparent_ability) result.push_back({EffectSource::ability,
+        std::string{TransparentNeutralAbilityIdentifier(*battler.spec.View().transparent_ability)}, "real_ability_behavior"});
     if (battler.status.Major()) result.push_back({EffectSource::status, "major_status", "reference_default_turn_has_no_major_status_gates_or_residual_damage"});
     if (battler.status.Has(VolatileStatusKind::confusion) || battler.status.Has(VolatileStatusKind::infatuation))
       result.push_back({EffectSource::status, "volatile_status", "reference_default_turn_has_no_confusion_or_infatuation_gate"});
