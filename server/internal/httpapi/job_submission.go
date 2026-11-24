@@ -105,13 +105,9 @@ func (handler jobSubmissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	if _, err = handler.store.Create(ctx, definition, now); err != nil {
+	if _, err = handler.store.Create(ctx, definition, now); err != nil && !errors.Is(err, jobs.ErrConflict) {
 		if ctx.Err() != nil {
 			calculatorFailure(w, ctx.Err())
-			return
-		}
-		if errors.Is(err, jobs.ErrConflict) {
-			writeJSON(w, 409, map[string]any{"detail": map[string]string{"code": "battle_inference_job_conflict", "message": "job id already has a different immutable definition"}})
 			return
 		}
 		detail(w, 503, "job storage unavailable")
@@ -119,7 +115,17 @@ func (handler jobSubmissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 	job, err := handler.store.Get(ctx, definition.ID)
 	if err != nil {
-		detail(w, 503, "job storage unavailable")
+		if ctx.Err() != nil {
+			calculatorFailure(w, ctx.Err())
+		} else {
+			detail(w, 503, "job storage unavailable")
+		}
+		return
+	}
+	// 原用例不要求旧Python具有Go definition，也不把新Core元数据等同于另一个用户命令。
+	// 只读核对原冻结规格和全局计数，真正同ID不同内容仍409，绝不更新旧任务或来源。
+	if !matchesSubmissionRecord(job, definition) {
+		writeJSON(w, 409, map[string]any{"detail": map[string]string{"code": "battle_inference_job_conflict", "message": "battle inference job " + pythonRepr(definition.ID) + " already exists"}})
 		return
 	}
 	writeJSON(w, 202, struct {

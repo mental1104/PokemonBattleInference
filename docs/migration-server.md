@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **32 项配置/知识/图片、任务与候选池、模板/属性求解、固定推演摘要、两种伤害、固定任务创建及组合预览 API**，并接入 P5 同步处理器。原合同任务、WithSpeed求解及固定摘要已经过真实 PG/Core/独立客户端验收；现代静态计算器两项特性缺口已通过明确reference_static上下文修复，旧damage的原NameError按历史独立算法修复。其余9项计算/图交互 API 仍须接齐。原 Python 生产服务、生产库及部署均未改动。
+2026-11-24 当前检查点：已迁移原 41 项 API 中的 **38 项**，包括配置/知识/图片、任务、候选池、模板/属性求解、两种伤害、固定摘要/任务/组合预览、图创建/四导航及胜利路径查询，并接入 P5 同步处理器。以上均有真实 PG/Core/独立客户端验收；其余stateless step、dragonite-vs-weavile及configuration casegraph三项仍须接齐。现代静态特性兼容和旧damage原NameError的独立修复证据保留。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -18,8 +18,10 @@
 | 候选池 1 项 | GET inference/candidate-pools/{pokemon_id} 从同RR快照向独立Core提交所有合法招式事实，不隐藏不支持项；完整status/selectable/reason/missing与原factory reconciliation一致。七种Pokemon及原业务错误/重复query最后值真实同库13/13逐字段差分通过。 |
 | 配置求解 2 项 | POST configuration_solver/solve与search-spreads保留原WithSpeed合同；单RR冻结所有主体/目标/合法性与属性表，Core准备actual stats/target Speed后调用正式.8模板或EV/IV搜索。完整候选/首失败/严格速度/性格选项/独立区间及中文说明均保留；Go不枚举投入、不求伤害/阈值或比较速度。 |
 
-| 固定推演摘要 1 项 | POST inference/fixed-one-on-one 保留原strict准入、Core规范招式顺序/初始状态/正式求解及完整工厂能力集合；真实Go→独立child与原Python同PG19/19全字段差分通过。预算截断、原不支持招式/特性和资料缺失保持明确错误，不伪造成功概率。step/graph/navigation尚未完成。 |
+| 固定推演摘要 1 项 | POST inference/fixed-one-on-one 保留原strict准入、Core规范招式顺序/初始状态/正式求解及完整工厂能力集合；真实Go→独立child与原Python同PG19/19全字段差分通过。预算截断、原不支持招式/特性和资料缺失保持明确错误，不伪造成功概率。 |
 | 固定任务与组合预览 2 项 | POST fixed-one-on-one-jobs复用原strict/单case持久化/独立daemon；header key原SHA、当前状态重放与冲突、旧Python任务无Go definition时只读幂等保留。POST move-set-combinations只调用Core严格准入/组合与完整pair计数，Go不枚举或求乘积；两侧最多210完整技能组，与原列表顺序/名称/错误优先级相同。 |
+| 图创建/导航 5 项 | POST fixed-one-on-one/graph与explore/groups outcomes/advance/backtrack，冻结完整事实、实际Core版本和图计数；每个查询由Core重建typed图再投影，Go不搜索、归并或算概率。正式final2实际同PG24项（含原19摘要与5图场景）完整差分通过，真实841节点/16095边及全部root outcomes未裁事件。 |
+| 胜利路径 1 项 | POST winning_paths/graphs/{graph_id}复用唯一图缓存，Core负责重建、原100000 walk预算、精确胜率/覆盖、行动归并、前缀、分页和不透明cursor；Go只做原HTTP与任意精度整数转写。真实大图双方winner、uniform分页及错误共10组完整查询对照相同，不能以缓存存在冒称搜索成功。 |
 
 ## 运行边界
 
@@ -62,12 +64,12 @@
 
 ## 剩余范围
 
-1. 原单配置完整图 HTTP API：复用已用于真实任务创建/候选池的同快照知识与正式Core编排，保持各入口原有边界。持久任务入口已拒绝旧规则声明为partial的机制；旧同步推演允许partial并返回coverage的策略不能混用。44,100 case已采用共享模板，不重复属性矩阵。
-2. 原fixed-one-on-one的step/graph、graph导航/重算、winning paths等9项HTTP适配。模板/EV/IV WithSpeed、候选池、固定摘要、两种伤害、固定任务及组合预览已真实接通；Go仅负责知识/请求组装，不重复枚举、权重或战斗规则。图交互由独立切片接入，未冻结测试前不计入此32项。
+1. 剩余原HTTP三项为stateless fixed-one-on-one/step、dragonite-vs-weavile及configuration casegraph。新创建持久任务拒绝原strict声明为partial的机制；参考同步推演允许partial并返回coverage的入口不能误套相同策略。
+2. 完整旧explanation与独立实际版本/输入溯源的存储/消费者接线另行收口，不能将提交时Admission版本当实际结果版本。configuration-jobs的旧Python任务与仅Core元数据变化的同ID重放已保留，key+command+预算的原SHA不变，新预算仍新ID202，不套用fixed仅key身份。
 3. 生产发布编排、知识版本升级/历史库接管、Vue 全 API 兼容验收、旧新全 API 差分与真实业务升级回滚。纯 Go 数据镜像与五个真实二进制的 scratch 镜像、原生 daemon 的恢复/停机，以及独立 P6 预览/健康/镜像回退证据，不等于已完成生产迁移。
-4. 所有Core HTTP已统一独立child，原配置任务创建与两条完整WithSpeed求解已接通；图交互API仍需迁移。子进程工具和graph/fixed daemon通过不等于41项旧业务整体完成；空库完整网页交付的旧BYTEA sprites导入由独立切片补齐，目录与计算通过不代表图片数据已交付。
+4. 所有Core HTTP已统一独立child，图创建与五种查询已真实接通；不将38项或子进程基础验收写成41项整体完成。纯Go BYTEA导入已由独立切片实现并以真实样本验收，完整来源图库与生产发布仍未在上述证据中证明。
 
-本检查点不合并、不切生产，不将 32/41 误写为 P3 完成。
+本检查点不合并、不切生产，不将 38/41 误写为 P3 完成。
 
 ## 候选池与完整配置求解
 
@@ -126,3 +128,23 @@ PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,41
 实际原固定输入212/149同50级经过独立PG daemon，结果 **841节点/16095边**，精确攻胜0/1、防胜1/1、平0/1、期望5/1；只是该输入的真实结果，不写死到服务。完成后同key202返回当前succeeded，原phase字段仍queued，原完整响应一致。Go vet通过，bash syntax/diff检查通过，专属API/PG/daemon均已清理。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-event-abi9 bash tools/migration/accept-go-fixed-workflow.sh`；该批不改生产或增加Core数学规则。
 
 `fixed-workflow-quotes/`追加原字符串repr兼容：特性/道具ID分别含单引号、双引号、反斜杠的六项真实HTTP拒绝逐字段一致，复用原pythonRepr而不手拼引号。完整空库重跑 **30/30零SKIP**（29项3.68秒及daemon完成后重提1项），保留前24项和真实单case执行回归；专属实例均已清理。该小修只修错误DTO转义，不改变准入或数学规则。
+
+## 胜利路径与完整图传输边界
+
+原合法841节点/16095边图的完整JSON实测 **565,290,981 bytes**，含102,688条事件路径与1,915,328个事件，直接经过32MiB通道真实413；没有将图裁小或改成成功概率。最终共享缓存只保存首次完整冻结fixed请求、实际engine/rules和节点/边计数。每次导航/winning由独立Core按同一事实重建typed图、校验版本/计数后直接调用唯一纯域算法，返回所需小DTO，所有事件仍参与原算法。此方案以构图CPU换取传输/解析与API缓存内存；不是保存565MiB后静默过滤。
+
+`winning-first/`使用正式`/build/root-graph-abi10-final2`，空PG完整CSV、真实Go HTTP/独立child、原Python同库，**3/3零SKIP（61.29秒）**。实际10组查询完整JSON相同，包括大图双方winner、uniform两页及原样cursor、跨winner游标、损坏cursor、不存在图及sort/版本错误顺序。只固定原测试store的随机句柄为Go生成ID，计算/图/搜索未替换。
+
+真实baseline查询：攻击方原0.479秒、Go重建查询2.818秒/1016B；防守方原15.045秒、Go重建搜索5.385秒/6525B。原100000有限walk预算与traversal_truncated/query_complete均保留，不把不完整覆盖说成数学平局。Go前置lookup/TTL与超过int64/2**53整数转写两测试race/vet通过；Pythonruff/strictmypy、bash syntax、diff检查通过，所有自有PG/API精确清理。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-graph-abi10-final2 bash tools/migration/accept-go-winning-paths.sh`。
+
+## 独立实际执行溯源存储
+
+新增私有`go_case_result_metadata`，以原job/case唯一键关联；只在显式Migrate时创建，不改原六表/explanation/结果指纹，不回填旧行。`ExecutionMetadata`接收调用方实际child版本和最终发送请求SHA，缺真实响应的版本可为null。首次有效lease的终态及aux记录同事务，重复终态不覆盖旧来源；旧Python无记录返回nil。该存储层不自行请求Core，也不拿Definition.Admission版本冒充实际执行版本。
+
+`p3-result-metadata-20261124/`真实独占PG的全部jobs **8/8 race/vet通过（1.529秒）**，含aux trigger拒写后case/lease/计数整体回滚、旧owner拒绝、来源字段往返、终态不覆盖、原无metadata结果与重复Migrate。Root随后在`native-execution-metadata-20261124/`完成实际child来源注入，正式final2 archive/独立daemon与PG **11/11 race及vet通过（4.716秒）**：保存最终传输请求SHA，刻意错误的协调器版本不会替代真实child版本，执行前拒绝不造记录；取消、停机恢复及精确结果保留。首次新断言误用不含CoreRequest的公开case列表，原失败日志保留；改从持久化冻结Definition核对实际字节后全部通过，未改producer来迎合断言。独立HTTP/Swift读取仍在接线，旧explanation的业务归因等待下一Core批。BattleSide未导入缺陷按BASE-EXPLANATION-001单独记录修复，未修原基线并非普遍可生成完整说明。
+
+## 配置任务跨实现幂等
+
+`idempotency-first/`用正式final2、独占空PG/完整CSV和原Python同库HTTP，**4/4零SKIP（1.75秒）**：原Python已创建而没有Go definition的任务可原样202重放；只改变已存Admission中的Core版本时仍202且保留旧JSON/hash；同key修改预算按原SHA产生新ID202；同ID异规格仍返回原409及精确错误文案。匹配仅检查原规则轴、完整spec和全局case数，不要求Go私有执行格式相同，不重置结果、队列或来源。该入口的身份规则与fixed任务仅key身份分别保留。
+
+Go服务及真实child重新构建、go vet、Pythonruff/strictmypy、bash syntax和diff检查通过；专属PG/API均已清理。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-graph-abi10-final2 bash tools/migration/accept-go-job-idempotency.sh`。
