@@ -1,6 +1,6 @@
 # 架构迁移进度
 
-本文件是长程迁移的恢复入口。目标保持 P0–P6 全部范围；任何 Linux 验证均不能替代 macOS、Xcode 或双设备人工验收。顶部状态表与“0.8 检查点”反映最新范围，下方早期记录保留当时的结果与限制，不作为新提交已通过的证据。
+本文件是长程迁移的恢复入口。目标保持P0–P6全部范围；任何Linux验证均不能替代macOS、Xcode或双设备人工验收。顶部状态表与最新检查点反映当前范围，下方早期记录保留当时结果与限制，不作为新提交已通过的证据。
 
 ## 当前状态（2026-11-24）
 
@@ -9,10 +9,10 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 基线 | PASS | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 正式回合/动态效果/固定战斗/图求解、候选/44,100case、完整WithSpeed模板/EV及聚合已登记；事件/反事实纯域已保存。新冻结全量103/103 CTest、纯域82/82 ASan及原差分10/10通过，搜索运行中取消已修。事件公共ABI与静态兼容小缺口待收口。 |
-| P2 跨语言集成 | IN_PROGRESS | .8正式25操作，Linux92/92 CTest、迁移52 PASS/52外部环境SKIP、Swift17 PASS/3无URL SKIP；所选4项ABI ASan通过。.7 Apple/Main全绿、两SDK与device App成功，.8须新CI复验。 |
-| P3 Go 服务端 | IN_PROGRESS | 原28/41完整API加一个受限calculator；新增solver/search40/40、fixed summary19/19真实同PG差分通过。任务/候选/共享模板已验，合法44,100任务实际202耗时8.536秒；step/graph/navigation、旧damage及其他API仍未完成。 |
-| P4 iOS/iPadOS | IN_PROGRESS | .8 Apple两SDK/device App成功，iPhone/iPad各8/9 UI通过，真实任务提交/结果/取消均通过。两处结果行定位失败已小修，待后续CI；Linux真实服务25/25零SKIP通过；真机HUMAN_PENDING。 |
+| P1 C++ Core | IN_PROGRESS | .9事件/配置加权、独立旧伤害及明确静态上下文已登记，111/111 CTest、60原差分/委托通过；所选6 ABI ASan全过。透明工厂与完整图交互纯域已分别验证、组合.10在编译，winning纯搜索仍在迁移。 |
+| P2 跨语言集成 | IN_PROGRESS | .9共享33个原oracle样本Go/Swift一致，真实Swift→Go→PG→daemon/Core25/25零SKIP；所选6项public ASan/UBSan/leak PASS。c0b048e的Apple/Main全绿、两SDK/device App及两模拟器各9/9通过，.9须新Apple复验。 |
+| P3 Go 服务端 | IN_PROGRESS | 原32/41完整API已保存；新旧damage33/33、fixed-job/组合24/24真实同PG/daemon通过。solver40/40、固定摘要19/19、44,100任务和取消恢复已验；剩余9条图/单步/旅程/winning HTTP尚未完成。 |
+| P4 iOS/iPadOS | IN_PROGRESS | c0b048e基本范围已实际Apple验证：两SDK/device App、iPhone9/9/iPad9/9全通过，含真实在线任务、取消、结果与双模拟器同步；真机签名/物理安装及体验HUMAN_PENDING。 |
 | P5 数据同步 | IN_PROGRESS | 两独立SQLite客户端和Go/PG的队列/幂等/冲突/删除/收敛、真实HTTP中断/Range/原子更新已验；本轮iPhone上传→iPad拉取与两端同步重启UI真实通过。整个App CI仍有另外两处结果定位失败，真机未验收。 |
 | P6 部署与回归 | IN_PROGRESS | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；新增纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。全量图库/带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
@@ -182,6 +182,12 @@
 ## 下一步
 
 ### 0.9公共集成与稳定移动端验收基线（22:00）
+
+22:22终态补充：`.9` selected public ASan/UBSan/leak **6/6 PASS（1512.29秒）**，其中大规模节点配额用例1409.69秒；包含整个33例、256ownership、32并发、两类事件公共入口的真正运行中取消和静态上下文边界。原handle完整结束，未缩短/重启。下文“仍在运行”保留22:00检查点当时状态，以本终态为准。
+
+`efc95d1`保存旧/现代damage HTTP：自有空PG最终 **33/33零SKIP**（4.62秒），现代14个全部完整JSON等价，两特性兼容缺口消失；旧故障入口按历史原构造和原责任链恢复为实际200，随机字段按原支持集核对，不声称逐次随机值一样。`e6a7c95`保存原fixed-job及move-set-combinations，最终 **24/24零SKIP**（23完整对照3.63秒+daemon后终态重提1项1.60秒），真实单case841/16095、0/1/0、期望5/1；未知profile仍原202后异步失败，旧Python先创建无Go definition也可幂等返回/取消。两批race/vet、ruff/strict mypy与bash/diff检查通过；P3现32/41。
+
+下一`.10`使用登记的abi10-verification、Core缓存`root-projection-abi10`；从efc95d1固定基线加入已冻结14个projection/SHA/代表路径源与8个透明UNKNOWN源，未混Go图草稿。正式新kind、36共享样本、32MiB请求边界已在隔离树编译，尚未保存/发布。另已识别第1000层snapshot ID超旧1024十进制位解析上限的真实可能边界，正在原oracle复现修复，不靠第200层通过就宣称所有长路径已支持。
 
 固定 **c0b048e1c49de9483692c77788498267049ac135** 的[Main Gate 45404217710](https://github.com/mental1104/PokemonBattleInference/actions/runs/45404217710)与[Native/App 45404217482](https://github.com/mental1104/PokemonBattleInference/actions/runs/45404217482) **全PASS**：原生Core/Go/Swift、两SDK、未签名device App及iPhone **9/9 UI**（445.511秒）/iPad **9/9 UI**（485.084秒），两端均真实完成任务提交/精确结果/运行中取消、在线离线一致、iPhone上传→iPad拉取与同步重启。此前两处Form结果行定位已由实际UI复验修复，原严格99–117/123/128/85→42断言不变。该提交是可固定的阶段验收基线；真机签名/物理安装仍HUMAN_PENDING。完整日志在`apple-results-c0b048e-20261124/`。
 
