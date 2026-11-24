@@ -53,11 +53,10 @@ def capture_baseline(output_dir: Path) -> None:
                 str(CreateIndex(index).compile(dialect=dialect)).strip() + ";"
                 for index in sorted(table.indexes, key=lambda value: value.name or "")
             )
+    # SQLAlchemy 的字段行以逗号和空格结尾；只规范行末空白，保持 SQL 语义不变。
+    sql = "-- Generated reference DDL only; do not execute as a migration.\n\n" + "\n\n".join(statements)
     (output_dir / "legacy-schema.v1.sql").write_text(
-        "-- Generated reference DDL only; do not execute as a migration.\n\n"
-        + "\n\n".join(statements)
-        + "\n",
-        encoding="utf-8",
+        "\n".join(line.rstrip() for line in sql.splitlines()) + "\n", encoding="utf-8"
     )
     checksums = [
         f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}"
