@@ -1,6 +1,6 @@
 # NAS部署与回退
 
-当前：NAS基础服务和HTTPS已部署并完成业务验收，运行a3f0ff7镜像；新HDD元数据版本及全图鉴图标已开发，等待完整运行栈验收后定向升级。用户已授权NAS部署、pokemon.mental1104.xyz反代、原库备份恢复及保留。手机安装继续暂停，双真机体验和最终合并仍HUMAN_PENDING。
+当前：NAS已运行17a5fda构建的p6-sv-filesystem-r1镜像，HDD元数据版本和全图鉴图标已经上线。完整隔离栈、正式HTTPS严格图片浏览器及全部1,374个图片URL逐项SHA/长度校验通过。用户已授权NAS部署、pokemon.mental1104.xyz反代、原库备份恢复及保留。手机安装继续暂停，双真机体验和最终合并仍HUMAN_PENDING。
 
 ## 已运行的基础服务
 
@@ -39,7 +39,15 @@ prepare-sprite-snapshot.sh只发布这份32MiB预算内的小包到HDD版本目�
 
 ## 新版本发布与回退准入
 
-新镜像经build-nas-images.sh和唯一nas-shared构建器，使用固定OCI工具链上下文；源码必须干净并记录真实image ID。完整隔离栈应逐文件SHA核验1,374份HDD正文、确认PG content全部NULL、三类图片真实解码、配置/任务/取消、四角色和PG重启、元数据备份及独立恢复。
+新镜像经build-nas-images.sh和唯一nas-shared构建器，使用固定OCI工具链上下文；源码干净且实际image ID已记录。完整隔离栈已逐文件SHA核验1,374份HDD正文、确认PG content全部NULL，三类图片真实解码、配置/任务/取消、四角色和PG重启、元数据备份及独立恢复均通过。
+
+正式NAS只登记1,374条图片元数据，总长度20,079,618字节，content非NULL条数0。原知识表及配置完整读取模型保持，表摘要只出现预期sprite_assets、sprite_import_batches和两张图片物化视图变化。严格HTTPS浏览器通过，另以独立curl逐个请求全部1,350条宝可梦、5道具、19属性图片，全部正文与Git清单SHA/长度一致。新证据在nas-deployment-20261125/filesystem-upgrade-r1/及browser-filesystem-r1/，隔离栈在filesystem-assets-20261125/runtime-r1/。
+
+实际镜像ID：server为sha256:4bfdd13862c79533e78bdcebb92e70fadf53f94e73f9e090049076541c94d671，data为sha256:e76be89d3bde0db5c6881b41964b2b386fc40fe5c91f14743c5face5d7a25080，frontend为sha256:fd290baeca883cd9d4ada615b3ac2e19e9de719819b0c351d1c2f917af52fabb。HDD快照目录以17a5fdac3567c4da0f855fe69efe29935a5a8087命名；不随后续文档提交重命名。
+
+新三个应用真实重启后，完整配置JSON及212图片逐字保留。正式库新归档位于filesystem-upgrade-r1/database/，SHA清单全部通过；恢复到独立tmpfs PG17后，全表行数/完整有序行摘要及1,374条图片清单与源库逐字相同，结果在recovery-r3/。数据库归档只含元数据，HDD图片另由已提交Git包和固定版本快照保留，不能单独拿数据库归档恢复图片正文。
+
+恢复前必须复现归档对象所有者：源库poke_raw.pokemon_final_mv属于原有superuser espeon。首轮独立恢复缺该角色失败，第二轮仅建NOLOGIN普通角色时在刷新物化视图读底表权限处失败；两轮原日志保留。第三轮只在无宿主端口的独占恢复实例建立NOLOGIN/SUPERUSER espeon后完整恢复成功，与源库权限语义相符，不修改生产角色或授权。
 
 历史BYTEA-only镜像不认识HDD正文。演练须证明即使它健康也会因图片正文错误被拒绝，然后回退到已验证的HDD版本并核对图片和用户数据；不能宣称旧镜像可服务外部图片。生产只定向更新本应用，不重建共享PG或其他home服务。
 
