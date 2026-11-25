@@ -25,11 +25,13 @@ jobs:
       PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY: ${{ github.workspace }}/build/reports/knowledge-http
     steps:
       - uses: actions/checkout@v4
-      - name: Initialize pinned knowledge source
+      - name: Initialize pinned source dependencies
         shell: bash
         run: |
+          # 与Main Gate一致，真实新进程导入必须使用实际检出的固定common子模块。
+          git config submodule.submodules/common.url https://github.com/mental1104/common.git
           git config submodule.submodules/pokeapi.url https://github.com/PokeAPI/pokeapi.git
-          git submodule update --init --depth 1 submodules/pokeapi
+          git submodule update --init --depth 1 submodules/common submodules/pokeapi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

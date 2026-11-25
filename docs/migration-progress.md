@@ -342,3 +342,9 @@ legacy-ci-dependencies-20261125/使用纯python:3.11-slim和新建独占venv，�
 把既有12项运行依赖集中到requirements-legacy-runtime.txt，Python backend、验证镜像及两个既有CI安装步骤复用，Main Gate pip缓存同时跟踪两文件；未增加工作流、触发器或弱化Draft保护。仍在全新进程真实导入db、清除PYTHONPATH/COMMON_ROOT并严格核对来源路径，额外显式断言returncode并显示stderr。源码/依赖清单变化不部署到Go在线运行镜像。
 
 同一独占venv仅补上述运行依赖后，真实导入路径为本仓库submodules/common/python/mental1104/db/__init__.py，pip check通过；定向10/10通过，完整后端595 PASS/361明确环境SKIP（19.43秒），修改测试Ruff/strict mypy通过。原失败日志和环境清单保留。兼容镜像pokemon-python-reference:legacy-deps-r1实际构建成功，ID sha256:3dabfdfc20d5ab9fe3d9a05313d85ffcd2240f6e41cf3fd7309d569c3b04a724，682,615,220字节；无网络、只挂测试文件、不挂源码的镜像内3/3通过（2.34秒）。修复后的远端CI尚待终态，整体仍97%，不把本地通过宣称远端已修复。
+
+## 最终验收的Apple检出修复
+
+da08f2c的Main Gate45585465856全绿：后端601 PASS/355明确环境SKIP（41.23秒），Vue31文件95/95，生产构建成功。Apple45585465999在原生pytest的同一真实导入检查失败（131 PASS/247环境SKIP），实际stderr为ModuleNotFoundError: mental1104；没有开始双SDK/App/模拟器步骤。失败artifact15009960098及原日志保留，不能把它误写成依赖安装失败或App断言失败。
+
+ owning source为native-core.yml原初始化步骤：仅检出pokeapi，遗漏common。Linux Main Gate检出了两者，因此同一源版本Linux通过。只在现有Apple初始化步骤补上common的HTTPS地址和固定gitlink检出，与Main Gate相同，不改版本、触发器、Draft保护、测试或断言。后续仍以修复提交的真实CI终态为交付门槛；该真实失败是冻结后允许的唯一修复范围。
