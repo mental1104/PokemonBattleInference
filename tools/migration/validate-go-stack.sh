@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 用途：完整原Vue/Nginx、Go API、独立Worker、PostgreSQL的隔离验收和实际健康/回滚/恢复演练。
-# 输入：干净源码checkout和已验证的旧API镜像；所有状态仅在本次tmpfs，端口仅随机回环。
+# 输入：干净源码checkout和已验证的旧API镜像；默认数据库在tmpfs，完整图库使用本次新建的SSD目录。
+# 端口仅随机回环；完整图库退出后保留独占目录供复核，不能复用已有数据库目录。
 # 输出：HDD独占报告含HTTP、浏览器截图/trace、实际镜像ID、数据库备份及各实例日志。
 # 副作用：只构建本项目镜像和创建专属maintenance run --rm容器，退出精确清理本项目网络。
 set -euo pipefail
@@ -22,9 +23,17 @@ server_id=""
 worker_id=""
 frontend_id=""
 endpoint=""
+compose_files=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-validation.yaml")
+if [[ -n "${PBI_STACK_SPRITES_ROOT:-}" ]]; then
+  # 完整素材只读；数据库目录必须是本次新建路径，不能复用未知或生产数据。
+  : "${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new validation database directory for full sprites}"
+  [[ ! -e "$PBI_STACK_POSTGRES_DATA_ROOT" ]] || { echo 'Sprite validation database directory already exists' >&2; exit 2; }
+  mkdir -p "$PBI_STACK_POSTGRES_DATA_ROOT"
+  compose_files+=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-sprites.yaml")
+fi
 
 # 参数透传本次专属Compose项目；不会启停原生产或其他测试项目。
-compose() { bash "$manager" compose -p "$project" -f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-validation.yaml" --profile maintenance "$@"; }
+compose() { bash "$manager" compose -p "$project" "${compose_files[@]}" --profile maintenance "$@"; }
 # 无参数；先解除自己API的STOP信号再保存日志/退出，最后仅删除本项目创建的网络。
 cleanup() {
   local role id
@@ -106,7 +115,7 @@ endpoint="http://$(docker port "$frontend_id" 80/tcp)"
 for _ in {1..40}; do if curl -fsS "$endpoint/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-health.json" 2>/dev/null; then break; fi; sleep .1; done
 curl -fsS "$endpoint/" > "$POKEOP_REPORT_ROOT/index.html"
 compose run --rm --no-deps browser npm install --prefix /build/p6-browser --no-audit --no-fund playwright@1.65.0 > "$POKEOP_REPORT_ROOT/browser-install.log" 2>&1
-compose run --rm --no-deps -e PBI_STACK_WEB_URL="http://$project-frontend" browser node /validation/accept-web-go.mjs > "$POKEOP_REPORT_ROOT/browser.log" 2>&1
+compose run --rm --no-deps -e PBI_STACK_WEB_URL="http://$project-frontend" -e PBI_STACK_REQUIRE_SPRITES="${PBI_STACK_SPRITES_ROOT:+1}" browser node /validation/accept-web-go.mjs > "$POKEOP_REPORT_ROOT/browser.log" 2>&1
 
 # 故障真实暂停API PID1；Docker必须观测失败并在恢复后重新healthy。
 docker kill --signal=STOP "$server_id" > /dev/null

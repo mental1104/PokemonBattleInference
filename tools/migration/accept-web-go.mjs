@@ -1,14 +1,166 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const { chromium } = createRequire('/build/p6-browser/package.json')('playwright');
+const requireSprites = process.env.PBI_STACK_REQUIRE_SPRITES === '1';
+const loadedImages = [];
+
+/** page为真实页面，selector定位实际img；成功后将尺寸和公开HTTP原文摘要写入loadedImages。
+ * 占位div、破图、非PNG及代理错误都会失败；只在显式提供素材的完整栈验收中调用。
+ */
+async function verifyLoadedImage(page, selector) {
+  const element = page.locator(selector).first();
+  await element.scrollIntoViewIfNeeded();
+  // Vue遇到破图会切成占位节点；限定等待时间并在错误中保留具体选择器。
+  await page.waitForFunction(value => {
+    const image = document.querySelector(value);
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
+  }, selector, { timeout: 30000 }).catch(error => {
+    throw new Error(`Image did not decode: ${selector}`, { cause: error });
+  });
+  const dimensions = await element.evaluate(image => ({ width: image.naturalWidth, height: image.naturalHeight, source: image.currentSrc }));
+  const response = await page.request.get(dimensions.source);
+  assert.equal(response.status(), 200, 'the image must be served by the real API');
+  assert.match(response.headers()['content-type'], /^image\/png/);
+  const bytes = await response.body();
+  assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  loadedImages.push({ selector, ...dimensions, sha256: createHash('sha256').update(bytes).digest('hex'), etag: response.headers().etag });
+}
 
 /** side 为真实页面列，query 为中文名称，id 为唯一知识 ID；通过用户搜索/点击加载完整资料。 */
 async function selectPokemon(page, side, query, id) {
   const column = page.getByTestId(`${side}-column`);
   await column.getByTestId('pokemon-search-input').fill(query);
   await column.locator(`[data-pokemon-id="${id}"]`).click();
+}
+
+/** page为计算器真实页面，reports保存公开请求/响应；返回本次创建再删除的配置身份。
+ * 新建、编辑、重载和删除全部通过Vue可见控件；公开列表独立核对持久化，不修改应用状态。
+ */
+async function verifyConfigurationManagement(page, reports) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const column = page.getByTestId('attacker-column');
+  await column.getByRole('button', { name: '管理配置', exact: true }).click();
+  const editor = page.locator('.stat-config-editor');
+  await page.getByRole('button', { name: '新增配置', exact: true }).click();
+  await editor.getByLabel('配置名称', { exact: true }).fill('Browser persisted attack');
+  await editor.locator('label').filter({ hasText: '适用 Pokémon' }).locator('select').selectOption('pokemon');
+  await editor.locator('input[type="number"]').nth(0).fill('252');
+  await editor.locator('input[type="number"]').nth(1).fill('100');
+  const createdResponse = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/v1/stat-configurations'));
+  await editor.getByRole('button', { name: '保存配置', exact: true }).click();
+  const creation = await createdResponse;
+  assert.equal(creation.status(), 201);
+  const created = await creation.json();
+  await writeFile(`${reports}/configuration-create-request.json`, creation.request().postData());
+  await writeFile(`${reports}/configuration-created.json`, JSON.stringify(created, null, 2));
+  assert.equal(created.name, 'Browser persisted attack');
+  assert.equal(created.pokemon_id, 212);
+  assert.equal(created.evs.hp, 252);
+  assert.equal(created.evs.attack, 100);
+  // 等刷新完成再编辑同一条记录，避免把创建后的异步表单回填误判为编辑。
+  await page.locator('.stat-config-sidebar-item.active').filter({ hasText: created.name }).waitFor();
+  await editor.getByLabel('配置名称', { exact: true }).fill('Browser edited attack');
+  await editor.locator('label').filter({ hasText: '性格' }).locator('select').selectOption('adamant');
+  await editor.locator('input[type="number"]').nth(1).fill('252');
+  const updatedResponse = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().includes('/v1/stat-configurations/'));
+  await editor.getByRole('button', { name: '保存配置', exact: true }).click();
+  const update = await updatedResponse;
+  assert.equal(update.status(), 200);
+  const updated = await update.json();
+  await writeFile(`${reports}/configuration-update-request.json`, update.request().postData());
+  await writeFile(`${reports}/configuration-updated.json`, JSON.stringify(updated, null, 2));
+  assert.equal(updated.id, created.id);
+  assert.equal(updated.name, 'Browser edited attack');
+  assert.equal(updated.nature_id, 'adamant');
+  assert.equal(updated.evs.attack, 252);
+  assert.equal(updated.evs.hp, 252);
+  assert.notEqual(updated.snapshot_profile_id, created.snapshot_profile_id);
+  await page.reload({ waitUntil: 'networkidle' });
+  await selectPokemon(page, 'attacker', '巨钳螳螂', 212);
+  await column.getByRole('button', { name: '管理配置', exact: true }).click();
+  await page.locator('.stat-config-sidebar-item').filter({ hasText: updated.name }).click();
+  assert.equal(await editor.getByLabel('配置名称', { exact: true }).inputValue(), updated.name);
+  assert.equal(await editor.locator('label').filter({ hasText: '性格' }).locator('select').inputValue(), 'adamant');
+  assert.equal(await editor.locator('input[type="number"]').nth(1).inputValue(), '252');
+  await page.screenshot({ path: `${reports}/configuration-reloaded.png`, fullPage: true });
+  const listURL = `${new URL(creation.url()).origin}/api/v1/stat-configurations?role=attacker&pokemon_id=212`;
+  const persisted = await page.request.get(listURL);
+  assert.equal(persisted.status(), 200);
+  const before = await persisted.json();
+  await writeFile(`${reports}/configuration-persisted.json`, JSON.stringify(before, null, 2));
+  assert.deepEqual(before.items.find(item => item.id === created.id), updated);
+  await editor.getByRole('button', { name: '删除', exact: true }).click();
+  const deletedResponse = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/v1/stat-configurations/'));
+  await page.getByRole('button', { name: '确认删除', exact: true }).click();
+  assert.equal((await deletedResponse).status(), 204);
+  await page.locator('.stat-config-sidebar-item').filter({ hasText: updated.name }).waitFor({ state: 'detached' });
+  const after = await page.request.get(listURL);
+  assert.equal(after.status(), 200);
+  const deleted = await after.json();
+  await writeFile(`${reports}/configuration-after-delete.json`, JSON.stringify(deleted, null, 2));
+  assert.ok(deleted.items.every(item => item.id !== created.id));
+  await page.locator('.stat-config-modal header').getByRole('button', { name: '×', exact: true }).click();
+  return { id: created.id, status: 'created_updated_reloaded_deleted' };
+}
+
+/** page沿用真实Vue页面，reports归档求解输入/响应/截图；返回实际候选数量与新配置身份。
+ * 通过速度目标同时覆盖已有配置验证和EV/IV反推，最后将真实候选保存为212的双角色配置。
+ */
+async function verifySolver(page, reports) {
+  await page.getByRole('button', { name: '配置反向求解', exact: true }).click();
+  const subject = page.locator('.solver-side');
+  await subject.getByTestId('pokemon-search-input').fill('巨钳螳螂');
+  await subject.locator('[data-pokemon-id="212"]').click();
+  await subject.locator('.preset-button').filter({ hasText: '无投入' }).click();
+  await page.getByTestId('open-speed-goal-dialog').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByTestId('pokemon-search-input').fill('幸福蛋');
+  await dialog.locator('[data-pokemon-id="242"]').click();
+  await dialog.locator('.preset-button').filter({ hasText: '无投入' }).click();
+  await page.getByTestId('confirm-speed-goal-dialog').click();
+  await page.getByTestId('speed-goal-summary-row').waitFor();
+  const presetReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/configuration_solver/solve'));
+  await page.getByRole('button', { name: '开始求解', exact: true }).click();
+  const presetResponse = await presetReceived;
+  assert.equal(presetResponse.status(), 200);
+  const preset = await presetResponse.json();
+  await writeFile(`${reports}/solver-preset-request.json`, presetResponse.request().postData());
+  await writeFile(`${reports}/solver-preset-result.json`, JSON.stringify(preset, null, 2));
+  assert.equal(preset.reachable, true);
+  assert.ok(preset.candidates.length > 0);
+  const speed = preset.candidates[0].speed_goals[0];
+  assert.equal(speed.subject_speed, 85);
+  assert.equal(speed.target_speed, 75);
+  assert.equal(speed.speed_margin, 10);
+  assert.equal(speed.satisfied, true);
+  await page.locator('.speed-evidence-row').filter({ hasText: '己方 Speed 85 / 目标 Speed 75' }).waitFor();
+  await page.getByTestId('spread-mode-toggle').click();
+  const spreadReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/configuration_solver/search-spreads'));
+  await page.getByRole('button', { name: '反推配置', exact: true }).click();
+  const spreadResponse = await spreadReceived;
+  assert.equal(spreadResponse.status(), 200);
+  const spread = await spreadResponse.json();
+  await writeFile(`${reports}/solver-spread-request.json`, spreadResponse.request().postData());
+  await writeFile(`${reports}/solver-spread-result.json`, JSON.stringify(spread, null, 2));
+  assert.equal(spread.reachable, true);
+  assert.ok(spread.candidates.length > 0 && spread.candidates.length <= 10);
+  assert.ok(spread.candidates.every(candidate => candidate.speed_goals.every(goal => goal.satisfied && goal.subject_speed > goal.target_speed)));
+  const savedReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/v1/stat-configurations'));
+  await page.getByRole('button', { name: '添加到专属配置', exact: true }).first().click();
+  const savedResponse = await savedReceived;
+  assert.equal(savedResponse.status(), 201);
+  const saved = await savedResponse.json();
+  await writeFile(`${reports}/solver-saved-configuration.json`, JSON.stringify(saved, null, 2));
+  assert.equal(saved.pokemon_id, 212);
+  assert.equal(saved.role, 'both');
+  assert.deepEqual(saved.evs, spread.candidates[0].evs);
+  assert.deepEqual(saved.ivs, spread.candidates[0].ivs);
+  await page.getByRole('button', { name: '已添加到专属配置', exact: true }).first().waitFor();
+  await page.screenshot({ path: `${reports}/solver-spread-saved.png`, fullPage: true });
+  return { presetCandidates: preset.candidates.length, spreadCandidates: spread.candidates.length, savedConfiguration: saved.id };
 }
 
 /** page借用浏览器HTTP客户端；base为真实代理根，jobId为本次服务返回身份。
@@ -81,7 +233,30 @@ async function verifyPersistentTask(page, reports) {
   assert.ok((await exploration.json()).transition_groups.length > 0);
   await page.getByRole('heading', { name: '从起点向右追踪战斗路径', exact: true }).waitFor();
   await page.locator('.battle-tree-column').first().waitFor();
+  if (requireSprites) {
+    await verifyLoadedImage(page, '.battle-tree-screen .battle-animation-side--attacker img');
+    await verifyLoadedImage(page, '.battle-tree-screen .battle-animation-side--defender img');
+  }
   await page.screenshot({ path: `${reports}/task-graph.png`, fullPage: true });
+  // 根窗口可见后继续真实展开行动组，选择一条正式边，证明分页/路径前进合同也可由Web使用。
+  const outcomesReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/outcomes'));
+  await page.locator('.battle-tree-group > button').first().click();
+  const outcomes = await outcomesReceived;
+  assert.equal(outcomes.status(), 200);
+  const outcomeResult = await outcomes.json();
+  await writeFile(`${reports}/task-outcomes.json`, JSON.stringify(outcomeResult, null, 2));
+  assert.ok(outcomeResult.transition_group.outcomes.length > 0);
+  await page.getByRole('button', { name: '原始', exact: true }).click();
+  const advanceReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/advance'));
+  await page.locator('.battle-tree-exact-edge').first().click();
+  const advance = await advanceReceived;
+  assert.equal(advance.status(), 200);
+  const advanced = await advance.json();
+  await writeFile(`${reports}/task-advanced.json`, JSON.stringify(advanced, null, 2));
+  assert.equal(advanced.cursor.steps.length, 1);
+  assert.equal(advanced.node.node_id, outcomeResult.transition_group.outcomes[0].target_node_id);
+  await page.locator('.battle-tree-column').nth(1).waitFor();
+  await page.screenshot({ path: `${reports}/task-graph-advanced.png`, fullPage: true });
   return { jobId, status: status.status, nodes: results.items[0].node_count, edges: results.items[0].edge_count };
 }
 
@@ -133,6 +308,9 @@ async function main() {
   await mkdir(reports, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  // 独立Playwright库没有测试runner的默认动作时限；页面缺失时必须失败并归档，不能无限挂起。
+  context.setDefaultTimeout(30000);
+  context.setDefaultNavigationTimeout(45000);
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const page = await context.newPage();
   const errors = [];
@@ -155,21 +333,36 @@ async function main() {
     await page.locator('.result-band .metric strong').filter({ hasText: damage }).waitFor();
     assert.equal(await page.locator('.action-band .error').count(), 0);
     assert.deepEqual(errors, [], 'the real application must not raise JavaScript errors');
+    if (requireSprites) {
+      await verifyLoadedImage(page, '[data-testid="attacker-column"] img[data-testid="pokemon-summary-visual"]');
+      await verifyLoadedImage(page, '[data-testid="defender-column"] img[data-testid="pokemon-summary-visual"]');
+      await verifyLoadedImage(page, 'button[aria-label="steel 属性"] img');
+    }
     await writeFile(`${reports}/calculator-response.json`, JSON.stringify(result, null, 2));
     await page.screenshot({ path: `${reports}/desktop-calculator.png`, fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: `${reports}/phone-calculator.png`, fullPage: true });
     const dimensions = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: innerWidth }));
     assert.ok(dimensions.content <= dimensions.viewport + 1, 'phone layout must fit the viewport');
+    const configuration = await verifyConfigurationManagement(page, reports);
+    const solver = await verifySolver(page, reports);
     const task = await verifyPersistentTask(page, reports);
     const cancellation = await verifyRunningCancellation(page, reports);
     assert.deepEqual(errors, [], 'task pages must not raise JavaScript errors');
-    await writeFile(`${reports}/acceptance.json`, JSON.stringify({ status: 'PASS', pokemon: [212, 242], move: 418, damage, dimensions, task, cancellation, errors }, null, 2));
+    await writeFile(`${reports}/acceptance.json`, JSON.stringify({ status: 'PASS', pokemon: [212, 242], move: 418, damage, dimensions, configuration, solver, task, cancellation, errors }, null, 2));
   } catch (error) {
     await page.screenshot({ path: `${reports}/failure.png`, fullPage: true });
     await writeFile(`${reports}/failure.txt`, `${error.stack}\n${errors.join('\n')}`);
+    // 保存实际DOM图源，便于区分API缺图、路径错误和浏览器解码失败。
+    const images = await page.locator('img').evaluateAll(elements => elements.map(element => ({
+      source: element.currentSrc || element.src, complete: element.complete,
+      width: element.naturalWidth, height: element.naturalHeight,
+    })));
+    await writeFile(`${reports}/failed-page-images.json`, JSON.stringify(images, null, 2));
     throw error;
   } finally {
+    // 部分图已成功而后续缺图时也保留证据，不能等整个任务闭环通过才写入。
+    await writeFile(`${reports}/images.json`, JSON.stringify(loadedImages, null, 2));
     await context.tracing.stop({ path: `${reports}/trace.zip` });
     await browser.close();
   }

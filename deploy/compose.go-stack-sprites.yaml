@@ -1,5 +1,12 @@
 # 仅在显式提供完整本地 sprites 源时叠加；图片只读导入BYTEA，不放入API/前端镜像。
 services:
+  postgres:
+    # 完整图库使用本次独占SSD目录，避免BYTEA及WAL撑满基础验收的2GiB tmpfs。
+    # 保留基础挂载但不将其用作PGDATA，兼容当前Compose 2.20，不依赖!reset语法。
+    environment:
+      PGDATA: /var/lib/postgresql/full-sprites
+    volumes:
+      - ${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new empty validation database directory}:/var/lib/postgresql/full-sprites
   db-init:
     volumes:
       - ${PBI_STACK_SPRITES_ROOT:?Set the complete local PokeAPI sprites source}:/sprites-source:ro

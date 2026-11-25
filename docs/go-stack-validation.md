@@ -1,5 +1,23 @@
 # Go 四角色隔离验收
 
+## 2026-11-25 求解页面与候选保存
+
+`stack-abi11-20261125/web-solver-first/`新增实际求解场景后整个入口再次PASS，仍固定5529a82应用、42共享Core响应及原221节点/576边任务；配置CRUD、图分支前进、运行取消、故障恢复、回退和独立数据库恢复全部保留并通过。实际工具原文与SHA、请求、响应、截图和trace均归档。
+
+在Vue选择212无投入配置，添加242无投入速度目标，通过实际按钮求解：preset API返回1个候选，速度85对75、margin10且satisfied；页面证据行显示相同值。随后切换反推模式，实际search-spreads返回10个候选，每个候选的速度证据均满足严格大于目标。页面点击第一候选“添加到专属配置”，创建201、绑定212且role为both，EV/IV逐字段等于该真实候选，按钮进入“已添加到专属配置”。没有mock求解响应或直接提交HTTP替代界面操作。本场景只覆盖速度目标；攻击/防御目标的页面编辑、组合目标等仍待补充，已有HTTP差分不能替代这些交互。
+
+## 2026-11-25 配置管理、图分支与图片负向验收
+
+`stack-abi11-20261125/web-config-graph/`整个入口PASS，应用仍固定5529a82，实际浏览器工具原文及SHA分别归档为`accept-web-go.mjs`和`validation-sources.sha256`。此前的计算、任务完成/取消、运行许可、健康故障恢复、不同旧镜像回退及独立库恢复均再次通过；没有JavaScript异常。
+
+- 原Vue页面创建212的专属配置，HP EV252、Attack EV100，再在同一表单改名、性格adamant、Attack EV252。创建201、更新200；身份不变而快照变化。真实刷新页面后重新选择212，管理页仍显示修改内容，独立公开列表逐字段等于更新响应。最后页面确认删除204，列表和侧栏均消失。原始请求、响应、刷新后的截图均保留。
+- 完成任务的Full图ROOT加载后，实际点击行动组，请求outcomes HTTP200；切换原始边并选择第一条，advance HTTP200、cursor恰好增加一步、目标node ID与所选正式边一致，STEP1真实渲染后截图。没有直接注入cursor或伪造前端状态。
+- `web-config-first/`保留第一轮失败：原label包含select选项，精确getByLabel未匹配“适用 Pokémon”；只修正验收选择器定位同一可见label下的select。没有改产品行为或跳过配置操作。独立Playwright上下文显式限定动作30秒、导航45秒，失败仍归档截图/trace。
+
+图片验证还未完成全量导入。`missing-steel-diagnostics/`仅用固定上游的五图样本作为**预期失败**实验：实际导入5/5，212与242两张图片均解码为96×96，独立HTTP正文为PNG且SHA-256与ETag一致；钢属性图缺失时严格失败，报告点名`button[aria-label="steel 属性"] img`。这证明占位图不能冒充成功，不能将该实验写为完整图库通过。无论后续操作是否失败，已成功图片的尺寸、图源、摘要均写入`images.json`，失败还保存DOM图源和解码状态。
+
+显式传入`PBI_STACK_SPRITES_ROOT`时，脚本叠加`compose.go-stack-sprites.yaml`并启用图片断言；`PBI_STACK_POSTGRES_DATA_ROOT`必须是不存在的新目录。完整BYTEA库及WAL使用这个独占SSD目录，素材保持只读HDD挂载；默认无图验收仍使用原tmpfs。退出先停止自有容器再清理专属网络，完整图库数据库目录保留供复核，不自动删除或复用。Compose2.20保留基础tmpfs但PGDATA指向独占盘，不依赖新版本的`!reset`语法。
+
 ## 2026-11-25 Web任务完成、图与运行取消
 
 `stack-abi11-20261125/web-task-red/`首次新增浏览器任务断言后实际失败：Web提交得到202，但公开查询45秒始终pending。原验收Worker固定`go-stack-validation.v1`，与实际业务任务revision不匹配；此前只证明Worker存活，不证明消费。
@@ -27,7 +45,7 @@
 
 本轮Worker存活检查通过，仍未通过该浏览器场景投递业务任务；其验收revision仍为go-stack-validation.v1。复杂任务提交/结果/取消、带完整图片的页面及正式旧生产库接管仍是后续范围。独立PG/daemon任务测试的既有成功不代替这轮Web操作验证。
 
-`tools/migration/validate-go-stack.sh` 用独立 Compose 项目实际运行原 Vue/Nginx、Go API、独立 PG Worker 和 PostgreSQL，另有一次性纯 Go db-init 与 Chromium 客户端。应用运行镜像不携带 Python；Python、npm 和浏览器仅在验收端使用。所有容器通过已声明的 maintenance `run --rm` 启动，数据库只在本次 tmpfs，宿主只发布随机回环端口；不使用生产连接或宿主数据库目录。
+`tools/migration/validate-go-stack.sh` 用独立 Compose 项目实际运行原 Vue/Nginx、Go API、独立 PG Worker 和 PostgreSQL，另有一次性纯 Go db-init 与 Chromium 客户端。应用运行镜像不携带 Python；Python、npm 和浏览器仅在验收端使用。所有容器通过已声明的 maintenance `run --rm` 启动，默认数据库只在本次 tmpfs；显式图片模式使用上述独占SSD目录。宿主只发布随机回环端口，不使用生产连接或生产数据库目录。
 
 源码必须来自干净的已提交 checkout。并行开发时用 Git 注册的 detached worktree 固定具体 SHA，避免半成品进入构建。`PBI_STACK_SOURCE_ROOT` 指向该 checkout，脚本自身及浏览器 harness 可以来自当前验证工作树；报告分别记录应用源码 SHA 和真实镜像 ID。
 
