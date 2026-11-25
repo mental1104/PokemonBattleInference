@@ -4,7 +4,7 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **90%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **91%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
 
 2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
 
@@ -13,12 +13,14 @@
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 97% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；原10×10池前两case的12组benchmark精确对照通过。a4bc9f4 Apple CI的macOS Core/Go/Swift阶段已通过；完整平台产物及阶段收口审查待终态后保存。 |
 | P2 跨语言集成 | IN_PROGRESS | 95% | .11同源码GCC14/Go与GCC13/Swift实际调用42共享样本；真实服务Swift27/27零SKIP通过。a4bc9f4 macOS原生/Go/Swift阶段及设备/模拟器静态库构建阶段已通过；App/UI运行中，完整产物与日志待保存。 |
-| P3 Go 服务端 | IN_PROGRESS | 94% | 本批保存原41/41 API实际验证覆盖：新增step9、dragonite8、casegraph20项通过。新版业务归因消费者真实PG/child/daemon 11/11 race/vet通过，公开HTTP创建/完整结果/三类预算20/20零SKIP通过；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。最新版Web及跨实现整套仍待收口。 |
+| P3 Go 服务端 | IN_PROGRESS | 96% | 原41/41 API实际验证覆盖；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。新增真实Vue→代理→Go→daemon完成221/576任务、完整归因/Full图重算/root加载及四招复杂任务running→cancelled均通过。其余solver/配置等完整浏览器交互与整体收口仍待补。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 80% | c0双模拟器各9/9、图标版0.8.0(2)已实际iPhone15Pro启动。新增实际执行溯源HTTP/Swift链27/27通过；iPhone在线按钮被导航栏遮挡的UI修复尚待新CI。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
-| P6 部署与回归 | IN_PROGRESS | 70% | 最新5529a82正式.11四角色栈完整演练通过：42共享HTTP、真实Vue计算114–135/390px适配、健康故障恢复、旧镜像回退及独立PG恢复；新增运行镜像许可原文逐字节核对通过。完整图片/复杂任务Web及正式升级仍待补，Worker在本浏览器场景只验证存活。旧生产保持原状。 |
+| P6 部署与回归 | IN_PROGRESS | 75% | 最新5529a82正式.11四角色栈通过42共享HTTP、Vue计算114–135/390px、实际任务完成/归因/图/运行取消、健康故障恢复、旧镜像回退及独立PG恢复，运行许可cmp通过。修复验收Worker revision不匹配的真实排队缺陷；完整图片、其余Web操作及正式升级待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- 最新`web-task-cancel/`整个栈入口PASS。`web-task-red/`保留45秒pending失败：验收Worker此前使用go-stack-validation.v1，不匹配原业务revision。仅修正Compose实际命令为battle-inference.summary-exploration.v2后复验；真实成功任务221/576、完整业务归因、按需Full图及root渲染通过。另四招任务先实际running后由页面取消，终态cancelled。静态bash/diff检查、完整浏览器运行及同轮回退/恢复通过，源码SHA与实际命令归档。图片及其余Web交互尚未覆盖，不据此宣告P3/P6完成。
 
 - 本轮登记干净`stack-abi11-verification`，固定4885932的基础栈以及5529a82许可补充后的完整复验均PASS；证据在`stack-abi11-20261125/base/`与`licenses/`。当前镜像和已验证旧镜像不同，配置完整JSON在回退/恢复后保持一致。脚本新增从实际运行容器取回许可证cmp，不仅检查COPY声明。Apple run45528710141已确认阶段8/9成功，当前阶段10 App/双模拟器验收仍活跃；没有因日志暂不可取而重启该run。本地新提交等待该run结束后统一推送。
 

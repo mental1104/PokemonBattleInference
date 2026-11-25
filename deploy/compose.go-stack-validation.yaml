@@ -48,7 +48,8 @@ services:
     profiles: [maintenance]
     image: ${PBI_STACK_SERVER_IMAGE:?Set PBI_STACK_SERVER_IMAGE}
     entrypoint: [/usr/local/bin/pbi-worker]
-    command: [-revision, go-stack-validation.v1]
+    # 与原Web/公开任务合同的冻结revision一致，保证验收中的真实提交可以被领取。
+    command: [-revision, battle-inference.summary-exploration.v2]
     environment:
       PBI_POSTGRES_DSN: postgres://pokeop@postgres:5432/pokeop?sslmode=disable
     # Worker 没有 HTTP 端口，不能沿用同镜像 API 的 HTTP 健康探针。

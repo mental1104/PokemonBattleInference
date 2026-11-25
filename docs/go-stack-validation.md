@@ -1,5 +1,20 @@
 # Go 四角色隔离验收
 
+## 2026-11-25 Web任务完成、图与运行取消
+
+`stack-abi11-20261125/web-task-red/`首次新增浏览器任务断言后实际失败：Web提交得到202，但公开查询45秒始终pending。原验收Worker固定`go-stack-validation.v1`，与实际业务任务revision不匹配；此前只证明Worker存活，不证明消费。
+
+验收Compose改用原公开`battle-inference.summary-exploration.v2`，没有改服务准入、任务过滤或超时。`web-task-first/`实际完成任务及结果页；截图仍停在ROOT加载中，因此进一步要求真实explore HTTP200及ROOT节点渲染，不能仅凭图创建200和标题出现判定完成。
+
+最终`web-task-cancel/`整个栈入口PASS，应用镜像源固定5529a82，验证工具源码SHA在`validation-sources.sha256`：
+
+- 原Vue载入双快龙龙爪示例，实际生成组合/选择双方技能组/提交固定任务，真实daemon产生succeeded，221节点/576边。详情显示完整概率和`battle-inference.explanation.v1`归因；原请求、逐次状态及结果全部归档。
+- 从实际结果页打开树状图，真实按需Full重算HTTP200、随后真实root explore HTTP200，ROOT节点和行动分组实际渲染后截图。完整原始两份响应均保留。
+- 另在两侧候选控件各选择337、17、21、56四招，重新枚举及提交。公开查询先观察到running/solving_probabilities，才点击页面对应任务的取消按钮；实际取消HTTP200，终态cancelled且页面显示已取消。没有注入延迟或直接写入取消结果。
+- 之前的计算114–135/390px适配、运行许可cmp、健康故障恢复、不同旧镜像回退和独立数据库恢复均再次通过；专属实例、网络已清理。没有JavaScript异常。
+
+实际Worker命令保存为`worker-command.json`，值为`["-revision","battle-inference.summary-exploration.v2"]`。图片仍有明确缺口，尚未覆盖所有solver/配置编辑等浏览器交互及正式生产接管；本批不将整个P6标PASS。
+
 ## 2026-11-25 Core 0.11 当前版本复验
 
 登记的`stack-abi11-verification`干净工作树先固定4885932，再固定许可补充提交5529a82，两轮入口均完整PASS。最终证据在`Backup/PokemonBattleInference/stack-abi11-20261125/licenses/`，`base/`保留首次当前版本结果。使用独立临时PG、已核对空闲的10.245.24.48/28及随机回环端口，没有修改生产网络或数据库。

@@ -82,6 +82,8 @@ postgres_id="$(compose run --rm --no-deps -d --name "$project-postgres" --use-al
 for _ in {1..100}; do if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop > /dev/null 2>&1; then break; fi; sleep .1; done
 compose run --rm --no-deps db-init > "$POKEOP_REPORT_ROOT/initialization.json" 2> "$POKEOP_REPORT_ROOT/initialization.log"
 worker_id="$(compose run --rm --no-deps -d --name "$project-worker" worker)"
+# 保存本次实际启动参数；任务完成断言另由独立浏览器/HTTP验证，存活不能替代消费。
+docker inspect "$worker_id" --format '{{json .Config.Cmd}}' > "$POKEOP_REPORT_ROOT/worker-command.json"
 start_api "$current_id" pokeop health-initial
 # 从真正运行的当前镜像取回许可，逐字节核验，避免仅检查Dockerfile中的COPY声明。
 mkdir -p "$POKEOP_REPORT_ROOT/runtime-licenses"
