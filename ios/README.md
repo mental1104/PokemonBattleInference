@@ -4,9 +4,9 @@
 
 首装包含固定来源的1,350个宝可梦、937个招式、25个性格和324个属性关系。知识包校验后原子切换，用户库独立保留配置、队列、冲突和计算快照。首次知识校验、SQLite打开和Core重计算离开MainActor；任务取消传递到实际原生令牌或URLSession。
 
-最新完整[Apple CI 45535685587](https://github.com/mental1104/PokemonBattleInference/actions/runs/45535685587)对应b797c19及PR测试合并树797cefd：macOS149/149原生测试、112差分/委托通过（247外部环境SKIP单列），iPhoneOS/Simulator静态库和未签名device App构建通过，真实Swift→Go/PG/daemon27/27零SKIP。iPhone与iPad模拟器分别9/9通过，包含真实在线计算来源/版本、任务完成/取消、两模拟器同步、保存/重启及iPad横屏。官方产物已下载核验SHA并私有保存。
+最新完整[Apple CI 45548203813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45548203813)对应9eac125及PR测试合并树77e00c1：macOS149/149原生测试、112差分/委托通过（247外部环境SKIP单列），iPhoneOS/Simulator静态库和未签名device App构建通过，真实Swift→Go/PG/daemon27/27零SKIP。iPhone与iPad模拟器各10/10通过，包含首装招式详情、重启后实际离线重算、在线来源/版本、任务完成/取消、两模拟器同步及iPad横屏。官方产物下载SHA与GitHub记录相同。
 
-阶段逐项依据及未完成项见[原生应用验收](../docs/migration-ios-acceptance.md)。6bd30c9的Apple45543244271两端均9/10：保存/重启后实际离线重算通过，新增招式查询的独立`40`节点断言失败。两端原始附件均显示合并字段`威力, 40`；测试改为精确核对完整字段，等待新CI，不把未复验的修正计为通过。P4保持IN_PROGRESS。
+阶段逐项依据及原失败记录见[原生应用验收](../docs/migration-ios-acceptance.md)。首轮招式查询查找独立`40`失败，按两端实际无障碍树改为精确匹配完整字段`威力, 40`，现已由新10/10复验。P4自动化标准PASS，工程估算95%，双真机体验和最终授权仍HUMAN_PENDING。
 
 本地在同环境构建Core后，使用`make test-native`或`bash tools/migration/test-swift.sh "$PWD/build/core"`。桥接脚本按两个archive的SHA隔离Swift scratch，避免链接过期Core。Apple库构建由`tools/migration/build-apple-core.sh`负责；实际App和双模拟器验证由`tools/migration/validate-apple-app.sh`负责，不需要Apple Account或真机签名。
 
