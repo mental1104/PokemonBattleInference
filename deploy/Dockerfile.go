@@ -28,6 +28,8 @@ RUN mkdir -p /out/rootfs/usr/local/bin /out/rootfs/etc/ssl/certs /out/rootfs/app
 FROM scratch AS runtime
 COPY --from=build /out/rootfs/ /
 COPY server/internal/knowledge/LICENSE.pokeapi.txt /usr/share/licenses/pbi/PokeAPI.txt
+# API和初始化镜像共同保留项目许可及已登记的完整第三方声明，随最终运行产物交付。
+COPY LICENSE THIRD_PARTY_LICENSES.md /usr/share/licenses/pbi/
 COPY server/internal/knowledge/manifest.json /usr/share/pbi/postgres-knowledge-manifest.json
 USER 1026:100
 WORKDIR /app

@@ -83,6 +83,12 @@ for _ in {1..100}; do if docker exec "$postgres_id" pg_isready -U pokeop -d poke
 compose run --rm --no-deps db-init > "$POKEOP_REPORT_ROOT/initialization.json" 2> "$POKEOP_REPORT_ROOT/initialization.log"
 worker_id="$(compose run --rm --no-deps -d --name "$project-worker" worker)"
 start_api "$current_id" pokeop health-initial
+# 从真正运行的当前镜像取回许可，逐字节核验，避免仅检查Dockerfile中的COPY声明。
+mkdir -p "$POKEOP_REPORT_ROOT/runtime-licenses"
+for license_file in LICENSE THIRD_PARTY_LICENSES.md; do
+  docker cp "$server_id:/usr/share/licenses/pbi/$license_file" "$POKEOP_REPORT_ROOT/runtime-licenses/$license_file"
+  cmp "$POKEOP_SOURCE_ROOT/$license_file" "$POKEOP_REPORT_ROOT/runtime-licenses/$license_file"
+done
 request GET /healthz health 200
 request POST /v1/core/calculate core 200 "$POKEOP_SOURCE_ROOT/tests/vectors/abi-calculations.v1.request.json"
 python3 - "$POKEOP_SOURCE_ROOT/tests/vectors/abi-calculations.v1.response.json" "$POKEOP_REPORT_ROOT/core.json" <<'PY'
