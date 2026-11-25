@@ -4,21 +4,25 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **91%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **92%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
 
 2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
 
 | 阶段 | 状态 | 工程估算 | 当前证据与剩余工作 |
 | --- | --- | --- | --- |
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 97% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；原10×10池前两case的12组benchmark精确对照通过。a4bc9f4 Apple CI的macOS Core/Go/Swift阶段已通过；完整平台产物及阶段收口审查待终态后保存。 |
-| P2 跨语言集成 | IN_PROGRESS | 95% | .11同源码GCC14/Go与GCC13/Swift实际调用42共享样本；真实服务Swift27/27零SKIP通过。a4bc9f4 macOS原生/Go/Swift阶段及设备/模拟器静态库构建阶段已通过；App/UI运行中，完整产物与日志待保存。 |
+| P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
+| P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | IN_PROGRESS | 96% | 原41/41 API实际验证覆盖；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。新增真实Vue→代理→Go→daemon完成221/576任务、完整归因/Full图重算/root加载及四招复杂任务running→cancelled均通过。其余solver/配置等完整浏览器交互与整体收口仍待补。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 80% | c0双模拟器各9/9、图标版0.8.0(2)已实际iPhone15Pro启动。新增实际执行溯源HTTP/Swift链27/27通过；iPhone在线按钮被导航栏遮挡的UI修复尚待新CI。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 85% | a4bc9f4 iPhone9/9通过，iPad7项通过后在约45分钟job限额处取消，余2项未完成；未见已完成用例断言失败。仅将整体job时限改为75分钟后完整复验。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 75% | 最新5529a82正式.11四角色栈通过42共享HTTP、Vue计算114–135/390px、实际任务完成/归因/图/运行取消、健康故障恢复、旧镜像回退及独立PG恢复，运行许可cmp通过。修复验收Worker revision不匹配的真实排队缺陷；完整图片、其余Web操作及正式升级待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- 已保存Apple run45528710141原始日志及官方artifact14986970123（56,309,347字节），SHA-256完整匹配c8cec59dc2293f5cbd9594867dc86e34fbad12ff07a2add3784dde23e5a5356a。macOS149/149、112差分/委托及247外部SKIP、真实Swift服务27/27、双SDK和device App构建证明P1/P2标准已满足；阶段审查单独记录。iPhone9/9（650.923秒），iPad7项通过后job取消；开跑01:50:53、取消02:36:06与45分钟配置吻合。仅提高job总限额75，不删用例、不放宽单项断言。完整Goal仍未完成。
+
+- 完整sprites来源处理中：固定c0542f7的整包超过初设15分钟下载时限，已保留前缀checkpoint并终止自动从头重传，改用blob:none浅取固定提交、完整检出sprites目录，未缩减到5图样本。完整图片导入及页面解码断言代码尚待实跑；Compose2.20配置已验证，完整图库PGDATA使用本次新建SSD目录，保持素材只读。Mac空间检查只清理无编译进程/打开文件的549MiB模块缓存，剩余2.6GiB；NAS SSD仍101GiB可用，HDD素材下载未占用Mac盘。
 
 - 最新`web-task-cancel/`整个栈入口PASS。`web-task-red/`保留45秒pending失败：验收Worker此前使用go-stack-validation.v1，不匹配原业务revision。仅修正Compose实际命令为battle-inference.summary-exploration.v2后复验；真实成功任务221/576、完整业务归因、按需Full图及root渲染通过。另四招任务先实际running后由页面取消，终态cancelled。静态bash/diff检查、完整浏览器运行及同轮回退/恢复通过，源码SHA与实际命令归档。图片及其余Web交互尚未覆盖，不据此宣告P3/P6完成。
 

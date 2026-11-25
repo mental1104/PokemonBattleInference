@@ -17,7 +17,8 @@ jobs:
   apple-core:
     if: github.event.pull_request.draft == false
     runs-on: macos-15
-    timeout-minutes: 45
+    # .11完整原生/双SDK构建后，顺序双模拟器UI实测超过45分钟；保留全部测试和单项断言。
+    timeout-minutes: 75
     env:
       PBI_CORE_LIBRARY_DIR: ${{ github.workspace }}/build/core
       PBI_CORE_VECTOR_RUNNER: ${{ github.workspace }}/build/core/pbi_core_vectors
