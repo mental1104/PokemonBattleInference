@@ -429,7 +429,9 @@ std::vector<RepresentativeBattlePath> ProjectRepresentativeBattlePaths(const Bat
       std::vector<std::string> events;
       if (node.predecessor_edge) {
         const auto& edge = graph.Edges()[node.predecessor_edge->value];
-        for (const auto& value : edge.events.Paths().front().events) {
+        // 图中的 EventSummary 拥有历史；具名只读 span 避免新版 Clang 将临时视图误判为拥有者。
+        const auto event_paths = edge.events.Paths();
+        for (const auto& value : event_paths.front().events) {
           Check(stop);
           const auto event = std::visit([](const auto& item) {
             if constexpr (std::is_same_v<std::decay_t<decltype(item)>, TransitionEvent>) return item;

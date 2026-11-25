@@ -4,7 +4,7 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **97%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。后续按实际通过门槛报告，不再滚动估算整个Goal。下表保留此前阶段工程估算，不是测试通过率。2026-11-25用户已恢复安装授权，随后说明设备暂不在身边，本轮先准备构建；不能在设备不可用时宣称已安装或代填Human验收。
 
 用户最新收口要求：只解决必须问题后结束本轮开发，不再滚动增加范围或混合人工验收百分比。门槛限定为最终提交CI全绿，以及纠正运行说明中的旧全图库参数。45c8b23的Main Gate45584394548已全绿；docs/go-runtime.md已按实际1,374张HDD小包、项目版本命名空间、PG仅元数据和已完成重启/恢复修正。文档修正与依赖修复全部发布后冻结变更，最终CI结果以PR最新检查为准；除真实失败修复外不再追加改动。通过即结束开发迭代，双真机A–F和最终审批独立保留HUMAN_PENDING，不能据此宣告完整Goal已验收。下表保留此前工程估算，不再用它混合表达人工验收进度。
 
@@ -16,9 +16,18 @@
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | PASS | 100% | 原41/41 API、任务/恢复/取消、race/vet及原库非破坏性接管通过。新HDD模式Go/PG 76通过/2专用SKIP、恢复10/10；全部1,374份正文独立SHA核验、真实Vue任务/取消/图片、四角色和PG重启、元数据备份/恢复均通过。正式NAS上线并逐个验证1,374个HTTPS图片URL，正文长度/SHA全部匹配；28.7GB全来源正文不在当前部署范围。 |
-| P4 iOS/iPadOS | PASS | 95% | 17a5fda Apple45572741348完整通过：两端各11/11含真实首装图片/道具图像，macOS149/149、125差分/委托通过、247外部SKIP；真实Swift→Go/PG29/29零SKIP，双SDK及未签名App成功，官方产物SHA匹配。PASS限自动化标准，双真机HUMAN_PENDING、安装暂停。 |
+| P4 iOS/iPadOS | PASS | 95% | 17a5fda Apple45572741348完整通过：两端各11/11含真实首装图片/道具图像，macOS149/149、125差分/委托通过、247外部SKIP；真实Swift→Go/PG29/29零SKIP，双SDK及未签名App成功，官方产物SHA匹配。PASS限已有自动化标准；恢复安装后的本机构建见下节，双真机HUMAN_PENDING。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 97% | 完整HDD栈/NAS/原库恢复及legacy归位验证通过；知识更新三类人工验收源已上线，真实Swift HTTPS坏SHA/取消/续传/重启/用户队列保留四项通过，独立curl中断/206续传全字节一致。最新提交CI和最终审批仍待，人工记录不代填。 |
+
+## 恢复真机构建（2026-11-25）
+
+- 冻结f34267b的最终Main45587346913与Apple45587346633均SUCCESS：Core149/149、迁移132PASS/247环境SKIP、双模拟器各11/11；Swift30项中29PASS/1专用NAS SKIP，独立NAS知识更新4/4零SKIP。官方artifact15012728588为71,431,395字节，SHA256 `5f38e2a0e02e79e6ddadc5953aad84987d50bda0e91e1a04b9570a542544b93b`一致；完整回执位于Backup/PokemonBattleInference/final-f34267b-20261125/。
+- 用户恢复安装授权后，实际Mac为macOS26.7.3、Xcode27.2/AppleClang21。Core首次因state_graph_projection.cpp中临时span访问的`-Wdangling-gsl`失败。EventSummary拥有底层vector；只为借用span增加具名const局部变量，保留所有权、C++20、事件顺序、ABI及全部警告策略，不增加规则功能或关闭诊断。
+- 同一Mac修后设备/模拟器Core、Swift模块和XCFramework全部成功。Linux独立新构建Core149/149（6.72秒）、原投影/代表路径Python差分23/23（14.80秒）通过；未覆盖此前固定验收archive。最初维护网络创建因地址池不足失败，保留日志后复用现有维护网络通过，没有删除其他网络。
+- Xcode缺账号及描述文件导致首次自动签名失败；原归档App的描述文件仍有效至2026-12-01，证书与现有身份匹配，只覆盖iPhone15Pro。恢复原文件后用正常Automatic离线构建成功；Manual尝试因Xcode管理文件与资源bundle规则不适用失败，日志保留。未登录账号、读取密码、修改Keychain ACL或注册新设备。
+- 签名App为0.11.0（2），bundle ID及Team不变，严格codesign验证通过，内含1,374张图标。App ZIP25,517,656字节，SHA256 `bea89cc4bc978a9f68232dd447dae225a6f98fe20a29550531cc303b2fb08833`。本轮证据在Backup/PokemonBattleInference/device-f34267b-20261125/及apple27-named-span-20261125/。
+- 本次兼容修复提交须由PR最新CI复验，不把f34267b绿灯挪给新提交。iPhone当前unavailable、未发现iPad；用户确认设备暂不在身边，因此尚未安装。原profile不覆盖iPad，后续须正常登记/授权；安装前先备份现有App用户数据。A–F及最终合并保持HUMAN_PENDING。
 
 ## 已确认的边界与决策
 
