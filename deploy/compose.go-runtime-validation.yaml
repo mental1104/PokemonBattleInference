@@ -1,0 +1,27 @@
+# 仅把独立运行配置变为本次maintenance run --rm演练；不改其数据挂载、网络或Worker版本。
+services:
+  postgres:
+    profiles: [maintenance]
+    restart: "no"
+    mem_limit: 3g
+  backend:
+    profiles: [maintenance]
+    restart: "no"
+    environment:
+      PBI_POSTGRES_DSN: postgres://pokeop@postgres:5432/${PBI_STACK_DATABASE:-pokeop}?sslmode=disable
+    mem_limit: 1g
+  worker:
+    profiles: [maintenance]
+    restart: "no"
+    mem_limit: 1g
+  frontend:
+    profiles: [maintenance]
+    restart: "no"
+    mem_limit: 256m
+  db-init:
+    profiles: [maintenance]
+    mem_limit: 1g
+  browser:
+    extends:
+      file: ${PBI_STACK_VALIDATION_ROOT:?Set the validation checkout}/deploy/compose.go-stack-validation.yaml
+      service: browser

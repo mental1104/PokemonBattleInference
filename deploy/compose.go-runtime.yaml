@@ -57,6 +57,8 @@ services:
     environment:
       POSTGRES_USER: pokeop
       POSTGRES_DB: pokeop
+      # 与本文件的独占bind对应，避免外部Compose叠加时继承其他PGDATA目录。
+      PGDATA: /var/lib/postgresql/data
       # PG不发布宿主端口，只允许本项目私有网络中的API/Worker/初始化器访问。
       POSTGRES_HOST_AUTH_METHOD: trust
     healthcheck:
@@ -96,7 +98,7 @@ services:
 
 networks:
   default:
-    internal: true
+    # 前端需要发布回环端口；API/PG不声明ports，仍只通过本项目网络访问。
     ipam:
       config:
         - subnet: ${PBI_GO_SUBNET:?Set a subnet checked against host routes and Docker IPAM}

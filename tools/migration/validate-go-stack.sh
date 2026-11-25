@@ -24,12 +24,27 @@ worker_id=""
 frontend_id=""
 endpoint=""
 compose_files=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-validation.yaml")
+health_attempts=40
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  # 使用真正发布配置作为基础；演练只叠加maintenance/报告客户端和独立恢复库名称。
+  : "${PBI_STACK_SPRITES_ROOT:?Runtime acceptance requires the complete verified sprites source}"
+  : "${PBI_STACK_EXPECTED_SPRITE_COUNT:?Set the complete sprite count from the verified Git tree}"
+  export PBI_GO_SOURCE_ROOT="$POKEOP_SOURCE_ROOT" PBI_GO_SUBNET="$PBI_STACK_SUBNET"
+  export PBI_GO_SERVER_IMAGE="$PBI_STACK_SERVER_IMAGE" PBI_GO_DATA_IMAGE="$PBI_STACK_DATA_IMAGE" PBI_GO_FRONTEND_IMAGE="$PBI_STACK_FRONTEND_IMAGE"
+  export PBI_GO_SPRITES_ROOT="$PBI_STACK_SPRITES_ROOT" PBI_GO_SPRITES_COMMIT="${PBI_SPRITES_SOURCE_COMMIT:?Set the verified sprites commit}"
+  export PBI_GO_POSTGRES_ROOT="${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new owned persistent database directory}"
+  compose_files=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-runtime.yaml" -f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-runtime-validation.yaml")
+  # 保留真实发布探针10秒/6次，不缩短其语义；等待实际unhealthy需要更长观察窗口。
+  health_attempts=120
+fi
 if [[ -n "${PBI_STACK_SPRITES_ROOT:-}" ]]; then
   # 完整素材只读；数据库目录必须是本次新建路径，不能复用未知或生产数据。
   : "${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new validation database directory for full sprites}"
   [[ ! -e "$PBI_STACK_POSTGRES_DATA_ROOT" ]] || { echo 'Sprite validation database directory already exists' >&2; exit 2; }
   mkdir -p "$PBI_STACK_POSTGRES_DATA_ROOT"
-  compose_files+=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-sprites.yaml")
+  if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" != 1 ]]; then
+    compose_files+=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-stack-sprites.yaml")
+  fi
 fi
 
 # 参数透传本次专属Compose项目；不会启停原生产或其他测试项目。
@@ -42,15 +57,15 @@ cleanup() {
     if [[ -n "$id" ]]; then
       if [[ "$role" == server ]]; then docker kill --signal=CONT "$id" > /dev/null 2>&1 || true; fi
       docker logs "$id" > "$POKEOP_REPORT_ROOT/$role.log" 2>&1 || true
-      docker stop "$id" > /dev/null 2>&1 || true
+      docker stop --time 120 "$id" > /dev/null 2>&1 || true
     fi
   done
   compose down > "$POKEOP_REPORT_ROOT/cleanup.log" 2>&1 || true
 }
 # id 为自己的API容器，expected为实际Docker健康终态，name为独立证据文件前缀。
 wait_health() {
-  local id="$1" expected="$2" name="$3" actual
-  for _ in {1..40}; do
+  local id="$1" expected="$2" name="$3" actual attempt
+  for ((attempt=0; attempt<health_attempts; ++attempt)); do
     actual="$(docker inspect "$id" --format '{{.State.Health.Status}}')"
     if [[ "$actual" == "$expected" ]]; then
       docker inspect "$id" --format '{{json .State.Health}}' > "$POKEOP_REPORT_ROOT/$name.json"
@@ -73,9 +88,31 @@ request() {
 # image为明确的运行镜像；database为本次自有库，启动后等待实际Docker探针通过。
 start_api() {
   export PBI_STACK_SERVER_IMAGE="$1" PBI_STACK_DATABASE="$2"
+  export PBI_GO_SERVER_IMAGE="$1"
   server_id="$(compose run --rm --no-deps -d --name "$project-api" --use-aliases --publish 127.0.0.1::41104 backend)"
   wait_health "$server_id" healthy "$3"
   endpoint="http://$(docker port "$server_id" 41104/tcp)"
+}
+
+# 无参数；启动自己项目的持久化/临时PG并确认实际SQL接收连接，超时明确失败。
+start_postgres() {
+  postgres_id="$(compose run --rm --no-deps -d --name "$project-postgres" --use-aliases postgres)"
+  for _ in {1..100}; do
+    # initdb临时socket服务可提前接受连接；必须等正式TCP服务且目标库实际能执行SQL。
+    if docker exec "$postgres_id" psql -h 127.0.0.1 -U pokeop -d pokeop -Atc 'SELECT 1' > /dev/null 2>&1; then return; fi
+    sleep .5
+  done
+  echo 'Owned PostgreSQL did not become ready' >&2
+  return 1
+}
+
+# database为本次自有库，name为报告前缀；核对全部图片数量、真实BYTEA长度和服务端独立SHA。
+# 读取所有正文而非只信导入器计数；预期数量来自调用方已验证的Git树。
+verify_sprite_storage() {
+  local database="$1" name="$2" count bytes bad_digest inactive
+  docker exec "$postgres_id" psql -U pokeop -d "$database" -Atc "SELECT count(*),coalesce(sum(octet_length(content)),0),count(*) FILTER(WHERE sha256<>encode(sha256(content),'hex') OR byte_size<>octet_length(content)),count(*) FILTER(WHERE NOT is_active) FROM poke_raw.sprite_assets" > "$POKEOP_REPORT_ROOT/$name.txt"
+  IFS='|' read -r count bytes bad_digest inactive < "$POKEOP_REPORT_ROOT/$name.txt"
+  [[ "$count" == "$PBI_STACK_EXPECTED_SPRITE_COUNT" && "$bytes" -gt 0 && "$bad_digest" == 0 && "$inactive" == 0 ]]
 }
 
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/p6-browser"
@@ -87,9 +124,12 @@ readonly current_id="$(docker image inspect "$PBI_STACK_SERVER_IMAGE" --format '
 [[ "$previous_id" != "$current_id" ]] || { echo 'Rollback requires two different verified image IDs' >&2; exit 2; }
 git -C "$POKEOP_SOURCE_ROOT" rev-parse HEAD > "$POKEOP_REPORT_ROOT/source-commit.txt"
 docker image inspect "$current_id" "$previous_id" "$PBI_STACK_DATA_IMAGE" "$PBI_STACK_FRONTEND_IMAGE" --format '{{json .}}' > "$POKEOP_REPORT_ROOT/images.jsonl"
-postgres_id="$(compose run --rm --no-deps -d --name "$project-postgres" --use-aliases postgres)"
-for _ in {1..100}; do if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop > /dev/null 2>&1; then break; fi; sleep .1; done
+start_postgres
 compose run --rm --no-deps db-init > "$POKEOP_REPORT_ROOT/initialization.json" 2> "$POKEOP_REPORT_ROOT/initialization.log"
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  jq -e --argjson count "$PBI_STACK_EXPECTED_SPRITE_COUNT" '.sprites.files_seen == $count and .sprites.inserted == $count and .sprites.skipped == false' "$POKEOP_REPORT_ROOT/initialization.json" > /dev/null
+  verify_sprite_storage pokeop sprites-initial
+fi
 worker_id="$(compose run --rm --no-deps -d --name "$project-worker" worker)"
 # 保存本次实际启动参数；任务完成断言另由独立浏览器/HTTP验证，存活不能替代消费。
 docker inspect "$worker_id" --format '{{json .Config.Cmd}}' > "$POKEOP_REPORT_ROOT/worker-command.json"
@@ -114,7 +154,10 @@ frontend_id="$(compose run --rm --no-deps -d --name "$project-frontend" --publis
 endpoint="http://$(docker port "$frontend_id" 80/tcp)"
 for _ in {1..40}; do if curl -fsS "$endpoint/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-health.json" 2>/dev/null; then break; fi; sleep .1; done
 curl -fsS "$endpoint/" > "$POKEOP_REPORT_ROOT/index.html"
-compose run --rm --no-deps browser npm install --prefix /build/p6-browser --no-audit --no-fund playwright@1.65.0 > "$POKEOP_REPORT_ROOT/browser-install.log" 2>&1
+browser_install_options=()
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then browser_install_options=(--offline); fi
+# 演练浏览器只使用预先准备的固定npm缓存，避免运行验收依赖外网软件安装。
+compose run --rm --no-deps browser npm install "${browser_install_options[@]}" --prefix /build/p6-browser --no-audit --no-fund playwright@1.65.0 > "$POKEOP_REPORT_ROOT/browser-install.log" 2>&1
 compose run --rm --no-deps -e PBI_STACK_WEB_URL="http://$project-frontend" -e PBI_STACK_REQUIRE_SPRITES="${PBI_STACK_SPRITES_ROOT:+1}" browser node /validation/accept-web-go.mjs > "$POKEOP_REPORT_ROOT/browser.log" 2>&1
 
 # 故障真实暂停API PID1；Docker必须观测失败并在恢复后重新healthy。
@@ -128,6 +171,26 @@ cat > "$POKEOP_REPORT_ROOT/configuration-request.json" <<'JSON'
 JSON
 request POST /v1/stat-configurations configuration-created 201 "$POKEOP_REPORT_ROOT/configuration-request.json"
 request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-before 200
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  # 真实关闭全部角色及PG，再用同一目录重启；不能用API重启冒充持久化数据库验收。
+  docker inspect "$postgres_id" --format '{{json .Mounts}}' > "$POKEOP_REPORT_ROOT/postgres-mounts.json"
+  for role in frontend server worker postgres; do
+    case "$role" in frontend) id="$frontend_id";; server) id="$server_id";; worker) id="$worker_id";; postgres) id="$postgres_id";; esac
+    docker logs "$id" > "$POKEOP_REPORT_ROOT/$role-before-restart.log" 2>&1
+    docker stop --time 120 "$id" > /dev/null
+  done
+  frontend_id=""; server_id=""; worker_id=""; postgres_id=""
+  start_postgres
+  compose run --rm --no-deps db-init > "$POKEOP_REPORT_ROOT/reinitialization.json" 2> "$POKEOP_REPORT_ROOT/reinitialization.log"
+  jq -e --argjson count "$PBI_STACK_EXPECTED_SPRITE_COUNT" '.reused == true and .sprites.skipped == true and .sprites.files_seen == $count' "$POKEOP_REPORT_ROOT/reinitialization.json" > /dev/null
+  worker_id="$(compose run --rm --no-deps -d --name "$project-worker" worker)"
+  start_api "$current_id" pokeop health-after-database-restart
+  request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-restarted 200
+  cmp "$POKEOP_REPORT_ROOT/configurations-before.json" "$POKEOP_REPORT_ROOT/configurations-restarted.json"
+  verify_sprite_storage pokeop sprites-restarted
+  frontend_id="$(compose run --rm --no-deps -d --name "$project-frontend" --publish 127.0.0.1::80 frontend)"
+  curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 1 "http://$(docker port "$frontend_id" 80/tcp)/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-after-restart.json"
+fi
 docker exec "$postgres_id" pg_dump -U pokeop -d pokeop -Fc > "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump"
 sha256sum "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump" > "$POKEOP_REPORT_ROOT/database-backup.sha256"
 docker logs "$server_id" > "$POKEOP_REPORT_ROOT/api-current.log" 2>&1
@@ -142,6 +205,7 @@ docker exec "$postgres_id" createdb -U pokeop recovered
 docker exec -i "$postgres_id" pg_restore -U pokeop -d recovered --exit-on-error < "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump"
 start_api "$current_id" recovered health-restored
 request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-restored 200
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then verify_sprite_storage recovered sprites-restored; fi
 python3 - "$POKEOP_REPORT_ROOT" <<'PY'
 """验证旧镜像回退和独立恢复库保留完整用户读取模型，不能只比较行数。"""
 import json

@@ -1,6 +1,8 @@
 # Go/C++ 独立运行入口
 
-状态：IN_PROGRESS。`deploy/compose.go-runtime.yaml`已经通过维护入口当前Compose2.40.3解析，Make启动/停止顺序dry-run通过，原Compose约束测试3/3通过。此前sprites overlay的2.20记录属于历史检查点。**尚未通过该新配置启动完整图库实例**；已有四角色浏览器、任务、回退/恢复证据来自`go-stack-validation.md`，不能冒充新入口已完成运行验收。
+状态：IN_PROGRESS。`deploy/compose.go-runtime.yaml`已通过维护入口Compose2.40.3解析及实际隔离启动预检；Make启动/停止顺序dry-run、原Compose约束测试3/3通过。新配置真实PG独占bind、API健康、Vue/Nginx回环端口、42项Core完整响应及离线浏览器依赖缓存均通过。**完整图库四角色重启/回滚/恢复尚未执行**；已有完整业务证据来自`go-stack-validation.md`，不能冒充该新入口的全量验收。
+
+预检证据为`Backup/PokemonBattleInference/runtime-full-20261125/preflight-ready/`，应用源码d3fbb97、镜像`pokemon-go-{server,data,frontend}:p6-d3fbb97`。PG内置SHA256与宿主独立结果相同，Core实际HTTP响应完整等于42项冻结向量。预检退出0，自有实例和网络已回收，PG目录保留。初次发现internal网络未发布前端端口，修正为普通项目bridge，仅前端发布回环；API/PG仍不发布端口。PGDATA明确指定对应bind，避免维护入口叠加继承其他目录。验收就绪检查等待正式TCP服务且目标库实际执行SELECT 1，避免initdb临时socket服务提前被判断为初始化完成。
 
 该入口保留frontend、backend、worker、postgres职责，另有一次性ops/db-init。API和Worker使用`deploy/Dockerfile.go`的Go/C++镜像，初始化器使用独立CSV镜像；运行时不含Python。默认项目为`pokemon-go-preview`、Web仅绑定`127.0.0.1:41110`，API与PG不发布宿主端口。原`docker-compose.yaml`及`make compose-*`保持原Python路径。
 
@@ -36,5 +38,7 @@ Worker版本固定为原公开任务的`battle-inference.summary-exploration.v2`
 `tools/migration/accept-go-legacy-adoption.sh`在专属空PG用原Python的RawBase和CSV importer建立177表、1,051,800条来源记录及五张上游图片样本，加入原用户配置和任务后实际接管Go。全部接管前已有raw/runtime表及序列的导出，在接管前/后/再次复用三个时点逐字节一致，统一SHA-256为`e7bed0bac2e45a6cf494f6db1d6afde015d013e001859ed81e77862fc41284d8`。这里只去除pg_dump随机执行令牌，不删除业务字段。五图是历史BYTEA保留样本，不替代完整图库导入。原始证据位于`Backup/PokemonBattleInference/legacy-adoption-20261125/python-first/`。
 
 隔离演练已证明两个已验证Go镜像之间回退、真实pg_dump及恢复到独立库后，用户配置完整JSON不变。新运行入口仍需完整素材导入、重复初始化、实例重启、当前镜像/旧镜像及独立恢复库的同轮验收。镜像回退应保留数据库，不能用down -v或清空目录实现。
+
+完整素材验收使用`PBI_STACK_RUNTIME_COMPOSE=1 bash tools/migration/validate-go-stack.sh`，额外显式提供`PBI_STACK_SPRITES_ROOT`、从固定Git树核对的`PBI_STACK_EXPECTED_SPRITE_COUNT=105947`、`PBI_SPRITES_SOURCE_COMMIT`及不存在的新`PBI_STACK_POSTGRES_DATA_ROOT`。其他固定源码、三镜像、已验证旧镜像、子网和报告变量沿用`go-stack-validation.md`。维护overlay仅增加验收客户端和资源限制，不改变实际挂载、Worker版本或探针。脚本将检查初次导入全部数量/每个BYTEA SHA，真实停止PG后在同一目录重启，复用初始化与用户配置/全图校验，再执行镜像回退及独立恢复库全图校验。此分支尚待完整素材展开完成后实际运行；不把预检或五图样本计为全量成功。
 
 正式数据库备份、生产切换和最终合并仍按原Goal由Human确认；本文不表示已执行这些操作。手机安装暂停，不把临时验证容器当成已提供给双设备的长期测试服务。
