@@ -14,7 +14,7 @@
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | PASS | 100% | 原41/41 API、任务/恢复/取消、race/vet及原库非破坏性接管通过。新HDD模式Go/PG 76通过/2专用SKIP、恢复10/10；全部1,374份正文独立SHA核验、真实Vue任务/取消/图片、四角色和PG重启、元数据备份/恢复均通过。正式NAS上线并逐个验证1,374个HTTPS图片URL，正文长度/SHA全部匹配；28.7GB全来源正文不在当前部署范围。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 95% | 原9eac125两端各10/10已完整通过；新增全图鉴图标的17a5fda逐文件SPM校验通过，Apple45572741348已通过Core、跨语言和双SDK，11项App双模拟器用例仍在运行。旧版PASS不代替新图标UI结果；双真机HUMAN_PENDING、安装暂停。 |
+| P4 iOS/iPadOS | PASS | 95% | 17a5fda Apple45572741348完整通过：两端各11/11含真实首装图片/道具图像，macOS149/149、125差分/委托通过、247外部SKIP；真实Swift→Go/PG29/29零SKIP，双SDK及未签名App成功，官方产物SHA匹配。PASS限自动化标准，双真机HUMAN_PENDING、安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 97% | 完整HDD栈/NAS/原库恢复及legacy归位验证通过；知识更新三类人工验收源已上线，真实Swift HTTPS坏SHA/取消/续传/重启/用户队列保留四项通过，独立curl中断/206续传全字节一致。最新提交CI和最终审批仍待，人工记录不代填。 |
 
@@ -80,7 +80,7 @@
 
 | 项目 | 状态 | 后续操作 |
 | --- | --- | --- |
-| macOS / Xcode 构建 | PASS | 9eac125完整Apple CI原生149/149、双SDK/未签名device App、两模拟器各10/10及真实Swift27/27通过，官方产物SHA已匹配；用户Mac此前已签名安装的旧版保留。 |
+| macOS / Xcode 构建 | PASS | 17a5fda完整Apple CI原生149/149、双SDK/未签名device App、两模拟器各11/11及真实Swift29/29通过，官方产物SHA已匹配；用户Mac此前已签名安装的旧版保留。 |
 | Apple 登录、Team、签名 | PASS | 复用用户Mac已有有效开发身份与Team；SSH签名失败后在已登录GUI会话正常构建成功，未修改Keychain ACL或读取密码。 |
 | iPhone/iPad 安装及验收 | HUMAN_PENDING | iPhone15Pro已真实安装并启动，用户已亲自完成开发者信任；图标版也已安装启动。双设备完整人工验收、iPad物理安装和体验仍待完成。 |
 | NAS新Go服务及域名反代 | PASS | pokemon.mental1104.xyz已提供Web、API和知识包；HDD图标版本已升级，1,374个图片URL逐一SHA校验及真实浏览器通过。 |
@@ -324,3 +324,9 @@ legacy-layout-20261125/integrated-r2实际回归：原Python/自有PG577/577通�
 生成器4/4通过，Ruff/strict mypy两文件通过；逐表完整比较事实、源字节不变、负例只有摘要变化、既有目录保护和损坏源拒绝均验证。首轮Ruff嵌套with提示已修正，原日志保留。Nginx预检首轮因自有tmpfs缓存目录缺CHOWN失败，维护服务只补该能力后成功，不扩大通用模板权限。
 
 knowledge-update-acceptance-20261125/swift-update-r2.log真实KnowledgeUpdateTests四项PASS、零SKIP（1.933秒）；使用匹配GNU13/Swift的原固定.11 archives，未重编译/覆盖Core。新NAS测试经过正式TLS/生产客户端：坏SHA明确拒绝；收到8,192字节后取消，旧指针不变且保留8,192字节暂存；重建actor后成功安装验收版本，再重启可查询212/攻击130；用户配置记录和待同步队列完整JSON前后逐字不变。独立curl实测限速4秒超时28保留16,384字节，206续传后完整SQLite与HDD交付物相同，原知识URL和212图片逐字保留。Human E仍HUMAN_PENDING，供验收环境准备PASS；P6估算95%→97%，整体96%→97%。
+
+## 全图鉴图标版Apple完整终态
+
+17a5fda的Apple45572741348已完整成功，未在运行中推送取消；实际测试合并树e5e0a5c9f7892f975f09c6ad9fd4abc40d3bf04c。macOS149/149 CTest、125差分/委托PASS和247外部SKIP；双SDK/未签名device App成功。真实Swift→Go/PG/daemon29/29零SKIP（6.019秒），含两项实际BundledIconTests。iPhone11/11（770.480秒）、iPad11/11（653.825秒）零失败；新道具图像用例21.585/26.429秒通过，首装图鉴真实图片和既有所有严格断言保留。P4重新达到新版本自动化PASS/95%，不代填双真机体验。
+
+artifact15005981797为72,084,777字节，实际下载SHA238b04ae4ba761cffb4791dce3c1c487c4b9e1d06492b4f04ffc2bde8486924f与官方一致，ZIP测试/解压成功；产物与SDK/App/两端xcresult/完整真实Swift和知识HTTP报告在apple-17a5fda-20261125/，临时下载配置已删除。此前运行中日志BlobNotFound只当观察缺口，未重启任务；终态后取回实际日志及产物。后续legacy和NAS更新测试独立记录，不混入此CI数字。

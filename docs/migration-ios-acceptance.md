@@ -1,12 +1,16 @@
 # P4 原生应用阶段验收
 
-当前状态：IN_PROGRESS，工程估算95%。9eac125的原功能自动化标准已PASS；17a5fda新增全图鉴离线图标和第11项道具图像UI验收，新的双模拟器CI尚未结束，不能继承旧版PASS。双真机最终体验保持HUMAN_PENDING，用户暂停后续安装的要求不变。
+当前状态：PASS（自动化标准），工程估算95%。17a5fda全图鉴图标版已由完整双模拟器复验，两端各11/11通过；双真机最终体验保持HUMAN_PENDING，用户暂停后续安装的要求不变。
 
-新图标资源已通过真实SwiftSPM打包后逐项SHA/PNG/尺寸检查：1,350条宝可梦记录、5道具、19属性，共1,374张20,079,618字节，两端资源字节相同。Apple45572741348的Core、跨语言和双SDK步骤已通过，App/iPhone/iPad步骤仍在运行。下列旧PASS表格仅保留9eac125当时的原功能证据。
+新图标资源已通过真实SwiftSPM打包后逐项SHA/PNG/尺寸检查：1,350条宝可梦记录、5道具、19属性，共1,374张20,079,618字节，两端资源字节相同。以下新完整结果覆盖新增首装图片/道具图像断言；旧记录保留原功能和失败修复依据。
 
 ## 固定证据
 
-最新[Apple run45548203813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45548203813)完整成功，head为9eac12549da746e49ae2d231dd2220cdd8731399，实际测试合并树77e00c11ae117f6b4b2ccd4f36497695f092b615。macOS149/149 CTest、112差分/委托PASS及247外部环境SKIP单列，双SDK静态库和未签名device App成功。真实Swift→Go/PG/daemon27/27零SKIP，6.325秒。
+最新[Apple run45572741348](https://github.com/mental1104/PokemonBattleInference/actions/runs/45572741348)完整成功，head为17a5fdac3567c4da0f855fe69efe29935a5a8087，实际PR测试合并树e5e0a5c9f7892f975f09c6ad9fd4abc40d3bf04c。macOS149/149 CTest、125差分/委托PASS及247外部环境SKIP，双SDK和未签名device App成功；真实Swift→Go/PG/daemon29/29零SKIP，6.019秒。iPhone11/11零失败770.480秒，iPad11/11零失败653.825秒；新增道具图像用例分别21.585/26.429秒通过，首装宝可梦详情真实Image断言及全部既有离线/重启/在线/同步断言保留。
+
+官方artifact15005981797为72,084,777字节，下载SHA `238b04ae4ba761cffb4791dce3c1c487c4b9e1d06492b4f04ffc2bde8486924f`与GitHub官方一致，ZIP完整性检查通过；SDK/App、两端xcresult、真实Swift日志和知识HTTP证据保存在Backup/PokemonBattleInference/apple-17a5fda-20261125/，临时下载配置已删除。后续新增的NAS更新测试已在Linux真实Swift HTTPS四项零SKIP通过，属于独立证据；不混入本次旧CI计数。真机未更新、安装或启动。
+
+以下[Apple run45548203813](https://github.com/mental1104/PokemonBattleInference/actions/runs/45548203813)是此前完整成功，head为9eac12549da746e49ae2d231dd2220cdd8731399，实际测试合并树77e00c11ae117f6b4b2ccd4f36497695f092b615。macOS149/149 CTest、112差分/委托PASS及247外部环境SKIP单列，双SDK静态库和未签名device App成功。真实Swift→Go/PG/daemon27/27零SKIP，6.325秒。
 
 iPhone10/10零失败601.470秒，iPad10/10零失败649.435秒，两个退出码均0。首装招式详情分别29.773/55.261秒通过，保留真实“威力, 40”完整字段断言；保存/重启后的实际重算分别55.919/76.604秒通过，99–117和123/128不变。正式artifact14994448373共67,513,856字节，本机下载SHA `3270d84a8e6ef891985e747f1c65cb18ac8253331f1d97cfb22cbaf2ad2eb112`与GitHub官方相同，完整日志/xcresult/SDK/App/附件私有保存在`Backup/PokemonBattleInference/apple-9eac125-20261125/`，下载配置已删除。到a3f0ff7为止，Core、contracts、ios、Apple工作流及构建脚本与该验证版本无差异；不把之后的独立参考目录准备冒充同一次平台验证。
 
