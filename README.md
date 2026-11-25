@@ -2,7 +2,7 @@
 
 宝可梦对战推演与伤害计算 Monorepo：C++20 计算引擎、Go/PostgreSQL 在线服务、SwiftUI 离线客户端，以及保留的 Vue 前端。
 
-迁移在独立分支进行，当前生产尚未切换。原 Python 实现和测试保留作为行为参考及兼容入口；完整图库部署验收仍在进行。实际阶段结果、失败记录和人工验收状态以[进度与恢复入口](docs/migration-progress.md)为准，原行为映射见[迁移基线](docs/migration-baseline.md)。
+迁移在独立分支进行，Go/C++服务已按授权部署到NAS，入口为[宝可梦对战推演](https://pokemon.mental1104.xyz/)。原Python实现和测试保留作为行为参考及兼容入口；Swift和服务端均有全1,350条宝可梦记录的菜单图标，服务端正文存HDD、数据库只存元数据。实际阶段结果、失败记录和人工验收状态以[进度与恢复入口](docs/migration-progress.md)为准，原行为映射见[迁移基线](docs/migration-baseline.md)。
 
 | 用途 | 入口 |
 | --- | --- |
@@ -39,11 +39,11 @@ PokemonBattleInference/
 └── run.sh
 ```
 
-原 Python 实体位于 `legacy/pokeop/`，根 `pokeop` 软链保留原导入名；CSV软链与common/素材根定位已按新层级调整，运行数据不随源码移动。此布局在独立工作树验证，完整替代验收后再纳入主迁移分支。
+原Python实体位于`legacy/pokeop/`，根`pokeop`软链保留原导入名；CSV软链与common/素材根定位已按新层级调整，运行数据不随源码移动。布局已在独立工作树验证，Go替代完整验收通过后纳入当前迁移分支；原Python功能和测试仍保留。
 
 ## Go/C++ 与原生客户端开发
 
-Go 运行入口为 `deploy/compose.go-runtime.yaml` 和独立的 `make go-compose-*`。显式配置固定源码、独占 PostgreSQL 目录、完整图片来源、镜像和已核对的子网后，按[运行说明](docs/go-runtime.md)执行初始化与启动。默认 Web 为回环 `127.0.0.1:41110`，API/PG 不发布宿主端口；运行镜像不包含 Python。完整素材导入、PG 重启和全图备份恢复尚待同轮验收，不能把现有普通模式回归当作完整图库发布完成。
+Go运行入口为`deploy/compose.go-runtime.yaml`和独立的`make go-compose-*`。显式配置固定源码、独占PostgreSQL目录、已验证的HDD图片小包、镜像和已核对的子网后，按[运行说明](docs/go-runtime.md)执行初始化与启动。默认Web为回环`127.0.0.1:41110`，API/PG不发布宿主端口；运行镜像不包含Python。全部1,374张图片的HDD/HTTPS校验、PG重启与元数据备份恢复已通过；不部署28.7GB全来源素材。实际NAS入口复用现有PG，配置及回退说明见[NAS部署](docs/nas-deployment.md)。
 
 SwiftUI 工程、Core 静态库、模拟器测试与真机验收分别见 [ios/README.md](ios/README.md) 和[验收手册](docs/iphone-ipad-acceptance.md)。Apple 签名、设备安装和最终使用体验保持各自授权边界，模拟器成功不代填人工验收。
 

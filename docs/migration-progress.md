@@ -16,7 +16,7 @@
 | P3 Go 服务端 | PASS | 100% | 原41/41 API、任务/恢复/取消、race/vet及原库非破坏性接管通过。新HDD模式Go/PG 76通过/2专用SKIP、恢复10/10；全部1,374份正文独立SHA核验、真实Vue任务/取消/图片、四角色和PG重启、元数据备份/恢复均通过。正式NAS上线并逐个验证1,374个HTTPS图片URL，正文长度/SHA全部匹配；28.7GB全来源正文不在当前部署范围。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 95% | 原9eac125两端各10/10已完整通过；新增全图鉴图标的17a5fda逐文件SPM校验通过，Apple45572741348已通过Core、跨语言和双SDK，11项App双模拟器用例仍在运行。旧版PASS不代替新图标UI结果；双真机HUMAN_PENDING、安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
-| P6 部署与回归 | IN_PROGRESS | 93% | 17a5fda完整HDD栈通过，实际拒绝不支持HDD图片的旧镜像，再回到已验收版本；配置和图片恢复一致。NAS三角色已升级p6-sv-filesystem-r1，原库复用、真实HTTPS严格图片浏览器及42项Core完整响应通过，PG无图片正文；原知识数据仅新增预期图片索引。legacy归位待纳入，新App CI和最终审批仍待。 |
+| P6 部署与回归 | IN_PROGRESS | 95% | 完整HDD栈及NAS三角色升级通过，全部图片HTTPS校验与原库备份恢复一致。2036989已归位legacy，集成后原Python/PG577、布局/知识6、迁移差分126通过；247外部SKIP单列。覆盖率入口461项/84%，实际Python兼容镜像构建及镜像内3项通过。新App CI、知识更新人工下载源和最终审批仍待。 |
 
 ## 已确认的边界与决策
 
@@ -72,7 +72,7 @@
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。
 - 用户完成iPhone15Pro首版安装与开发者信任后，明确要求“先不装，先继续迭代”。保留已有App，后续只进行代码/CI工作，不自动更新、安装或启动手机；这不暂停原重构Goal。
 - 初始common/pokeapi分别固定39e85858、1567d530；2026-11-25用户明确授权后common更新为9624d2a并完成兼容回归，pokeapi版本保留。旧基线和数据来源仍可追溯。
-- Python 的 `pokeop/` 暂时保留原路径，避免在替代能力验证前破坏导入、CSV symlink、测试或部署；最终迁往 `legacy/`。
+- Python实体已在完整Go替代/HDD/NAS验收后归入`legacy/pokeop/`，根`pokeop`保留兼容软链；原Python业务和测试不删除，固定CSV/common及静态资源路径已调整并复验。
 - PostgreSQL 测试会删除测试 schema，因此只允许连接本次创建的临时 PostgreSQL；禁止填入生产 URL。验证服务不发布数据库端口。
 - NAS 宿主 Python 为 3.8.15，未发现宿主 C++/CMake/Go/Swift；用声明的 `maintenance` 服务执行一次性 Python 3.11/C++ 验证，源码只读、输出路径独立。
 
@@ -308,3 +308,11 @@ filesystem-assets-20261125/runtime-r1完整入口退出0。PG独立导出1,374�
 NAS已定向升级三个应用角色，未重启共享PG或调整其他服务/DSM规则。正式原知识/配置保持；全表摘要只改变预期的图片资产、导入批次和两张图片物化视图。原库复用CSV不重新导入，新增1,374图片元数据。正式HDD再次逐文件核验通过；browser-filesystem-r1正常TLS严格图片浏览器PASS。额外独立curl逐个请求全部1,374个公开图片URL，返回SHA/长度与Git清单逐项相同，包括全部1,350条宝可梦记录、5道具和19属性。三个应用真实重启后完整配置JSON及212图片逐字保留；新正式备份已生成。P3达到PASS/100%，P6估算87%→93%，整体95%→96%；新App UI和Human事项仍未算通过。
 
 新正式备份SHA清单通过，recovery-r3隔离PG17完整恢复退出0，全部表完整摘要及1,374条图片元数据逐字相同。前两轮临时恢复分别缺原对象所有者espeon、以及没有复现其源库superuser读表权限而失败；原始日志保留。第三轮仅在无宿主端口的自有tmpfs实例建立NOLOGIN/SUPERUSER所有者角色后成功，未改生产权限。全部自有恢复实例/网络已回收，HDD正文不在PG归档中，Git资源包和固定HDD快照另行保留。
+
+## 完整替代验收后的Python参考归位
+
+在Go/HDD/NAS完整替代验收通过后，将已准备的4265989以2036989纳入迁移分支。Python实体归入legacy/pokeop，根pokeop仅为兼容软链；原业务/测试保留。CSV软链、common根、历史素材根和Docker COPY按真实层级调整，README和项目Skill同步更新；NAS仍运行固定17a5fda镜像，未重新切换生产。
+
+legacy-layout-20261125/integrated-r2实际回归：原Python/自有PG577/577通过（20.17秒），布局/知识包6/6通过（2.35秒），均零SKIP；Ruff/strict mypy通过。首轮因NAS ACL使新测试文件可执行而触发EXE002，按Git原100644权限修正后复验，失败日志保留。make coverage改为legacy实体路径，领域/应用层461项通过（32.10秒），84%覆盖率；未修改阈值或数学断言。
+
+固定.11 Core产物未经重编译/覆盖，通过Makefile正式导出的所有runner再次执行迁移参考测试：126 PASS、247明确外部SKIP，96.06秒。独立Go/Swift原生委托未在此轮重复，相关源码与17a5fda无变化，原实测保留。Python兼容镜像pokemon-python-reference:legacy-2036989由nas-shared完整构建，实际ID sha256:618f72e3c851adea8f29ad507b3ad73f0d8e1ce3bf90dee395ae09a129f34f41，682,614,903字节；无网络/只读/仅挂测试文件且不挂源码，镜像内部3/3布局、静态资源和新解释器common来源测试通过（2.33秒）。声明入口为deploy/compose.legacy-image-validation.yaml，镜像不部署到NAS业务。P6工程估算93%→95%。

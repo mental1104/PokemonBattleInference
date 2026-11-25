@@ -106,7 +106,8 @@ test-core:
 	ctest --test-dir "$(CORE_BUILD_DIR)" --output-on-failure
 
 coverage:
-	pytest --cov=pokeop/domain --cov=pokeop/application --cov-report=term-missing
+	# 按参考实现实体路径统计覆盖率；根pokeop只保留原导入名兼容。
+	pytest --cov=legacy/pokeop/domain --cov=legacy/pokeop/application --cov-report=term-missing
 
 setup:
 	# 1) 创建虚拟环境
