@@ -6,7 +6,7 @@
 
 最新完整[Apple CI 45535685587](https://github.com/mental1104/PokemonBattleInference/actions/runs/45535685587)对应b797c19及PR测试合并树797cefd：macOS149/149原生测试、112差分/委托通过（247外部环境SKIP单列），iPhoneOS/Simulator静态库和未签名device App构建通过，真实Swift→Go/PG/daemon27/27零SKIP。iPhone与iPad模拟器分别9/9通过，包含真实在线计算来源/版本、任务完成/取消、两模拟器同步、保存/重启及iPad横屏。官方产物已下载核验SHA并私有保存。
 
-阶段逐项依据及未完成项见[原生应用验收](../docs/migration-ios-acceptance.md)。本轮新增第10项首装招式详情UI测试，并在已有保存/重启用例中补实际离线重算；这些新增断言尚待下一轮CI，不能混入已完成的9/9结果。P4保持IN_PROGRESS。
+阶段逐项依据及未完成项见[原生应用验收](../docs/migration-ios-acceptance.md)。6bd30c9的Apple45543244271两端均9/10：保存/重启后实际离线重算通过，新增招式查询的独立`40`节点断言失败。两端原始附件均显示合并字段`威力, 40`；测试改为精确核对完整字段，等待新CI，不把未复验的修正计为通过。P4保持IN_PROGRESS。
 
 本地在同环境构建Core后，使用`make test-native`或`bash tools/migration/test-swift.sh "$PWD/build/core"`。桥接脚本按两个archive的SHA隔离Swift scratch，避免链接过期Core。Apple库构建由`tools/migration/build-apple-core.sh`负责；实际App和双模拟器验证由`tools/migration/validate-apple-app.sh`负责，不需要Apple Account或真机签名。
 

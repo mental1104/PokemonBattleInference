@@ -52,7 +52,11 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertTrue(move.waitForExistence(timeout: 10), "Bundled database must return Bullet Punch")
         move.tap()
         XCTAssertTrue(app.staticTexts["bullet-punch"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["40"].waitForExistence(timeout: 10), "Move detail must show the real power")
+        // 两端真实附件均显示LabeledContent合并为“威力, 40”；完整字段精确匹配，不能只查独立数值。
+        let power = app.staticTexts["威力, 40"]
+        reveal(power)
+        XCTAssertTrue(power.waitForExistence(timeout: 10), "Move detail must show the real power")
+        XCTAssertEqual(power.label, "威力, 40")
         capture("first-install-move-detail")
     }
     /// 默认输入通过真实 Core 返回共享向量；麻痹重算体现输入绑定确实进入引擎。
