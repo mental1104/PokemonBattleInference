@@ -20,6 +20,8 @@
 
 ## 已确认的边界与决策
 
+- 用户明确要求更新清理后的common并回归。迁移分支gitlink已从39e85858改为远端main9624d2a，子模块内容干净、origin规范为GitHub。原业务/真实PG571/571零SKIP，迁移111 PASS/248环境SKIP、两套工具链各149/149、Vue95/95及生产构建通过。Swift本地21 PASS/6在线SKIP后，真实Go/PG/daemon联调27/27零SKIP（15.662秒）补齐。无兼容补丁；原P0/benchmark历史不改写。完整证据及外层会话143/继续完成其余检查的说明见common-compatibility.md。当前Apple45543244271仍执行6bd30c9的新增10项UI验收，后续提交待其终态后统一推送，避免取消在跑的实际验证。
+
 - Apple run45535685587已取回完整成功结果：iPhone9/9（625.391秒）、iPad9/9（478.275秒）、退出码均0；macOS149/149、112PASS/247外部SKIP，真实Swift27/27零SKIP。官方artifact14989082234为63,013,028字节，下载SHA e4e512527610884def4e39856fbc5ab1de0f44d9dec784fa8d9729a55be8641e与官方一致。日志/xcresult/截图/时间线私有归档，下载配置已删除。P4逐项审查见migration-ios-acceptance.md；新增首装招式详情及重启后实际离线重算断言尚待新CI，不拿旧9/9冒充新增已通过。ios/README已更新实际应用状态，移除“尚未实现”的过期描述。
 
 - 全量Git检出真实终止128：约5.9GiB传输后early EOF/invalid index-pack，非观察超时。保留原始中断pack的reflink副本，正在离线unpack恢复完整对象，再补缺失项；未直接重复下载整个大包。新运行配置的maintenance overlay及真实PG重启、全部BYTEA SHA核对、独立恢复库核对已编写，Compose2.40.3解析通过，完整图库尚未就绪因此未实跑，不算P6通过。
@@ -51,7 +53,7 @@
 - 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不切换生产。2026-11-24 用户明确要求“先拿 github CI 测”，已授权推送本分支并开 Ready PR 以运行 CI；不启用自动合并。
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。
 - 用户完成iPhone15Pro首版安装与开发者信任后，明确要求“先不装，先继续迭代”。保留已有App，后续只进行代码/CI工作，不自动更新、安装或启动手机；这不暂停原重构Goal。
-- `common` 与 `pokeapi` 从现有本地 submodule 初始化，分别固定于 `39e85858`、`1567d530`；没有更新上游版本。
+- 初始common/pokeapi分别固定39e85858、1567d530；2026-11-25用户明确授权后common更新为9624d2a并完成兼容回归，pokeapi版本保留。旧基线和数据来源仍可追溯。
 - Python 的 `pokeop/` 暂时保留原路径，避免在替代能力验证前破坏导入、CSV symlink、测试或部署；最终迁往 `legacy/`。
 - PostgreSQL 测试会删除测试 schema，因此只允许连接本次创建的临时 PostgreSQL；禁止填入生产 URL。验证服务不发布数据库端口。
 - NAS 宿主 Python 为 3.8.15，未发现宿主 C++/CMake/Go/Swift；用声明的 `maintenance` 服务执行一次性 Python 3.11/C++ 验证，源码只读、输出路径独立。

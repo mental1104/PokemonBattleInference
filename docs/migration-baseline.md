@@ -11,7 +11,7 @@
 - `legacy-schema.v1.sql`：179 张原始知识表和 6 张业务运行表的表、约束与索引参考。它是生成快照，**不是升级脚本，不应执行**。
 - `SHA256SUMS`：快照校验值。物化视图继续以 `pokeop/persistence/views/sql/poke_champion/*.sql` 的 8 个 SQL 文件为权威来源，不能用表 DDL 快照替代。
 
-当前 `common` 固定于 `39e85858e7b1cefe0a5916b01b6bbf5a59f6d0a1`，`pokeapi` 固定于 `1567d53073a069b6c96e1c393c5c490f602e3ab5`。迁移没有更新 submodule。`pokeop/assets_data` 是指向 PokeAPI CSV 的相对软链，目录调整时必须维持数据来源。
+初始基线的`common`固定于`39e85858e7b1cefe0a5916b01b6bbf5a59f6d0a1`，`pokeapi`固定于`1567d53073a069b6c96e1c393c5c490f602e3ab5`，本报告及原benchmark保留当时版本。2026-11-25用户明确授权后，迁移分支的common更新为清理后的`9624d2a860ff39eb39b4a972a624c36fde986097`，完整兼容结果见[common兼容回归](common-compatibility.md)；PokeAPI数据版本未变。`pokeop/assets_data`是指向PokeAPI CSV的相对软链，目录调整时必须维持数据来源。
 
 ## 功能与模块归属
 
