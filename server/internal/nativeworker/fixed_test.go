@@ -1,11 +1,13 @@
 package nativeworker_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"pokemonbattleinference/server/internal/jobs"
 	"testing"
@@ -20,6 +22,8 @@ type fixedOperation struct {
 	DefenderPolicy   string          `json:"defender_policy"`
 	Observer         string          `json:"observer"`
 	IncludeGraph     bool            `json:"include_graph"`
+	GraphMode        string          `json:"graph_mode"`
+	Explanation      bool            `json:"include_root_action_explanation"`
 	ProgressInterval int             `json:"progress_interval"`
 	Limits           struct {
 		Nodes int `json:"max_nodes"`
@@ -55,6 +59,7 @@ func fixedRequest(t *testing.T, observer string, nodes int) json.RawMessage {
 			continue
 		}
 		operation.Observer, operation.ProgressInterval, operation.IncludeGraph = observer, 1, false
+		operation.GraphMode, operation.Explanation = "configuration_summary", true
 		operation.Limits.Nodes, operation.Limits.Edges, operation.Limits.Turns = nodes, 200, 10
 		request, err := json.Marshal(struct {
 			Schema     int              `json:"schema_version"`
@@ -69,7 +74,8 @@ func fixedRequest(t *testing.T, observer string, nodes int) json.RawMessage {
 	return nil
 }
 
-// TestFixedBattlePersistsRealProgressAndExactSummary 实际由初始状态/知识构建战斗图，经 NDJSON 子进程落 PG 统计与精确摘要。
+// TestFixedBattlePersistsRealProgressAndExactSummary 经真实摘要构图/NDJSON/PG保存精确结果和完整业务归因。
+// t 拥有独占数据库；额外独立执行同一冻结输入，核对业务说明原样落库与实际版本来源分离。
 func TestFixedBattlePersistsRealProgressAndExactSummary(t *testing.T) {
 	store, _, options := database(t)
 	value := definition("fixed-one-on-one-job-actual-battle", options.Revision, 2)
@@ -106,19 +112,8 @@ func TestFixedBattlePersistsRealProgressAndExactSummary(t *testing.T) {
 			item.Progress.ExpandedNodes != 1 || item.Progress.Frontier != 0 {
 			t.Fatalf("real final progress was not persisted: %+v", item.Progress)
 		}
-		var metadata struct {
-			Operation string `json:"operation"`
-			Engine    string `json:"engine_version"`
-			Rules     string `json:"rules_version"`
-		}
 		if result.Explanation == nil {
-			t.Fatal("versioned input metadata is absent")
-		}
-		if err := json.Unmarshal([]byte(*result.Explanation), &metadata); err != nil {
-			t.Fatal(err)
-		}
-		if metadata.Operation != "fixed_battle" || metadata.Engine != options.EngineVersion || metadata.Rules == "" {
-			t.Fatalf("invalid version metadata: %+v", metadata)
+			t.Fatal("root action attribution is absent")
 		}
 		// 独立辅助表保存实际child版本与最终请求SHA；不从提交Definition或旧explanation回填。
 		provenance, err := store.ResultMetadata(context.Background(), value.ID, item.Definition.PairID)
@@ -135,9 +130,37 @@ func TestFixedBattlePersistsRealProgressAndExactSummary(t *testing.T) {
 		if len(actualRequest) == 0 {
 			t.Fatal("the frozen case request is absent")
 		}
+		// 使用独立真实 child 读取完整对象，而不是在 Go 测试里重做归因或只核对版本标签。
+		command := exec.Command(options.Executable)
+		command.Stdin = bytes.NewReader(actualRequest)
+		response, err := command.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var native struct {
+			Rules   string `json:"rules_version"`
+			Results []struct {
+				Explanation json.RawMessage `json:"root_action_explanation"`
+			} `json:"results"`
+		}
+		if err := json.Unmarshal(response, &native); err != nil || len(native.Results) != 1 {
+			t.Fatalf("invalid independent native result: %s err=%v", response, err)
+		}
+		var expectedExplanation, storedExplanation bytes.Buffer
+		if err := json.Compact(&expectedExplanation, native.Results[0].Explanation); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Compact(&storedExplanation, []byte(*result.Explanation)); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(expectedExplanation.Bytes(), storedExplanation.Bytes()) ||
+			!bytes.Contains(storedExplanation.Bytes(), []byte(`"version":"battle-inference.explanation.v1"`)) ||
+			bytes.Contains(storedExplanation.Bytes(), []byte(`"engine_version"`)) {
+			t.Fatalf("stored business explanation differs from Core: %s", storedExplanation.String())
+		}
 		digest := sha256.Sum256(actualRequest)
 		if provenance.InputSHA256 != hex.EncodeToString(digest[:]) || provenance.InputSchemaVersion != 1 ||
-			provenance.Operation != "fixed_battle" || *provenance.EngineVersion != options.EngineVersion || *provenance.RulesVersion != metadata.Rules {
+			provenance.Operation != "fixed_battle" || *provenance.EngineVersion != options.EngineVersion || *provenance.RulesVersion != native.Rules {
 			t.Fatalf("execution metadata does not describe the real request/response: %+v", provenance)
 		}
 	}

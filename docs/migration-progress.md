@@ -4,7 +4,7 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **86%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **87%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
 
 2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
 
@@ -13,12 +13,14 @@
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | IN_PROGRESS | 92% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；包含原Summary/完整业务归因、透明context、状态门禁和snapshot。任务消费者真实PG/child 11/11 race通过；尚须完成新benchmark对照和平台回归。 |
 | P2 跨语言集成 | IN_PROGRESS | 85% | .11 Go已实际调用42共享样本；.10 Swift共享39及真实服务27/27通过。新版.11 Swift/Apple未验证，不能借旧版绿灯标记PASS。 |
-| P3 Go 服务端 | IN_PROGRESS | 92% | 原41/41 API均有实际验证覆盖：新增step9、dragonite8、casegraph20项通过。新版业务归因消费者真实PG/child/daemon 11/11 race/vet通过；公开HTTP任务完整结果及预算语义正在串行对照。仅38项已在b476d0f之前发布，后续切片仍待保存整合。 |
+| P3 Go 服务端 | IN_PROGRESS | 94% | 原41/41 API均有实际验证覆盖：新增step9、dragonite8、casegraph20项通过。新版业务归因消费者真实PG/child/daemon 11/11 race/vet通过，公开HTTP创建/完整结果/三类预算20/20零SKIP通过。仅38项已在b476d0f之前发布，后续路由切片仍待保存整合；最新版Web及跨实现整套仍待收口。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 80% | c0双模拟器各9/9、图标版0.8.0(2)已实际iPhone15Pro启动。新增实际执行溯源HTTP/Swift链27/27通过；iPhone在线按钮被导航栏遮挡的UI修复尚待新CI。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 65% | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。最新版带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- 2026-11-25串行检查点：`6d12312`保存正式Core 0.11（149原生/111差分委托、42共享样本），新任务归因接线另批保存。`serial-resume-20261125/dragonite/`真实原HTTP8/8通过（2.66秒），原fake-out-pressure实际因moves维度为空返回422，测试完整比较原错误JSON；没有通过Go提升机制支持。新测试ruff/strict mypy通过。`job-results-final2/`实际公开任务20/20通过（39.79秒），之前两批17/20失败均保留，差异只在原诊断文本。`go-all-abi11/`正式.11及独占PG完整Go **66 PASS / 1专用Swift serve夹具SKIP**，额外恢复 **10/10 PASS**；race/vet、全CSV首次/复用、独立HTTP读取均通过。新版Swift/Apple尚未复验。
 
 - 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不切换生产。2026-11-24 用户明确要求“先拿 github CI 测”，已授权推送本分支并开 Ready PR 以运行 CI；不启用自动合并。
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。

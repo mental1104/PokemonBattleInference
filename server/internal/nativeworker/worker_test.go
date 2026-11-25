@@ -180,7 +180,7 @@ func waitJob(t *testing.T, store *jobs.Store, id string, predicate func(jobs.Job
 	return jobs.Job{}
 }
 
-// TestNativeJobPersistsExactResultAndRestart 实际执行子进程，比较攻守视角、版本档案、进度和新实例重试幂等。
+// TestNativeJobPersistsExactResultAndRestart 实际执行图子进程，比较攻守视角、独立版本档案、空业务归因和重试幂等。
 func TestNativeJobPersistsExactResultAndRestart(t *testing.T) {
 	store, db, options := database(t)
 	value := definition("fixed-one-on-one-job-native-exact", options.Revision, 3)
@@ -205,8 +205,12 @@ func TestNativeJobPersistsExactResultAndRestart(t *testing.T) {
 		if *result.AttackerWin != (jobs.Fraction{Numerator: "1", Denominator: "3"}) || *result.DefenderWin != (jobs.Fraction{Numerator: "2", Denominator: "3"}) || *result.Draw != (jobs.Fraction{Numerator: "0", Denominator: "1"}) || result.ExpectedTurns.Kind != "finite" || *result.ExpectedTurns.Value != (jobs.Fraction{Numerator: "1", Denominator: "1"}) {
 			t.Fatalf("native result changed exact probabilities: %+v", result)
 		}
-		if result.Explanation == nil || !json.Valid([]byte(*result.Explanation)) {
-			t.Fatal("native version metadata is missing")
+		if result.Explanation != nil {
+			t.Fatal("graph operation invented a business explanation")
+		}
+		metadata, err := store.ResultMetadata(context.Background(), value.ID, item.PairID)
+		if err != nil || metadata == nil || metadata.EngineVersion == nil || *metadata.EngineVersion != options.EngineVersion {
+			t.Fatalf("independent native version metadata is missing: %+v err=%v", metadata, err)
 		}
 	}
 	options.Owner = "native-owner-after-restart"

@@ -2,6 +2,18 @@
 
 `server/cmd/pbi-worker` 从 PostgreSQL 的冻结 Go 任务定义领取工作，通过独立 `pbi-core-worker` 进程计算，再将结果和计数原子提交到原运行表。它不调用 Python、不在 Go 重写概率或战斗规则，也不会领取没有 Go 冻结定义的旧 Python 任务。
 
+## 2026-11-25 摘要与业务归因接线
+
+新建configuration/fixed任务通过同一模板显式冻结`graph_mode=configuration_summary`及`include_root_action_explanation=true`。旧持久模板继续按原字节执行；Full浏览图及按需重算入口不使用Summary。成功结果的`explanation_json`保存同次Core返回的完整`battle-inference.explanation.v1`对象，缺失/null保持nil。引擎、规则及最终请求SHA继续使用独立`go_case_result_metadata`，不再放入业务归因字段。
+
+`serial-resume-20261125/worker-abi11/`记录正式.11真实PG/child/daemon **11/11 race通过（4.181秒）**及vet。固定战斗以另一次真实child结果核对完整保存说明；显式graph不生成说明，实际来源仍可独立读取。
+
+`PBI_VALIDATION_CORE_DIRECTORY=/build/root-summary-abi11 bash tools/migration/accept-go-job-submission.sh`的最终证据在`serial-resume-20261125/job-results-final2/`：独占空PG、全量CSV、真实Go API/daemon和原Python独立协调器 **20/20 PASS，零SKIP（39.79秒）**。成功配置完整结果（含完整根行动归因）及节点/边/回合三类预算逐字段一致，44,100配置真实创建/运行取消和共享定义保留。归一仅独立任务ID与时刻，配置身份、概率、计数、诊断和解释均未省略。
+
+`job-results-first/`及`job-results-final/`保留两次17通过/3失败。差异仅截断诊断：旧Go通用文本和纯Core通用solver说明均不是原持久任务DTO文本。适配层依据实际truncations按原顺序格式化原因/solver说明，保持节点→边→回合失败码优先级；没有更改Core数学、构图、共享向量、预算或断言。最终完整公开对照证明修复。
+
+随后`PBI_VALIDATION_CORE_DIRECTORY=/build/root-summary-abi11 bash tools/migration/validate-go-server.sh`在主工作树组合上完整执行，`serial-resume-20261125/go-all-abi11/`记录 **66 PASS / 1专用Swift serve夹具SKIP**及额外恢复 **10/10 PASS**，race/vet及六条独立HTTP读取通过。该全量测试包含最新nativeworker全部11项；唯一SKIP不当作Swift实际验收。新增Python结果测试ruff/strict mypy通过，原生archive仍为同一冻结.11。
+
 当前可执行单个正式 `graph` 或 `fixed_battle` 批次；后者从完整初始状态及冻结知识实际构图、SCC 分解并精确求解，保存真实资源统计与覆盖说明。配置候选到任务的完整 HTTP 创建链仍在迁移，不能将本切片当作 P3/P6 已完成。
 
 任务首次领取与过期恢复都匹配明确的 calculation revision；运行时按冻结规格的 process_count 并行，最多八个原生子进程。只有有效 owner 才能续租和写结果，失去租约立即回收自己的子进程。队列、用例与稳定结果都在 PostgreSQL 中，daemon 重启不会丢弃已提交用例或重复增加完成计数。

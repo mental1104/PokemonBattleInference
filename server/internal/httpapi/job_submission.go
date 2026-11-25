@@ -533,6 +533,10 @@ func (handler jobSubmissionHandler) template(ctx context.Context, request jobSub
 		}{spec, result.Classes[0].Actual.HP, []json.RawMessage{sides[index].pool[0].Slot}}
 	}
 	operation := map[string]any{"kind": "fixed_battle", "state": map[string]any{"attacker": battlers[0], "defender": battlers[1], "rules": map[string]any{"ruleset_id": request.Ruleset, "version_group_id": request.Version, "level": request.Attacker.Fixed.Level, "max_turns": request.Execution.MaxTurns}}, "type_chart": snapshot.Chart, "attacker_policy": request.AttackerPolicy, "defender_policy": request.DefenderPolicy, "observer": "attacker", "graph_limits": map[string]any{"max_nodes": request.Execution.MaxNodes, "max_edges": request.Execution.MaxEdges, "max_turns": request.Execution.MaxTurns}, "max_equation_nodes": nil, "include_graph": false, "progress_interval": 100}
+	// 新任务冻结原 worker 的摘要构图与完整根行动归因；已入库的旧模板继续按原冻结输入执行。
+	// 浏览图入口仍显式使用 Full，不把摘要的预算/计数语义混入导航缓存。
+	operation["graph_mode"] = "configuration_summary"
+	operation["include_root_action_explanation"] = true
 	encoded, err := json.Marshal(struct {
 		Version    int   `json:"schema_version"`
 		Operations []any `json:"operations"`

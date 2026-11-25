@@ -6,6 +6,8 @@ import (
 	"errors"
 	"math"
 	"pokemonbattleinference/server/internal/jobs"
+	"slices"
+	"strings"
 )
 
 // calculationInput 只投影正式图/固定战斗的身份；完整状态和知识原样交给 Core，不在 Go 解释规则。
@@ -24,25 +26,19 @@ type graphStatistics struct {
 	Edges int64 `json:"edges"`
 }
 
-// unsupportedAspect 保留 Core 明确宣告的参考能力边界；严格任务准入仍由应用提交入口负责。
-type unsupportedAspect struct {
-	Source     string `json:"source"`
-	Identifier string `json:"identifier"`
-	Capability string `json:"capability"`
-}
-
 // graphOutput 只投影 Core 已算出的精确摘要，任何未知/不完整状态均不生成默认概率。
+// Explanation 保留完整业务归因 JSON；未请求或原生返回 null 时为 nil，版本来源另存独立辅助表。
 type graphOutput struct {
-	Kind        string              `json:"kind"`
-	Status      string              `json:"status"`
-	Win         *jobs.Fraction      `json:"win"`
-	Loss        *jobs.Fraction      `json:"loss"`
-	Draw        *jobs.Fraction      `json:"draw"`
-	ClosedCycle *jobs.Fraction      `json:"closed_cycle"`
-	Observer    string              `json:"observer"`
-	Statistics  *graphStatistics    `json:"statistics"`
-	Truncations []string            `json:"truncations"`
-	Unsupported []unsupportedAspect `json:"unsupported_aspects"`
+	Kind        string           `json:"kind"`
+	Status      string           `json:"status"`
+	Win         *jobs.Fraction   `json:"win"`
+	Loss        *jobs.Fraction   `json:"loss"`
+	Draw        *jobs.Fraction   `json:"draw"`
+	Observer    string           `json:"observer"`
+	Statistics  *graphStatistics `json:"statistics"`
+	Truncations []string         `json:"truncations"`
+	Diagnostics []string         `json:"diagnostics"`
+	Explanation *json.RawMessage `json:"root_action_explanation"`
 	Expected    struct {
 		Status string         `json:"status"`
 		Value  *jobs.Fraction `json:"value"`
@@ -55,16 +51,6 @@ type responseEnvelope struct {
 	Engine  string        `json:"engine_version"`
 	Rules   string        `json:"rules_version"`
 	Results []graphOutput `json:"results"`
-}
-
-// resultMetadata 保存版本和视角；完整图来自冻结输入按需读取，不在每个分页摘要中复制 SCC。
-type resultMetadata struct {
-	Engine      string              `json:"engine_version"`
-	Rules       string              `json:"rules_version"`
-	Operation   string              `json:"operation"`
-	Observer    string              `json:"observer"`
-	ClosedCycle *jobs.Fraction      `json:"closed_cycle"`
-	Unsupported []unsupportedAspect `json:"unsupported_aspects,omitempty"`
 }
 
 var errNativeVersion = errors.New("native engine version mismatch")
@@ -102,7 +88,7 @@ func readInput(request []byte) (calculationInput, error) {
 }
 
 // decodeResult 将 response 中实际 Core 摘要映射为旧结果合同；engine 是本次明确要求的原生版本。
-// 只交换 observer 的胜负视角及验证分数，不在 Go 进行求解；错误不会变成成功或零概率。
+// 只交换 observer 的胜负视角及验证分数，完整业务归因原样保存；错误不会变成成功或零概率。
 func decodeResult(input calculationInput, response []byte, engine string) (jobs.Result, error) {
 	var envelope responseEnvelope
 	if err := json.Unmarshal(response, &envelope); err != nil {
@@ -129,38 +115,53 @@ func decodeResult(input calculationInput, response []byte, engine string) (jobs.
 	if value.Status != "solved" {
 		code := "solver_unresolved"
 		status := jobs.Failed
+		diagnostics := value.Diagnostics
 		if value.Status == "incomplete-graph" {
 			status = jobs.Truncated
-			for _, reason := range reasons {
-				switch reason {
-				case "max-nodes":
-					code = "graph_node_limit"
-				case "max-edges":
-					code = "graph_edge_limit"
-				case "max-turns":
-					code = "turn_limit"
+			// 纯Core使用通用未解诊断；原任务DTO逐项展示构图保护原因和对应solver说明。
+			// 这里仅格式化同一事实，不改图、求解状态或概率；失败码按节点→边→回合优先。
+			diagnostics = append([]string(nil), reasons...)
+			if len(reasons) == 0 {
+				diagnostics = append(diagnostics, "graph contains unknown nodes")
+			} else {
+				for _, reason := range reasons {
+					diagnostics = append(diagnostics, "graph truncated: "+reason)
 				}
+			}
+			switch {
+			case slices.Contains(reasons, "max-nodes"):
+				code = "graph_node_limit"
+			case slices.Contains(reasons, "max-edges"):
+				code = "graph_edge_limit"
+			case slices.Contains(reasons, "max-turns"):
+				code = "turn_limit"
 			}
 		} else if value.Status != "singular-system" {
 			return jobs.Result{}, errors.New("unknown native graph status")
+		} else if len(diagnostics) == 0 {
+			diagnostics = []string{value.Status}
 		}
-		result := failure(status, code, "native graph is unresolved")
+		diagnostic := strings.Join(diagnostics, "; ")
+		if diagnostic == "" {
+			diagnostic = string(status)
+		}
+		result := failure(status, code, diagnostic)
 		result.Nodes, result.Edges, result.Budget = nodes, edges, nodes+edges
 		return result.Normalize()
 	}
-	metadata, err := json.Marshal(resultMetadata{Engine: envelope.Engine, Rules: envelope.Rules, Operation: input.Kind, Observer: input.Observer,
-		ClosedCycle: value.ClosedCycle, Unsupported: value.Unsupported})
-	if err != nil {
-		return jobs.Result{}, err
+	var explanation *string
+	if value.Explanation != nil {
+		// 业务归因由同次 Core 求得，Go 不重建桶、不更换视角，也不拿引擎元数据补空解释。
+		encoded := string(*value.Explanation)
+		explanation = &encoded
 	}
-	explanation := string(metadata)
 	attacker, defender := value.Win, value.Loss
 	if input.Observer == "defender" {
 		attacker, defender = defender, attacker
 	}
 	result := jobs.Result{Status: jobs.Succeeded, AttackerWin: attacker, DefenderWin: defender, Draw: value.Draw,
 		ExpectedTurns: &jobs.ExpectedTurns{Kind: value.Expected.Status, Value: value.Expected.Value},
-		Nodes:         nodes, Edges: edges, Budget: nodes + edges, Explanation: &explanation}
+		Nodes:         nodes, Edges: edges, Budget: nodes + edges, Explanation: explanation}
 	return result.Normalize()
 }
 
