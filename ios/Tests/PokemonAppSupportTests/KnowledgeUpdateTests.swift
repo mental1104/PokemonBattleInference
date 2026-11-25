@@ -179,4 +179,79 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
             catch KnowledgeUpdateFailure.invalidEndpoint { }
         }
     }
+
+    /// 显式NAS验收源必须经过真实TLS和生产客户端：坏SHA拒绝、收到正文后取消、Range恢复及新版本重启。
+    /// PBI_KNOWLEDGE_ACCEPTANCE_BASE_URL为已授权的HTTPS目录；未提供时专门SKIP，不访问任意默认服务。
+    func testNASAcceptanceSourcesCancelRejectAndInstall() async throws {
+        guard let address = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_ACCEPTANCE_BASE_URL"] else {
+            throw XCTSkip("set PBI_KNOWLEDGE_ACCEPTANCE_BASE_URL for NAS HTTPS acceptance")
+        }
+        guard let base = URL(string: address), base.scheme == "https", base.host != nil,
+              base.user == nil, base.password == nil, base.query == nil, base.fragment == nil,
+              base.hasDirectoryPath else { throw KnowledgeUpdateFailure.invalidEndpoint }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pbi-nas-update-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let installedDirectory = root.appendingPathComponent("installed")
+        let downloads = root.appendingPathComponent("downloads")
+        let store = try KnowledgeStore(directory: installedDirectory, initial: KnowledgePack.bundled())
+        let initial = await store.version()
+        let pointer = installedDirectory.appendingPathComponent("current.json")
+        let oldPointer = try Data(contentsOf: pointer)
+        let users = try ConfigurationStore(url: root.appendingPathComponent("users.sqlite"))
+        let configuration = BattleConfiguration.example()
+        try await users.save(configuration, knowledgeVersion: initial.dataVersion, engineVersion: "0.11.0")
+        let bad = base.appendingPathComponent("knowledge-bad-sha/r1/manifest.json")
+        do {
+            _ = try await KnowledgeUpdateClient(store: store, directory: downloads).update(from: bad)
+            XCTFail("NAS invalid checksum was accepted")
+        } catch StorageFailure.checksumMismatch { }
+        XCTAssertEqual(try Data(contentsOf: pointer), oldPointer)
+        let observer = DownloadObserver()
+        let slow = base.appendingPathComponent("knowledge-slow/r1/manifest.json")
+        let client = KnowledgeUpdateClient(store: store, directory: downloads)
+        let transfer = Task {
+            try await client.update(from: slow) { state in Task { await observer.record(state) } }
+        }
+        for _ in 0..<600 {
+            if await observer.bytes() >= 8192 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let observed = await observer.bytes()
+        XCTAssertGreaterThanOrEqual(observed, 8192)
+        transfer.cancel()
+        do { _ = try await transfer.value; XCTFail("NAS cancelled download was installed") }
+        catch is CancellationError { }
+        XCTAssertEqual(try Data(contentsOf: pointer), oldPointer)
+        // 重建actor模拟重启；旧知识、用户配置和待同步队列都必须仍可用。
+        let reopened = try KnowledgeStore(directory: installedDirectory, initial: KnowledgePack.bundled())
+        let beforeRetry = await reopened.version()
+        XCTAssertEqual(beforeRetry, initial)
+        let savedBefore = try await users.all()
+        XCTAssertEqual(savedBefore.map(\.configuration), [configuration])
+        let pendingBefore = try await users.pendingChanges()
+        XCTAssertEqual(pendingBefore.count, 1)
+        let good = base.appendingPathComponent("knowledge/r1/manifest.json")
+        let candidate = try await KnowledgeUpdateClient(store: reopened, directory: downloads).update(from: good)
+        XCTAssertEqual(candidate.dataVersion, initial.dataVersion + "-acceptance-r1")
+        XCTAssertNotEqual(candidate.sqliteSha256, initial.sqliteSha256)
+        let restarted = try KnowledgeStore(directory: installedDirectory, initial: KnowledgePack.bundled())
+        let final = await restarted.version()
+        XCTAssertEqual(final, candidate)
+        let pokemon = try await restarted.pokemon(212)
+        XCTAssertEqual(pokemon.summary.name, "巨钳螳螂")
+        XCTAssertEqual(pokemon.baseStats.attack, 130)
+        let reopenedUsers = try ConfigurationStore(url: root.appendingPathComponent("users.sqlite"))
+        let savedAfter = try await reopenedUsers.all()
+        XCTAssertEqual(savedAfter.map(\.configuration), [configuration])
+        let pendingAfter = try await reopenedUsers.pendingChanges()
+        XCTAssertEqual(pendingAfter.count, 1)
+        if let report = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY"] {
+            let destination = URL(fileURLWithPath: report)
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            try oldPointer.write(to: destination.appendingPathComponent("nas-initial.json"))
+            try ContractJSON.encoder().encode(candidate).write(to: destination.appendingPathComponent("nas-installed.json"))
+            try Data(contentsOf: pointer).write(to: destination.appendingPathComponent("nas-restarted-current.json"))
+        }
+    }
 }

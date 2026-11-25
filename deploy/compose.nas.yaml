@@ -75,6 +75,11 @@ services:
         target: /usr/share/nginx/knowledge/POKEAPI-LICENSE.txt
         read_only: true
         bind: {create_host_path: false}
+      - type: bind
+        source: /volume1/docker/pokemon-battle-inference/knowledge-acceptance/pokeapi-1567d53073a0-7e4be433ddb6-acceptance-r1
+        target: /usr/share/nginx/knowledge-acceptance
+        read_only: true
+        bind: {create_host_path: false}
     networks: [pokemon_net]
   pokemon-db-init:
     profiles: [maintenance]
