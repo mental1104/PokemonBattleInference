@@ -62,7 +62,8 @@ services:
       # PG不发布宿主端口，只允许本项目私有网络中的API/Worker/初始化器访问。
       POSTGRES_HOST_AUTH_METHOD: trust
     healthcheck:
-      test: [CMD, pg_isready, -U, pokeop, -d, pokeop]
+      # initdb临时socket服务不能解锁db-init；正式TCP目标库必须已可执行SQL。
+      test: [CMD, psql, -h, 127.0.0.1, -U, pokeop, -d, pokeop, -Atc, "SELECT 1"]
       interval: 5s
       timeout: 3s
       retries: 30

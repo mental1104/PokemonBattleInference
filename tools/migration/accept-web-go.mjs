@@ -265,7 +265,7 @@ async function waitForJob(page, base, jobId, expected, report) {
 }
 
 /** page为真实Vue页面，reports为本次报告目录；返回已完成任务身份和原始资源统计。
- * 通过可见示例/组合/提交控件发起任务，另用公开HTTP核对终态，不写入应用内部状态。
+ * 通过可见控件提交并探索/回退/改选分支，另用公开HTTP核对终态，不写入应用内部状态。
  */
 async function verifyPersistentTask(page, reports) {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -337,8 +337,43 @@ async function verifyPersistentTask(page, reports) {
   assert.equal(advanced.cursor.steps.length, 1);
   assert.equal(advanced.node.node_id, outcomeResult.transition_group.outcomes[0].target_node_id);
   await page.locator('.battle-tree-column').nth(1).waitFor();
+  assert.deepEqual(advanced.cumulative_probability, outcomeResult.transition_group.outcomes[0].cumulative_probability);
+  await page.getByTestId('battle-current-node').getByText(`当前节点 · #${advanced.node.node_id}`, { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), '1 / 256');
   await page.screenshot({ path: `${reports}/task-graph-advanced.png`, fullPage: true });
-  return { jobId, status: status.status, nodes: results.items[0].node_count, edges: results.items[0].edge_count };
+  // 从真实祖先节点返回ROOT，旧分支必须截断且精确概率恢复，不能叠乘之前路径。
+  await page.locator('.battle-tree-column__node').first().click();
+  await page.getByTestId('battle-current-node').getByText('当前节点 · #0', { exact: true }).waitFor();
+  assert.equal(await page.locator('.battle-tree-column').count(), 1);
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), '1 / 1');
+  const repeatedOutcomesReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/outcomes'));
+  await page.locator('.battle-tree-group > button').first().click();
+  const repeatedOutcomes = await repeatedOutcomesReceived;
+  assert.equal(repeatedOutcomes.status(), 200);
+  assert.deepEqual(await repeatedOutcomes.json(), outcomeResult, 'root outcomes must remain stable after returning');
+  await page.getByRole('button', { name: '聚合', exact: true }).click();
+  await page.locator('.battle-tree-outcome-bucket').first().waitFor();
+  assert.equal(await page.locator('.battle-tree-exact-edge').count(), 0);
+  await page.screenshot({ path: `${reports}/task-graph-grouped.png`, fullPage: true });
+  await page.getByRole('button', { name: '原始', exact: true }).click();
+  const alternative = outcomeResult.transition_group.outcomes[1];
+  assert.ok(alternative, 'the fixed real graph must expose another exact outcome');
+  assert.notEqual(alternative.target_node_id, advanced.node.node_id);
+  const changedReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/advance'));
+  await page.locator('.battle-tree-exact-edge').nth(1).click();
+  const changedResponse = await changedReceived;
+  assert.equal(changedResponse.status(), 200);
+  const changed = await changedResponse.json();
+  await writeFile(`${reports}/task-branch-changed.json`, JSON.stringify(changed, null, 2));
+  assert.equal(changed.cursor.steps.length, 1);
+  assert.equal(changed.cursor.steps[0].edge_id, alternative.edge_id);
+  assert.equal(changed.node.node_id, alternative.target_node_id);
+  assert.deepEqual(changed.cumulative_probability, alternative.cumulative_probability);
+  await page.getByTestId('battle-current-node').getByText(`当前节点 · #${changed.node.node_id}`, { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), '1 / 128');
+  await page.screenshot({ path: `${reports}/task-graph-branch-changed.png`, fullPage: true });
+  return { jobId, status: status.status, nodes: results.items[0].node_count, edges: results.items[0].edge_count,
+    branchRevisit: { first: advanced.node.node_id, changed: changed.node.node_id, probability: changed.cumulative_probability } };
 }
 
 /** page沿用已完成任务的真实页面，reports归档取消请求及前后完整状态；返回实际取消的任务身份。

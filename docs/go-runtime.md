@@ -4,6 +4,8 @@
 
 预检证据为`Backup/PokemonBattleInference/runtime-full-20261125/preflight-ready/`，应用源码d3fbb97、镜像`pokemon-go-{server,data,frontend}:p6-d3fbb97`。PG内置SHA256与宿主独立结果相同，Core实际HTTP响应完整等于42项冻结向量。预检退出0，自有实例和网络已回收，PG目录保留。初次发现internal网络未发布前端端口，修正为普通项目bridge，仅前端发布回环；API/PG仍不发布端口。PGDATA明确指定对应bind，避免维护入口叠加继承其他目录。验收就绪检查等待正式TCP服务且目标库实际执行SELECT 1，避免initdb临时socket服务提前被判断为初始化完成。
 
+后续将实际发布配置中的PG健康探针也改为TCP `psql ... SELECT 1`，防止Compose的service_healthy在临时socket阶段提前解锁db-init。`runtime-full-20261125/preflight-health-ready/`使用同一真实配置和已验证r2镜像，实际Docker探针返回1并达到healthy；独立TCP SQL、PG SHA、Nginx回环、42项Core全响应和离线npm缓存均通过，退出0。配置/探针日志、执行脚本及实际image元数据已归档，自有实例/网络已清理。前一次预检首个Nginx连接被重置（退出56），保留原文；验收客户端改为有界等待真实代理健康，超时仍明确失败，完整普通模式栈r3也已复验通过。
+
 该入口保留frontend、backend、worker、postgres职责，另有一次性ops/db-init。API和Worker使用`deploy/Dockerfile.go`的Go/C++镜像，初始化器使用独立CSV镜像；运行时不含Python。默认项目为`pokemon-go-preview`、Web仅绑定`127.0.0.1:41110`，API与PG不发布宿主端口。原`docker-compose.yaml`及`make compose-*`保持原Python路径。
 
 ## 显式输入

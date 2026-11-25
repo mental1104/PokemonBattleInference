@@ -14,11 +14,13 @@
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | IN_PROGRESS | 98% | 原41/41 API实际验证覆盖；接管补充后的正式.11全Go/PG 68通过/1专用serve SKIP及额外恢复10/10、race/vet和六个公开HTTP读取通过。真实Vue配置/求解/组合目标/任务/图/取消通过。固定版本原Python库显式接管、异值/schema拒绝、中断回滚与所有历史raw/runtime数据和序列逐字节保留通过。全量图库和新运行入口最终验收仍待收口。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 90% | b797c19完整Apple CI45535685587成功，两端各9/9，原生149/149、112差分/委托及真实Swift27/27、双SDK/device App通过。产物SHA已完整核对。逐项审查新增首装招式UI及重启后实际重算断言，待新10项双模拟器CI；双真机仍HUMAN_PENDING，安装暂停。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 90% | b797c19完整双模拟器各9/9及完整原生/绑定证据保留。6bd30c9两端各9/10，重启后实际重算通过；招式威力定位按真实合并字段修正。9eac125当前Apple45548203813原生合同/双SDK通过，App及新10项双模拟器运行中；双真机仍HUMAN_PENDING，安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
-| P6 部署与回归 | IN_PROGRESS | 82% | d3fbb97正式.11四角色普通模式复验通过，含攻防/速度目标、配置、任务/图/取消、健康/回退/恢复与许可。新独立运行配置实际PG bind/API/Vue回环/42项Core响应预检通过，修复网络及PG就绪竞态；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
+| P6 部署与回归 | IN_PROGRESS | 83% | d3fbb97正式.11四角色普通模式复验通过，新增图祖先回退/聚合切换/改选边及精确概率恢复。新运行配置PG正式TCP健康探针、独占bind/Vue回环/42项Core预检通过，代理有界就绪等待实测，项目Skill补齐多语言入口和证据映射；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- `web-branch-revisit-20261125-r3/`最终脚本完整入口PASS，实际node1的1/256→ROOT仅一列1/1→改选node2的1/128，聚合/原始视图切换通过；完整outcomes稳定、cursor/edge_id及节点卡严格核对，原全部配置/求解/任务/取消/健康/回退/恢复也通过。首次构建固定pgx依赖下载EOF，原失败保留，相同源码重试成功；新三镜像r2实际ID及工具SHA归档。生产PG健康探针同步改为正式TCP SELECT 1，`preflight-health-ready/`Docker探针healthy/输出1及完整运行预检退出0；前一次Nginx首连接reset保留，有界代理就绪等待经r3复验。项目Skill映射补齐Canonical Make→CTest/pytest→Go/Swift、真实PG与Apple/人工边界，引用文件逐项存在。P6工程估算82%→83%，全量图库模式仍未执行。当前9eac125 Apple run45548203813在App/双模拟器步骤，未推送取消该run。
 
 - `runtime-full-20261125/preflight-ready/`真实运行配置预检退出0：独占PG目录、正式TCP目标库SQL就绪、内置SHA与宿主相同、API健康、Nginx回环发布、42共享Core全响应cmp及npm固定缓存离线安装通过。修复internal网络下前端未发布端口、显式PGDATA及initdb临时socket提前就绪竞态；失败原始记录分别保留。新验收模式使用实际运行Compose叠加maintenance overlay，增加PG真实重启/复用、全部图片正文SHA及独立恢复库同等核验，完整模式尚未运行。普通模式已在`base-regression/`固定d3fbb97完整复验通过。P6工程估算80%→82%，不标PASS。Apple修正提交9eac125已推送，run45548203813已实际启动，待结果。
 

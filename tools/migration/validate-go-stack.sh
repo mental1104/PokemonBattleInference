@@ -152,7 +152,12 @@ assert actual == expected, "stack Core response differs from the frozen fixture"
 PY
 frontend_id="$(compose run --rm --no-deps -d --name "$project-frontend" --publish 127.0.0.1::80 frontend)"
 endpoint="http://$(docker port "$frontend_id" 80/tcp)"
-for _ in {1..40}; do if curl -fsS "$endpoint/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-health.json" 2>/dev/null; then break; fi; sleep .1; done
+proxy_ready=false
+for _ in {1..100}; do
+  if curl -fsS --max-time 2 "$endpoint/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-health.json" 2>/dev/null; then proxy_ready=true; break; fi
+  sleep .1
+done
+[[ "$proxy_ready" == true ]] || { echo 'Frontend proxy did not become healthy' >&2; exit 1; }
 curl -fsS "$endpoint/" > "$POKEOP_REPORT_ROOT/index.html"
 browser_install_options=()
 if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then browser_install_options=(--offline); fi
@@ -189,7 +194,14 @@ if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
   cmp "$POKEOP_REPORT_ROOT/configurations-before.json" "$POKEOP_REPORT_ROOT/configurations-restarted.json"
   verify_sprite_storage pokeop sprites-restarted
   frontend_id="$(compose run --rm --no-deps -d --name "$project-frontend" --publish 127.0.0.1::80 frontend)"
-  curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 1 "http://$(docker port "$frontend_id" 80/tcp)/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-after-restart.json"
+  # Nginx初始化窗口也可能重置连接；有界等待真正代理成功，不能把失败记录留作健康证据。
+  restarted_frontend_endpoint="http://$(docker port "$frontend_id" 80/tcp)"
+  proxy_ready=false
+  for _ in {1..100}; do
+    if curl -fsS --max-time 2 "$restarted_frontend_endpoint/api/healthz" > "$POKEOP_REPORT_ROOT/proxy-after-restart.json" 2>/dev/null; then proxy_ready=true; break; fi
+    sleep .1
+  done
+  [[ "$proxy_ready" == true ]] || { echo 'Restarted frontend proxy did not become healthy' >&2; exit 1; }
 fi
 docker exec "$postgres_id" pg_dump -U pokeop -d pokeop -Fc > "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump"
 sha256sum "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump" > "$POKEOP_REPORT_ROOT/database-backup.sha256"
