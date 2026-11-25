@@ -283,3 +283,19 @@ type inferenceOutcomesResponse struct {
 	Cumulative inferenceProbability     `json:"cumulative_probability"`
 	Group      inferenceTransitionGroup `json:"transition_group"`
 }
+
+// inferenceGraphEntry 是唯一store成功发布的轻量句柄；不在Go恢复图或概率。
+type inferenceGraphEntry struct {
+	ID         string               `json:"graph_id"`
+	Root       int                  `json:"root_node_id"`
+	Revision   string               `json:"calculation_revision"`
+	Expires    string               `json:"expires_at"`
+	Cursor     inferenceGraphCursor `json:"cursor"`
+	Expandable bool                 `json:"expandable"`
+}
+
+// inferenceStoredJourney 同时返回同一次Core结果摘要与可重放句柄，不含完整图记录。
+type inferenceStoredJourney struct {
+	Summary     inferenceSummary    `json:"summary"`
+	Exploration inferenceGraphEntry `json:"exploration"`
+}

@@ -19,7 +19,7 @@ type inferenceGraphHandler struct {
 
 // registerFixedGraphRoutes 在同一服务器实例挂接原图创建和四条导航路由，不启动后台任务。
 // mux由调用方拥有；fixed共享唯一catalog入口和正式worker配置，图store随该服务器实例释放。
-func registerFixedGraphRoutes(mux *http.ServeMux, fixed fixedInferenceHandler) {
+func registerFixedGraphRoutes(mux *http.ServeMux, fixed fixedInferenceHandler) *inferenceGraphStore {
 	handler := inferenceGraphHandler{fixed, newInferenceGraphStore()}
 	mux.HandleFunc("POST /v1/inference/fixed-one-on-one/graph", handler.create)
 	mux.HandleFunc("POST /v1/inference/graphs/{graph_id}/explore", handler.explore)
@@ -27,6 +27,8 @@ func registerFixedGraphRoutes(mux *http.ServeMux, fixed fixedInferenceHandler) {
 	mux.HandleFunc("POST /v1/inference/graphs/{graph_id}/advance", handler.advance)
 	mux.HandleFunc("POST /v1/inference/graphs/{graph_id}/backtrack", handler.backtrack)
 	registerWinningPaths(mux, handler.store, fixed.core)
+	registerDragoniteJourney(mux, handler)
+	return handler.store
 }
 
 // inferenceGraphFailure 仅映射原store/导航异常；准备、取消和worker隔离失败仍走既有适配器。
@@ -62,51 +64,59 @@ func (handler inferenceGraphHandler) create(w http.ResponseWriter, r *http.Reque
 		inferenceGraphFailure(w, err)
 		return
 	}
+	value, err := handler.createPrepared(ctx, input, prepared)
+	if err != nil {
+		inferenceGraphFailure(w, err)
+		return
+	}
+	writeJSON(w, 200, value)
+}
+
+// createPrepared 消费同一快照准备结果，求解一次并冻结原请求/真实版本/计数及唯一store句柄。
+// ctx由入口拥有；input仅提供原summary规则/策略标签，prepared保持Core完整事实，不输出全图JSON。
+// 返回完整原stored journey；任何失败不会发布部分图或修改已有句柄。
+func (handler inferenceGraphHandler) createPrepared(ctx context.Context, input inferenceFixedRequest, prepared inferencePrepared) (inferenceStoredJourney, error) {
 	var operation map[string]json.RawMessage
 	if json.Unmarshal(prepared.operation, &operation) != nil {
-		inferenceGraphFailure(w, errors.New("invalid prepared fixed request"))
-		return
+		return inferenceStoredJourney{}, errors.New("invalid prepared fixed request")
 	}
 	// 这两项只是正式Core输出选择，不改变冻结状态、知识、策略或预算。
 	operation["include_graph"] = json.RawMessage(`false`)
 	operation["include_representative_paths"] = json.RawMessage(`true`)
-	prepared.operation, err = json.Marshal(operation)
+	// 旧请求无graph_mode时正式Core默认Full；新job摘要模板需要在图入口明确选回Full。
+	if _, explicit := operation["graph_mode"]; explicit {
+		operation["graph_mode"] = json.RawMessage(`"full"`)
+	}
+	updated, err := json.Marshal(operation)
+	prepared.operation = updated
 	if err != nil {
-		inferenceGraphFailure(w, err)
-		return
+		return inferenceStoredJourney{}, err
 	}
 	result, err := handler.fixed.calculate(ctx, input, prepared)
 	if err != nil {
-		inferenceGraphFailure(w, err)
-		return
+		return inferenceStoredJourney{}, err
 	}
 	if result.native.Paths == nil {
-		inferenceGraphFailure(w, errors.New("native fixed request omitted representative paths"))
-		return
+		return inferenceStoredJourney{}, errors.New("native fixed request omitted representative paths")
 	}
 	for _, path := range result.native.Paths {
 		raw, encodeErr := json.Marshal(path)
 		if encodeErr != nil {
-			inferenceGraphFailure(w, encodeErr)
-			return
+			return inferenceStoredJourney{}, encodeErr
 		}
 		result.summary.Paths = append(result.summary.Paths, raw)
 	}
 	artifact := &inferenceGraphArtifact{fixedRequest: prepared.operation, engineVersion: result.engineVersion, rulesVersion: result.rulesVersion,
 		nodeCount: result.native.Statistics.Nodes, edgeCount: result.native.Statistics.Edges, revision: inferenceGraphRevision}
 	if err = ctx.Err(); err != nil {
-		inferenceGraphFailure(w, err)
-		return
+		return inferenceStoredJourney{}, err
 	}
 	stored, err := handler.store.put(artifact)
 	if err != nil {
-		inferenceGraphFailure(w, err)
-		return
+		return inferenceStoredJourney{}, err
 	}
-	writeJSON(w, 200, map[string]any{"summary": result.summary, "exploration": map[string]any{
-		"graph_id": stored.id, "root_node_id": 0, "calculation_revision": stored.revision,
-		"expires_at": stored.expires.Format(time.RFC3339Nano), "cursor": inferenceGraphCursor{[]inferenceGraphStep{}},
-		"expandable": true}})
+	return inferenceStoredJourney{Summary: result.summary, Exploration: inferenceGraphEntry{ID: stored.id, Root: 0, Revision: stored.revision,
+		Expires: stored.expires.Format(time.RFC3339Nano), Cursor: inferenceGraphCursor{Steps: []inferenceGraphStep{}}, Expandable: true}}, nil
 }
 
 // UnmarshalJSON 区分原cursor的省略默认与显式null；data只借用到返回，成功后拥有完整步骤。

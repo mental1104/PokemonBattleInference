@@ -26,7 +26,9 @@ type fixedInferenceHandler struct {
 func registerFixedInference(mux *http.ServeMux, db *sql.DB) {
 	handler := fixedInferenceHandler{catalog.New(db), calculatorHandler{worker: configuredWorker()}}
 	mux.HandleFunc("POST /v1/inference/fixed-one-on-one", handler.summary)
-	registerFixedGraphRoutes(mux, handler)
+	registerFixedSnapshotRoute(mux, handler)
+	store := registerFixedGraphRoutes(mux, handler)
+	registerConfigurationCaseGraph(mux, db, handler, store)
 }
 
 // inferenceRequestError 区分旧业务拒绝与基础设施错误，不携带SQL/连接串或worker路径。
@@ -157,7 +159,27 @@ type inferencePrepared struct {
 // prepare 先真实strict再规范技能组/能力/初始状态，整个流程共享ctx与唯一PG快照。
 // 返回值只属于本次请求；任何失败不返回可继续执行的半份状态。
 func (handler fixedInferenceHandler) prepare(ctx context.Context, input inferenceFixedRequest) (inferencePrepared, error) {
-	if input.Ruleset != "pokemon-champion" {
+	return handler.prepareContext(ctx, input, jobExecutionBudget{MaxNodes: input.Limits.Nodes, MaxEdges: input.Limits.Edges, MaxTurns: &input.Limits.Turns}, inferencePreparationStrict)
+}
+
+// inferencePreparationMode 明确区分原公开fixed严格入口与原普通reference生成器，不能按特性名单分支。
+type inferencePreparationMode uint8
+
+const (
+	inferencePreparationStrict inferencePreparationMode = iota
+	inferencePreparationReference
+)
+
+// prepareReference 使用原普通provider/reconciler，budget来自原入口/任务执行spec且保留nil回合保护。
+// input完整选择仍只读；返回同一PG快照的完整准备，不在Go决定partial机制是否可执行。
+func (handler fixedInferenceHandler) prepareReference(ctx context.Context, input inferenceFixedRequest, budget jobExecutionBudget) (inferencePrepared, error) {
+	return handler.prepareContext(ctx, input, budget, inferencePreparationReference)
+}
+
+// prepareContext 只选择原入口composition；PG读取、Coreprovider、状态模板共享唯一实现。
+// budget是入口拥有的原预算，不套同步schema的较窄范围；mode不改变Core数学或玩家选择策略。
+func (handler fixedInferenceHandler) prepareContext(ctx context.Context, input inferenceFixedRequest, budget jobExecutionBudget, mode inferencePreparationMode) (inferencePrepared, error) {
+	if mode == inferencePreparationStrict && input.Ruleset != "pokemon-champion" {
 		return inferencePrepared{}, inferenceInvalid("effect factory ruleset does not match candidate command")
 	}
 	snapshot, err := handler.store.Inference(ctx, input.Ruleset, input.Version, []int{input.Attacker.PokemonID, input.Defender.PokemonID})
@@ -177,6 +199,25 @@ func (handler fixedInferenceHandler) prepare(ctx context.Context, input inferenc
 		return inferencePrepared{}, &inferenceRequestError{status: 503, code: "fixed_battle_storage_unavailable", message: "catalog storage unavailable"}
 	}
 	selections := []jobSelection{{Fixed: input.Attacker.jobFixed, Moves: input.Attacker.Moves}, {Fixed: input.Defender.jobFixed, Moves: input.Defender.Moves}}
+	if mode == inferencePreparationReference {
+		// 原入口先检查同一repository受控道具集合，再准备profile/provider；这里只做资料身份匹配。
+		for _, selection := range selections {
+			requested := "none"
+			if selection.Fixed.Item != nil && *selection.Fixed.Item != "" {
+				requested = *selection.Fixed.Item
+			}
+			allowed := false
+			for _, candidate := range snapshot.Items {
+				if candidate.Identifier == requested {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return inferencePrepared{}, inferenceInvalid("item " + pythonRepr(requested) + " is not available in the controlled item boundary")
+			}
+		}
+	}
 	facts := []jobAdmissionFact{}
 	sides := make([]jobSideFacts, 2)
 	for index, selection := range selections {
@@ -200,46 +241,49 @@ func (handler fixedInferenceHandler) prepare(ctx context.Context, input inferenc
 			metadata.Items = append(metadata.Items, fact.Effect)
 		}
 	}
-	coverageInput := struct {
-		Mode       string                  `json:"mode"`
-		Factory    string                  `json:"factory"`
-		Repository string                  `json:"repository_mode"`
-		Candidates []jobAdmissionCandidate `json:"candidates"`
-	}{"admission", "transparent_inference", "factory_reconciled", candidates}
-	checked, err := handler.core.batch(ctx, []any{inferenceOperation{"configuration_coverage", coverageInput}})
-	if err != nil {
-		return inferencePrepared{}, err
-	}
-	var decisions struct {
-		Kind       string                 `json:"kind"`
-		Mode       string                 `json:"mode"`
-		Candidates []jobAdmissionDecision `json:"candidates"`
-	}
-	if json.Unmarshal(checked[0], &decisions) != nil || decisions.Kind != "configuration_coverage" || decisions.Mode != "admission" || len(decisions.Candidates) != len(candidates) {
-		return inferencePrepared{}, errors.New("invalid native fixed inference admission")
-	}
-	// 原固定入口逐侧执行validator：攻击方失败时不继续返回防守方的另一组失败。
-	for _, side := range sides {
-		if failures := admissionFailures([]jobSideFacts{side}, decisions.Candidates); len(failures) > 0 {
-			parts := make([]string, 0, len(failures))
-			for _, failure := range failures {
-				parts = append(parts, failure.Source+":"+failure.Requested+":"+failure.Status+":missing="+strings.Join(failure.Missing, ","))
-			}
-			return inferencePrepared{}, &inferenceRequestError{status: 422, code: "fixed_battle_mechanism_rejected",
-				message: "strict mechanism admission rejected: " + strings.Join(parts, "; "), failures: failures}
+	if mode == inferencePreparationStrict {
+		coverageInput := struct {
+			Mode       string                  `json:"mode"`
+			Factory    string                  `json:"factory"`
+			Repository string                  `json:"repository_mode"`
+			Candidates []jobAdmissionCandidate `json:"candidates"`
+		}{"admission", "transparent_inference", "factory_reconciled", candidates}
+		checked, err := handler.core.batch(ctx, []any{inferenceOperation{"configuration_coverage", coverageInput}})
+		if err != nil {
+			return inferencePrepared{}, err
 		}
-	}
-	sorted, err := handler.fixedMoveIDs(ctx, selections, sides, facts)
-	if err != nil {
-		return inferencePrepared{}, err
+		var decisions struct {
+			Kind       string                 `json:"kind"`
+			Mode       string                 `json:"mode"`
+			Candidates []jobAdmissionDecision `json:"candidates"`
+		}
+		if json.Unmarshal(checked[0], &decisions) != nil || decisions.Kind != "configuration_coverage" || decisions.Mode != "admission" || len(decisions.Candidates) != len(candidates) {
+			return inferencePrepared{}, errors.New("invalid native fixed inference admission")
+		}
+		// 原固定入口逐侧执行validator：攻击方失败时不继续返回防守方的另一组失败。
+		for _, side := range sides {
+			if failures := admissionFailures([]jobSideFacts{side}, decisions.Candidates); len(failures) > 0 {
+				parts := make([]string, 0, len(failures))
+				for _, failure := range failures {
+					parts = append(parts, failure.Source+":"+failure.Requested+":"+failure.Status+":missing="+strings.Join(failure.Missing, ","))
+				}
+				return inferencePrepared{}, &inferenceRequestError{status: 422, code: "fixed_battle_mechanism_rejected",
+					message: "strict mechanism admission rejected: " + strings.Join(parts, "; "), failures: failures}
+			}
+		}
 	}
 	profiles, failed := jobProfiles(selections)
 	if failed != nil {
 		return inferencePrepared{}, inferenceInvalid(strings.TrimPrefix(failed.Diagnostic, "ConfigurationSpaceError: "))
 	}
+	// 严格准入之后仍须经过原四维provider；例如显式"none"与null道具由原item provider独立解释。
+	sorted, err := handler.referenceMoveIDs(ctx, input, selections, snapshot, profiles)
+	if err != nil {
+		return inferencePrepared{}, err
+	}
 	request := jobSubmissionRequest{jobPoolCommand: jobPoolCommand{Ruleset: input.Ruleset, Version: input.Version,
 		Attacker: selections[0], Defender: selections[1], AttackerPolicy: inferencePolicy(input.AttackerPolicy), DefenderPolicy: inferencePolicy(input.DefenderPolicy)},
-		Execution: jobExecutionBudget{MaxNodes: input.Limits.Nodes, MaxEdges: input.Limits.Edges, MaxTurns: &input.Limits.Turns}}
+		Execution: budget}
 	template, err := (jobSubmissionHandler{core: handler.core}).template(ctx, request, snapshot, sides, profiles)
 	if err != nil {
 		return inferencePrepared{}, err
@@ -254,6 +298,12 @@ func (handler fixedInferenceHandler) prepare(ctx context.Context, input inferenc
 	if json.Unmarshal(encoded, &batch) != nil || len(batch.Operations) != 1 {
 		return inferencePrepared{}, errors.New("invalid projected fixed battle request")
 	}
+	if mode == inferencePreparationReference {
+		batch.Operations[0], err = withTransparentInferenceContext(batch.Operations[0])
+		if err != nil {
+			return inferencePrepared{}, err
+		}
+	}
 	var operation struct {
 		State struct {
 			Attacker inferenceNativeBattler `json:"attacker"`
@@ -264,44 +314,6 @@ func (handler fixedInferenceHandler) prepare(ctx context.Context, input inferenc
 		return inferencePrepared{}, err
 	}
 	return inferencePrepared{batch.Operations[0], metadata, inferencePokemon(operation.State.Attacker, input.Attacker.Profile), inferencePokemon(operation.State.Defender, input.Defender.Profile)}, nil
-}
-
-// fixedMoveIDs 调用唯一Core组合器取得原provider的规范ID顺序；Go不排序、枚举或合并技能。
-// selections/sides/facts均来自当前独立快照，返回两侧完整唯一技能组或整体错误。
-func (handler fixedInferenceHandler) fixedMoveIDs(ctx context.Context, selections []jobSelection, sides []jobSideFacts, facts []jobAdmissionFact) ([][]int, error) {
-	operations := make([]any, 0, 2)
-	for index, selection := range selections {
-		input := inferenceMoveInput{Candidates: []inferenceMoveCandidate{}, Requested: selection.Moves, Slots: []int{len(selection.Moves)}, Maximum: 1}
-		for _, selected := range sides[index].moves {
-			fact := facts[selected.index]
-			input.Candidates = append(input.Candidates, inferenceMoveCandidate{*fact.MoveID, strconv.Itoa(*fact.MoveID), fact.Move, fact.Effect, "supported", fact.RepositoryReason})
-		}
-		operations = append(operations, inferenceOperation{"configuration_moves", input})
-	}
-	results, err := handler.core.batch(ctx, operations)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([][]int, 2)
-	for index, raw := range results {
-		var value struct {
-			Kind    string `json:"kind"`
-			Count   string `json:"raw_combination_count"`
-			Classes []struct {
-				Moves []struct {
-					Spec jobMoveSpec `json:"spec"`
-				} `json:"moves"`
-			} `json:"classes"`
-		}
-		if json.Unmarshal(raw, &value) != nil || value.Kind != "configuration_moves" || value.Count != "1" || len(value.Classes) != 1 || len(value.Classes[0].Moves) != len(selections[index].Moves) {
-			return nil, errors.New("fixed command did not resolve to one native move class")
-		}
-		ids[index] = make([]int, 0, len(value.Classes[0].Moves))
-		for _, move := range value.Classes[0].Moves {
-			ids[index] = append(ids[index], move.Spec.MoveID)
-		}
-	}
-	return ids, nil
 }
 
 // inferencePokemon 只投影已计算的原生初始配置；profileKey只生成原provider解释标签。
@@ -319,14 +331,25 @@ func inferencePokemon(value inferenceNativeBattler, profileKey string) inference
 
 // inferenceComputation 持有同一Core调用的摘要和原始图结果，图创建不再重复求解。
 type inferenceComputation struct {
-	summary inferenceSummary
-	native  inferenceNativeResult
+	summary       inferenceSummary
+	native        inferenceNativeResult
 	engineVersion string
-	rulesVersion string
+	rulesVersion  string
 }
 
 // solve 保留原summary入口签名；ctx取消传播到唯一Core调用，只返回完整摘要或原错误。
 func (handler fixedInferenceHandler) solve(ctx context.Context, input inferenceFixedRequest, prepared inferencePrepared) (inferenceSummary, error) {
+	// 原fixed_battle_workflow的summary入口实际使用SummaryStateGraphBuilder，独立于图浏览Full模式。
+	var operation map[string]json.RawMessage
+	if json.Unmarshal(prepared.operation, &operation) != nil {
+		return inferenceSummary{}, errors.New("invalid prepared summary request")
+	}
+	operation["graph_mode"] = json.RawMessage(`"configuration_summary"`)
+	encoded, err := json.Marshal(operation)
+	if err != nil {
+		return inferenceSummary{}, err
+	}
+	prepared.operation = encoded
 	result, err := handler.calculate(ctx, input, prepared)
 	return result.summary, err
 }

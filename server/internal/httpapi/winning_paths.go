@@ -6,9 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
-	"pokemonbattleinference/server/internal/workerprocess"
 	"strings"
 	"time"
 )
@@ -191,45 +188,10 @@ func (failure *winningQueryFailure) Error() string { return failure.message }
 // calculate 复用正式Execute隔离边界，额外保留原409所需的ABI业务message。
 // ctx负责子进程取消和回收；operation是完整拥有的原生请求，不返回部分结果或解析stderr。
 func (handler winningPathsHandler) calculate(ctx context.Context, operation winningCoreOperation) (json.RawMessage, error) {
-	if !filepath.IsAbs(handler.core.worker) {
-		return nil, errCalculatorWorkerUnavailable
+	result, err := executeBusinessCoreOperation(ctx, handler.core, operation)
+	var rejection *nativeBusinessRejection
+	if errors.As(err, &rejection) {
+		return nil, &winningQueryFailure{rejection.message}
 	}
-	info, err := os.Stat(handler.core.worker)
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
-		return nil, errCalculatorWorkerUnavailable
-	}
-	body, err := json.Marshal(struct {
-		Version    int   `json:"schema_version"`
-		Operations []any `json:"operations"`
-	}{1, []any{operation}})
-	if err != nil {
-		return nil, err
-	}
-	raw, err := workerprocess.Execute(ctx, handler.core.worker, body)
-	if err != nil {
-		var failure *workerprocess.Failure
-		if errors.As(err, &failure) && failure.Code == "invalid_input" {
-			var native struct {
-				Error struct {
-					Code    string `json:"code"`
-					Message string `json:"message"`
-				} `json:"error"`
-			}
-			if json.Unmarshal(raw, &native) == nil && native.Error.Code == failure.Code && native.Error.Message != "" {
-				return nil, &winningQueryFailure{native.Error.Message}
-			}
-		}
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		if !errors.As(err, &failure) && !errors.Is(err, workerprocess.ErrOutputLimit) {
-			return nil, errCalculatorWorkerUnavailable
-		}
-		return nil, err
-	}
-	var response businessCoreBatch
-	if json.Unmarshal(raw, &response) != nil || response.Version != 1 || len(response.Results) != 1 {
-		return nil, errors.New("invalid native winning path envelope")
-	}
-	return response.Results[0], nil
+	return result, err
 }

@@ -1,6 +1,6 @@
 # P3 Go 服务迁移
 
-2026-11-24 当前检查点：已迁移原 41 项 API 中的 **38 项**，包括配置/知识/图片、任务、候选池、模板/属性求解、两种伤害、固定摘要/任务/组合预览、图创建/四导航及胜利路径查询，并接入 P5 同步处理器。以上均有真实 PG/Core/独立客户端验收；其余stateless step、dragonite-vs-weavile及configuration casegraph三项仍须接齐。现代静态特性兼容和旧damage原NameError的独立修复证据保留。原 Python 生产服务、生产库及部署均未改动。
+2026-11-25 当前检查点：原 **41/41 API 均有实际验证覆盖**，包括配置/知识/图片、任务、候选池、模板/属性求解、两种伤害、固定摘要/任务/组合预览、图创建/四导航、胜利路径、stateless step、快龙旅程及已完成配置的按需图，并接入 P5 同步处理器。覆盖率不是完整兼容或P3完成证明；最新Web/整体部署验收仍待收口。现代静态特性兼容和旧damage原NameError的独立修复证据保留。原 Python 生产服务、生产库及部署均未改动。
 
 | 范围 | 实现与真实验证 |
 | --- | --- |
@@ -22,6 +22,9 @@
 | 固定任务与组合预览 2 项 | POST fixed-one-on-one-jobs复用原strict/单case持久化/独立daemon；header key原SHA、当前状态重放与冲突、旧Python任务无Go definition时只读幂等保留。POST move-set-combinations只调用Core严格准入/组合与完整pair计数，Go不枚举或求乘积；两侧最多210完整技能组，与原列表顺序/名称/错误优先级相同。 |
 | 图创建/导航 5 项 | POST fixed-one-on-one/graph与explore/groups outcomes/advance/backtrack，冻结完整事实、实际Core版本和图计数；每个查询由Core重建typed图再投影，Go不搜索、归并或算概率。正式final2实际同PG24项（含原19摘要与5图场景）完整差分通过，真实841节点/16095边及全部root outcomes未裁事件。 |
 | 胜利路径 1 项 | POST winning_paths/graphs/{graph_id}复用唯一图缓存，Core负责重建、原100000 walk预算、精确胜率/覆盖、行动归并、前缀、分页和不透明cursor；Go只做原HTTP与任意精度整数转写。真实大图双方winner、uniform分页及错误共10组完整查询对照相同，不能以缓存存在冒称搜索成功。 |
+| 配置结果图 1 项 | POST configuration-jobs/{job_id}/configurations/{configuration_id}/graph从原job/spec/精确pair读取，兼容无Go definition的旧Python成功记录；当前同RR知识重新准备、Core Full图完整求解及共享store导航，不复用任务Summary统计或旧结果概率。20项真实原HTTP同库差分通过，包括841/16095及完整代表路径、原共用攻击者等级、nil turns/较大合法job预算、原错误顺序与provider拒绝。 |
+| 无状态快照 1 项 | POST fixed-one-on-one/step调用Core正式fixed_battle_snapshot；原cursor逐边重放、当前节点完整行动组/战报、任意精度身份及422业务拒绝不经过全局图预算。正式.11实际同PG原HTTP9/9通过。 |
+| 快龙旅程 1 项 | POST dragonite-vs-weavile复用Core透明factory与原provider筛选，完整摘要、代表路径、机制覆盖及后续导航一致。原HTTP8/8通过；fake-out-pressure实际因moves维度为空返回422，不能因为schema存在选项就预期200。 |
 
 ## 运行边界
 
@@ -64,12 +67,12 @@
 
 ## 剩余范围
 
-1. 剩余原HTTP三项为stateless fixed-one-on-one/step、dragonite-vs-weavile及configuration casegraph。新创建持久任务拒绝原strict声明为partial的机制；参考同步推演允许partial并返回coverage的入口不能误套相同策略。
-2. 完整旧explanation与独立实际版本/输入溯源的存储/消费者接线另行收口，不能将提交时Admission版本当实际结果版本。configuration-jobs的旧Python任务与仅Core元数据变化的同ID重放已保留，key+command+预算的原SHA不变，新预算仍新ID202，不套用fixed仅key身份。
+1. 41项已形成实际验证覆盖，后续须将新版本整体Web/任务链一起回归。新创建持久任务拒绝原strict声明为partial的机制；普通reference保留原provider实际筛选，允许输入机制标识不代表partial一定能组成可执行维度。
+2. 新版业务归因及独立溯源已接通并实际验证（下文与native-worker.md）；Apple App消费者及UI须用新版本复验。configuration-jobs的旧Python任务与仅Core元数据变化的同ID重放已保留，key+command+预算的原SHA不变，新预算仍新ID202，不套用fixed仅key身份。
 3. 生产发布编排、知识版本升级/历史库接管、Vue 全 API 兼容验收、旧新全 API 差分与真实业务升级回滚。纯 Go 数据镜像与五个真实二进制的 scratch 镜像、原生 daemon 的恢复/停机，以及独立 P6 预览/健康/镜像回退证据，不等于已完成生产迁移。
-4. 所有Core HTTP已统一独立child，图创建与五种查询已真实接通；不将38项或子进程基础验收写成41项整体完成。纯Go BYTEA导入已由独立切片实现并以真实样本验收，完整来源图库与生产发布仍未在上述证据中证明。
+4. 所有Core HTTP已统一独立child，图创建、五种查询与配置结果图已真实接通。纯Go BYTEA导入已由独立切片实现并以真实样本验收，完整来源图库与生产发布仍未在上述证据中证明。
 
-本检查点不合并、不切生产，不将 38/41 误写为 P3 完成。
+本检查点不合并、不切生产，不将41/41路由验证覆盖误写为P3完成。
 
 ## 候选池与完整配置求解
 
@@ -148,3 +151,11 @@ PG 中实际共享 Definition 为 **25,648,268 bytes**，其中 template **20,41
 `idempotency-first/`用正式final2、独占空PG/完整CSV和原Python同库HTTP，**4/4零SKIP（1.75秒）**：原Python已创建而没有Go definition的任务可原样202重放；只改变已存Admission中的Core版本时仍202且保留旧JSON/hash；同key修改预算按原SHA产生新ID202；同ID异规格仍返回原409及精确错误文案。匹配仅检查原规则轴、完整spec和全局case数，不要求Go私有执行格式相同，不重置结果、队列或来源。该入口的身份规则与fixed任务仅key身份分别保留。
 
 Go服务及真实child重新构建、go vet、Pythonruff/strictmypy、bash syntax和diff检查通过；专属PG/API均已清理。复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-graph-abi10-final2 bash tools/migration/accept-go-job-idempotency.sh`。
+
+## 原配置成功结果按需图
+
+`p3-case-graph-20261125/full-first/`使用正式`/build/root-summary-abi11`，独占空PG完整CSV、真实原preparer/executor生成历史成功记录，再让原HTTP与Go/Core分别按当前知识重算，**20/20 PASS、零SKIP（172.75秒）**。四个成功场景均继续调用共享图store的root explore；基线与不同canonical等级场景均得到原 **841节点/16095边**，完整概率、SCC/统计、代表事件路径与导航字段相同。四个原始完整成功JSON只归一独立UUID/已验证expiry，额外精确比较 **4/4 PASS**。
+
+该原入口取job header规则轴和spec预算，双方等级只取canonical攻击方；nil max_turns与超过同步公开schema但仍在原job合同内的500001/2000001/201预算完整保留。无Go definition仍可重算，不拿已存case结果/任务Summary统计生成Full图或缓存守卫。原job→spec→精确pair→succeeded→canonical/form→当前知识/provider顺序保留，包括side ID不能当pair、普通provider对partial的维度筛选以及原字符串detail。
+
+原reference只捕获ValueError；缺当前Pokemon/version/ruleset的LookupError及损坏canonical原返回安全plain500，此行为有真实原HTTP证明。`lookup-red/`保留新适配最初误套fixed专用404/422的三项失败，窄修后`front-final/` **13/13 PASS**，随后完整20项再验证。没有改变公开fixed路由404或将原错误当成功计算。Go强制重链/vet、Pythonruff/strictmypy、bash syntax/diff通过，自有PG/API均已清理；复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-summary-abi11 bash tools/migration/accept-go-configuration-case-graph.sh`。

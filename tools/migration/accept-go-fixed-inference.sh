@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 用途：独立Go HTTP/真实空PG/全量CSV/Core固定摘要对照原Python owning路由，保存全部原始响应。
+# 用途：独立Go HTTP/真实空PG/全量CSV/Core固定摘要、图导航、单步与受控旅程对照原Python owning路由。
 # 输入：PBI_VALIDATION_CORE_DIRECTORY指定同snapshot完整构建的Core/ABI目录；构建与HDD报告根可显式覆盖。
 # 输出：构建/初始化/差分/协议产物及精确实例日志；失败非零，不把缺集成环境当PASS。
 # 副作用：只创建自有maintenance PG/API，无生产连接、无daemon，退出精确回收所拥有的容器。
@@ -13,7 +13,10 @@ readonly core_directory="${PBI_VALIDATION_CORE_DIRECTORY:?Set the verified match
 case "${PBI_FIXED_INFERENCE_SUITE:-summary}" in
   summary) test_files=(tests/migration/test_go_fixed_inference.py) ;;
   graph) test_files=(tests/migration/test_go_fixed_graph.py) ;;
-  all) test_files=(tests/migration/test_go_fixed_inference.py tests/migration/test_go_fixed_graph.py) ;;
+  step) test_files=(tests/migration/test_go_fixed_snapshot.py) ;;
+  dragonite) test_files=(tests/migration/test_go_dragonite.py) ;;
+  remaining) test_files=(tests/migration/test_go_fixed_snapshot.py tests/migration/test_go_dragonite.py) ;;
+  all) test_files=(tests/migration/test_go_fixed_inference.py tests/migration/test_go_fixed_graph.py tests/migration/test_go_fixed_snapshot.py tests/migration/test_go_dragonite.py) ;;
   *) printf 'Unsupported fixed inference acceptance suite\n' >&2; exit 2 ;;
 esac
 readonly postgres_name="pbi-fixed-inference-pg-$$"
