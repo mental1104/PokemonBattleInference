@@ -40,6 +40,21 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(value.items[1].failureCode, "graph_node_limit"); XCTAssertEqual(value.items[1].attemptCount, 2)
     }
 
+    /// 显式null才代表旧来源未知；未知schema、缺字段或不成对版本必须报协议错误而非回填本地版本。
+    func testExecutionMetadataExplicitUnknownAndValidation() throws {
+        let decoder = ContractJSON.decoder()
+        XCTAssertNil(try decoder.decode(ConfigurationJobMetadataEnvelope.self, from: Data(#"{"schema_version":1,"metadata":null}"#.utf8)).metadata)
+        let metadata = #"{"schema_version":1,"engine_version":null,"rules_version":null,"input_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","input_schema_version":1,"operation":"fixed_battle","observer":"attacker"}"#
+        let value = try decoder.decode(ConfigurationJobMetadataEnvelope.self, from: Data("{\"schema_version\":1,\"metadata\":\(metadata)}".utf8))
+        XCTAssertNil(value.metadata?.engineVersion); XCTAssertNil(value.metadata?.rulesVersion)
+        XCTAssertEqual(value.metadata?.inputSha256, String(repeating: "a", count: 64))
+        for text in [#"{"schema_version":2,"metadata":null}"#, #"{"schema_version":1}"#,
+                     "{\"schema_version\":1,\"metadata\":\(metadata.replacingOccurrences(of: "\"engine_version\":null", with: "\"engine_version\":\"unexpected\""))}",
+                     "{\"schema_version\":1,\"metadata\":\(metadata.replacingOccurrences(of: String(repeating: "a", count: 64), with: "invalid"))}"] {
+            XCTAssertThrowsError(try decoder.decode(ConfigurationJobMetadataEnvelope.self, from: Data(text.utf8)))
+        }
+    }
+
     /// 错误地址/路径和页界必须在发出任何网络请求前失败，不让任务ID变成任意路由。
     func testHTTPBoundaryRejectsInvalidInputs() async throws {
         for text in ["file:///tmp", "https://example.invalid/?private=x", "https://example.invalid/#fragment"] {
@@ -53,6 +68,10 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
         }
         do { _ = try await client.results("job", limit: 501); XCTFail("invalid page was accepted") }
         catch ConfigurationJobFailure.invalidInput { }
+        for pair in ["", ".", "..", "pair\n"] {
+            do { _ = try await client.executionMetadata("job", configurationId: pair); XCTFail("invalid metadata identifier was accepted") }
+            catch ConfigurationJobFailure.invalidInput { }
+        }
         do { _ = try await client.submit(command(), idempotencyKey: "invalid\nkey"); XCTFail("invalid request key was accepted") }
         catch ConfigurationJobFailure.invalidInput { }
     }
@@ -75,6 +94,20 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(status.rulesetId, input.rulesetId); XCTAssertEqual(status.calculationRevision, input.calculationRevision)
         let page = try await client.results(created.jobId)
         XCTAssertEqual(page.items.count, 1); XCTAssertEqual(page.items[0].status, .succeeded)
+        let recordedMetadata = try await client.executionMetadata(created.jobId, configurationId: page.items[0].configurationId)
+        let metadata = try XCTUnwrap(recordedMetadata)
+        // 实际来源来自同服务的独立子进程信封；不读取解释、提交admission或本地SDK版本作后备。
+        let coreProbe = Data(#"{"schema_version":1,"operations":[{"kind":"hp","base":91,"iv":31,"ev":0,"level":50}]}"#.utf8)
+        var probeRequest = URLRequest(url: url.appendingPathComponent("v1/core/calculate")); probeRequest.httpMethod = "POST"
+        probeRequest.setValue("application/json", forHTTPHeaderField: "Content-Type"); probeRequest.httpBody = coreProbe
+        let (probeBytes, probeResponse) = try await URLSession.shared.data(for: probeRequest)
+        XCTAssertEqual((probeResponse as? HTTPURLResponse)?.statusCode, 200)
+        let actual = try JSONDecoder().decode(ExecutionVersionProbe.self, from: probeBytes)
+        XCTAssertEqual(metadata.engineVersion, actual.engine_version); XCTAssertEqual(metadata.rulesVersion, actual.rules_version)
+        XCTAssertEqual(metadata.schemaVersion, 1); XCTAssertEqual(metadata.inputSchemaVersion, 1)
+        XCTAssertEqual(metadata.inputSha256.count, 64); XCTAssertEqual(metadata.operation, "fixed_battle"); XCTAssertEqual(metadata.observer, "attacker")
+        do { _ = try await client.executionMetadata(created.jobId, configurationId: "missing-case"); XCTFail("missing case was treated as unknown provenance") }
+        catch ConfigurationJobFailure.httpStatus(let code, _) { XCTAssertEqual(code, 404) }
         // 该冻结输入的实际.7 Core/PG响应已独立取证，保护完整概率/期望结果不被客户端舍入。
         XCTAssertEqual(page.items[0].attackerWinProbability?.text, "0"); XCTAssertEqual(page.items[0].defenderWinProbability?.text, "1")
         XCTAssertEqual(page.items[0].drawProbability?.text, "0"); XCTAssertEqual(page.items[0].expectedTurnsKind, .finite)
@@ -88,6 +121,14 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try ContractJSON.encoder().encode(input).write(to: directory.appendingPathComponent("request.json"))
             try Data(created.jobId.utf8).write(to: directory.appendingPathComponent("job-id.txt"))
+            // 独立溯源及版本探针保留真实HTTP原文；配置ID按单路径段编码，与SDK同样经过正式路由。
+            var allowed = CharacterSet.urlPathAllowed; allowed.remove(charactersIn: "/%?#\\")
+            var metadataURL = URLComponents(url: url.appendingPathComponent("v1/inference/configuration-jobs/\(created.jobId)/results"), resolvingAgainstBaseURL: false)!
+            metadataURL.percentEncodedPath += "/\(page.items[0].configurationId.addingPercentEncoding(withAllowedCharacters: allowed)!)/metadata"
+            let (metadataBytes, metadataResponse) = try await URLSession.shared.data(from: metadataURL.url!)
+            XCTAssertEqual((metadataResponse as? HTTPURLResponse)?.statusCode, 200)
+            try metadataBytes.write(to: directory.appendingPathComponent("execution-metadata.json"))
+            try probeBytes.write(to: directory.appendingPathComponent("core-version-probe.json"))
             // 独立HTTP再次读取不可变终态，保留原始响应而非只保存重编码后的DTO。
             for suffix in ["", "/results", "/issues"] {
                 let endpoint = url.appendingPathComponent("v1/inference/configuration-jobs/\(created.jobId)\(suffix)")
@@ -125,6 +166,13 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
         }
         XCTAssertEqual(status.status, .cancelled)
         XCTAssertEqual(status.counts.completed, status.counts.total)
+        // 取消时尚未交给子进程的case没有执行来源。实际HTTP null应保留nil，不从本地或准入版本补值。
+        let cancelledPage = try await client.results(created.jobId)
+        var unexecutedCase: String?
+        for item in cancelledPage.items where item.status == .cancelled {
+            if try await client.executionMetadata(created.jobId, configurationId: item.configurationId) == nil { unexecutedCase = item.configurationId; break }
+        }
+        XCTAssertNotNil(unexecutedCase, "A pending case cancelled before execution must retain explicit null metadata")
         if let path = ProcessInfo.processInfo.environment["PBI_CONFIGURATION_JOB_REPORT_DIRECTORY"] {
             let output = URL(fileURLWithPath: path).appendingPathComponent(created.jobId)
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -135,6 +183,9 @@ final class ConfigurationJobTests: XCTestCase, @unchecked Sendable {
         }
     }
 }
+
+/// 独立读取子进程真实信封的版本；不复用metadata DTO解码，防止共享字段映射错误自证。
+private struct ExecutionVersionProbe: Decodable { let engine_version: String; let rules_version: String }
 
 /// 独立读取请求JSON边界；字段使用原snake_case，避免借同一编码模型自证字段映射。
 private struct EncodedCommand: Decodable {

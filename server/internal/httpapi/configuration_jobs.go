@@ -311,6 +311,7 @@ func configurationQueryInt(w http.ResponseWriter, r *http.Request, name string, 
 // registerConfigurationJobs 迁移原配置任务四条读取/取消 API；不受理尚未完成严格准入的创建命令。
 // mux 是主 router；db 是借用连接池；原 Python 创建且没有 Go definition 的任务也能读取。
 func registerConfigurationJobs(mux *http.ServeMux, db *sql.DB) {
+	registerConfigurationJobMetadata(mux, db)
 	store := jobs.New(db)
 	mux.HandleFunc("GET /v1/inference/configuration-jobs/{job_id}", func(w http.ResponseWriter, r *http.Request) {
 		job, err := store.Get(r.Context(), r.PathValue("job_id"))

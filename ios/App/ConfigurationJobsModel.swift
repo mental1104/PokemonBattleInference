@@ -86,6 +86,13 @@ import PokemonAppSupport
         do { try await fetchResults(offset: offset) } catch { present(error) }
     }
 
+    /// configurationId 为当前结果原样身份；使用提交/查询时绑定的服务器，不跟随尚未保存或后来改变的设置。
+    /// 返回实际溯源或明确的旧记录 nil；未绑定任务或 HTTP 失败抛错，由详情页单独展示读取失败。
+    func executionMetadata(for configurationId: String) async throws -> ConfigurationJobExecutionMetadata? {
+        guard let client, !jobId.isEmpty else { throw ConfigurationJobFailure.invalidInput }
+        return try await client.executionMetadata(jobId, configurationId: configurationId)
+    }
+
     /// 开始另一个任务只清理本地显示，不取消或删除原任务；job ID可先复制保存以便继续查询。
     func prepareAnother() {
         guard !working else { return }

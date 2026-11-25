@@ -78,6 +78,22 @@ public actor ConfigurationJobClient {
         guard value.jobId == jobId, value.offset == offset, value.limit == limit else { throw ConfigurationJobFailure.invalidResponse }; return value
     }
 
+    /// jobId 为冻结任务身份，configurationId 为结果的完整 canonical ID（可含 JSON/斜线），不重新生成配置身份。
+    /// 返回真实来源；nil 只表示服务显式记录 metadata:null。404/传输/校验失败抛错，不伪装成未知旧版本。
+    public func executionMetadata(_ jobId: String, configurationId: String) async throws -> ConfigurationJobExecutionMetadata? {
+        guard !configurationId.isEmpty, configurationId != ".", configurationId != "..",
+              !configurationId.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw ConfigurationJobFailure.invalidInput }
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/%?#\\")
+        guard let encoded = configurationId.addingPercentEncoding(withAllowedCharacters: allowed),
+              var parts = URLComponents(url: try jobURL(jobId).appendingPathComponent("results"), resolvingAgainstBaseURL: false) else { throw ConfigurationJobFailure.invalidInput }
+        // 整个 canonical ID 只能占一个路径段，避免 snapshot 内斜线改变 Go ServeMux 的路由。
+        parts.percentEncodedPath += "/\(encoded)/metadata"
+        guard let url = parts.url else { throw ConfigurationJobFailure.invalidInput }
+        let value: ConfigurationJobMetadataEnvelope = try await perform(URLRequest(url: url))
+        return value.metadata
+    }
+
     /// cursor 是服务的 opaque nextCursor/null，status 可选 failed/truncated，errorCode 由原 HTTP 合同验证。
     public func issues(_ jobId: String, cursor: String? = nil, limit: Int = 100, status: ConfigurationCasePhase? = nil, errorCode: String? = nil) async throws -> ConfigurationJobPage {
         guard (1...500).contains(limit), status == nil || status == .failed || status == .truncated else { throw ConfigurationJobFailure.invalidInput }

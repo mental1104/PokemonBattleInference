@@ -6,7 +6,7 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果、固定战斗�
 
 独立登记的`abi11-verification`从b476d0f固定基线整合已冻结的Summary构图、根行动完整归因、透明上下文、原独立状态门禁、stateless snapshot及reference provider codec。`summary-snapshot-abi11-20261125/native-first.log`记录 **149/149 CTest PASS（14.45秒）**及 **111 Python差分/Go委托PASS（187.54秒）**；207项缺外部PG/HTTP/Swift环境明确SKIP。新共享样本42个，前39项数学结果保持不变；正式32MiB边界和Full图导航保持。
 
-统一入口为`make test-native CORE_BUILD_DIR=/build/root-summary-abi11`。该GCC14 archive冻结后不再覆盖；Swift须从相同源码另建GCC13兼容archive，不能链接GCC14/glibc2.41产物。当前.11 Apple构建与Swift实际服务复验尚未完成。根行动原参考缺少BattleSide导入的独立修复记录为BASE-EXPLANATION-001，差分使用明确修正后的oracle。
+统一入口为`make test-native CORE_BUILD_DIR=/build/root-summary-abi11`。该GCC14 archive冻结后不再覆盖；同源码GCC13兼容archive已独立构建为`root-summary-swift11`，没有链接GCC14/glibc2.41产物。`serial-resume-20261125/swift-live-abi11/`实际Swift/Go/PG/daemon **27/27零SKIP通过（7.971秒）**，含42共享样本；新版Apple构建仍未验证。根行动原参考缺少BattleSide导入的独立修复记录为BASE-EXPLANATION-001，差分使用明确修正后的oracle。
 
 串行消费者检查点`serial-resume-20261125/worker-abi11/`：新任务显式冻结`graph_mode=configuration_summary`及`include_root_action_explanation=true`，真实PG/独立child/daemon **11/11 race PASS（4.181秒）**且vet通过。成功说明核对另一次真实child完整归因对象，实际版本/输入SHA仍独立保存；显式graph没有归因时保持nil。公开HTTP完整结果及预算诊断的后续复验单独记录，不把该11项当作全API验证。
 

@@ -32,6 +32,11 @@ postgres_id="$(compose run --rm --no-deps -d --name "$postgres_name" pokemon-go-
 for _ in {1..100}; do if docker exec "$postgres_id" pg_isready -U pokeop -d pokeop >/dev/null 2>&1; then break; fi; sleep .1; done
 database="postgres://pokeop@$postgres_name:5432/pokeop?sslmode=disable"
 compose run --rm --no-deps -e PBI_POSTGRES_DSN="$database" pokemon-validation /build/p4-jobs-server/pbi-db-init --csv-root /source/submodules/pokeapi/data/v2/csv > "$POKEOP_REPORT_ROOT/knowledge-import.json" 2> "$POKEOP_REPORT_ROOT/knowledge-import.log"
+# 新来源契约的旧记录/null、编码路径、404与损坏边界使用同一独占PG；存储夹具不冒充Core执行。
+compose run --rm --no-deps -e CGO_LDFLAGS="-L$go_core" -e GOCACHE=/build/go-cache -e GOPATH=/build/go-path -e GOTMPDIR=/build/go-tmp \
+    -e PBI_TEST_POSTGRES_DSN="$database" pokemon-validation sh -ec 'cd /source/server
+go test -a -race -p 2 ./internal/httpapi -run "^TestConfigurationResultMetadataPostgres$" -count=1 -v
+go vet ./internal/httpapi' > "$POKEOP_REPORT_ROOT/metadata-http-postgres.log" 2>&1
 server_id="$(compose run --rm --no-deps -d --name "$server_name" --publish 127.0.0.1::41105 -e PBI_LISTEN=0.0.0.0:41105 -e PBI_POSTGRES_DSN="$database" -e PBI_CORE_WORKER_PATH=/build/p4-jobs-server/pbi-core-worker pokemon-validation /build/p4-jobs-server/pbi-server)"
 worker_id="$(compose run --rm --no-deps -d --name "$worker_name" -e PBI_POSTGRES_DSN="$database" pokemon-validation /build/p4-jobs-server/pbi-worker --revision battle-inference.summary-exploration.v2 --native-executable /build/p4-jobs-server/pbi-core-worker)"
 endpoint="http://$(docker port "$server_id" 41105/tcp)"

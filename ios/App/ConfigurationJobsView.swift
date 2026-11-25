@@ -77,7 +77,7 @@ import PokemonAppSupport
                 Section("配置对结果") {
                     ForEach(jobs.cases) { item in
                         NavigationLink {
-                            Form { JobCaseView(item: item) }.navigationTitle("配置对结果")
+                            JobCaseView(item: item, loadMetadata: { try await jobs.executionMetadata(for: item.configurationId) }).navigationTitle("配置对结果")
                         } label: { Text("#\(item.sequenceNo + 1) · \(item.status.rawValue)") }
                             .accessibilityIdentifier("configuration-job-case-\(item.sequenceNo)")
                     }
@@ -118,18 +118,36 @@ import PokemonAppSupport
 /// 呈现服务实际摘要；nil概率保留“暂无”，不把失败/截断解释成零胜率。
 @MainActor private struct JobCaseView: View {
     let item: ConfigurationJobCase
+    /// 来自当前任务冻结client的只读查询；不读取可编辑设置，也不从业务解释提取版本。
+    let loadMetadata: @MainActor () async throws -> ConfigurationJobExecutionMetadata?
+    @State private var metadata: ConfigurationJobExecutionMetadata?
+    @State private var loading = true
+    @State private var metadataError = false
     /// 精确分数和期望回合均为服务返回的字符串，展示小数不重新参与业务计算。
     var body: some View {
-        Text("\(item.attackerPokemonId)：\(item.attackerMoveIds.map(String.init).joined(separator: ",")) → \(item.defenderPokemonId)：\(item.defenderMoveIds.map(String.init).joined(separator: ","))").font(.caption)
-        metric("攻击方胜率", value: item.attackerWinProbability?.text ?? "暂无结果", id: "job-result-attacker-win")
-        metric("防御方胜率", value: item.defenderWinProbability?.text ?? "暂无结果", id: "job-result-defender-win")
-        metric("平局率", value: item.drawProbability?.text ?? "暂无结果", id: "job-result-draw")
-        metric("期望回合", value: item.expectedTurns ?? item.expectedTurnsKind?.rawValue ?? "暂无结果", id: "job-result-expected-turns")
-        LabeledContent("节点/边", value: "\(item.nodeCount) / \(item.edgeCount)")
-        if let code = item.failureCode { Text("\(code) · \(item.diagnostic ?? "")").foregroundStyle(.red) }
-        if case .string(let engine)? = item.explanation?["engine_version"] { metric("推演引擎", value: engine, id: "job-result-engine") }
-        if case .string(let rules)? = item.explanation?["rules_version"] { metric("推演规则", value: rules, id: "job-result-rules") }
-        Text(item.configurationId).font(.caption2).textSelection(.enabled)
+        Form {
+            Text("\(item.attackerPokemonId)：\(item.attackerMoveIds.map(String.init).joined(separator: ",")) → \(item.defenderPokemonId)：\(item.defenderMoveIds.map(String.init).joined(separator: ","))").font(.caption)
+            metric("攻击方胜率", value: item.attackerWinProbability?.text ?? "暂无结果", id: "job-result-attacker-win")
+            metric("防御方胜率", value: item.defenderWinProbability?.text ?? "暂无结果", id: "job-result-defender-win")
+            metric("平局率", value: item.drawProbability?.text ?? "暂无结果", id: "job-result-draw")
+            metric("期望回合", value: item.expectedTurns ?? item.expectedTurnsKind?.rawValue ?? "暂无结果", id: "job-result-expected-turns")
+            LabeledContent("节点/边", value: "\(item.nodeCount) / \(item.edgeCount)")
+            if let code = item.failureCode { Text("\(code) · \(item.diagnostic ?? "")").foregroundStyle(.red) }
+            metric("推演引擎", value: versionText(metadata?.engineVersion), id: "job-result-engine")
+            metric("推演规则", value: versionText(metadata?.rulesVersion), id: "job-result-rules")
+            if metadataError { Button("运行信息读取失败，重试") { Task { await readMetadata() } }.accessibilityIdentifier("retry-job-metadata") }
+            if let metadata { Text("输入 SHA-256：\(metadata.inputSha256)").font(.caption2).textSelection(.enabled) }
+            Text(item.configurationId).font(.caption2).textSelection(.enabled)
+            // 查询绑定详情容器生命周期；滚动回收某个Form结果行不能取消来源请求。
+        }.task(id: item.configurationId) { await readMetadata() }
+    }
+    /// value 只接受独立溯源版本；加载/网络失败/旧记录分别显示，绝不读取 explanation 或本地引擎替代。
+    private func versionText(_ value: String?) -> String { loading ? "读取中" : metadataError ? "读取失败" : value ?? "未知（未记录）" }
+    /// 调用已冻结任务的只读接口；取消不更新离开的视图，失败不污染原业务结果。
+    private func readMetadata() async {
+        loading = true; metadataError = false
+        do { let value = try await loadMetadata(); try Task.checkCancellation(); metadata = value; loading = false }
+        catch { if !Task.isCancelled { metadataError = true; loading = false } }
     }
     /// title/value 为服务结果名称/原文；id提供稳定无障碍语义，不依赖合并后的标签解析数值。
     private func metric(_ title: String, value: String, id: String) -> some View {

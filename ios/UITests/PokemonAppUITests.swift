@@ -153,7 +153,8 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertEqual(metric("damage-range").value as? String, "99–117")
         reveal(metric("two-hit-probability"))
         XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
-        reveal(app.buttons["calculate-online"], upward: false); app.buttons["calculate-online"].tap()
+        reveal(app.buttons["calculate-online"], upward: false)
+        capture("online-calculation-button-visible"); app.buttons["calculate-online"].tap()
         reveal(metric("calculation-source"))
         let origin = "服务器 \(services.serverURL.host ?? "")\(services.serverURL.port.map { ":\($0)" } ?? "")"
         waitForValue(metric("calculation-source"), value: origin)
@@ -218,8 +219,8 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertEqual(metric("job-result-defender-win").value as? String, "1")
         XCTAssertEqual(metric("job-result-draw").value as? String, "0")
         XCTAssertEqual(metric("job-result-expected-turns").value as? String, "5/1")
-        reveal(metric("job-result-engine")); XCTAssertEqual(metric("job-result-engine").value as? String, services.engineVersion)
-        reveal(metric("job-result-rules")); XCTAssertEqual(metric("job-result-rules").value as? String, services.rulesVersion)
+        reveal(metric("job-result-engine")); waitForValue(metric("job-result-engine"), value: services.engineVersion)
+        reveal(metric("job-result-rules")); waitForValue(metric("job-result-rules"), value: services.rulesVersion)
         XCTAssertFalse(app.alerts.firstMatch.exists)
         capture("live-go-task-exact-result")
     }
@@ -309,11 +310,25 @@ final class PokemonAppUITests: XCTestCase {
     @MainActor private func metric(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
-    /// element 是当前页真实控件；有限次滚动直到可交互，upward 为向页面底部滚动。
+    /// element 是当前页真实控件；upward 为尚未进入可查询范围时的滚动方向。
+    /// 有限次实际滚动至完整控件位于NavBar/TabBar之间；isHittable单独可能误报被顶栏遮挡的Form按钮。
     @MainActor private func reveal(_ element: XCUIElement, upward: Bool = true) {
         for _ in 0..<12 {
             _ = element.waitForExistence(timeout: 0.5)
-            if element.exists && element.isHittable { return }
+            if element.exists {
+                let frame = element.frame, screen = app.frame
+                var top = screen.minY, bottom = screen.maxY
+                // 从实际横向覆盖该控件的导航/标签栏计算边界，兼容iPad顶部标签栏及iPhone底栏。
+                for bar in app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex where bar.exists {
+                    let overlay = bar.frame
+                    guard overlay.minX <= frame.midX, frame.midX <= overlay.maxX else { continue }
+                    if overlay.maxY <= screen.midY { top = max(top, overlay.maxY) }
+                    else if overlay.minY >= screen.midY { bottom = min(bottom, overlay.minY) }
+                }
+                if frame.minY < top + 4 { app.swipeDown(); continue }
+                if frame.maxY > bottom - 4 { app.swipeUp(); continue }
+                if element.isHittable { return }
+            }
             if upward { app.swipeUp() } else { app.swipeDown() }
         }
     }

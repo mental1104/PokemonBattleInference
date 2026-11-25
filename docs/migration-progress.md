@@ -20,7 +20,7 @@
 
 ## 已确认的边界与决策
 
-- 2026-11-25串行检查点：`6d12312`保存正式Core 0.11（149原生/111差分委托、42共享样本），新任务归因接线另批保存。`serial-resume-20261125/dragonite/`真实原HTTP8/8通过（2.66秒），原fake-out-pressure实际因moves维度为空返回422，测试完整比较原错误JSON；没有通过Go提升机制支持。新测试ruff/strict mypy通过。`job-results-final2/`实际公开任务20/20通过（39.79秒），之前两批17/20失败均保留，差异只在原诊断文本。`go-all-abi11/`正式.11及独占PG完整Go **66 PASS / 1专用Swift serve夹具SKIP**，额外恢复 **10/10 PASS**；race/vet、全CSV首次/复用、独立HTTP读取均通过。新版Swift/Apple尚未复验。
+- 2026-11-25串行检查点：`6d12312`保存正式Core 0.11（149原生/111差分委托、42共享样本），`165dfff`保存任务业务归因/诊断兼容，`6e9cd8c`保存41项API覆盖。`serial-resume-20261125/dragonite/`真实原HTTP8/8通过（2.66秒），原fake-out-pressure实际因moves维度为空返回422，测试完整比较原错误JSON；没有通过Go提升机制支持。新测试ruff/strict mypy通过。`job-results-final2/`实际公开任务20/20通过（39.79秒），之前两批17/20失败均保留，差异只在原诊断文本。`go-all-abi11/`正式.11及独占PG完整Go **66 PASS / 1专用Swift serve夹具SKIP**，额外恢复 **10/10 PASS**；race/vet、全CSV首次/复用、独立HTTP读取均通过。`swift-live-abi11/`同源码独立GCC13/Swift与GCC14/Go/PG/daemon **27/27零SKIP通过（7.971秒）**，含42共享样本、新任务来源与同步；新版Apple/App UI尚未复验。
 
 - 分支 `codex/monorepo-migration`；工作树 `/volume2/workflow/code/worktrees/PokemonBattleInference/monorepo-migration`。不合并、不切换生产。2026-11-24 用户明确要求“先拿 github CI 测”，已授权推送本分支并开 Ready PR 以运行 CI；不启用自动合并。
 - 主工作树 Makefile 有用户原有路径修正，未带入或覆盖。迁移工作树从干净的 `10c422e` 开始。
