@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "workload": "scizor-sylveon-direct-damage",
+  "engine_version": "0.2.0",
+  "case_count": 10000,
+  "repeats": 5,
+  "platform": "Linux-5.10.55+-x86_64-with-glibc2.41",
+  "python_version": "3.11.17",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "binary_sha256": "5e0d31eaa1afef2318070466eb509156623cf245fba4cf24c024c0184fcd4cef",
+  "result_sha256": "a7297c8af14b0d4279e8428c5806948878b871e8b617dbb9a95ff8069126321c",
+  "python_seconds": [
+    0.46829183800218743,
+    0.5283007729995006,
+    0.4493603390001226,
+    0.5241315929997654,
+    0.4672252250020392
+  ],
+  "cpp_process_seconds": [
+    0.5313932230019418,
+    0.5328795780005748,
+    0.5284740770002827,
+    0.5280788799973379,
+    0.52882527499969
+  ],
+  "python_median_seconds": 0.46829183800218743,
+  "cpp_process_median_seconds": 0.52882527499969,
+  "measurement_boundary": "Python: direct damage and full trace objects. C++: process, input JSON, direct damage, exact KO, full output JSON and IPC. Request generation and oracle checks excluded. Shared NAS; no full battle or pure C ABI speedup claim."
+}

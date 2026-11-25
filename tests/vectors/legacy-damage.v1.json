@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "oracle": "original AbilityCalculatorFactory and complete legacy DamageCalculator chain; raw random unit injected",
+  "cases": [
+    {
+      "name": "normal",
+      "operation": {
+        "kind": "legacy_damage",
+        "attacker": {
+          "level": 100,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "nature": "Hardy",
+          "types": [
+            1
+          ]
+        },
+        "defender": {
+          "level": 100,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "nature": "Hardy",
+          "types": [
+            1
+          ]
+        },
+        "move": {
+          "power": 95,
+          "type": 1,
+          "move_type": "special_move"
+        },
+        "random_unit": 0.5,
+        "type_chart": [
+          {
+            "attacking": 1,
+            "defending": 1,
+            "percent": 100
+          }
+        ]
+      },
+      "expected": {
+        "kind": "legacy_damage",
+        "formula": "",
+        "min_damage": "102",
+        "max_damage": "121",
+        "random_damage": "112",
+        "min_damage_percent": 29.9,
+        "max_damage_percent": 35.4,
+        "random_damage_percent": 32.8,
+        "attacker_stats": [
+          "341",
+          "236",
+          "236",
+          "236",
+          "236",
+          "236"
+        ],
+        "defender_stats": [
+          "341",
+          "236",
+          "236",
+          "236",
+          "236",
+          "236"
+        ],
+        "random_multiplier": 0.93
+      }
+    },
+    {
+      "name": "quiet-fractional-ev",
+      "operation": {
+        "kind": "legacy_damage",
+        "attacker": {
+          "level": 53,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "nature": "Quiet",
+          "types": [
+            10
+          ]
+        },
+        "defender": {
+          "level": 53,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "nature": "Hardy",
+          "types": [
+            12,
+            9
+          ]
+        },
+        "move": {
+          "power": 95,
+          "type": 10,
+          "move_type": "special_move"
+        },
+        "random_unit": 0.5,
+        "type_chart": [
+          {
+            "attacking": 10,
+            "defending": 12,
+            "percent": 200
+          },
+          {
+            "attacking": 10,
+            "defending": 9,
+            "percent": 200
+          }
+        ]
+      },
+      "expected": {
+        "kind": "legacy_damage",
+        "formula": "",
+        "min_damage": "252",
+        "max_damage": "300",
+        "random_damage": "276",
+        "min_damage_percent": 136.2,
+        "max_damage_percent": 162.1,
+        "random_damage_percent": 149.1,
+        "attacker_stats": [
+          "185",
+          "127",
+          "127",
+          "140",
+          "127",
+          "127"
+        ],
+        "defender_stats": [
+          "185",
+          "127",
+          "127",
+          "127",
+          "127",
+          "127"
+        ],
+        "random_multiplier": 0.93
+      }
+    },
+    {
+      "name": "binary64-round-boundary",
+      "operation": {
+        "kind": "legacy_damage",
+        "attacker": {
+          "level": 53,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "nature": "Adamant",
+          "types": [
+            1
+          ]
+        },
+        "defender": {
+          "level": 53,
+          "base": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            100
+          ],
+          "basepoint": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "nature": "Hardy",
+          "types": [
+            1
+          ]
+        },
+        "move": {
+          "power": 95,
+          "type": 1,
+          "move_type": "special_move"
+        },
+        "random_unit": 0.03333333333333336,
+        "type_chart": [
+          {
+            "attacking": 1,
+            "defending": 1,
+            "percent": 100
+          }
+        ]
+      },
+      "expected": {
+        "kind": "legacy_damage",
+        "formula": "",
+        "min_damage": "51",
+        "max_damage": "61",
+        "random_damage": "51",
+        "min_damage_percent": 27.5,
+        "max_damage_percent": 32.9,
+        "random_damage_percent": 27.5,
+        "attacker_stats": [
+          "185",
+          "140",
+          "127",
+          "114",
+          "127",
+          "127"
+        ],
+        "defender_stats": [
+          "185",
+          "127",
+          "127",
+          "127",
+          "127",
+          "127"
+        ],
+        "random_multiplier": 0.85
+      }
+    }
+  ]
+}

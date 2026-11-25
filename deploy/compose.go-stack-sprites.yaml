@@ -1,0 +1,22 @@
+# 完整图片在版本化HDD快照，PG只存元数据；不放入API/前端镜像，也不写BYTEA正文。
+services:
+  postgres:
+    # 独占SSD目录保留完整数据库重启语义，图片正文不占用PGDATA。
+    # 保留基础挂载但不将其用作PGDATA，兼容当前Compose 2.20，不依赖!reset语法。
+    environment:
+      PGDATA: /var/lib/postgresql/full-sprites
+    volumes:
+      - ${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new empty validation database directory}:/var/lib/postgresql/full-sprites
+  db-init:
+    volumes:
+      - ${PBI_STACK_SPRITES_ROOT:?Set the verified HDD snapshot parent directory}:/sprites-storage:ro
+    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, "/sprites-storage/${PBI_SPRITES_SOURCE_COMMIT:?Set the verified sprites commit}", --sprites-commit, "${PBI_SPRITES_SOURCE_COMMIT}", --sprites-storage, filesystem, --timeout, "${PBI_STACK_INIT_TIMEOUT:-20m}"]
+  backend:
+    environment:
+      PBI_SPRITES_ROOT: /sprites-storage
+    volumes:
+      - ${PBI_STACK_SPRITES_ROOT}:/sprites-storage:ro
+  asset-verifier:
+    extends:
+      file: ${PBI_STACK_VALIDATION_ROOT:?Set the validation checkout}/deploy/compose.asset-verification.yaml
+      service: asset-verifier

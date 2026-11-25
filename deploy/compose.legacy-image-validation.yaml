@@ -1,0 +1,29 @@
+# 在实际Python参考镜像中复用布局测试；只挂载测试文件，禁止挂载源码掩盖镜像COPY错误。
+# 只读、无网络、无数据库凭据；pytest报告写HDD，run --rm结束后无常驻实例。
+services:
+  pokemon-legacy-image-validation:
+    profiles: [maintenance]
+    image: ${PBI_LEGACY_IMAGE:?Set the built Python reference image}
+    pull_policy: never
+    user: '1026:100'
+    working_dir: /app
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    tmpfs: ["/tmp:rw,size=67108864,mode=1777"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: '1'
+    volumes:
+      - type: bind
+        source: ${POKEOP_SOURCE_ROOT:?Set the source checkout}/tests/migration/test_legacy_layout.py
+        target: /app/tests/migration/test_legacy_layout.py
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${POKEOP_REPORT_ROOT:?Set the private HDD report directory}
+        target: /reports
+        bind: {create_host_path: false}
+    entrypoint: [python, -m, pytest]
+    command: [tests/migration/test_legacy_layout.py, -q, -p, no:cacheprovider, --junitxml=/reports/legacy-image.xml]

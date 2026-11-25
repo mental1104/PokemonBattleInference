@@ -1,0 +1,29 @@
+# 通过正式NAS HTTPS执行原Vue业务验收；显式选择图片完整性检查，报告仅写私有HDD。
+services:
+  pokemon-acceptance-browser:
+    profiles: [maintenance]
+    image: mcr.microsoft.com/playwright:v1.65.0-noble
+    pull_policy: never
+    user: '1026:100'
+    working_dir: /build/p6-browser
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,size=536870912,mode=1777"]
+    shm_size: 256m
+    mem_limit: 2g
+    environment:
+      PBI_STACK_WEB_URL: https://pokemon.mental1104.xyz
+      PBI_STACK_REQUIRE_SPRITES: ${PBI_NAS_REQUIRE_SPRITES:-0}
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    extra_hosts: ["pokemon.mental1104.xyz:192.168.31.7"]
+    volumes:
+      - /volume2/docker/pokemon-migration-validation/build:/build
+      - ${PBI_NAS_BROWSER_REPORT:?Set the private HDD browser report directory}:/reports
+      - /volume2/code/worktrees/PokemonBattleInference/nas-release/tools/migration:/validation:ro
+    entrypoint: [node, /validation/accept-web-go.mjs]
+    networks: [pokemon_acceptance_net]
+networks:
+  pokemon_acceptance_net:
+    external: true
+    name: home_pokemon_net

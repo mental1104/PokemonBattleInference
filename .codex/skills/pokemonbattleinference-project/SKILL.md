@@ -22,6 +22,23 @@ The graph governs repository-level testability rules:
 
 For ordinary PokemonBattleInference business implementation work, rebuild context from repository files and apply local code/test conventions directly from the relevant source and tests. Do not use this graph as permission to refactor business code.
 
+## Monorepo Evidence Map
+
+The migration now contains C++ Core, Go services, Swift clients and the retained Python reference. Use the owning source and current acceptance records instead of assuming Python is still the only backend.
+
+| Subject | Owning entry and evidence |
+| --- | --- |
+| Canonical macOS/Linux backend tests | Root `make test`: CMake/CTest first, then the same pytest collection including `tests/migration/test_native_bindings.py`. Go and Swift keep their native frameworks behind that adapter; absent tools skip explicitly, malformed explicit paths fail. |
+| Core and shared ABI | `make test-core`, `make test-bindings`, `make test-native`; `contracts/c/pbi_core.h` and `tests/vectors/` own shared inputs. Read `docs/migration-core-bindings-acceptance.md` for fixed build and differential evidence. |
+| Original Python reference | Source is `legacy/pokeop/`; root `pokeop` is its compatibility symlink, and original tests remain. Relocation followed complete Go runtime/HDD/NAS acceptance. `submodules/common` is the pinned dependency; do not substitute an adjacent clone or installed older wheel. Historical benchmarks retain their original revisions. |
+| Go/PG and recovery | `tools/migration/validate-go-server.sh` and the owning suites under `server/internal/`; see `docs/migration-server.md` and `docs/native-worker.md`. External environment contracts and fixture ownership remain mandatory. |
+| Real Swift online/sync/jobs | `tools/migration/accept-swift-jobs.sh` and `docs/migration-sync.md`; the script supplies owned Go/PG/daemon services. `test-swift.sh` alone does not prove online cases passed when their URLs are absent. |
+| Real Vue/Go runtime | `tools/migration/validate-go-stack.sh`, `docs/go-stack-validation.md` and `docs/go-runtime.md`. Keep frontend/backend/worker/postgres roles distinct. Health or HTTP202 is insufficient evidence of task completion. |
+| Apple App and device boundaries | `tools/migration/validate-apple-app.sh`, `docs/migration-ios-acceptance.md` and `docs/iphone-ipad-acceptance.md`. Simulator, unsigned build, signing and Human dual-device acceptance are separate claims. |
+| Current checkpoint | `docs/migration-progress.md` records current states, percentages, fixed versions, failed attempts and remaining Human authorization. Older green runs do not prove newer assertions. |
+
+NAS validation uses declared maintenance services through `tools/migration/validate-nas.sh`; source stays read-only, build outputs use the owned SSD directory, and reports use Backup on HDD. Native archives must match the caller's toolchain: the GNU14 Go archive and GNU13 Swift archive are distinct Linux artifacts. Do not overwrite fixed acceptance archives or link across incompatible libc versions. Local adapters may skip unavailable integration capabilities, but stage acceptance requires the corresponding real environment to run without those skips.
+
 ## Graph Topology
 
 ```text
@@ -60,11 +77,17 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Entry[make test / pytest] --> Portable[portable core tests]
-    Entry --> Integration[PostgreSQL integration tests]
+    Entry[make test] --> NativeCore[CMake / CTest: core/]
+    NativeCore --> Collection[shared pytest collection]
+    Collection --> Portable[portable Python reference tests]
+    Collection --> Bindings[Go race/vet and Swift XCTest adapters]
+    Collection --> Integration[Python PostgreSQL integration tests]
 
-    Portable --> Domain[pokeop/domain]
-    Portable --> Application[pokeop/application]
+    NativeCore -. no database or HTTP .-> CoreResult[C++ domain and ABI results]
+    Bindings -. explicit capability skip/fail .-> NativeResult[native contracts and optional integration suites]
+
+    Portable --> Domain[legacy/pokeop/domain]
+    Portable --> Application[legacy/pokeop/application]
     Portable -. no Docker or PostgreSQL required .-> LocalResult[local unit validation]
 
     Integration --> Contract{POKEOP_TEST_POSTGRES_URL exists?}

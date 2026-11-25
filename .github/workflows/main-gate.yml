@@ -55,12 +55,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-legacy-runtime.txt
 
       - name: Install Python dependencies
         run: |
           python -m pip install --disable-pip-version-check --quiet --upgrade pip
-          python -m pip install --disable-pip-version-check --quiet -r requirements.txt
+          # 与Python参考镜像一致，真实新进程导入common时需要其既有顶层依赖。
+          python -m pip install --disable-pip-version-check --quiet -r requirements.txt -r requirements-legacy-runtime.txt
 
       - name: Run backend tests
         run: |

@@ -1,0 +1,3778 @@
+{
+  "schema_version": 1,
+  "oracle": "original ListWinningPathGroupsUseCase and winning_path_groups_response",
+  "cases": [
+    {
+      "name": "random-action-aggregation-first-page",
+      "operation": {
+        "kind": "winning_paths",
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "graph": {
+          "nodes": [
+            {
+              "id": 0,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 202,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 1,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "non-terminal",
+              "reason": null,
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                0
+              ]
+            },
+            {
+              "id": 1,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 0,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 2,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "attacker-win",
+              "reason": "knockout",
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                1
+              ]
+            },
+            {
+              "id": 2,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 176,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 0,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 2,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "attacker-win",
+              "reason": "knockout",
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                2
+              ]
+            },
+            {
+              "id": 3,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 175,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 0,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 2,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "attacker-win",
+              "reason": "knockout",
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                3
+              ]
+            },
+            {
+              "id": 4,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 197,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 2,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "non-terminal",
+              "reason": null,
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                4
+              ]
+            },
+            {
+              "id": 5,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 174,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 0,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 3,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "attacker-win",
+              "reason": "knockout",
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                5
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": 0,
+              "source": 0,
+              "target": 1,
+              "probability": {
+                "numerator": "1",
+                "denominator": "8"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:damage:attacker:defender:280:roll-10:none:none:10",
+                      "outcome_id": "damage",
+                      "numeric_value": "10",
+                      "battle_kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "roll-10",
+                      "value": "10",
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:fainted:defender:none:none:roll-10:none:none:none",
+                      "outcome_id": "fainted",
+                      "numeric_value": null,
+                      "battle_kind": "fainted",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "roll-10",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 1,
+              "source": 0,
+              "target": 2,
+              "probability": {
+                "numerator": "3",
+                "denominator": "8"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:damage:attacker:defender:280:roll-11:none:none:11",
+                      "outcome_id": "damage",
+                      "numeric_value": "11",
+                      "battle_kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "roll-11",
+                      "value": "11",
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:fainted:defender:none:none:roll-11:none:none:none",
+                      "outcome_id": "fainted",
+                      "numeric_value": null,
+                      "battle_kind": "fainted",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "roll-11",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 2,
+              "source": 0,
+              "target": 3,
+              "probability": {
+                "numerator": "1",
+                "denominator": "4"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:defender:none:252:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 252,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:damage:attacker:defender:280:fake-out:none:none:12",
+                      "outcome_id": "damage",
+                      "numeric_value": "12",
+                      "battle_kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "fake-out",
+                      "value": "12",
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:fainted:defender:none:none:fake-out:none:none:none",
+                      "outcome_id": "fainted",
+                      "numeric_value": null,
+                      "battle_kind": "fainted",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "fake-out",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 3,
+              "source": 0,
+              "target": 4,
+              "probability": {
+                "numerator": "1",
+                "denominator": "4"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:damage:attacker:defender:280:setup:none:none:5",
+                      "outcome_id": "damage",
+                      "numeric_value": "5",
+                      "battle_kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "setup",
+                      "value": "5",
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 4,
+              "source": 4,
+              "target": 5,
+              "probability": {
+                "numerator": "1",
+                "denominator": "1"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:damage:attacker:defender:280:finish:none:none:20",
+                      "outcome_id": "damage",
+                      "numeric_value": "20",
+                      "battle_kind": "damage",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "finish",
+                      "value": "20",
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:fainted:defender:none:none:finish:none:none:none",
+                      "outcome_id": "fainted",
+                      "numeric_value": null,
+                      "battle_kind": "fainted",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "finish",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            }
+          ],
+          "components": [],
+          "truncations": [],
+          "statistics": {
+            "nodes": 6,
+            "edges": 5,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 4,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 2,
+              "unknown": 0
+            }
+          }
+        },
+        "limit": 2,
+        "cursor": null,
+        "sort": "shortest-high-probability",
+        "max_traversed_walks": 100000
+      },
+      "expected": {
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "sort": "shortest-high-probability",
+        "configuration": {
+          "configuration_key": "cfg-82999744c74abe4dc6280cb2",
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "level": 50,
+            "ability_identifier": "multiscale",
+            "item_identifier": "choice_band",
+            "move_ids": [
+              418
+            ]
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "level": 50,
+            "ability_identifier": "unknown",
+            "item_identifier": "unknown",
+            "move_ids": [
+              585
+            ]
+          }
+        },
+        "winner_probability": {
+          "numerator": "1",
+          "denominator": "1",
+          "decimal": 1.0,
+          "percent": 100.0
+        },
+        "returned_probability": {
+          "numerator": "3",
+          "denominator": "4",
+          "decimal": 0.75,
+          "percent": 75.0
+        },
+        "returned_coverage": {
+          "numerator": "3",
+          "denominator": "4",
+          "decimal": 0.75,
+          "percent": 75.0
+        },
+        "path_groups": [
+          {
+            "path_key": "wp-e64665c2d8887f4b046b8acd",
+            "terminal_turn": 2,
+            "probability": {
+              "numerator": "1",
+              "denominator": "2",
+              "decimal": 0.5,
+              "percent": 50.0
+            },
+            "raw_path_count": "2",
+            "raw_history_count_estimate": "2",
+            "terminal_reasons": [
+              "knockout"
+            ],
+            "terminal_node_ids": [
+              "1",
+              "2"
+            ],
+            "actions": [
+              {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 8,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              }
+            ],
+            "representative_path": [
+              {
+                "source_node_id": "0",
+                "edge_id": "1",
+                "target_node_id": "2"
+              }
+            ],
+            "damage_values": [
+              "10",
+              "11"
+            ],
+            "attacker_remaining_hp_values": [
+              176,
+              177
+            ],
+            "defender_remaining_hp_values": [
+              0
+            ],
+            "key_events": [
+              {
+                "kind": "fainted",
+                "actor": "defender",
+                "target": null,
+                "move_id": null,
+                "source_identifier": "roll-10"
+              },
+              {
+                "kind": "fainted",
+                "actor": "defender",
+                "target": null,
+                "move_id": null,
+                "source_identifier": "roll-11"
+              }
+            ]
+          },
+          {
+            "path_key": "wp-9ce36a488b1b00ed00ca130a",
+            "terminal_turn": 2,
+            "probability": {
+              "numerator": "1",
+              "denominator": "4",
+              "decimal": 0.25,
+              "percent": 25.0
+            },
+            "raw_path_count": "1",
+            "raw_history_count_estimate": "1",
+            "terminal_reasons": [
+              "knockout"
+            ],
+            "terminal_node_ids": [
+              "3"
+            ],
+            "actions": [
+              {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 252,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 252,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              }
+            ],
+            "representative_path": [
+              {
+                "source_node_id": "0",
+                "edge_id": "2",
+                "target_node_id": "3"
+              }
+            ],
+            "damage_values": [
+              "12"
+            ],
+            "attacker_remaining_hp_values": [
+              175
+            ],
+            "defender_remaining_hp_values": [
+              0
+            ],
+            "key_events": [
+              {
+                "kind": "fainted",
+                "actor": "defender",
+                "target": null,
+                "move_id": null,
+                "source_identifier": "fake-out"
+              }
+            ]
+          }
+        ],
+        "prefix_tree": {
+          "prefix_key": "root",
+          "depth": 0,
+          "action": null,
+          "probability": {
+            "numerator": "3",
+            "denominator": "4",
+            "decimal": 0.75,
+            "percent": 75.0
+          },
+          "raw_path_count": "3",
+          "terminal_path_keys": [],
+          "children": [
+            {
+              "prefix_key": "prefix-893aa429abe91f84db9e",
+              "depth": 1,
+              "action": {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 252,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 252,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              },
+              "probability": {
+                "numerator": "1",
+                "denominator": "4",
+                "decimal": 0.25,
+                "percent": 25.0
+              },
+              "raw_path_count": "1",
+              "terminal_path_keys": [
+                "wp-9ce36a488b1b00ed00ca130a"
+              ],
+              "children": []
+            },
+            {
+              "prefix_key": "prefix-d57f1b36915735171e95",
+              "depth": 1,
+              "action": {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 8,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              },
+              "probability": {
+                "numerator": "1",
+                "denominator": "2",
+                "decimal": 0.5,
+                "percent": 50.0
+              },
+              "raw_path_count": "2",
+              "terminal_path_keys": [
+                "wp-e64665c2d8887f4b046b8acd"
+              ],
+              "children": []
+            }
+          ]
+        },
+        "cycle_references": [],
+        "next_cursor": "eyJjYWxjdWxhdGlvbl9yZXZpc2lvbiI6ImJhdHRsZS1pbmZlcmVuY2UudGVzdC52MSIsImNvbmZpZ3VyYXRpb25fa2V5IjoiY2ZnLTgyOTk5NzQ0Yzc0YWJlNGRjNjI4MGNiMiIsImdyYXBoX2lkIjoic3RvcmVkLWdyYXBoIiwib2Zmc2V0IjoyLCJzb3J0Ijoic2hvcnRlc3QtaGlnaC1wcm9iYWJpbGl0eSIsInYiOjEsIndpbm5lciI6ImF0dGFja2VyIn0",
+        "has_more": true,
+        "query_complete": true,
+        "traversal_truncated": false,
+        "kind": "winning_paths"
+      }
+    },
+    {
+      "name": "open-cycle-finite-path-coverage",
+      "operation": {
+        "kind": "winning_paths",
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "graph": {
+          "nodes": [
+            {
+              "id": 0,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 202,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 1,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "non-terminal",
+              "reason": null,
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                0
+              ]
+            },
+            {
+              "id": 1,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 197,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 2,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "non-terminal",
+              "reason": null,
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                1
+              ]
+            },
+            {
+              "id": 2,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 200,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "multiscale",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 418,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 418,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 418
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 117,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "none",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 585,
+                        "name": "moonblast",
+                        "move": {
+                          "type": 18,
+                          "category": "special",
+                          "power": 95
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 0,
+                  "move_slots": [
+                    {
+                      "move_id": 585,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 585
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 3,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "attacker-win",
+              "reason": "knockout",
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                2
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": 0,
+              "source": 0,
+              "target": 1,
+              "probability": {
+                "numerator": "1",
+                "denominator": "1"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-1:damage:attacker:defender:280:enter:none:none:5",
+                      "outcome_id": "damage",
+                      "numeric_value": "5",
+                      "battle_kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "enter",
+                      "value": "5",
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 1,
+              "source": 1,
+              "target": 0,
+              "probability": {
+                "numerator": "1",
+                "denominator": "2"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:damage:attacker:defender:280:repeat:none:none:0",
+                      "outcome_id": "damage",
+                      "numeric_value": "0",
+                      "battle_kind": "damage",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "repeat",
+                      "value": "0",
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            },
+            {
+              "id": 2,
+              "source": 1,
+              "target": 2,
+              "probability": {
+                "numerator": "1",
+                "denominator": "2"
+              },
+              "paths": [
+                {
+                  "events": [
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:attacker:none:280:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 280,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:move-selected:defender:none:8:policy:none:none:none",
+                      "outcome_id": "move-selected",
+                      "numeric_value": null,
+                      "battle_kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 8,
+                      "source_identifier": "policy",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:damage:attacker:defender:280:exit:none:none:20",
+                      "outcome_id": "damage",
+                      "numeric_value": "20",
+                      "battle_kind": "damage",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 280,
+                      "source_identifier": "exit",
+                      "value": "20",
+                      "before": null,
+                      "after": null
+                    },
+                    {
+                      "kind": "battle",
+                      "event_type": "custom",
+                      "event_id": "turn-2:fainted:defender:none:none:exit:none:none:none",
+                      "outcome_id": "fainted",
+                      "numeric_value": null,
+                      "battle_kind": "fainted",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "exit",
+                      "value": null,
+                      "before": null,
+                      "after": null
+                    }
+                  ],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            }
+          ],
+          "components": [],
+          "truncations": [],
+          "statistics": {
+            "nodes": 3,
+            "edges": 3,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 1,
+            "terminal_counts": {
+              "attacker_wins": 1,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 2,
+              "unknown": 0
+            }
+          }
+        },
+        "limit": 10,
+        "cursor": null,
+        "sort": "shortest-high-probability",
+        "max_traversed_walks": 100000
+      },
+      "expected": {
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "sort": "shortest-high-probability",
+        "configuration": {
+          "configuration_key": "cfg-82999744c74abe4dc6280cb2",
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "level": 50,
+            "ability_identifier": "multiscale",
+            "item_identifier": "choice_band",
+            "move_ids": [
+              418
+            ]
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "level": 50,
+            "ability_identifier": "unknown",
+            "item_identifier": "unknown",
+            "move_ids": [
+              585
+            ]
+          }
+        },
+        "winner_probability": {
+          "numerator": "1",
+          "denominator": "1",
+          "decimal": 1.0,
+          "percent": 100.0
+        },
+        "returned_probability": {
+          "numerator": "1",
+          "denominator": "2",
+          "decimal": 0.5,
+          "percent": 50.0
+        },
+        "returned_coverage": {
+          "numerator": "1",
+          "denominator": "2",
+          "decimal": 0.5,
+          "percent": 50.0
+        },
+        "path_groups": [
+          {
+            "path_key": "wp-7eaacc0bcf9b37189f8a4604",
+            "terminal_turn": 3,
+            "probability": {
+              "numerator": "1",
+              "denominator": "2",
+              "decimal": 0.5,
+              "percent": 50.0
+            },
+            "raw_path_count": "1",
+            "raw_history_count_estimate": "1",
+            "terminal_reasons": [
+              "knockout"
+            ],
+            "terminal_node_ids": [
+              "2"
+            ],
+            "actions": [
+              {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 8,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              },
+              {
+                "turn_number": 2,
+                "attacker_move_id": 280,
+                "defender_move_id": 8,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              }
+            ],
+            "representative_path": [
+              {
+                "source_node_id": "0",
+                "edge_id": "0",
+                "target_node_id": "1"
+              },
+              {
+                "source_node_id": "1",
+                "edge_id": "2",
+                "target_node_id": "2"
+              }
+            ],
+            "damage_values": [
+              "5",
+              "20"
+            ],
+            "attacker_remaining_hp_values": [
+              177
+            ],
+            "defender_remaining_hp_values": [
+              0
+            ],
+            "key_events": [
+              {
+                "kind": "fainted",
+                "actor": "defender",
+                "target": null,
+                "move_id": null,
+                "source_identifier": "exit"
+              }
+            ]
+          }
+        ],
+        "prefix_tree": {
+          "prefix_key": "root",
+          "depth": 0,
+          "action": null,
+          "probability": {
+            "numerator": "1",
+            "denominator": "2",
+            "decimal": 0.5,
+            "percent": 50.0
+          },
+          "raw_path_count": "1",
+          "terminal_path_keys": [],
+          "children": [
+            {
+              "prefix_key": "prefix-d57f1b36915735171e95",
+              "depth": 1,
+              "action": {
+                "turn_number": 1,
+                "attacker_move_id": 280,
+                "defender_move_id": 8,
+                "attacker_source_identifier": "policy",
+                "defender_source_identifier": "policy",
+                "ambiguous": false,
+                "alternatives": [
+                  {
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy"
+                  }
+                ]
+              },
+              "probability": {
+                "numerator": "1",
+                "denominator": "2",
+                "decimal": 0.5,
+                "percent": 50.0
+              },
+              "raw_path_count": "1",
+              "terminal_path_keys": [],
+              "children": [
+                {
+                  "prefix_key": "prefix-2c14b5416e6a8e36ed1c",
+                  "depth": 2,
+                  "action": {
+                    "turn_number": 2,
+                    "attacker_move_id": 280,
+                    "defender_move_id": 8,
+                    "attacker_source_identifier": "policy",
+                    "defender_source_identifier": "policy",
+                    "ambiguous": false,
+                    "alternatives": [
+                      {
+                        "attacker_move_id": 280,
+                        "defender_move_id": 8,
+                        "attacker_source_identifier": "policy",
+                        "defender_source_identifier": "policy"
+                      }
+                    ]
+                  },
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "2",
+                    "decimal": 0.5,
+                    "percent": 50.0
+                  },
+                  "raw_path_count": "1",
+                  "terminal_path_keys": [
+                    "wp-7eaacc0bcf9b37189f8a4604"
+                  ],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "cycle_references": [
+          {
+            "source_node_id": "1",
+            "edge_id": "1",
+            "target_node_id": "0",
+            "prefix_depth": 1,
+            "component_id": null
+          }
+        ],
+        "next_cursor": null,
+        "has_more": false,
+        "query_complete": false,
+        "traversal_truncated": false,
+        "kind": "winning_paths"
+      }
+    },
+    {
+      "name": "unclassified-closed-cycle-unavailable",
+      "operation": {
+        "kind": "winning_paths",
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "graph": {
+          "nodes": [
+            {
+              "id": 0,
+              "state": {
+                "attacker": {
+                  "spec": {
+                    "pokemon_id": 212,
+                    "name": "scizor",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        7,
+                        9
+                      ],
+                      "stats": {
+                        "hp": 177,
+                        "attack": 182,
+                        "defense": 120,
+                        "special_attack": 67,
+                        "special_defense": 100,
+                        "speed": 85
+                      },
+                      "ability": "none",
+                      "item": "choice_band",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 1,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 1,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      },
+                      {
+                        "move_id": 2,
+                        "name": "brick-break",
+                        "move": {
+                          "type": 2,
+                          "category": "physical",
+                          "power": 75
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": "brick_break"
+                      },
+                      {
+                        "move_id": 3,
+                        "name": "special",
+                        "move": {
+                          "type": 7,
+                          "category": "special",
+                          "power": 80
+                        },
+                        "max_pp": 10,
+                        "priority": 0,
+                        "accuracy": null,
+                        "effect_identifier": null
+                      },
+                      {
+                        "move_id": 4,
+                        "name": "swords-dance",
+                        "move": {
+                          "type": 1,
+                          "category": "status",
+                          "power": 0
+                        },
+                        "max_pp": 20,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 177,
+                  "move_slots": [
+                    {
+                      "move_id": 1,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 1001
+                    },
+                    {
+                      "move_id": 2,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 1002
+                    },
+                    {
+                      "move_id": 3,
+                      "current_pp": 10,
+                      "max_pp": 10,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 1003
+                    },
+                    {
+                      "move_id": 4,
+                      "current_pp": 20,
+                      "max_pp": 20,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 1004
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "defender": {
+                  "spec": {
+                    "pokemon_id": 700,
+                    "name": "sylveon",
+                    "pokemon": {
+                      "level": 50,
+                      "types": [
+                        18
+                      ],
+                      "stats": {
+                        "hp": 202,
+                        "attack": 76,
+                        "defense": 85,
+                        "special_attack": 130,
+                        "special_defense": 150,
+                        "speed": 80
+                      },
+                      "ability": "none",
+                      "item": "life_orb",
+                      "can_evolve": false,
+                      "grounding": null
+                    },
+                    "moves": [
+                      {
+                        "move_id": 101,
+                        "name": "bullet-punch",
+                        "move": {
+                          "type": 9,
+                          "category": "physical",
+                          "power": 40
+                        },
+                        "max_pp": 30,
+                        "priority": 1,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      },
+                      {
+                        "move_id": 102,
+                        "name": "brick-break",
+                        "move": {
+                          "type": 2,
+                          "category": "physical",
+                          "power": 75
+                        },
+                        "max_pp": 15,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": "brick_break"
+                      },
+                      {
+                        "move_id": 103,
+                        "name": "special",
+                        "move": {
+                          "type": 7,
+                          "category": "special",
+                          "power": 80
+                        },
+                        "max_pp": 10,
+                        "priority": 0,
+                        "accuracy": null,
+                        "effect_identifier": null
+                      },
+                      {
+                        "move_id": 104,
+                        "name": "swords-dance",
+                        "move": {
+                          "type": 1,
+                          "category": "status",
+                          "power": 0
+                        },
+                        "max_pp": 20,
+                        "priority": 0,
+                        "accuracy": 100,
+                        "effect_identifier": null
+                      }
+                    ]
+                  },
+                  "current_hp": 202,
+                  "move_slots": [
+                    {
+                      "move_id": 101,
+                      "current_pp": 30,
+                      "max_pp": 30,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 2101
+                    },
+                    {
+                      "move_id": 102,
+                      "current_pp": 15,
+                      "max_pp": 15,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 2102
+                    },
+                    {
+                      "move_id": 103,
+                      "current_pp": 10,
+                      "max_pp": 10,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 2103
+                    },
+                    {
+                      "move_id": 104,
+                      "current_pp": 20,
+                      "max_pp": 20,
+                      "disabled": false,
+                      "locked": false,
+                      "slot_id": 2104
+                    }
+                  ],
+                  "stages": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "status": {
+                    "major": null,
+                    "volatile": []
+                  },
+                  "last_move_id": null,
+                  "choice_lock_move_id": null,
+                  "item_consumed": false,
+                  "is_first_turn": true
+                },
+                "rules": {
+                  "ruleset_id": "pokemon-champion",
+                  "version_group_id": 25,
+                  "level": 50,
+                  "battle_format": "one-on-one-singles",
+                  "switching_policy": "disabled",
+                  "allow_terastallization": false,
+                  "allow_mega_evolution": false,
+                  "allow_dynamax": false,
+                  "max_turns": 100,
+                  "repetition_resolution": "declare-draw",
+                  "cycle_resolution": "declare-draw",
+                  "damage_policy": {
+                    "terrain_boost_multiplier": 1.3,
+                    "misty_terrain_dragon_multiplier": 0.5,
+                    "weather_boost_multiplier": 1.5,
+                    "weather_weaken_multiplier": 0.5,
+                    "sandstorm_rock_spdef_multiplier": 1.5,
+                    "snow_ice_defense_multiplier": 1.5,
+                    "hail_ice_defense_multiplier": null,
+                    "screen_single_target_multiplier": 0.5,
+                    "screen_multi_target_multiplier": 0.6666666666666666,
+                    "aurora_veil_single_target_multiplier": 0.5,
+                    "aurora_veil_multi_target_multiplier": 0.6666666666666666,
+                    "critical_hit_multiplier": 1.5,
+                    "spread_move_multiplier": 0.75,
+                    "protect_damage_multiplier": 0.25,
+                    "same_type_attack_bonus_multiplier": 1.5,
+                    "technician_base_power_threshold": 60,
+                    "technician_base_power_multiplier": 1.5,
+                    "adaptability_stab_multiplier": 2.0,
+                    "thick_fat_damage_multiplier": 0.5,
+                    "filter_damage_multiplier": 0.75,
+                    "sniper_critical_multiplier": 1.5,
+                    "multiscale_damage_multiplier": 0.5,
+                    "life_orb_damage_multiplier": 1.3,
+                    "choice_item_attack_multiplier": 1.5,
+                    "expert_belt_damage_multiplier": 1.2,
+                    "eviolite_defense_multiplier": 1.5,
+                    "burn_physical_attack_multiplier": 0.5,
+                    "random_damage_multipliers": [
+                      0.85,
+                      0.86,
+                      0.87,
+                      0.88,
+                      0.89,
+                      0.9,
+                      0.91,
+                      0.92,
+                      0.93,
+                      0.94,
+                      0.95,
+                      0.96,
+                      0.97,
+                      0.98,
+                      0.99,
+                      1.0
+                    ]
+                  },
+                  "move_execution_policy": {
+                    "accuracy_denominator": 100,
+                    "consume_pp_on_miss": true,
+                    "consume_pp_when_action_blocked": false,
+                    "consume_pp_when_before_move_stops": false,
+                    "struggle_power": 50,
+                    "struggle_recoil_fraction": {
+                      "numerator": "1",
+                      "denominator": "4"
+                    }
+                  }
+                },
+                "turn_number": 1,
+                "field": {
+                  "weather": "none",
+                  "terrain": "none",
+                  "attacker_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  },
+                  "defender_side": {
+                    "reflect": false,
+                    "light_screen": false,
+                    "aurora_veil": false
+                  }
+                },
+                "phase": "action-selection"
+              },
+              "outcome": "non-terminal",
+              "reason": null,
+              "predecessor_node": null,
+              "predecessor_edge": null,
+              "path": [
+                0
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": 0,
+              "source": 0,
+              "target": 0,
+              "probability": {
+                "numerator": "1",
+                "denominator": "1"
+              },
+              "paths": [
+                {
+                  "events": [],
+                  "probability": {
+                    "numerator": "1",
+                    "denominator": "1"
+                  }
+                }
+              ],
+              "source_key": null
+            }
+          ],
+          "components": [],
+          "truncations": [],
+          "statistics": {
+            "nodes": 1,
+            "edges": 1,
+            "max_turn_number": 1,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 1,
+              "unknown": 0
+            }
+          }
+        },
+        "limit": 10,
+        "cursor": null,
+        "sort": "shortest-high-probability",
+        "max_traversed_walks": 100000
+      },
+      "expected": {
+        "graph_id": "stored-graph",
+        "calculation_revision": "battle-inference.test.v1",
+        "winner": "attacker",
+        "sort": "shortest-high-probability",
+        "configuration": {
+          "configuration_key": "cfg-8c37b2d3d37c5ea46cdfe006",
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "level": 50,
+            "ability_identifier": "unknown",
+            "item_identifier": "choice_band",
+            "move_ids": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "level": 50,
+            "ability_identifier": "unknown",
+            "item_identifier": "life_orb",
+            "move_ids": [
+              101,
+              102,
+              103,
+              104
+            ]
+          }
+        },
+        "winner_probability": null,
+        "returned_probability": {
+          "numerator": "0",
+          "denominator": "1",
+          "decimal": 0.0,
+          "percent": 0.0
+        },
+        "returned_coverage": null,
+        "path_groups": [],
+        "prefix_tree": {
+          "prefix_key": "root",
+          "depth": 0,
+          "action": null,
+          "probability": {
+            "numerator": "0",
+            "denominator": "1",
+            "decimal": 0.0,
+            "percent": 0.0
+          },
+          "raw_path_count": "0",
+          "terminal_path_keys": [],
+          "children": []
+        },
+        "cycle_references": [
+          {
+            "source_node_id": "0",
+            "edge_id": "0",
+            "target_node_id": "0",
+            "prefix_depth": 0,
+            "component_id": null
+          }
+        ],
+        "next_cursor": null,
+        "has_more": false,
+        "query_complete": false,
+        "traversal_truncated": false,
+        "kind": "winning_paths"
+      }
+    }
+  ]
+}

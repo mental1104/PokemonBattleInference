@@ -63,7 +63,9 @@ def test_backend_image_build_context_excludes_frontend_iteration_noise() -> None
     makefile_text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
 
     assert "COPY . /app" not in backend_dockerfile
-    assert "COPY pokeop /app/pokeop" in backend_dockerfile
+    # 参考实现归入legacy后仍只复制后端源码，并显式保留原pokeop导入路径。
+    assert "COPY legacy/pokeop /app/legacy/pokeop" in backend_dockerfile
+    assert "RUN ln -s legacy/pokeop /app/pokeop" in backend_dockerfile
     assert "COPY submodules/common/python/mental1104" in backend_dockerfile
     assert "COPY submodules/pokeapi/data/v2/csv" in backend_dockerfile
     assert "\nweb\n" in f"\n{backend_ignore}\n"

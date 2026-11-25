@@ -1,0 +1,103 @@
+// Package workerprocess 通过子进程执行复杂原生请求，将崩溃边界放在 HTTP 进程之外。
+package workerprocess
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os/exec"
+	"path/filepath"
+	"pokemonbattleinference/server/internal/corebridge"
+)
+
+// ErrOutputLimit 表示子进程违反响应大小合同。
+var ErrOutputLimit = errors.New("worker output limit exceeded")
+
+// Failure 保留可持久化的错误种类和退出码，不携带潜在敏感 stderr。
+type Failure struct {
+	Code     string
+	ExitCode int
+}
+
+// Error 返回简短 ASCII 诊断，调用方可用 Code 决定重试或失败。
+func (failure *Failure) Error() string {
+	return fmt.Sprintf("worker failed: code=%s exit=%d", failure.Code, failure.ExitCode)
+}
+
+// limitedBuffer 为子进程输出设定硬内存上限；超限立即停止接收且不扩大容量。
+type limitedBuffer struct {
+	buffer   bytes.Buffer
+	max      int
+	overflow bool
+}
+
+// Write 只接受尚未超限的 data，返回 ErrOutputLimit 后 exec 会关闭对应管道。
+func (buffer *limitedBuffer) Write(data []byte) (int, error) {
+	if buffer.overflow {
+		return 0, ErrOutputLimit
+	}
+	remaining := buffer.max - buffer.buffer.Len()
+	if len(data) > remaining {
+		_, _ = buffer.buffer.Write(data[:remaining])
+		buffer.overflow = true
+		return remaining, ErrOutputLimit
+	}
+	return buffer.buffer.Write(data)
+}
+
+// Execute 用绝对 executable 执行一份 request；ctx 取消会杀死并回收子进程。
+// 返回 stdout 的独立副本及稳定 Failure；没有 shell、任意附加参数或 Python fallback。
+// 只有退出码与完整 ABI 错误正文一致时保留分类；Go runtime 的原生 fatal 也可能 exit=2。
+func Execute(ctx context.Context, executable string, request []byte) ([]byte, error) {
+	if !filepath.IsAbs(executable) {
+		return nil, errors.New("worker executable must be absolute")
+	}
+	if len(request) > corebridge.MaxRequestBytes {
+		return nil, &Failure{Code: "resource_limit", ExitCode: 3}
+	}
+	output := limitedBuffer{max: 32 << 20}
+	diagnostic := limitedBuffer{max: 4 << 10}
+	command := exec.CommandContext(ctx, executable)
+	command.Stdin = bytes.NewReader(request)
+	command.Stdout = &output
+	command.Stderr = &diagnostic
+	err := command.Run()
+	result := append([]byte(nil), output.buffer.Bytes()...)
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+	if output.overflow {
+		return nil, ErrOutputLimit
+	}
+	if err == nil {
+		return result, nil
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return result, classifyExit(exit.ExitCode(), result)
+	}
+	if errors.Is(err, io.ErrShortWrite) {
+		return result, ErrOutputLimit
+	}
+	return nil, err
+}
+
+// classifyExit 保留两种进程协议相同的错误校验；code 必须与完整 result 的明确错误类别一致。
+// 结果缺失、原生 runtime fatal 或额外 results 都归类 worker_crash，不能只按退出数字猜测业务拒绝。
+func classifyExit(code int, result []byte) *Failure {
+	kinds := map[int]string{1: "invalid_input", 2: "unsupported", 3: "resource_limit", 4: "cancelled", 5: "internal_error"}
+	kind, exists := kinds[code]
+	var envelope struct {
+		Error *struct {
+			Code string `json:"code"`
+		} `json:"error"`
+		Results json.RawMessage `json:"results"`
+	}
+	if !exists || json.Unmarshal(result, &envelope) != nil || envelope.Error == nil || envelope.Error.Code != kind || len(envelope.Results) != 0 {
+		kind = "worker_crash"
+	}
+	return &Failure{Code: kind, ExitCode: code}
+}

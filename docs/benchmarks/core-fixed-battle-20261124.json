@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    "priority-knockout",
+    "speed-tie-knockout",
+    "struggle-mutual-knockout",
+    "fake-out-closed-cycle",
+    "accuracy-and-struggle"
+  ],
+  "graph_nodes": [
+    2,
+    3,
+    2,
+    2,
+    7
+  ],
+  "graph_edges": [
+    1,
+    2,
+    1,
+    2,
+    6
+  ],
+  "repeats": 5,
+  "input_sha256": "159831975476e10bea872d8fa1e537236627604f39856f26d9aa610095dd2aa1",
+  "runner_sha256": "150389a88724548ee1f35d078b05a1da8a0c2844ff2d06d9769fb450173aa153",
+  "python_version": "3.11.17",
+  "platform": "Linux-5.10.55+-x86_64-with-glibc2.41",
+  "python": {
+    "samples_seconds": [
+      0.06302581800264306,
+      0.06417257399880327,
+      0.05988405999960378,
+      0.062041561999649275,
+      0.06255789300485048
+    ],
+    "median_seconds": 0.06255789300485048
+  },
+  "cpp_process": {
+    "samples_seconds": [
+      0.029927365001640283,
+      0.026631783999619074,
+      0.02534537899919087,
+      0.02559074699820485,
+      0.025297655003669206
+    ],
+    "median_seconds": 0.02559074699820485
+  },
+  "all_results_equal": true,
+  "scope": "Five bounded synthetic domain battles, complete turn -> strategy -> BFS/SCC -> exact solution. Python includes domain/result model projection; C++ includes process, JSON and IPC. Not pure function or configuration space performance."
+}

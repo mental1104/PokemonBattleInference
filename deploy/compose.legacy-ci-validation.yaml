@@ -1,0 +1,24 @@
+# 在纯Python基础镜像的新venv复现Hosted CI；不继承完整NAS工具镜像中的额外依赖。
+# 来源只读、构建/venv仅写自有SSD、报告写HDD；无生产凭据或数据库挂载。
+services:
+  pokemon-legacy-ci-validation:
+    profiles: [maintenance]
+    image: python:3.11-slim
+    pull_policy: never
+    user: '1026:100'
+    working_dir: /source
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    tmpfs: ["/tmp:rw,size=268435456,mode=1777"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PIP_CACHE_DIR: /build/legacy-ci-pip-cache
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    volumes:
+      - ${POKEOP_SOURCE_ROOT:?Set the source checkout}:/source:ro
+      - ${POKEOP_BUILD_ROOT:?Set the owned SSD build directory}:/build
+      - ${POKEOP_REPORT_ROOT:?Set the private HDD report directory}:/reports
+    entrypoint: [bash, -ec]
+    command: [python --version]

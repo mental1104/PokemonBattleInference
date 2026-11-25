@@ -1,0 +1,28 @@
+# 仅清理已退出且失败证据齐全的本次全图库验证PGDATA；不挂载生产库或其他验证目录。
+services:
+  pokemon-failed-full-cleanup:
+    profiles: [maintenance]
+    image: postgres:16-alpine
+    pull_policy: never
+    user: '0:0'
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    mem_limit: 128m
+    volumes:
+      - type: bind
+        source: /volume2/docker/pokemon-migration-validation/runtime-data/full-c0542f7-a3f0ff7-20261125
+        target: /validation-data
+        bind: {create_host_path: false}
+      - type: bind
+        source: /volume1/homes/mental1104/Backup/PokemonBattleInference/runtime-full-20261125/full-a3f0ff7
+        target: /reports
+        bind: {create_host_path: false}
+      - type: bind
+        source: /volume2/code/worktrees/PokemonBattleInference/monorepo-migration/tools/migration/cleanup-failed-full-validation.sh
+        target: /cleanup.sh
+        read_only: true
+        bind: {create_host_path: false}
+    entrypoint: [/bin/sh, /cleanup.sh]

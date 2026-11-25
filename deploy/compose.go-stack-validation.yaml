@@ -1,0 +1,92 @@
+# 完整 Go/Vue 验收专用；全部服务由 maintenance run --rm 启动，不挂载生产状态或发布数据库端口。
+services:
+  postgres:
+    profiles: [maintenance]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pokeop
+      POSTGRES_DB: pokeop
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs: ["/var/lib/postgresql/data:rw,size=2147483648"]
+    mem_limit: 3g
+  db-init:
+    profiles: [maintenance]
+    image: ${PBI_STACK_DATA_IMAGE:?Set PBI_STACK_DATA_IMAGE}
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.go
+      target: db-init
+    environment:
+      PBI_POSTGRES_DSN: postgres://pokeop@postgres:5432/pokeop?sslmode=disable
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16777216"]
+    mem_limit: 1g
+  backend:
+    profiles: [maintenance]
+    image: ${PBI_STACK_SERVER_IMAGE:?Set PBI_STACK_SERVER_IMAGE}
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.go
+      target: server
+    environment:
+      PBI_LISTEN: 0.0.0.0:41104
+      PBI_POSTGRES_DSN: postgres://pokeop@postgres:5432/${PBI_STACK_DATABASE:-pokeop}?sslmode=disable
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16777216"]
+    mem_limit: 1g
+    healthcheck:
+      test: [CMD, /usr/local/bin/pbi-healthcheck]
+      interval: 2s
+      timeout: 3s
+      retries: 3
+      start_period: 2s
+  worker:
+    profiles: [maintenance]
+    image: ${PBI_STACK_SERVER_IMAGE:?Set PBI_STACK_SERVER_IMAGE}
+    entrypoint: [/usr/local/bin/pbi-worker]
+    # 与原Web/公开任务合同的冻结revision一致，保证验收中的真实提交可以被领取。
+    command: [-revision, battle-inference.summary-exploration.v2]
+    environment:
+      PBI_POSTGRES_DSN: postgres://pokeop@postgres:5432/pokeop?sslmode=disable
+    # Worker 没有 HTTP 端口，不能沿用同镜像 API 的 HTTP 健康探针。
+    healthcheck:
+      disable: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16777216"]
+    mem_limit: 1g
+  frontend:
+    profiles: [maintenance]
+    image: ${PBI_STACK_FRONTEND_IMAGE:?Set PBI_STACK_FRONTEND_IMAGE}
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: web/Dockerfile
+    mem_limit: 256m
+  browser:
+    profiles: [maintenance]
+    image: mcr.microsoft.com/playwright:v1.65.0-noble
+    user: "1026:100"
+    working_dir: /build/p6-browser
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:rw,size=536870912,mode=1777"]
+    shm_size: 256m
+    environment:
+      npm_config_cache: /build/p6-browser/npm-cache
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    volumes:
+      - ${POKEOP_BUILD_ROOT:?Set POKEOP_BUILD_ROOT}:/build
+      - ${POKEOP_REPORT_ROOT:?Set POKEOP_REPORT_ROOT}:/reports
+      - ${PBI_STACK_VALIDATION_ROOT:?Set PBI_STACK_VALIDATION_ROOT}/tools/migration:/validation:ro
+    mem_limit: 2g
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${PBI_STACK_SUBNET:?Set a verified free PBI_STACK_SUBNET}

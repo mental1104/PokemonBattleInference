@@ -1,0 +1,7 @@
+# 叠加compose.validation.yaml的既有Swift维护服务；真实TLS验证仍使用正式域名和证书。
+services:
+  pokemon-swift-validation:
+    extra_hosts: ["pokemon.mental1104.xyz:192.168.31.7"]
+    environment:
+      PBI_KNOWLEDGE_ACCEPTANCE_BASE_URL: https://pokemon.mental1104.xyz/acceptance/
+      PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY: /reports/swift-nas-update

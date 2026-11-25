@@ -1,0 +1,80 @@
+# XcodeGen 是工程的唯一来源；本地 Swift Package 与 App 一起编译。
+name: PokemonBattleInference
+options:
+  minimumXcodeGenVersion: 2.42.0
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  PokemonCore:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ARCHS: arm64
+    LIBRARY_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../build/apple/$(PLATFORM_NAME)"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  PokemonBattleInference:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: [Info.plist]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 宝可梦对战推演
+        # 版本读取正式构建设置，避免XcodeGen默认常量掩盖实际安装版本。
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        NSLocalNetworkUsageDescription: 连接您设置的局域网服务器进行在线计算和配置同步。
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mental1104.PokemonBattleInference
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        CURRENT_PROJECT_VERSION: 2
+        MARKETING_VERSION: 0.11.0
+        # Xcode按同一1024方形母图生成iPhone/iPad系统需要的图标尺寸。
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - package: PokemonCore
+        product: PokemonAppSupport
+      - package: PokemonCore
+        product: PokemonCore
+  PokemonAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+      - path: ../build/reports/app/online-services.json
+        buildPhase: resources
+        optional: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mental1104.PokemonBattleInference.UITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PokemonBattleInference
+    dependencies:
+      - target: PokemonBattleInference
+schemes:
+  PokemonBattleInference:
+    build:
+      targets:
+        PokemonBattleInference: all
+        PokemonAppUITests: [test]
+    test:
+      gatherCoverageData: false
+      targets: [PokemonAppUITests]

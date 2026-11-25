@@ -5,15 +5,9 @@ export PS1 :=
 
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-# --- Common repo resolution (prefer ~/code/common, fallback to ../common) ---
-PREFERRED_COMMON_ROOT := $(HOME)/code/common
-FALLBACK_COMMON_ROOT := $(abspath $(REPO_ROOT)/../common)
-COMMON_ROOT ?= $(PREFERRED_COMMON_ROOT)
-# Normalize to absolute path for downstream usage
+# 迁移验证必须使用本仓库固定版本的 common，避免相邻源码悄悄改变行为基线。
+COMMON_ROOT ?= $(REPO_ROOT)/submodules/common
 COMMON_ROOT := $(abspath $(COMMON_ROOT))
-ifeq ($(wildcard $(COMMON_ROOT)),)
-  COMMON_ROOT := $(FALLBACK_COMMON_ROOT)
-endif
 
 # Ensure repo sources are importable alongside the shared common/python package.
 PYTHONPATH_LIST := $(REPO_ROOT)
@@ -68,11 +62,52 @@ CLEAN_PATTERNS := \
 install:
 	python3 -m pip install -r requirements.txt --break-system-packages
 
-test:
+test: test-core
 	pytest
 
+# macOS/Linux 使用同一入口；外部构建目录允许 NAS 源码保持只读挂载。
+CORE_BUILD_DIR ?= $(REPO_ROOT)/build/core
+CMAKE ?= cmake
+export PBI_CORE_VECTOR_RUNNER := $(CORE_BUILD_DIR)/pbi_core_vectors
+export PBI_CORE_LIBRARY_DIR := $(CORE_BUILD_DIR)
+# 原生差分入口均由同一次CMake构建提供；避免已有runner在统一入口中因缺环境变量被跳过。
+export PBI_CONFIGURATION_STATS_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_stats_vectors
+export PBI_CONFIGURATION_MOVES_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_moves_vectors
+export PBI_CONFIGURATION_SPACE_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_space_vectors
+export PBI_JOB_MOVE_POOL_RUNNER := $(CORE_BUILD_DIR)/pbi_job_move_pool_vectors
+export PBI_CONFIGURATION_GOALS_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_goals_vectors
+export PBI_CONFIGURATION_AGGREGATE_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_aggregate_vectors
+export PBI_CONFIGURATION_SPREAD_SEARCH_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_spread_search_vectors
+export PBI_EVENT_ANALYSIS_RUNNER := $(CORE_BUILD_DIR)/pbi_event_analysis_vectors
+export PBI_LEGACY_DAMAGE_RUNNER := $(CORE_BUILD_DIR)/pbi_legacy_damage_vectors
+export PBI_REFERENCE_STATIC_DAMAGE_RUNNER := $(CORE_BUILD_DIR)/pbi_reference_static_damage_vectors
+export PBI_STATE_GRAPH_PROJECTION_RUNNER := $(CORE_BUILD_DIR)/pbi_state_graph_projection_vectors
+export PBI_WINNING_PATHS_RUNNER := $(CORE_BUILD_DIR)/pbi_winning_paths_vectors
+export PBI_FIXED_GRAPH_QUERY_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_graph_query_vectors
+export PBI_GRAPH_EXPLANATION_RUNNER := $(CORE_BUILD_DIR)/pbi_graph_explanation_vectors
+export PBI_SUMMARY_BATTLE_GRAPH_RUNNER := $(CORE_BUILD_DIR)/pbi_battle_graph_vectors
+export PBI_FIXED_BATTLE_SNAPSHOT_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_battle_snapshot_vectors
+export PBI_FIXED_BATTLE_SNAPSHOT_CONTRACT_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_battle_snapshot_contract_vectors
+export PBI_CONFIGURATION_CONTEXT_CONTRACT_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_context_vectors
+export PBI_STATUS_GATES_RUNNER := $(CORE_BUILD_DIR)/pbi_status_gates_vectors
+export PBI_TRANSPARENT_TURN_RUNNER := $(CORE_BUILD_DIR)/pbi_turn_vectors
+
+.PHONY: test-bindings test-native
+test-bindings: test-core
+	pytest tests/migration/test_native_bindings.py
+
+test-native: test-core
+	pytest tests/migration
+
+.PHONY: test-core
+test-core:
+	$(CMAKE) -S "$(REPO_ROOT)/core" -B "$(CORE_BUILD_DIR)" -DCMAKE_BUILD_TYPE=Release
+	$(CMAKE) --build "$(CORE_BUILD_DIR)" --parallel 2
+	ctest --test-dir "$(CORE_BUILD_DIR)" --output-on-failure
+
 coverage:
-	pytest --cov=pokeop/domain --cov=pokeop/application --cov-report=term-missing
+	# 按参考实现实体路径统计覆盖率；根pokeop只保留原导入名兼容。
+	pytest --cov=legacy/pokeop/domain --cov=legacy/pokeop/application --cov-report=term-missing
 
 setup:
 	# 1) 创建虚拟环境
@@ -148,6 +183,33 @@ compose-logs:
 
 compose-reset:
 	$(COMPOSE) down -v --remove-orphans
+
+# Go/C++发布入口独立于旧Python项目；目录和素材必须由调用方显式准备，down不删除数据库。
+GO_COMPOSE_PROJECT ?= pokemon-go-preview
+export PBI_GO_SOURCE_ROOT ?= $(REPO_ROOT)
+GO_COMPOSE := docker compose --project-name "$(GO_COMPOSE_PROJECT)" -f "$(REPO_ROOT)/deploy/compose.go-runtime.yaml"
+.PHONY: go-compose-config go-compose-build go-compose-init go-compose-up go-compose-down go-compose-ps go-compose-logs
+go-compose-config:
+	$(GO_COMPOSE) --profile ops config --services
+
+go-compose-build: go-compose-config
+	$(GO_COMPOSE) --profile ops build backend db-init frontend
+
+go-compose-init: go-compose-build
+	$(GO_COMPOSE) up -d postgres
+	$(GO_COMPOSE) --profile ops run --rm db-init
+
+go-compose-up: go-compose-init
+	$(GO_COMPOSE) up -d backend worker frontend
+
+go-compose-down:
+	$(GO_COMPOSE) down
+
+go-compose-ps:
+	$(GO_COMPOSE) ps
+
+go-compose-logs:
+	$(GO_COMPOSE) logs --tail=100
 
 clean:
 	@echo "Removing common build/cache artifacts (only if gitignored when git metadata is present)"

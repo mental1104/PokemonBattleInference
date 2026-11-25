@@ -1,0 +1,88 @@
+name: Native Core - macOS and iOS
+
+# 用户明确授权 GitHub CI；仅 Ready PR 执行，Draft 或普通分支 push 不触发。
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-core-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  apple-core:
+    if: github.event.pull_request.draft == false
+    runs-on: macos-15
+    # .11完整原生/双SDK构建后，顺序双模拟器UI实测超过45分钟；保留全部测试和单项断言。
+    timeout-minutes: 75
+    env:
+      PBI_CORE_LIBRARY_DIR: ${{ github.workspace }}/build/core
+      PBI_CORE_VECTOR_RUNNER: ${{ github.workspace }}/build/core/pbi_core_vectors
+      PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY: ${{ github.workspace }}/build/reports/knowledge-http
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize pinned source dependencies
+        shell: bash
+        run: |
+          # 与Main Gate一致，真实新进程导入必须使用实际检出的固定common子模块。
+          git config submodule.submodules/common.url https://github.com/mental1104/common.git
+          git config submodule.submodules/pokeapi.url https://github.com/PokeAPI/pokeapi.git
+          git submodule update --init --depth 1 submodules/common submodules/pokeapi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: false
+      - name: Install native dependencies
+        shell: bash
+        run: |
+          brew install boost googletest nlohmann-json cmake xcodegen jq
+          # 复用runner已有完整PG工具；仅libpq客户端不足以提供真实独立UI验收数据库。
+          p4_pg_bin=""
+          if command -v pg_config >/dev/null; then p4_pg_bin="$(pg_config --bindir)"; fi
+          if [[ -z "$p4_pg_bin" || ! -x "$p4_pg_bin/initdb" || ! -x "$p4_pg_bin/pg_ctl" ]]; then brew install postgresql@16; fi
+          # 与NAS/保留的Python运行镜像一致，不能靠测试进程已经加载的模块掩盖依赖缺失。
+          python -m pip install -r requirements.txt -r requirements-legacy-runtime.txt
+      - name: Record actual toolchains
+        shell: bash
+        run: |
+          mkdir -p build/reports
+          {
+            uname -a
+            xcodebuild -version
+            swift --version
+            go version
+            cmake --version
+            c++ --version
+          } > build/reports/toolchains.txt
+      - name: Native Core and Go-Swift shared contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          export CMAKE_PREFIX_PATH="$(brew --prefix boost):$(brew --prefix googletest):$(brew --prefix nlohmann-json)"
+          make test-native PYTEST_ADDOPTS="-v --junitxml=build/reports/native-tests.xml" 2>&1 | tee build/reports/native-tests.log
+      - name: Build unsigned iOS device and simulator libraries
+        shell: bash
+        run: |
+          set -o pipefail
+          export CMAKE_PREFIX_PATH="$(brew --prefix boost):$(brew --prefix nlohmann-json)"
+          bash tools/migration/build-apple-core.sh "$PWD/build/apple" 2>&1 | tee build/reports/apple-build.log
+      - name: Build App and run iPhone and iPad acceptance
+        shell: bash
+        run: bash tools/migration/validate-apple-app.sh "$PWD"
+      - name: Preserve actual reports and Apple artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-apple-${{ github.sha }}
+          path: |
+            build/reports/
+            build/apple/
+          if-no-files-found: warn
+          retention-days: 7

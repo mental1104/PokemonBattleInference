@@ -1,0 +1,31 @@
+# 固定Pokemon域名的DSM官方API维护入口；无常驻容器，不接受任意宿主命令。
+# 沿用现有DSM专用chroot模式，宿主根只读，写挂载仅覆盖反代/证书/重载所需目录。
+services:
+  task-pokemon-https-dsm:
+    profiles: [maintenance]
+    image: python:3.11-slim
+    pull_policy: never
+    user: '0:0'
+    read_only: true
+    network_mode: host
+    pid: host
+    cap_drop: [ALL]
+    cap_add: [SYS_CHROOT, DAC_READ_SEARCH, DAC_OVERRIDE, SYS_PTRACE, NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    entrypoint: [chroot, /host-root, /bin/sh, /volume2/code/worktrees/PokemonBattleInference/nas-release/tools/deploy/nas-proxy.sh]
+    command: [snapshot]
+    volumes:
+      - /:/host-root:ro
+      - /usr/syno/etc/www:/host-root/usr/syno/etc/www
+      - /usr/syno/etc/services.d:/host-root/usr/syno/etc/services.d
+      - /usr/syno/etc/certificate:/host-root/usr/syno/etc/certificate
+      - /usr/syno/share/certificate.d:/host-root/usr/syno/share/certificate.d
+      - /usr/syno/etc/security-profile/tls-profile:/host-root/usr/syno/etc/security-profile/tls-profile
+      - /usr/local/etc/nginx:/host-root/usr/local/etc/nginx
+      - /etc/nginx:/host-root/etc/nginx
+      - /var/tmp/nginx:/host-root/var/tmp/nginx
+      - /var/log/nginx:/host-root/var/log/nginx
+      - /tmp:/host-root/tmp
+      - /volume1/homes/mental1104/Backup/PokemonBattleInference/nas-deployment-20261125/https:/host-root/volume1/homes/mental1104/Backup/PokemonBattleInference/nas-deployment-20261125/https
+    mem_limit: 256m
+    logging: {driver: json-file, options: {max-size: 2m, max-file: '2'}}

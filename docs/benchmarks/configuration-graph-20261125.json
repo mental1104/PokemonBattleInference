@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "workload": "budget-stop-10x10",
+  "candidate_moves_per_side": 10,
+  "global_pair_denominator": 44100,
+  "measured_pairs_per_run": 2,
+  "engine_version": "0.11.0",
+  "python_source_sha256": "78c03b026ebe03bf4c7726d390be8b0d76d83b8d1610b40513a1fef4630fead9",
+  "benchmark_tool_sha256": "720bc2e2bc802363b805f51c7c94bec3011fa2804c7f9670b17afa1262884160",
+  "manifest_sha256": "cbb87fcc1efda2709ea3745a311c4aad4a9802ac14220692666cb83b910b5afe",
+  "all_same_mode_results_equal": true,
+  "all_same_mode_built_counts_equal": true,
+  "rows": [
+    {
+      "graph_mode": "full",
+      "workers": 1,
+      "pair_ids": [
+        "bench-budget-stop-10x10-c8e942d94fc5fc850b6f1dab7669b6267bad043191c334963b69c81b9d87f17a",
+        "bench-budget-stop-10x10-2a0b3f1f554b8e7bdbf66231586c497b2f12c425cc5461b8c6838e2ec3de9351"
+      ],
+      "reference_results": [
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        },
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        }
+      ],
+      "expanded_nodes": [
+        465,
+        465
+      ],
+      "python_wall_seconds": 405.25185199699627,
+      "cpp_process_wall_seconds": 44.85344672599604,
+      "go_process_wall_seconds": 28.466708018000645,
+      "python_evaluate_including_projection_seconds": 405.24456539200037,
+      "cpp_evaluate_including_projection_seconds": 44.830077989,
+      "python_over_cpp_process_wall_ratio": 9.035021421489143,
+      "python_over_go_process_wall_ratio": 14.235992856663975,
+      "python_over_cpp_evaluation_ratio": 9.039568601496423,
+      "python": {
+        "cpu_seconds": 399.015068524,
+        "max_individual_process_rss_bytes": 96628736
+      },
+      "cpp": {
+        "cpu_seconds": 44.47255,
+        "max_individual_process_rss_bytes": 136843264
+      },
+      "go": {
+        "cpu_seconds": 28.380769,
+        "max_individual_process_rss_bytes": 143831040
+      }
+    },
+    {
+      "graph_mode": "full",
+      "workers": 2,
+      "pair_ids": [
+        "bench-budget-stop-10x10-c8e942d94fc5fc850b6f1dab7669b6267bad043191c334963b69c81b9d87f17a",
+        "bench-budget-stop-10x10-2a0b3f1f554b8e7bdbf66231586c497b2f12c425cc5461b8c6838e2ec3de9351"
+      ],
+      "reference_results": [
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        },
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        }
+      ],
+      "expanded_nodes": [
+        465,
+        465
+      ],
+      "python_wall_seconds": 142.1694784929996,
+      "cpp_process_wall_seconds": 27.764300723996712,
+      "go_process_wall_seconds": 16.945925342999544,
+      "python_evaluate_including_projection_seconds": 283.5493778989994,
+      "cpp_evaluate_including_projection_seconds": 54.136329143,
+      "python_over_cpp_process_wall_ratio": 5.120585600418972,
+      "python_over_go_process_wall_ratio": 8.389596650249057,
+      "python_over_cpp_evaluation_ratio": 5.237691258120025,
+      "python": {
+        "cpu_seconds": 282.677205509,
+        "max_individual_process_rss_bytes": 86089728
+      },
+      "cpp": {
+        "cpu_seconds": 53.641608000000005,
+        "max_individual_process_rss_bytes": 136839168
+      },
+      "go": {
+        "cpu_seconds": 33.54288,
+        "max_individual_process_rss_bytes": 142761984
+      }
+    },
+    {
+      "graph_mode": "configuration_summary",
+      "workers": 1,
+      "pair_ids": [
+        "bench-budget-stop-10x10-c8e942d94fc5fc850b6f1dab7669b6267bad043191c334963b69c81b9d87f17a",
+        "bench-budget-stop-10x10-2a0b3f1f554b8e7bdbf66231586c497b2f12c425cc5461b8c6838e2ec3de9351"
+      ],
+      "reference_results": [
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        },
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        }
+      ],
+      "expanded_nodes": [
+        17,
+        17
+      ],
+      "python_wall_seconds": 13.9907038320016,
+      "cpp_process_wall_seconds": 1.594372621999355,
+      "go_process_wall_seconds": 1.039473351000197,
+      "python_evaluate_including_projection_seconds": 13.988355536006566,
+      "cpp_evaluate_including_projection_seconds": 1.57079132,
+      "python_over_cpp_process_wall_ratio": 8.775052731686495,
+      "python_over_go_process_wall_ratio": 13.459415595926083,
+      "python_over_cpp_evaluation_ratio": 8.905292102076656,
+      "python": {
+        "cpu_seconds": 13.913319314999999,
+        "max_individual_process_rss_bytes": 88141824
+      },
+      "cpp": {
+        "cpu_seconds": 1.565419,
+        "max_individual_process_rss_bytes": 83673088
+      },
+      "go": {
+        "cpu_seconds": 1.031015,
+        "max_individual_process_rss_bytes": 82714624
+      }
+    },
+    {
+      "graph_mode": "configuration_summary",
+      "workers": 2,
+      "pair_ids": [
+        "bench-budget-stop-10x10-c8e942d94fc5fc850b6f1dab7669b6267bad043191c334963b69c81b9d87f17a",
+        "bench-budget-stop-10x10-2a0b3f1f554b8e7bdbf66231586c497b2f12c425cc5461b8c6838e2ec3de9351"
+      ],
+      "reference_results": [
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        },
+        {
+          "observer": "attacker",
+          "status": "incomplete-graph",
+          "win": null,
+          "loss": null,
+          "draw": null,
+          "closed_cycle": null,
+          "expected_turns": {
+            "status": "unavailable",
+            "value": null
+          },
+          "statistics": {
+            "nodes": 465,
+            "edges": 768,
+            "max_turn_number": 3,
+            "closed_cycles": 0,
+            "terminal_reachable_cycles": 0,
+            "terminal_counts": {
+              "attacker_wins": 0,
+              "defender_wins": 0,
+              "draws": 0,
+              "non_terminal": 16,
+              "unknown": 449
+            }
+          },
+          "truncations": [
+            "max-nodes"
+          ],
+          "root_action_explanation": null
+        }
+      ],
+      "expanded_nodes": [
+        17,
+        17
+      ],
+      "python_wall_seconds": 7.127501779999875,
+      "cpp_process_wall_seconds": 0.9984033259970602,
+      "go_process_wall_seconds": 0.5561732070000289,
+      "python_evaluate_including_projection_seconds": 13.878837020994979,
+      "cpp_evaluate_including_projection_seconds": 1.748040125,
+      "python_over_cpp_process_wall_ratio": 7.138900276480912,
+      "python_over_go_process_wall_ratio": 12.81525555401216,
+      "python_over_cpp_evaluation_ratio": 7.93965585944143,
+      "python": {
+        "cpu_seconds": 13.783535805,
+        "max_individual_process_rss_bytes": 78782464
+      },
+      "cpp": {
+        "cpu_seconds": 1.7327849999999998,
+        "max_individual_process_rss_bytes": 85749760
+      },
+      "go": {
+        "cpu_seconds": 1.088859,
+        "max_individual_process_rss_bytes": 82579456
+      }
+    }
+  ],
+  "scope": "Original 10+10 candidate fixture, first two concrete pairs with global 44100 denominator and unchanged 500 nodes/2000 edges/8 turns. Each run rebuilds fresh; no cached graph queries. Full and configuration_summary compared separately. Evaluation includes result-model projection; process wall includes startup/CGO/JSON/stdio. Synthetic fact preparation measured separately; no PostgreSQL, HTTP or full-space throughput measurement. One bounded sample per implementation/workers/mode, not a statistical median or an extrapolated 44100-case result."
+}

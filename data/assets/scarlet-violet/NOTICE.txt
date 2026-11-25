@@ -1,0 +1,19 @@
+Pokemon menu icons from https://github.com/PokeAPI/sprites
+Upstream revision: c0542f7c51215d9672439012838c99f520596cbd
+
+This package covers all 1,350 Pokemon records, including forms, in the pinned
+application catalog. It selects exactly one unmodified menu PNG for each ID.
+Scarlet/Violet is preferred (869 records). Missing IDs are covered by matching
+IDs from Champions (140), Legends Z-A (88), Legends Arceus (39), BDSP (60),
+Sword/Shield (132) and Generation VII (22). No species substitution is used.
+
+The five held-item icons use upstream standard item images required by the
+current item selector. The nineteen type badges use Scarlet/Violet images.
+The exact original paths, deployed paths, dimensions and SHA-256 checksums
+are recorded in manifest.json. Animation, shiny variants and large artwork
+are excluded. PNG payloads total 20,079,618 bytes across 1,374 assets.
+
+The source README credits PokeAPI contributors and rendered game assets by
+FallenDeity. Pokemon and character names are trademarks of Nintendo,
+Game Freak, Creatures and The Pokemon Company. This application is not
+affiliated with or endorsed by those organizations.

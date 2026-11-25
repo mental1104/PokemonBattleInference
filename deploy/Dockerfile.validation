@@ -1,0 +1,14 @@
+# 仅用于迁移验证的一次性工具环境；在线镜像不携带这些测试及 C++ 构建依赖。
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ make cmake libboost-dev libgtest-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt requirements-legacy-runtime.txt /
+# common顶层实际依赖与保留的backend、Hosted CI共用声明，不依赖工具镜像恰好预装。
+RUN pip install --no-cache-dir -r /requirements.txt -r /requirements-legacy-runtime.txt
+# 跨语言验证使用同一 C ABI；保留上面的 Python 层缓存。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nlohmann-json3-dev golang-go \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /source

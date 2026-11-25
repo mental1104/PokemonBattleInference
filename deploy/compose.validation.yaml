@@ -1,0 +1,70 @@
+# 一次性验证环境，必须指定源码、SSD 构建及 HDD 报告目录；不挂载生产数据库。
+services:
+  pokemon-swift-validation:
+    profiles: [maintenance]
+    image: pokemon-migration-swift-validation:local
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.swift-validation
+    user: "1026:100"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    working_dir: /source
+    tmpfs: ["/tmp:rw,size=536870912,mode=1777"]
+    volumes:
+      - ${POKEOP_SOURCE_ROOT}:/source:ro
+      - ${POKEOP_BUILD_ROOT:?Set POKEOP_BUILD_ROOT}:/build
+      - ${POKEOP_REPORT_ROOT:?Set POKEOP_REPORT_ROOT}:/reports
+    command: [swift, --version]
+    mem_limit: 3g
+  pokemon-web-validation:
+    profiles: [maintenance]
+    image: node:22-bookworm-slim
+    user: "1026:100"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    working_dir: /source/web
+    tmpfs: ["/tmp:rw,size=268435456,mode=1777"]
+    volumes:
+      - ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}/web:/source/web
+      - ${POKEOP_REPORT_ROOT:?Set POKEOP_REPORT_ROOT}:/reports
+    command: [npm, test, --, --maxWorkers=2, --minWorkers=1]
+    mem_limit: 2g
+  pokemon-validation:
+    profiles: [maintenance]
+    image: pokemon-migration-validation:local
+    build:
+      context: ${POKEOP_SOURCE_ROOT:?Set POKEOP_SOURCE_ROOT}
+      dockerfile: deploy/Dockerfile.validation
+    user: "1026:100"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    working_dir: /source
+    environment:
+      PYTHONPATH: /source/submodules/common/python:/source
+      PYTHONDONTWRITEBYTECODE: "1"
+      POKEOP_TEST_POSTGRES_URL: postgresql+psycopg2://pokeop@pokemon-validation-postgres:5432/pokeop
+    tmpfs: ["/tmp:rw,size=268435456,mode=1777"]
+    volumes:
+      - ${POKEOP_SOURCE_ROOT}:/source:ro
+      - ${POKEOP_BUILD_ROOT:?Set POKEOP_BUILD_ROOT}:/build
+      - ${POKEOP_REPORT_ROOT:?Set POKEOP_REPORT_ROOT}:/reports
+    command: [python, -m, pytest, tests, -q, -o, cache_dir=/tmp/pytest-cache]
+    mem_limit: 3g
+  pokemon-validation-postgres:
+    profiles: [maintenance]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pokeop
+      POSTGRES_USER: pokeop
+      POSTGRES_HOST_AUTH_METHOD: trust
+    # 数据仅存在本次任务的内存挂载；不发布宿主端口，不接触生产 volume。
+    tmpfs: ["/var/lib/postgresql/data:rw,size=536870912"]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U pokeop -d pokeop]
+      interval: 1s
+      timeout: 2s
+      retries: 30

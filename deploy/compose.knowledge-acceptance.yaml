@@ -1,0 +1,45 @@
+# 一次性构建人工E项知识更新包；来源只读、无网络，无用户库或生产凭据。
+# HDD父目录由调用方预先准备，CLI只允许新版本输出目录，完成后run --rm退出。
+services:
+  pokemon-knowledge-acceptance-builder:
+    profiles: [maintenance]
+    image: pokemon-migration-validation:local
+    pull_policy: never
+    user: '1026:100'
+    working_dir: /source
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=67108864,mode=1777"]
+    environment:
+      PYTHONPATH: /source
+      PYTHONDONTWRITEBYTECODE: '1'
+    volumes:
+      - ${POKEOP_SOURCE_ROOT:?Set the source checkout}:/source:ro
+      - /volume1/docker/pokemon-battle-inference/knowledge-acceptance:/acceptance
+    entrypoint: [python, -m, tools.data.build_knowledge_acceptance_pack]
+    command:
+      - --source
+      - /source/ios/Sources/PokemonAppSupport/Resources
+      - --output
+      - /acceptance/pokeapi-1567d53073a0-7e4be433ddb6-acceptance-r1
+  pokemon-knowledge-acceptance-nginx:
+    profiles: [maintenance]
+    image: pokemon-go-frontend:p6-sv-filesystem-r1
+    pull_policy: never
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    # nginx -t会校验并设置自有tmpfs缓存目录的worker所有者，只补该操作所需能力。
+    cap_add: [CHOWN]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    tmpfs: [/var/run, /var/cache/nginx]
+    # 语法检查只需解析固定upstream名称，不连接API；正式HTTPS另由真实客户端验收。
+    extra_hosts: ["pokemon-backend:127.0.0.1"]
+    volumes:
+      - ${POKEOP_SOURCE_ROOT:?Set the source checkout}/deploy/nginx.nas.conf:/etc/nginx/conf.d/default.conf:ro
+    entrypoint: [nginx]
+    command: [-t]

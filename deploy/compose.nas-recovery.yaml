@@ -1,0 +1,29 @@
+# 现有 NAS PG17 的隔离恢复验证；仅由 maintenance run --rm 启动，不访问生产 PGDATA。
+# 归档通过标准输入传入，信任认证仅存在于本次独占、无宿主端口的验证网络。
+services:
+  pokemon-recovery-postgres:
+    profiles: [maintenance]
+    image: postgres:17
+    pull_policy: never
+    environment:
+      POSTGRES_USER: pokeop
+      POSTGRES_DB: pokemon_battle_inference
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs: ["/var/lib/postgresql/data:rw,size=1073741824"]
+    mem_limit: 1536m
+  pokemon-recovery-init:
+    profiles: [maintenance]
+    image: pokemon-go-data:p6-a3f0ff7
+    pull_policy: never
+    environment:
+      PBI_POSTGRES_DSN: postgres://pokeop@pokemon-recovery-postgres:5432/pokemon_battle_inference?sslmode=disable
+    command: [--csv-root, /usr/share/pbi/csv, --adopt-legacy-knowledge]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${PBI_NAS_RECOVERY_SUBNET:?Set a verified unused subnet}

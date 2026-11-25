@@ -1,0 +1,29 @@
+# 独立Python客户端：只有只读HDD快照和导出的四列CSV，没有网络、数据库连接或应用模块。
+services:
+  asset-verifier:
+    profiles: [maintenance]
+    image: python:3.11-slim
+    user: '1026:100'
+    pull_policy: never
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    mem_limit: 256m
+    environment: {PYTHONDONTWRITEBYTECODE: '1'}
+    volumes:
+      - type: bind
+        source: ${PBI_STACK_VALIDATION_ROOT:?Set the committed validation checkout}/tools/migration/verify_sprite_files.py
+        target: /verify-sprite-files.py
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${PBI_STACK_SPRITES_ROOT:?Set the verified HDD snapshot parent directory}
+        target: /sprites-storage
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${POKEOP_REPORT_ROOT:?Set the private HDD report directory}
+        target: /reports
+        bind: {create_host_path: false}
+    entrypoint: [python, /verify-sprite-files.py]
