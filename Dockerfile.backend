@@ -6,24 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt /tmp/requirements.txt
+COPY requirements.txt requirements-legacy-runtime.txt /tmp/
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libc6-dev \
-    && pip install --no-cache-dir -r /tmp/requirements.txt \
-        genanki \
-        pypdf \
-        clickhouse-connect \
-        pymongo \
-        motor \
-        redis \
-        pycryptodome \
-        matplotlib \
-        ruamel.yaml \
-        orjson \
-        ujson \
-        'psycopg[binary]' \
+    && pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-legacy-runtime.txt \
     && apt-get purge -y --auto-remove gcc libc6-dev \
-    && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt
+    && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt /tmp/requirements-legacy-runtime.txt
 
 # Python仅作为保留的参考/兼容运行时；容器内保持相同真实布局和原导入名。
 COPY legacy/pokeop /app/legacy/pokeop

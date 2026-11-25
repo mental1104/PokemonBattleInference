@@ -1,0 +1,14 @@
+# 保留的Python运行时必须能够真实导入固定common的顶层及数据库模块。
+# 此清单提取自既有backend/验证镜像，不增加Go/Swift运行依赖；CI复用同一声明。
+genanki
+pypdf
+clickhouse-connect
+pymongo
+motor
+redis
+pycryptodome
+matplotlib
+ruamel.yaml
+orjson
+ujson
+psycopg[binary]

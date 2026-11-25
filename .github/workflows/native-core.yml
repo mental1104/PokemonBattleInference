@@ -45,7 +45,8 @@ jobs:
           p4_pg_bin=""
           if command -v pg_config >/dev/null; then p4_pg_bin="$(pg_config --bindir)"; fi
           if [[ -z "$p4_pg_bin" || ! -x "$p4_pg_bin/initdb" || ! -x "$p4_pg_bin/pg_ctl" ]]; then brew install postgresql@16; fi
-          python -m pip install -r requirements.txt
+          # 与NAS/保留的Python运行镜像一致，不能靠测试进程已经加载的模块掩盖依赖缺失。
+          python -m pip install -r requirements.txt -r requirements-legacy-runtime.txt
       - name: Record actual toolchains
         shell: bash
         run: |

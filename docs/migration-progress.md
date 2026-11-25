@@ -330,3 +330,13 @@ knowledge-update-acceptance-20261125/swift-update-r2.log真实KnowledgeUpdateTes
 17a5fda的Apple45572741348已完整成功，未在运行中推送取消；实际测试合并树e5e0a5c9f7892f975f09c6ad9fd4abc40d3bf04c。macOS149/149 CTest、125差分/委托PASS和247外部SKIP；双SDK/未签名device App成功。真实Swift→Go/PG/daemon29/29零SKIP（6.019秒），含两项实际BundledIconTests。iPhone11/11（770.480秒）、iPad11/11（653.825秒）零失败；新道具图像用例21.585/26.429秒通过，首装图鉴真实图片和既有所有严格断言保留。P4重新达到新版本自动化PASS/95%，不代填双真机体验。
 
 artifact15005981797为72,084,777字节，实际下载SHA238b04ae4ba761cffb4791dce3c1c487c4b9e1d06492b4f04ffc2bde8486924f与官方一致，ZIP测试/解压成功；产物与SDK/App/两端xcresult/完整真实Swift和知识HTTP报告在apple-17a5fda-20261125/，临时下载配置已删除。此前运行中日志BlobNotFound只当观察缺口，未重启任务；终态后取回实际日志及产物。后续legacy和NAS更新测试独立记录，不混入此CI数字。
+
+## legacy新进程验收的CI依赖差异
+
+7a09554的Main Gate45580422715失败（529 PASS/353环境SKIP后停止），Apple45580422720在原生Python测试失败（131 PASS/247环境SKIP）；两者均为test_fresh_process_prefers_this_repository_common的新进程非零退出，未误记为模拟器断言失败。此前NAS完整环境测试通过，不能证明Hosted的基础依赖环境也通过。
+
+legacy-ci-dependencies-20261125/使用纯python:3.11-slim和新建独占venv，安装原CI的requirements.txt后复现完整stderr：common顶层直接加载mental1104.app.anki，缺genanki。此依赖早已在Python backend和NAS验证镜像额外安装，CI漏装；没有把问题归因为legacy层级或common版本接口不兼容。
+
+把既有12项运行依赖集中到requirements-legacy-runtime.txt，Python backend、验证镜像及两个既有CI安装步骤复用，Main Gate pip缓存同时跟踪两文件；未增加工作流、触发器或弱化Draft保护。仍在全新进程真实导入db、清除PYTHONPATH/COMMON_ROOT并严格核对来源路径，额外显式断言returncode并显示stderr。源码/依赖清单变化不部署到Go在线运行镜像。
+
+同一独占venv仅补上述运行依赖后，真实导入路径为本仓库submodules/common/python/mental1104/db/__init__.py，pip check通过；定向10/10通过，完整后端595 PASS/361明确环境SKIP（19.43秒），修改测试Ruff/strict mypy通过。原失败日志和环境清单保留。兼容镜像pokemon-python-reference:legacy-deps-r1实际构建成功，ID sha256:3dabfdfc20d5ab9fe3d9a05313d85ffcd2240f6e41cf3fd7309d569c3b04a724，682,615,220字节；无网络、只挂测试文件、不挂源码的镜像内3/3通过（2.34秒）。修复后的远端CI尚待终态，整体仍97%，不把本地通过宣称远端已修复。

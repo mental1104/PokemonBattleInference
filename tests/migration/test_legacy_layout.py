@@ -35,7 +35,7 @@ class TestLegacyLayout:
         assert (STATIC_DIR / "swagger-ui-bundle.js").is_file()
 
     def test_fresh_process_prefers_this_repository_common(self) -> None:
-        """清除环境路径后在新解释器真实导入db，核对common仍来自当前仓库子模块。"""
+        """清除环境路径后在新解释器真实导入db，核对固定子模块来源并保留失败stderr。"""
         environment = os.environ.copy()
         environment.pop("PYTHONPATH", None)
         environment.pop("COMMON_ROOT", None)
@@ -43,9 +43,10 @@ class TestLegacyLayout:
             [sys.executable, "-c", "import pokeop; import mental1104.db; print(mental1104.db.__file__)"],
             cwd=ROOT,
             env=environment,
-            check=True,
+            check=False,
             capture_output=True,
             text=True,
             timeout=30,
         )
+        assert completed.returncode == 0, completed.stderr
         assert Path(completed.stdout.strip()).is_relative_to(ROOT / "submodules" / "common" / "python")

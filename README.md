@@ -51,7 +51,7 @@ SwiftUI 工程、Core 静态库、模拟器测试与真机验收分别见 [ios/R
 
 1. 安装依赖：
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt -r requirements-legacy-runtime.txt
    ```
 2. 设置 `PYTHONPATH` 方便直接导入包（本地与容器均可）：
    ```bash
