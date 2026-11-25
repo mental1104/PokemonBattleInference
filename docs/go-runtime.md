@@ -48,3 +48,9 @@ Worker版本固定为原公开任务的`battle-inference.summary-exploration.v2`
 完整素材验收使用`PBI_STACK_RUNTIME_COMPOSE=1 bash tools/migration/validate-go-stack.sh`，额外显式提供`PBI_STACK_SPRITES_ROOT`、从固定Git树核对的`PBI_STACK_EXPECTED_SPRITE_COUNT=105947`、`PBI_SPRITES_SOURCE_COMMIT`及不存在的新`PBI_STACK_POSTGRES_DATA_ROOT`。其他固定源码、三镜像、已验证旧镜像、子网和报告变量沿用`go-stack-validation.md`。维护overlay仅增加验收客户端和资源限制，不改变实际挂载、Worker版本或探针。脚本将检查初次导入全部数量/每个BYTEA SHA，真实停止PG后在同一目录重启，复用初始化与用户配置/全图校验，再执行镜像回退及独立恢复库全图校验。此分支尚待完整素材展开完成后实际运行；不把预检或五图样本计为全量成功。
 
 正式数据库备份、生产切换和最终合并仍按原Goal由Human确认；本文不表示已执行这些操作。手机安装暂停，不把临时验证容器当成已提供给双设备的长期测试服务。
+
+## 大图库初始化时限
+
+`pbi-db-init --timeout`必须为正duration，默认20m；完整运行Compose通过`PBI_GO_INIT_TIMEOUT`显式传入。该时限覆盖CSV、全量图片扫描/写入和运行表初始化，不改变Core请求限制。全量验收脚本可用`PBI_STACK_INIT_TIMEOUT=2h`显式选择。
+
+28.7GB/105,947文件的首次完整实测触发20m截止并回滚图片事务，证据位于`runtime-full-20261125/full-a3f0ff7/`，不能标PASS。CLI非法时限/立即超时/合法时限的实际边界检查已通过；后续完整重跑结果须另记。该素材只属于服务端，Swift离线SQLite约404KiB，未将全量素材放入App。

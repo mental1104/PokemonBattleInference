@@ -20,20 +20,26 @@ import (
 func main() { os.Exit(run()) }
 
 // run 不打印 DSN；知识初始化和运行表初始化均为可重复的显式操作，无后台常驻任务。
+// timeout必须为正，覆盖CSV/图片扫描、导入和运行表初始化，不改变Core计算请求的资源预算。
 func run() int {
 	root := flag.String("csv-root", "", "fixed PokeAPI CSV root directory")
 	refresh := flag.Bool("refresh-views", false, "refresh existing compatible materialized views")
 	adopt := flag.Bool("adopt-legacy-knowledge", false, "verify every legacy knowledge field before registering the fixed version")
 	sprites := flag.String("sprites-root", "", "optional complete PokeAPI sprites repository or sprites directory")
 	spritesCommit := flag.String("sprites-commit", "", "optional explicit sprites source commit marker")
+	timeout := flag.Duration("timeout", 20*time.Minute, "positive maximum duration for complete CSV and sprite initialization")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "--csv-root is required")
 		return 2
 	}
+	if *timeout <= 0 {
+		fmt.Fprintln(os.Stderr, "--timeout must be positive")
+		return 2
+	}
 	signals, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	ctx, cancel := context.WithTimeout(signals, 20*time.Minute)
+	ctx, cancel := context.WithTimeout(signals, *timeout)
 	defer cancel()
 	dsn := os.Getenv("PBI_POSTGRES_DSN")
 	var report knowledge.Report

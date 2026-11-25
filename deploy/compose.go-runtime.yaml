@@ -95,7 +95,8 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, /sprites-source, --sprites-commit, "${PBI_GO_SPRITES_COMMIT:?Set the verified sprites source commit}"]
+    # 完整28.7GB图库可显式增加初始化总时限；默认仍20分钟，不改变在线Core请求预算。
+    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, /sprites-source, --sprites-commit, "${PBI_GO_SPRITES_COMMIT:?Set the verified sprites source commit}", --timeout, "${PBI_GO_INIT_TIMEOUT:-20m}"]
 
 networks:
   default:

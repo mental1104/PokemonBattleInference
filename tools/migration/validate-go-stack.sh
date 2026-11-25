@@ -33,6 +33,7 @@ if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
   export PBI_GO_SERVER_IMAGE="$PBI_STACK_SERVER_IMAGE" PBI_GO_DATA_IMAGE="$PBI_STACK_DATA_IMAGE" PBI_GO_FRONTEND_IMAGE="$PBI_STACK_FRONTEND_IMAGE"
   export PBI_GO_SPRITES_ROOT="$PBI_STACK_SPRITES_ROOT" PBI_GO_SPRITES_COMMIT="${PBI_SPRITES_SOURCE_COMMIT:?Set the verified sprites commit}"
   export PBI_GO_POSTGRES_ROOT="${PBI_STACK_POSTGRES_DATA_ROOT:?Set a new owned persistent database directory}"
+  export PBI_GO_INIT_TIMEOUT="${PBI_STACK_INIT_TIMEOUT:-20m}"
   compose_files=(-f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-runtime.yaml" -f "$PBI_STACK_VALIDATION_ROOT/deploy/compose.go-runtime-validation.yaml")
   # 保留真实发布探针10秒/6次，不缩短其语义；等待实际unhealthy需要更长观察窗口。
   health_attempts=120
