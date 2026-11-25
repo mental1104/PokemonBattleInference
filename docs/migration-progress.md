@@ -4,14 +4,14 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **88%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **89%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
 
 2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
 
 | 阶段 | 状态 | 工程估算 | 当前证据与剩余工作 |
 | --- | --- | --- | --- |
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 92% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；包含原Summary/完整业务归因、透明context、状态门禁和snapshot。任务消费者真实PG/child 11/11 race通过；尚须完成新benchmark对照和平台回归。 |
+| P1 C++ Core | IN_PROGRESS | 95% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；包含原Summary/完整业务归因、透明context、状态门禁和snapshot。任务消费者真实PG/child 11/11 race通过；原10×10池/前两case的12组Full/Summary、Python/C++/Go、workers1/2完整结果/权重/展开数一致，实际性能见benchmarks/configuration-graph-20261125.md。新版Apple回归仍待终态。 |
 | P2 跨语言集成 | IN_PROGRESS | 90% | .11同源码GCC14/Go与GCC13/Swift已实际调用42共享样本；新真实服务Swift27/27零SKIP通过（7.971秒）。新版Apple/SDK及App仍待验证，不能借旧版绿灯标记PASS。 |
 | P3 Go 服务端 | IN_PROGRESS | 94% | 本批保存原41/41 API实际验证覆盖：新增step9、dragonite8、casegraph20项通过。新版业务归因消费者真实PG/child/daemon 11/11 race/vet通过，公开HTTP创建/完整结果/三类预算20/20零SKIP通过；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。最新版Web及跨实现整套仍待收口。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 80% | c0双模拟器各9/9、图标版0.8.0(2)已实际iPhone15Pro启动。新增实际执行溯源HTTP/Swift链27/27通过；iPhone在线按钮被导航栏遮挡的UI修复尚待新CI。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
@@ -19,6 +19,10 @@
 | P6 部署与回归 | IN_PROGRESS | 65% | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。最新版带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- 本轮串行补齐benchmark余下5组，`configuration-benchmark-20261125/final-comparison.log`整体PASS。原500节点/2000边/8回合预算及全局分母44100未改变；每组测量两case，Full与Summary独立比较，未外推PG/HTTP或全空间吞吐。12原始报告、冻结输入及测量源码已归档；随后三项测量工具类型修正通过strict mypy及真实Go Summary复跑，额外样本不混入原表。新增`iphone-ipad-acceptance.md`提供A–F逐步人工验收、固定212/700/418输入和明确预期，所有人工状态仍HUMAN_PENDING；设备可访问的测试服务/知识更新源须在恢复安装验收后准备，不能拿已结束的临时容器冒充现成服务。
+
+- a4bc9f4的[Main Gate 45528710117](https://github.com/mental1104/PokemonBattleInference/actions/runs/45528710117)已通过：后端575 PASS/355环境SKIP（39.43秒）、Vue 31文件95/95 PASS，类型/生产构建通过。SKIP不计迁移验收，真实Core/Go/Swift证据仍以上述独占环境为准；此CI的Web单测/构建不代替连接Go后端的完整浏览器操作。[Apple 45528710141](https://github.com/mental1104/PokemonBattleInference/actions/runs/45528710141)仍在执行。当前串行补齐benchmark剩余5组；先核对旧测量所用archive及Core源码SHA与正式.11完全相同，保留已完成7组，未重启已确认活跃的CI。
 
 - 2026-11-25串行检查点：`6d12312`保存正式Core 0.11（149原生/111差分委托、42共享样本），`165dfff`保存任务业务归因/诊断兼容，`6e9cd8c`保存41项API覆盖。`serial-resume-20261125/dragonite/`真实原HTTP8/8通过（2.66秒），原fake-out-pressure实际因moves维度为空返回422，测试完整比较原错误JSON；没有通过Go提升机制支持。新测试ruff/strict mypy通过。`job-results-final2/`实际公开任务20/20通过（39.79秒），之前两批17/20失败均保留，差异只在原诊断文本。`go-all-abi11/`正式.11及独占PG完整Go **66 PASS / 1专用Swift serve夹具SKIP**，额外恢复 **10/10 PASS**；race/vet、全CSV首次/复用、独立HTTP读取均通过。`swift-live-abi11/`同源码独立GCC13/Swift与GCC14/Go/PG/daemon **27/27零SKIP通过（7.971秒）**，含42共享样本、新任务来源与同步；新版Apple/App UI尚未复验。
 

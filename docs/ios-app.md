@@ -1,5 +1,7 @@
 # iPhone / iPad 原生应用
 
+双真机完整人工操作与逐项PASS/FAIL标准见[验收手册](iphone-ipad-acceptance.md)。该手册明确区分已验证预期、待准备的设备测试服务和HUMAN_PENDING记录。
+
 ## 2026-11-25 当前串行检查点
 
 `serial-resume-20261125/swift-live-abi11/`已使用主工作树的正式Core **0.11.0 / calculation-rules.v11**、独占空PG/完整CSV、Go API/独立daemon以及真实Swift客户端，**27/27 PASS、零SKIP（7.971秒）**。42共享样本、离线/在线相同输入、任务提交/精确结果/运行取消、来源HTTP读取及同步均实跑。来源HTTP的独占PG race测试通过（1.096秒），实际版本与独立Core探针一致，不从业务解释或本地SDK猜测。
