@@ -25,6 +25,10 @@
 
 ## 启动、停止与数据保留
 
+完整路径解析已独立验收：固定sprites commit c0542f7、子树ec56a5fae60f2a6363083d7d0581271744673695，由`git ls-tree -rz --name-only <commit>:sprites`导出NUL清单，`tools/migration/export_sprite_path_reference.py --paths <清单> --output <JSONL>`直接调用原Python解析器与MIME函数。Go测试`TestSpritePathsFullPythonReference`读取显式`PBI_TEST_SPRITE_REFERENCE_JSONL`，逐项比较全部14字段、NULL/false和MIME，同时拒绝重复路径；缺省数据集明确SKIP，显式文件错误失败。
+
+`sprite-metadata-full-20261125/`中105,947条唯一路径全部一致，race下该全路径用例6.53秒，另两项既有边界/manifest用例及knowledge vet通过。导出工具/新增测试Ruff0.17.6和strict mypy2.4.1通过。首个失败揭示原Python3.11缺少WebP MIME注册，按BASE-ASSET-MIME-001独立修复（e8b2f6b），保留未修参考和失败日志，再生成新参考；全部元数据及所有非WebP记录前后逐字节相同，只改变16,526条WebP MIME。参考文件/清单SHA已保存。这里验证的是完整路径语义，不代替图片正文、数据库导入或备份恢复；原PNG选图MV未改变。
+
 准备上述显式输入后，`make go-compose-config`只输出服务名。`make go-compose-build`构建API、数据和Vue镜像；`make go-compose-init`启动PG、等其健康后执行一次性纯Go初始化。`make go-compose-up`在初始化成功后启动API、独立Worker和Vue，API探针通过后前端才启动。任何初始化失败都会阻止后续角色启动。
 
 Worker版本固定为原公开任务的`battle-inference.summary-exploration.v2`，默认lease120秒、heartbeat20秒，不能改成任意验收版本号。SIGTERM清理实际计算子进程，未确认租约由恢复路径处理。

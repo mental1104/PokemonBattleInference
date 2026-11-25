@@ -13,12 +13,14 @@
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
-| P3 Go 服务端 | IN_PROGRESS | 98% | 原41/41 API实际验证覆盖；接管补充后的正式.11全Go/PG 68通过/1专用serve SKIP及额外恢复10/10、race/vet和六个公开HTTP读取通过。真实Vue配置/求解/组合目标/任务/图/取消通过。固定版本原Python库显式接管、异值/schema拒绝、中断回滚与所有历史raw/runtime数据和序列逐字节保留通过。全量图库和新运行入口最终验收仍待收口。 |
+| P3 Go 服务端 | IN_PROGRESS | 99% | 原41/41 API、正式.11 Go/PG 68通过/1专用serve SKIP及恢复10/10、race/vet与真实Vue闭环已验证。原Python库显式接管及历史raw/runtime数据/序列保留通过。固定完整图库105,947条路径的全部元数据与MIME差分通过，独立修复原WebP类型缺项；完整正文导入及新运行入口最终验收仍待。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 90% | b797c19完整双模拟器各9/9及完整原生/绑定证据保留。6bd30c9两端各9/10，重启后实际重算通过；招式威力定位按真实合并字段修正。9eac125当前Apple45548203813原生合同/双SDK通过，App及新10项双模拟器运行中；双真机仍HUMAN_PENDING，安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 84% | d3fbb97正式.11四角色普通模式复验通过，新增实时快照ROOT/前进、12事件战报折叠及回退清空，原图祖先回退/聚合切换/改选边保留。新运行配置PG TCP探针、独占bind/Vue回环/42项Core预检通过。项目Skill与README补齐真实多语言入口及素材来源；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- `sprite-metadata-full-20261125/`全来源路径验收PASS：固定c0542f7/子树ec56a5f，105,947条唯一资源，Go与原Python全部14项元数据/NULL/false/MIME一致。race全路径6.53秒、既有边界/manifest两项和knowledge vet通过；导出及新增Python测试Ruff0.17.6/strict mypy2.4.1通过。首次Go对照明确发现WebP MIME差异，保留原始105,947条参考和失败，独立提交e8b2f6b修复原Python类型表缺项，新27项资产/SQLite/API/视图/MIME回归通过（0.69秒），不改Go预期。修正后参考另存；独立cmp证明全部元数据和所有非WebP记录逐字节不变，仅16,526条WebP MIME修正。清单/参考SHA与代码原文归档。P3工程估算98%→99%，这不证明正文导入或全量PG恢复已通过。实际图片检出仍在同一原进程中推进，当前Apple run45548203813仍处于App/双模拟器步骤。
 
 - `web-live-snapshot-20261125/`完整入口PASS：通过原首页“打开实时树状图”实际请求step，ROOT 1组192条outcome/1/1；正式cursor前进node10000/1/256，节点卡与战报精确一致。12条实际事件折叠/展开后数量不变，ROOT回退清空事件和后继列；全部既有业务/健康/回退/恢复继续通过，原始请求响应/截图/trace/工具SHA归档，自有实例/网络已清理。README更新实际Monorepo和四角色入口，修正BASE-DOC-001不存在的sprites submodule初始化命令，与当前.gitmodules核对；不伪称legacy目录已完成搬迁。P6工程估算83%→84%。完整图片检出进程仍活跃、持续写入HDD；Apple45548203813仍在App/双模拟器步骤，不据等待状态算通过。
 
