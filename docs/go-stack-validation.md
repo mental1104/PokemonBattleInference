@@ -1,5 +1,17 @@
 # Go 四角色隔离验收
 
+## 2026-11-25 Core 0.11 当前版本复验
+
+登记的`stack-abi11-verification`干净工作树先固定4885932，再固定许可补充提交5529a82，两轮入口均完整PASS。最终证据在`Backup/PokemonBattleInference/stack-abi11-20261125/licenses/`，`base/`保留首次当前版本结果。使用独立临时PG、已核对空闲的10.245.24.48/28及随机回环端口，没有修改生产网络或数据库。
+
+正式镜像实际包含当前Core 0.11；独立HTTP完整比较42操作共享请求/响应。Chromium通过原Vue选择212/242和子弹拳418，真实Nginx→Go→独立Core返回114–135并显示在页面；390px视口的实际文档宽度为390px，没有JavaScript异常。桌面/手机PNG及trace完整归档。
+
+健康检查实际经历healthy→暂停API后unhealthy→恢复healthy。当前镜像与已验证74c75e1旧镜像ID不同，用户配置在真实镜像回退和独立恢复库中完整JSON一致。最终API镜像为88e5d12abd91e001945f60d1d85b3ef3db6d412bfa52c62e776c4d74bdfc51cf，53,909,368字节；独立备份SHA为0306fa24e3f7a7e41caeff7e99ade171a56f86c326560b30613ce32066746bb5。结束后精确清理专属实例与网络。
+
+5529a82补齐runtime层的项目LICENSE及仓库完整THIRD_PARTY_LICENSES.md，API和db-init共享该runtime层。脚本从真正运行的当前API容器复制两文件并与源码逐字节cmp通过；原PokeAPI许可继续保留。该修复后完整栈演练再次通过。
+
+本轮Worker存活检查通过，仍未通过该浏览器场景投递业务任务；其验收revision仍为go-stack-validation.v1。复杂任务提交/结果/取消、带完整图片的页面及正式旧生产库接管仍是后续范围。独立PG/daemon任务测试的既有成功不代替这轮Web操作验证。
+
 `tools/migration/validate-go-stack.sh` 用独立 Compose 项目实际运行原 Vue/Nginx、Go API、独立 PG Worker 和 PostgreSQL，另有一次性纯 Go db-init 与 Chromium 客户端。应用运行镜像不携带 Python；Python、npm 和浏览器仅在验收端使用。所有容器通过已声明的 maintenance `run --rm` 启动，数据库只在本次 tmpfs，宿主只发布随机回环端口；不使用生产连接或宿主数据库目录。
 
 源码必须来自干净的已提交 checkout。并行开发时用 Git 注册的 detached worktree 固定具体 SHA，避免半成品进入构建。`PBI_STACK_SOURCE_ROOT` 指向该 checkout，脚本自身及浏览器 harness 可以来自当前验证工作树；报告分别记录应用源码 SHA 和真实镜像 ID。

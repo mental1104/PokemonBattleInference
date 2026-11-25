@@ -4,21 +4,23 @@
 
 ## 当前状态（2026-11-25）
 
-用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **89%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
+用户要求后续串行迭代，每轮以表格和百分比报告实际进展。当前整体工程估算约 **90%**；下表百分比包含剩余平台/交付验收工作量，不是测试通过率，也不等于剩余时间的线性比例。手机后续安装、更新和启动继续暂停。
 
 2026-11-24 用户调整本轮交付优先级：**P1–P3、P5 按原标准完成；P4、P6 达到基本可用**。P4 基本范围为 iPhone/iPad 可构建、查询/离线计算/保存/同步与最简在线任务操作；P6 为四角色启动、数据初始化、核心 Web、基本备份恢复和回滚。真机签名/安装/人工体验保持 HUMAN_PENDING，完整原目标未凭阶段切片宣告完成。
 
 | 阶段 | 状态 | 工程估算 | 当前证据与剩余工作 |
 | --- | --- | --- | --- |
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
-| P1 C++ Core | IN_PROGRESS | 95% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；包含原Summary/完整业务归因、透明context、状态门禁和snapshot。任务消费者真实PG/child 11/11 race通过；原10×10池/前两case的12组Full/Summary、Python/C++/Go、workers1/2完整结果/权重/展开数一致，实际性能见benchmarks/configuration-graph-20261125.md。新版Apple回归仍待终态。 |
-| P2 跨语言集成 | IN_PROGRESS | 90% | .11同源码GCC14/Go与GCC13/Swift已实际调用42共享样本；新真实服务Swift27/27零SKIP通过（7.971秒）。新版Apple/SDK及App仍待验证，不能借旧版绿灯标记PASS。 |
+| P1 C++ Core | IN_PROGRESS | 97% | .11独立组合149/149 CTest及111差分/委托通过，207项外部环境SKIP单列；原10×10池前两case的12组benchmark精确对照通过。a4bc9f4 Apple CI的macOS Core/Go/Swift阶段已通过；完整平台产物及阶段收口审查待终态后保存。 |
+| P2 跨语言集成 | IN_PROGRESS | 95% | .11同源码GCC14/Go与GCC13/Swift实际调用42共享样本；真实服务Swift27/27零SKIP通过。a4bc9f4 macOS原生/Go/Swift阶段及设备/模拟器静态库构建阶段已通过；App/UI运行中，完整产物与日志待保存。 |
 | P3 Go 服务端 | IN_PROGRESS | 94% | 本批保存原41/41 API实际验证覆盖：新增step9、dragonite8、casegraph20项通过。新版业务归因消费者真实PG/child/daemon 11/11 race/vet通过，公开HTTP创建/完整结果/三类预算20/20零SKIP通过；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。最新版Web及跨实现整套仍待收口。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 80% | c0双模拟器各9/9、图标版0.8.0(2)已实际iPhone15Pro启动。新增实际执行溯源HTTP/Swift链27/27通过；iPhone在线按钮被导航栏遮挡的UI修复尚待新CI。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
-| P6 部署与回归 | IN_PROGRESS | 65% | 四角色隔离栈、原Vue浏览器、健康恢复、镜像回退和独立PG恢复已验；纯Go BYTEA导入真实PG回滚/race、原Python全字段与五张真实上游图HTTP6/6通过。最新版带图浏览器、完整复杂任务Web及正式升级仍待补。旧生产保持原状。 |
+| P6 部署与回归 | IN_PROGRESS | 70% | 最新5529a82正式.11四角色栈完整演练通过：42共享HTTP、真实Vue计算114–135/390px适配、健康故障恢复、旧镜像回退及独立PG恢复；新增运行镜像许可原文逐字节核对通过。完整图片/复杂任务Web及正式升级仍待补，Worker在本浏览器场景只验证存活。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- 本轮登记干净`stack-abi11-verification`，固定4885932的基础栈以及5529a82许可补充后的完整复验均PASS；证据在`stack-abi11-20261125/base/`与`licenses/`。当前镜像和已验证旧镜像不同，配置完整JSON在回退/恢复后保持一致。脚本新增从实际运行容器取回许可证cmp，不仅检查COPY声明。Apple run45528710141已确认阶段8/9成功，当前阶段10 App/双模拟器验收仍活跃；没有因日志暂不可取而重启该run。本地新提交等待该run结束后统一推送。
 
 - 本轮串行补齐benchmark余下5组，`configuration-benchmark-20261125/final-comparison.log`整体PASS。原500节点/2000边/8回合预算及全局分母44100未改变；每组测量两case，Full与Summary独立比较，未外推PG/HTTP或全空间吞吐。12原始报告、冻结输入及测量源码已归档；随后三项测量工具类型修正通过strict mypy及真实Go Summary复跑，额外样本不混入原表。新增`iphone-ipad-acceptance.md`提供A–F逐步人工验收、固定212/700/418输入和明确预期，所有人工状态仍HUMAN_PENDING；设备可访问的测试服务/知识更新源须在恢复安装验收后准备，不能拿已结束的临时容器冒充现成服务。
 
