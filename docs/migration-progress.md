@@ -14,11 +14,15 @@
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | IN_PROGRESS | 98% | 原41/41 API实际验证覆盖；接管补充后的正式.11全Go/PG 68通过/1专用serve SKIP及额外恢复10/10、race/vet和六个公开HTTP读取通过。真实Vue配置/求解/组合目标/任务/图/取消通过。固定版本原Python库显式接管、异值/schema拒绝、中断回滚与所有历史raw/runtime数据和序列逐字节保留通过。全量图库和新运行入口最终验收仍待收口。 |
-| P4 iOS/iPadOS | IN_PROGRESS | 85% | a4bc9f4 iPhone9/9通过，iPad7项通过后在约45分钟job限额处取消，余2项未完成；未见已完成用例断言失败。仅将整体job时限改为75分钟后完整复验。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 90% | b797c19完整Apple CI45535685587成功，两端各9/9，原生149/149、112差分/委托及真实Swift27/27、双SDK/device App通过。产物SHA已完整核对。逐项审查新增首装招式UI及重启后实际重算断言，待新10项双模拟器CI；双真机仍HUMAN_PENDING，安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 80% | 5529a82正式.11四角色栈及完整攻防/速度目标、配置、任务/图/取消、健康/回退/恢复与运行许可均通过。新增独立Go运行Compose/Make入口及真实原Python库接管保留演练；新入口完整图库运行、其余交互和正式生产升级仍待。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- Apple run45535685587已取回完整成功结果：iPhone9/9（625.391秒）、iPad9/9（478.275秒）、退出码均0；macOS149/149、112PASS/247外部SKIP，真实Swift27/27零SKIP。官方artifact14989082234为63,013,028字节，下载SHA e4e512527610884def4e39856fbc5ab1de0f44d9dec784fa8d9729a55be8641e与官方一致。日志/xcresult/截图/时间线私有归档，下载配置已删除。P4逐项审查见migration-ios-acceptance.md；新增首装招式详情及重启后实际离线重算断言尚待新CI，不拿旧9/9冒充新增已通过。ios/README已更新实际应用状态，移除“尚未实现”的过期描述。
+
+- 全量Git检出真实终止128：约5.9GiB传输后early EOF/invalid index-pack，非观察超时。保留原始中断pack的reflink副本，正在离线unpack恢复完整对象，再补缺失项；未直接重复下载整个大包。新运行配置的maintenance overlay及真实PG重启、全部BYTEA SHA核对、独立恢复库核对已编写，Compose2.40.3解析通过，完整图库尚未就绪因此未实跑，不算P6通过。
 
 - 最新`legacy-adoption-20261125/full-server/`完整入口PASS：不可变正式.11 archive、当前Go源码强制重链，全Go/PG **68 PASS / 1专用Swift serve夹具SKIP**、额外停机恢复 **10/10 PASS**，race/vet、API实际构建和六个公开HTTP读取均200。新接管/实际运行取消场景61.20秒通过；未改Core/ABI，不重复覆盖不可变archive。gofmt、bash语法和diff检查通过。Swift夹具SKIP不算本轮跨语言通过，既有真实Swift27/27证据另列。完整输入下载继续使用原Git进程，未因状态观察失败重启下载或Apple CI。
 

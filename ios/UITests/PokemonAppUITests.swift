@@ -34,6 +34,27 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["scizor"].waitForExistence(timeout: 10), "Detail must read real identifier")
         capture("first-install-knowledge")
     }
+    /// 首装直接在离线图鉴切换招式、中文搜索并进入真实SQLite详情，避免仅证明宝可梦查询可用。
+    @MainActor func testFirstInstallChineseMoveSearch() {
+        launchCleanApp()
+        if !app.searchFields.firstMatch.waitForExistence(timeout: 2) {
+            let sidebar = app.buttons["ToggleSidebar"].firstMatch
+            XCTAssertTrue(sidebar.waitForExistence(timeout: 10), "Collapsed catalog must provide a sidebar button")
+            sidebar.tap()
+        }
+        let mode = app.segmentedControls.buttons["招式"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10), "Offline catalog must expose move lookup")
+        mode.tap()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap(); search.typeText("子弹拳")
+        let move = app.descendants(matching: .any)["move-418"].firstMatch
+        XCTAssertTrue(move.waitForExistence(timeout: 10), "Bundled database must return Bullet Punch")
+        move.tap()
+        XCTAssertTrue(app.staticTexts["bullet-punch"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["40"].waitForExistence(timeout: 10), "Move detail must show the real power")
+        capture("first-install-move-detail")
+    }
     /// 默认输入通过真实 Core 返回共享向量；麻痹重算体现输入绑定确实进入引擎。
     @MainActor func testOfflineDamageExactKOAndParalysis() {
         launchCleanApp()
@@ -66,7 +87,7 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertEqual(metric("attacker-speed").value as? String, "42")
         capture("paralysis-speed")
     }
-    /// 修改名称后保存并杀进程重启，检查配置从 SQLite 恢复并能继续编辑。
+    /// 修改名称后保存并杀进程重启；SQLite恢复的同一配置必须还能实际离线重算，再检查iPad横屏。
     @MainActor func testSaveRestartAndEditConfiguration() {
         launchCleanApp()
         selectTab("计算")
@@ -88,6 +109,13 @@ final class PokemonAppUITests: XCTestCase {
         capture("saved-after-restart")
         saved.tap()
         XCTAssertEqual(app.textFields["configuration-name"].value as? String, edited)
+        reveal(app.buttons["calculate-offline"]); app.buttons["calculate-offline"].tap()
+        reveal(metric("damage-range"))
+        XCTAssertTrue(metric("damage-range").waitForExistence(timeout: 15))
+        XCTAssertEqual(metric("damage-range").value as? String, "99–117")
+        reveal(metric("two-hit-probability"))
+        XCTAssertEqual(metric("two-hit-probability").value as? String, "123/128")
+        capture("offline-after-restart")
         if UIDevice.current.userInterfaceIdiom == .pad {
             XCUIDevice.shared.orientation = .landscapeLeft
             XCTAssertGreaterThan(app.frame.width, app.frame.height, "iPad editor must support landscape")

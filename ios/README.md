@@ -1,11 +1,13 @@
-# 原生 Core 桥接模块（应用尚未实现）
+# iPhone/iPad 原生应用与 Core 桥接
 
-`PokemonCore` 是 Swift Package，直接导入 `contracts/c/pbi_core.h` 并调用 C++ 静态库。`Engine.calculate` 同步返回复制后的 JSON，`Engine.calculateAsync` 在 detached task 计算并把 Task 取消传到原生令牌；Swift 不实现计算规则。
+`App/`是SwiftUI应用，提供离线图鉴/招式、计算、完整配置编辑保存、在线推演、同步及设置。`PokemonAppSupport`负责真实知识SQLite、独立用户SQLite、版本化更新、变更队列和HTTP客户端；`PokemonCore`直接导入唯一`contracts/c/pbi_core.h`，调用同一C++静态库。Swift不复制计算规则。能力、伤害、速度及精确KO均来自Core，在线与离线结果保留实际来源和三个版本。
 
-Linux Swift 6.0.3 已完成实际构建和 4 项 XCTest：完整共享结果/版本、错误/取消、32 并发和实际大批次 Task 取消。Linux 通过不能替代 Apple SDK、SwiftUI、模拟器或真机验收。
+首装包含固定来源的1,350个宝可梦、937个招式、25个性格和324个属性关系。知识包校验后原子切换，用户库独立保留配置、队列、冲突和计算快照。首次知识校验、SQLite打开和Core重计算离开MainActor；任务取消传递到实际原生令牌或URLSession。
 
-本地在同环境构建 Core 后，用 `make test-native` 或 `bash tools/migration/test-swift.sh "$PWD/build/core"`。脚本把所有可执行临时文件及缓存放在构建目录旁，并按静态库校验值隔离 scratch，保证链接当前 Core。
+最新完整[Apple CI 45535685587](https://github.com/mental1104/PokemonBattleInference/actions/runs/45535685587)对应b797c19及PR测试合并树797cefd：macOS149/149原生测试、112差分/委托通过（247外部环境SKIP单列），iPhoneOS/Simulator静态库和未签名device App构建通过，真实Swift→Go/PG/daemon27/27零SKIP。iPhone与iPad模拟器分别9/9通过，包含真实在线计算来源/版本、任务完成/取消、两模拟器同步、保存/重启及iPad横屏。官方产物已下载核验SHA并私有保存。
 
-用户授权的 [GitHub macOS CI](https://github.com/mental1104/PokemonBattleInference/actions/runs/45343368822) 已通过：Xcode 16.4、Swift 6.1.2，macOS 原生测试和 arm64 iPhoneOS/Simulator Core、Swift module、C ABI XCFramework 构建成功。下载产物的校验值、平台与共享头已独立核对。`build-apple-core.sh` 无需 Apple 登录、Team 或签名；这些结果不代表 App 或模拟器运行通过。
+阶段逐项依据及未完成项见[原生应用验收](../docs/migration-ios-acceptance.md)。本轮新增第10项首装招式详情UI测试，并在已有保存/重启用例中补实际离线重算；这些新增断言尚待下一轮CI，不能混入已完成的9/9结果。P4保持IN_PROGRESS。
 
-当前尚无 SwiftUI App、SQLite 图鉴/用户数据、配置编辑、在线任务及数据同步，因此 P4/P5 不能标记 PASS。晚上接通用户 Mac 后可继续本地构建和后续应用安装；Apple 登录/Team、设备信任、Developer Mode 和真机安装授权仍由 Human 完成。可通过工具执行的构建和诊断由 Agent 完成，不要求 Human 代跑终端命令。
+本地在同环境构建Core后，使用`make test-native`或`bash tools/migration/test-swift.sh "$PWD/build/core"`。桥接脚本按两个archive的SHA隔离Swift scratch，避免链接过期Core。Apple库构建由`tools/migration/build-apple-core.sh`负责；实际App和双模拟器验证由`tools/migration/validate-apple-app.sh`负责，不需要Apple Account或真机签名。
+
+真机安装与A–F固定输入/预期值见[双设备人工验收手册](../docs/iphone-ipad-acceptance.md)。当前用户要求继续迭代、暂停安装，既有iPhone0.8.0(2)不更新、不启动；双真机体验、iPad物理安装、生产地址和最终审批保持HUMAN_PENDING。构建与诊断由Agent执行，Human只负责必要授权和真实使用体验。
