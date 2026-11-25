@@ -151,9 +151,12 @@ def _mime_type(relative_path: str) -> str:
         relative_path: asset 的 POSIX 相对路径。
 
     Returns:
-        可用于 HTTP Content-Type 的 MIME type；无法识别时返回
-        `application/octet-stream`。
+        可用于 HTTP Content-Type 的 MIME type；WebP固定为image/webp，
+        其他格式沿用系统类型表，无法识别时返回application/octet-stream。
     """
+    # RFC9649注册的WebP不能取决于精简Python环境是否安装了mime.types。
+    if Path(relative_path).suffix.lower() == ".webp":
+        return "image/webp"
     guessed, _ = mimetypes.guess_type(relative_path)
     return guessed or "application/octet-stream"
 

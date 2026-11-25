@@ -63,6 +63,14 @@
 
 原 benchmark 的 JSON/Markdown 保留于 `docs/benchmarks/`。只读容器未挂载外部 Git 元数据，所以原报告 `environment.commit` 为 `unknown`；对应 `pokeop/` 已核对与 `10c422e` 无内容差异。该报告不含 PostgreSQL 写入测量，不能从两个截断配置推断全空间吞吐或原生改写收益。
 
+## BASE-ASSET-MIME-001：WebP类型表缺项修正
+
+2026-11-25完整sprites路径对照首次实测失败：原Python3.11导入器把`pokemon/versions/generation-ix/champions/1000.webp`标为application/octet-stream，而Go为image/webp。固定c0542f7真实文件头为RIFF/WEBPVP8X，SHA-256 `d83f4fab15e114853688af9cf44a8c601b17b1f529640c6ffd49803e1178c242`；[IANA注册](https://www.iana.org/assignments/media-types/image/webp)明确该格式的媒体类型为image/webp。
+
+新增独立MIME回归先稳定复现2失败/4通过：系统guess_type无记录时，小写和大写WebP均错误回退。随后只在原`_mime_type`中明确识别WebP扩展名，其他类型继续沿用原系统表及未知类型回退；不修改Go原有image/webp预期，不更改历史图片正文或批次。资产、SQLite事务、API和视图合同及新增MIME用例合计27/27通过（0.69秒），新增导出/测试的Ruff及strict mypy通过。
+
+证据位于`Backup/PokemonBattleInference/sprite-metadata-full-20261125/`，保留修正前的105,947条原始参考、Go首个差异日志、独立RED/绿灯及真实WebP样本。修正后完整参考另存，不能覆盖原始失败或把它冒充未修参考本来就通过；后续全路径Go对照独立记录。该缺陷修正与迁移测试分别提交。
+
 ## 重新执行
 
 本地先初始化固定 submodule，准备 Python 3.11+ 与 `requirements.txt`、当前 `Dockerfile.backend` 中列出的 common 可选依赖和 `httpx`。原始 Python 基线：
