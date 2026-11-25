@@ -224,6 +224,13 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         catch is CancellationError { }
         XCTAssertEqual(try Data(contentsOf: pointer), oldPointer)
         // 重建actor模拟重启；旧知识、用户配置和待同步队列都必须仍可用。
+        let requested = try ContractJSON.decoder().decode(
+            KnowledgeManifest.self, from: Data(contentsOf: downloads.appendingPathComponent("manifest.download.json"))
+        )
+        let partial = downloads.appendingPathComponent("download-\(requested.sqliteSha256).partial")
+        let partialBytes = (try FileManager.default.attributesOfItem(atPath: partial.path)[.size] as! NSNumber).int64Value
+        XCTAssertGreaterThan(partialBytes, 0)
+        XCTAssertLessThan(partialBytes, requested.byteSize)
         let reopened = try KnowledgeStore(directory: installedDirectory, initial: KnowledgePack.bundled())
         let beforeRetry = await reopened.version()
         XCTAssertEqual(beforeRetry, initial)
@@ -244,14 +251,19 @@ final class KnowledgeUpdateTests: XCTestCase, @unchecked Sendable {
         let reopenedUsers = try ConfigurationStore(url: root.appendingPathComponent("users.sqlite"))
         let savedAfter = try await reopenedUsers.all()
         XCTAssertEqual(savedAfter.map(\.configuration), [configuration])
+        XCTAssertEqual(try ContractJSON.encoder().encode(savedAfter), try ContractJSON.encoder().encode(savedBefore))
         let pendingAfter = try await reopenedUsers.pendingChanges()
         XCTAssertEqual(pendingAfter.count, 1)
+        XCTAssertEqual(try ContractJSON.encoder().encode(pendingAfter), try ContractJSON.encoder().encode(pendingBefore))
         if let report = ProcessInfo.processInfo.environment["PBI_KNOWLEDGE_HTTP_REPORT_DIRECTORY"] {
             let destination = URL(fileURLWithPath: report)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
             try oldPointer.write(to: destination.appendingPathComponent("nas-initial.json"))
             try ContractJSON.encoder().encode(candidate).write(to: destination.appendingPathComponent("nas-installed.json"))
             try Data(contentsOf: pointer).write(to: destination.appendingPathComponent("nas-restarted-current.json"))
+            try "observed=\(observed)\npartial=\(partialBytes)\ncomplete=\(candidate.byteSize)\n".write(
+                to: destination.appendingPathComponent("nas-transfer-bytes.txt"), atomically: true, encoding: .utf8
+            )
         }
     }
 }

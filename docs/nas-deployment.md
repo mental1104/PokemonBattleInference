@@ -52,3 +52,13 @@ prepare-sprite-snapshot.sh只发布这份32MiB预算内的小包到HDD版本目�
 历史BYTEA-only镜像不认识HDD正文。演练须证明即使它健康也会因图片正文错误被拒绝，然后回退到已验证的HDD版本并核对图片和用户数据；不能宣称旧镜像可服务外部图片。生产只定向更新本应用，不重建共享PG或其他home服务。
 
 不自动删除原库、凭据、快照、旧镜像或原始证据。数据库恢复只进入独立目标，不对生产执行--clean或DROP；已接收新写入时先冻结并保全差异。旧凭据回退只能在新应用停止后使用，不能打印其私有SQL。
+
+## 人工知识更新验收源
+
+NAS发布工作树已推进至1b2617b，新增Nginx验收路由和只读HDD挂载；只重建frontend容器，Go/Worker镜像仍固定17a5fda构建的p6-sv-filesystem-r1，图片快照和PG均未改动。没有新增常驻服务或修改DSM规则。原知识URL和212图片正文更新前后逐字相同。
+
+HDD验收包位于`/volume1/docker/pokemon-battle-inference/knowledge-acceptance/pokeapi-1567d53073a0-7e4be433ddb6-acceptance-r1/`，正文413,696字节，SHA为5d203aecbca9ee41c62e5b45e0e238e2f1d61d09dbe99072873dcb0c878b53fe。只改变metadata版本，原知识事实、来源清单和许可保留，不声称更新了PokeAPI事实。生成器拒绝覆盖既有目录，并在输出前验证源SHA/结构/版本/数量；声明入口为deploy/compose.knowledge-acceptance.yaml，数据不进入PG。
+
+有效、4KiB/s限速、故意错误SHA清单分别在`/acceptance/knowledge/r1/manifest.json`、`/acceptance/knowledge-slow/r1/manifest.json`、`/acceptance/knowledge-bad-sha/r1/manifest.json`，完整人工步骤见iphone-ipad-acceptance.md。正常TLS下curl实测64字节206 Range，4秒限速中断得到16,384字节，再以206续传后全文件相同。
+
+真实Swift生产客户端经正式HTTPS验证坏SHA拒绝、实际8,192字节后取消、8,192字节暂存和重启续传安装新版本、再次重启知识可用，完整配置记录及待同步队列的JSON逐字不变。KnowledgeUpdateTests共4项零失败/零SKIP（1.933秒），Python生成器4项及Ruff/strict mypy通过。证据根为Backup/PokemonBattleInference/knowledge-update-acceptance-20261125/。Nginx预检首轮缺自有tmpfs缓存目录CHOWN能力失败，固定维护服务只补该能力后预检通过，原日志保留；生产仍沿用原有精确能力集合。
