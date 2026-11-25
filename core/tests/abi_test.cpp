@@ -68,10 +68,24 @@ CallResult Call(const std::string& input, const pbi_cancel_token_v1* token = nul
 /// 所有语言使用同一固定文件核对版本、字段、槽位和完整批次结果。
 TEST(CAbi, SharedFixtureAndVersion) {
   EXPECT_EQ(pbi_v1_abi_version(), 1U);
-  EXPECT_STREQ(pbi_v1_engine_version(), "0.10.0");
+  EXPECT_STREQ(pbi_v1_engine_version(), "0.11.0");
   const auto result = Call(Fixture("abi-calculations.v1.request.json"));
   EXPECT_EQ(result.status, PBI_OK_V1);
   EXPECT_EQ(result.body, Json::parse(Fixture("abi-calculations.v1.response.json")));
+}
+
+/// 显式摘要输入不能悄悄改为Full浏览图；通过公开ABI在构图前原子拒绝不匹配的图用途。
+TEST(CAbi, FrozenGraphQueryRejectsSummaryPurpose) {
+  auto fixed = FixtureOperation("fixed_battle");
+  fixed["graph_mode"] = "configuration_summary";
+  const Json query{{"kind", "fixed_graph_query"}, {"fixed_request", std::move(fixed)},
+      {"expected_engine_version", "0.11.0"}, {"expected_rules_version", "calculation-rules.v11"},
+      {"expected_nodes", 2}, {"expected_edges", 1},
+      {"query", {{"mode", "explore"}, {"graph_id", "frozen-graph"}, {"calculation_revision", "test"}}}};
+  const auto result = Call(Json{{"schema_version", 1}, {"operations", Json::array({query})}}.dump());
+  EXPECT_EQ(result.status, PBI_INVALID_INPUT_V1);
+  EXPECT_EQ(result.body.at("error").at("message"), "frozen graph queries require exploration mode");
+  EXPECT_FALSE(result.body.contains("results"));
 }
 
 /// 图节点切片可能超过旧8MiB，0.10明确允许更大的完整输入；不放宽其他操作/拓扑预算。

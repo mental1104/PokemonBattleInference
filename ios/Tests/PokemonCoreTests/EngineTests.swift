@@ -18,7 +18,7 @@ final class EngineTests: XCTestCase, @unchecked Sendable {
         let actual = try XCTUnwrap(JSONSerialization.jsonObject(with: Engine.calculate(fixture("request"))) as? NSDictionary)
         let expected = try XCTUnwrap(JSONSerialization.jsonObject(with: fixture("response")) as? NSDictionary)
         XCTAssertEqual(actual, expected)
-        XCTAssertEqual(Engine.version, "0.10.0")
+        XCTAssertEqual(Engine.version, "0.11.0")
     }
 
     /// 明确取消与错误状态不能返回成功结果；错误正文为已复制的 Swift 数据。

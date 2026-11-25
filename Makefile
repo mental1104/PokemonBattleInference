@@ -84,6 +84,12 @@ export PBI_REFERENCE_STATIC_DAMAGE_RUNNER := $(CORE_BUILD_DIR)/pbi_reference_sta
 export PBI_STATE_GRAPH_PROJECTION_RUNNER := $(CORE_BUILD_DIR)/pbi_state_graph_projection_vectors
 export PBI_WINNING_PATHS_RUNNER := $(CORE_BUILD_DIR)/pbi_winning_paths_vectors
 export PBI_FIXED_GRAPH_QUERY_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_graph_query_vectors
+export PBI_GRAPH_EXPLANATION_RUNNER := $(CORE_BUILD_DIR)/pbi_graph_explanation_vectors
+export PBI_SUMMARY_BATTLE_GRAPH_RUNNER := $(CORE_BUILD_DIR)/pbi_battle_graph_vectors
+export PBI_FIXED_BATTLE_SNAPSHOT_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_battle_snapshot_vectors
+export PBI_FIXED_BATTLE_SNAPSHOT_CONTRACT_RUNNER := $(CORE_BUILD_DIR)/pbi_fixed_battle_snapshot_contract_vectors
+export PBI_CONFIGURATION_CONTEXT_CONTRACT_RUNNER := $(CORE_BUILD_DIR)/pbi_configuration_context_vectors
+export PBI_STATUS_GATES_RUNNER := $(CORE_BUILD_DIR)/pbi_status_gates_vectors
 export PBI_TRANSPARENT_TURN_RUNNER := $(CORE_BUILD_DIR)/pbi_turn_vectors
 
 .PHONY: test-bindings test-native

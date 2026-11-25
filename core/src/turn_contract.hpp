@@ -15,6 +15,8 @@ struct TurnRequest {
   std::variant<ExplicitTurnActions, PolicyTurnActions> selection;
   TurnLimits limits;
 };
+/// 原探索完整图与原任务summary是不同用途；默认不变，不能把stop-all-frontier塞进探索。
+enum class FixedGraphPurpose { exploration, configuration_summary };
 /// 真正配置构图及求解请求，不接受用户自定义脚本 expander。
 struct FixedBattleRequest {
   BattleState initial;
@@ -22,6 +24,8 @@ struct FixedBattleRequest {
   FixedBattleOptions options;
   bool include_graph;
   bool include_representative_paths = false;
+  bool include_root_action_explanation = false;
+  FixedGraphPurpose graph_purpose = FixedGraphPurpose::exploration;
 };
 /// @param value 正式单步请求；@param remaining_rolls 批次策略槽位余量；@return 全部已验证拥有输入。
 [[nodiscard]] TurnRequest ReadTurnRequest(const Json& value, std::size_t remaining_rolls);

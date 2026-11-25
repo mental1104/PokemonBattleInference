@@ -411,4 +411,14 @@ FixedBattleComputation InferFixedBattle(BattleState initial, TypeChartSnapshot k
   auto solution = SolveGraph(graph.Topology(), options.observer, options.max_equation_nodes, stop);
   return {std::move(graph), std::move(solution), std::move(limitations)};
 }
+SummaryFixedBattleComputation InferSummaryFixedBattle(BattleState initial, TypeChartSnapshot knowledge, FixedBattleOptions options,
+    const GraphProgressObserver& progress, CancellationToken stop) {
+  const StandardTurnResolver resolver{std::move(knowledge)};
+  auto limitations = resolver.CoverageLimitations(initial);
+  auto summary = BuildSummaryBattleGraph(std::move(initial), [&](const BattleState& state) {
+    return resolver.Expand(state, options.attacker_policy, options.defender_policy, options.turn_limits, stop);
+  }, options.graph_limits, progress, options.progress_interval, stop);
+  auto solution = SolveGraph(summary.graph.Topology(), options.observer, options.max_equation_nodes, stop);
+  return {{std::move(summary.graph), std::move(solution), std::move(limitations)}, std::move(summary.root_summaries)};
+}
 } // namespace pbi

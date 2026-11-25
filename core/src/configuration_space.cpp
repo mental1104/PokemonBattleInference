@@ -1,4 +1,5 @@
 #include "pbi/configuration_space.hpp"
+#include "configuration_moves_internal.hpp"
 #include <algorithm>
 #include <map>
 #include <numeric>
@@ -9,6 +10,17 @@ namespace {
 /// @param token 可空共享令牌；取消时不返回不完整配置分区。
 void CheckCancellation(const CancellationToken& token) {
   if (token.Requested()) throw std::runtime_error("configuration space generation cancelled");
+}
+/// @param input 本次明确composition及原profile展示名；@param dimension 原三种provider维度。
+/// 新composition返回原generator诊断；已发布standard/raw保留原Core错误文本。
+[[noreturn]] void EmptyDimension(const ConfigurationPokemonInput& input, ConfigurationEffectSource dimension) {
+  if (input.factory != ConfigurationEffectFactory::standard || input.repository_mode != ConfigurationRepositoryMode::raw) {
+    const auto key = dimension == ConfigurationEffectSource::move ? "moves" : dimension == ConfigurationEffectSource::ability ? "ability" : "item";
+    throw std::invalid_argument(std::string{"dimension '"} + key + "' has no supported candidates for " + input.name);
+  }
+  if (dimension == ConfigurationEffectSource::move) throw std::invalid_argument("configuration moves dimension has no executable values");
+  if (dimension == ConfigurationEffectSource::ability) throw std::invalid_argument("configuration ability dimension has no executable values");
+  throw std::invalid_argument("configuration item dimension has no executable values");
 }
 /// @param input 已读取ASCII标识；@return 原工厂规范标识，不在外层复制规则。
 std::string Normalize(const std::string& input) {
@@ -85,15 +97,18 @@ std::vector<EffectOption> Abilities(const ConfigurationPokemonInput& input,
     if (candidate.support != ConfigurationSupport::supported && candidate.support != ConfigurationSupport::partial && candidate.support != ConfigurationSupport::unsupported) {
       throw std::invalid_argument("unknown ability support status");
     }
+    const auto reconciled = ReconcileConfigurationRepository({ConfigurationEffectSource::ability, identifier, identifier,
+        candidate.reason, true, false, input.factory, input.repository_mode});
+    const auto repository_support = reconciled.promoted_status == ConfigurationAdmissionStatus::supported ? ConfigurationSupport::supported : candidate.support;
     if (!requested.empty() && !requested.contains(identifier)) {
-      coverage.push_back({ConfigurationEffectSource::ability, {identifier, candidate.support, false, "The ability is legal but excluded by the command candidate pool.", std::nullopt}});
+      coverage.push_back({ConfigurationEffectSource::ability, {identifier, repository_support, false, "The ability is legal but excluded by the command candidate pool.", std::nullopt}});
       continue;
     }
-    if (candidate.support != ConfigurationSupport::supported) {
-      coverage.push_back({ConfigurationEffectSource::ability, {identifier, candidate.support, false, candidate.reason, std::nullopt}});
+    if (repository_support != ConfigurationSupport::supported) {
+      coverage.push_back({ConfigurationEffectSource::ability, {identifier, repository_support, false, reconciled.repository_reason, std::nullopt}});
       continue;
     }
-    const auto effect = DescribeConfigurationEffect(ConfigurationEffectSource::ability, identifier);
+    const auto& effect = reconciled.coverage;
     const auto support = effect.status == ConfigurationEffectStatus::supported ? ConfigurationSupport::supported
         : effect.status == ConfigurationEffectStatus::partial ? ConfigurationSupport::partial : ConfigurationSupport::unsupported;
     const bool included = effect.status == ConfigurationEffectStatus::supported;
@@ -119,7 +134,7 @@ std::vector<EffectOption> Items(const ConfigurationPokemonInput& input,
   std::map<std::string, std::size_t> grouped;
   for (const auto& candidate : candidates) {
     CheckCancellation(token);
-    const auto effect = DescribeConfigurationEffect(ConfigurationEffectSource::item, candidate);
+    const auto effect = DescribeConfigurationEffect(ConfigurationEffectSource::item, candidate, input.factory);
     const bool included = (!candidate && effect.status == ConfigurationEffectStatus::no_effect) || effect.status == ConfigurationEffectStatus::supported;
     const auto support = included ? ConfigurationSupport::supported : effect.status == ConfigurationEffectStatus::partial
         ? ConfigurationSupport::partial : ConfigurationSupport::unsupported;
@@ -144,16 +159,28 @@ ConfigurationPokemonSpace GeneratePokemonConfigurationSpace(const ConfigurationP
   if (types.empty() || types.size() > 2 || input.moves.candidates.empty() || input.abilities.empty()) {
     throw std::invalid_argument("configuration types and move and ability candidates must not be empty");
   }
-  const auto moves = EnumerateConfigurationMoves(input.moves, cancellation);
+  auto move_input = input.moves;
+  if (input.repository_mode == ConfigurationRepositoryMode::factory_reconciled) for (auto& candidate : move_input.candidates) {
+    CheckCancellation(cancellation);
+    if (candidate.support != ConfigurationSupport::supported && candidate.support != ConfigurationSupport::partial && candidate.support != ConfigurationSupport::unsupported)
+      throw std::invalid_argument("unknown repository move support status");
+    const bool executable = candidate.move.has_value();
+    const bool allow_no_effect = executable && candidate.move->View().move.category != DamageCategory::status;
+    auto reconciled = ReconcileConfigurationRepository({ConfigurationEffectSource::move, candidate.effect_identifier, candidate.identifier,
+        candidate.reason, executable, allow_no_effect, input.factory, input.repository_mode});
+    if (reconciled.promoted_status == ConfigurationAdmissionStatus::supported) candidate.support = ConfigurationSupport::supported;
+    candidate.reason = std::move(reconciled.repository_reason);
+  }
+  const auto moves = detail::EnumerateConfigurationMovesWithFactory(move_input, input.factory, cancellation);
   const auto stats = EnumerateConfigurationStats(input.stats, cancellation);
   ConfigurationPokemonSpace result;
   for (const auto& record : moves.coverage) result.coverage.push_back({ConfigurationEffectSource::move, record});
   const auto abilities = Abilities(input, result.coverage, cancellation);
   const auto items = Items(input, result.coverage, cancellation);
   // 原生成器先扩展全部维度，再统一检查空维度；保持错误与预算的执行顺序。
-  if (moves.classes.empty()) throw std::invalid_argument("configuration moves dimension has no executable values");
-  if (abilities.empty()) throw std::invalid_argument("configuration ability dimension has no executable values");
-  if (items.empty()) throw std::invalid_argument("configuration item dimension has no executable values");
+  if (moves.classes.empty()) EmptyDimension(input, ConfigurationEffectSource::move);
+  if (abilities.empty()) EmptyDimension(input, ConfigurationEffectSource::ability);
+  if (items.empty()) EmptyDimension(input, ConfigurationEffectSource::item);
   /// @param values 已归并的完整effect值；@return 归并前成员总量，不以类数量替代。
   const auto count = [](const std::vector<EffectOption>& values) {
     Integer total{0};

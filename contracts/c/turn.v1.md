@@ -31,6 +31,8 @@
 | max_equation_nodes | 省略/null 无上限，与原精确 solver 一致；显式正整数用于可见保护 |
 | turn_limits | 同单步回合，省略/null 不加入额外执行裁剪 |
 | include_graph | 默认 false；true 才传输完整节点、事件边及 SCC |
+| graph_mode | 默认 `full`，保持原完整探索；`configuration_summary` 使用原任务的摘要构图和遇预算停止全部frontier语义 |
+| include_root_action_explanation | 默认 false；true 在同次typed图上生成原 `battle-inference.explanation.v1` 完整归因对象，或明确null |
 | progress_interval | 默认 100；每多少实际展开节点触发 Core 观察回调，正整数 |
 
 生成图每批按请求上限预留最多 2,000,000 节点、8,000,000 边。该预算与显式 `graph` JSON 拓扑的 65,536/262,144 输入预算分开；固定战斗不复用显式 graph 的 128 方程保护。多项固定推演不能各自占满同一批次的全部配额。
@@ -38,6 +40,10 @@
 结果顶层保留 kind=fixed_battle、observer、status、win/loss/draw/closed_cycle、expected_turns，另有 statistics、truncations、unsupported_aspects、graph。统计包含 nodes/edges/max_turn_number/closed_cycles/terminal_reachable_cycles 及五类 terminal_counts。完整图为所有节点状态、终止/保护原因、前驱节点/边、代表路径、精确带权事件边和全部 SCC；summary 模式 graph 为 null，不虚构空图。
 
 构图节点/边/回合保护产生 unknown 节点、真实 truncations 和 incomplete-graph，概率为 null；不能变成数学平局或零胜率。封闭循环的 draw/closed_cycle 与无限期望保持原数学语义。显式执行/方程保护和传输输出超限是 RESOURCE_LIMIT，不提供部分业务结果。
+
+`include_graph` 只控制传输，`graph_mode` 决定构图行为，两者独立。`configuration_summary` 保留原任务的状态、精确概率、根事件归因及预算统计；默认 `full` 保持探索前沿处理。`fixed_graph_query` 明确拒绝Summary输入，导航缓存不能用Summary计数验证Full重算。
+
+可选 `root_action_explanation` 完整保留 version、basis、coverage、root、buckets、omitted_bucket_count、graph。桶内含双方move_id、精确概率与胜负/平贡献、条件概率、代表目标和path_count；TopK按原12桶，余量显式记录。根价值固定攻守轴，不随observer交换。未请求时不增加字段；请求后未解或无法归因时为null，取消仍撤销整批。Go直接保存该业务对象，实际engine/rules和输入SHA另存，不混入解释。
 
 成功结果传输上限为 **32 MiB**，完整图事件逐项检查并保留整批原子性；调用者可请求 summary 避免传输大型图。事件/路径额外计数保护各为一百万，仍受同一字节上限约束。生成图预算不承诺任何规模都可在实际机器内存/时间内完成；失败分类和取消明确可观察，不提供近似概率。
 

@@ -139,12 +139,14 @@ ConfigurationMoveInput ReadMovesInput(const Json& value, CancellationToken stop)
 /// @param value 完整标准四维单侧命令；@param stop 同源取消；@return 不进行维度过滤的拥有快照。
 ConfigurationPokemonInput ReadSide(const Json& value, CancellationToken stop) {
   RequireSchema(value, {"pokemon_id", "name", "types", "moves", "stats", "abilities"},
-      {"ruleset_id", "version_group_id", "can_evolve", "requested_abilities", "items", "max_raw_configurations"});
+      {"ruleset_id", "version_group_id", "can_evolve", "requested_abilities", "items", "max_raw_configurations", "factory", "repository_mode"});
   ConfigurationPokemonInput result;
   result.pokemon_id = ReadInteger(value.at("pokemon_id")); result.name = Text(value.at("name"));
   if (value.contains("ruleset_id")) result.ruleset_id = Text(value.at("ruleset_id"));
   if (value.contains("version_group_id")) result.version_group_id = ReadInteger(value.at("version_group_id"));
   if (value.contains("can_evolve")) result.can_evolve = ReadBool(value.at("can_evolve"));
+  if (value.contains("factory")) result.factory = ReadEnum<ConfigurationEffectFactory>(value.at("factory"), factories);
+  if (value.contains("repository_mode")) result.repository_mode = ReadEnum<ConfigurationRepositoryMode>(value.at("repository_mode"), repository_modes);
   RequireArray(value.at("types"));
   for (const auto& type : value.at("types")) { CheckStop(stop); result.types.push_back(static_cast<PokemonType>(ReadInt32(type))); }
   result.moves = ReadMovesInput(value.at("moves"), stop); result.stats = ReadStatsInput(value.at("stats"), stop);
@@ -277,15 +279,17 @@ private:
   CancellationToken stop_;
   std::size_t remaining_ = PBI_V1_MAX_RESULT_BYTES;
 };
-/// @param input 原合法候选；@param projection 本结果预算；@return 全部repository原理由与独立factory事实。
-Json MoveDescriptions(const ConfigurationMoveInput& input, Projection& projection) {
+/// @param input 原合法候选；@param projection 本结果预算；@param factory 显式composition，默认保持旧标准工厂。
+/// @return 全部repository原理由与独立factory事实，不把strict决定当provider准入。
+Json MoveDescriptions(const ConfigurationMoveInput& input, Projection& projection,
+                      ConfigurationEffectFactory factory = ConfigurationEffectFactory::standard) {
   auto result = Json::array();
   for (const auto& value : input.candidates) {
     auto identifier = value.effect_identifier;
     if (!NormalizeConfigurationEffectIdentifier(identifier) && value.move) identifier = value.move->View().effect_identifier;
     projection.Append(result, {{"source", "move"}, {"identifier", value.identifier}, {"move_id", value.move_id},
         {"repository", {{"support", support_names.at(static_cast<std::size_t>(value.support))}, {"reason", value.reason}}},
-        {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::move, identifier))}});
+        {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::move, identifier, factory))}});
   }
   return result;
 }
@@ -299,12 +303,12 @@ Json Side(const ConfigurationPokemonSpace& value, const ConfigurationPokemonInpu
     auto record = Coverage(item.candidate); record["dimension"] = source_names.at(static_cast<std::size_t>(item.dimension));
     projection.Append(coverage, std::move(record));
   }
-  auto descriptions = MoveDescriptions(input.moves, projection);
+  auto descriptions = MoveDescriptions(input.moves, projection, input.factory);
   for (const auto& ability : input.abilities) projection.Append(descriptions, {{"source", "ability"}, {"identifier", ability.identifier},
       {"repository", {{"support", support_names.at(static_cast<std::size_t>(ability.support))}, {"reason", ability.reason}}},
-      {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::ability, ability.identifier))}});
+      {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::ability, ability.identifier, input.factory))}});
   for (const auto& item : input.items) projection.Append(descriptions, {{"source", "item"},
-      {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::item, item))}});
+      {"factory", Effect(DescribeConfigurationEffect(ConfigurationEffectSource::item, item, input.factory))}});
   auto types = Json::array(); for (const auto type : input.types) types.push_back(static_cast<int>(type));
   return {{"classes", std::move(classes)}, {"coverage", std::move(coverage)}, {"candidate_descriptions", std::move(descriptions)},
       {"raw_configuration_count", value.raw_configuration_count.str()},

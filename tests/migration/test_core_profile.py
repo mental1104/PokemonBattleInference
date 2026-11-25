@@ -41,8 +41,8 @@ class ProfileReply(BaseModel):
     """固定版本与完整结果，不能把 error 当成空列表。"""
     model_config = ConfigDict(frozen=True, extra="forbid")
     schema_version: Literal[1]
-    engine_version: Literal["0.10.0"]
-    rules_version: Literal["calculation-rules.v10"]
+    engine_version: Literal["0.11.0"]
+    rules_version: Literal["calculation-rules.v11"]
     results: tuple[ProfileResult, ...]
 
 

@@ -269,9 +269,8 @@ std::vector<StrongComponent> AnalyzeComponents(const ProbabilityGraph& graph, pb
   return components;
 }
 
-GraphSolution SolveGraph(const ProbabilityGraph& graph, BattleSide observer,
-    std::optional<std::size_t> max_equation_nodes, pbi::CancellationToken stop) {
-  if (observer != BattleSide::attacker && observer != BattleSide::defender) throw std::invalid_argument("observer must be a BattleSide");
+GraphNodeSolution SolveGraphNodes(const ProbabilityGraph& graph,
+    std::optional<std::size_t> max_equation_nodes, CancellationToken stop) {
   if (max_equation_nodes && *max_equation_nodes == 0) throw std::invalid_argument("max_equation_nodes must be greater than 0");
   try {
     CheckStop(stop);
@@ -294,17 +293,30 @@ GraphSolution SolveGraph(const ProbabilityGraph& graph, BattleSide observer,
       AbsorptionEquations equations{graph, index, values, std::move(transient)};
       for (auto& [id, value] : equations.Solve(stop)) values[id] = std::move(value);
     }
-    const auto& root = values[graph.Root().value].value();
-    if (root[0] + root[1] + root[2] != Rational{1}) throw std::logic_error("exact graph probabilities do not sum to 1");
-    const auto win_index = observer == BattleSide::attacker ? 0 : 1;
-    const auto loss_index = observer == BattleSide::attacker ? 1 : 0;
-    std::variant<FiniteExpectedTurns, InfiniteExpectedTurns> expected = FiniteExpectedTurns{root[4]};
-    if (root[3] > Rational{0}) expected = InfiniteExpectedTurns{};
-    return SolvedGraph{observer, root[win_index], root[loss_index], root[2], root[3], std::move(expected)};
+    std::vector<GraphNodeAbsorption> result;
+    result.reserve(values.size());
+    for (const auto& value : values) {
+      CheckStop(stop); const auto& node = value.value();
+      if (node[0] + node[1] + node[2] != Rational{1}) throw std::logic_error("exact graph probabilities do not sum to 1");
+      result.push_back({node[0], node[1], node[2], node[3], node[4]});
+    }
+    return result;
   } catch (const CancelledSignal&) {
     return UnavailableGraph{GraphSolveStatus::cancelled, {"graph computation cancelled"}};
   } catch (const SingularSignal&) {
     return UnavailableGraph{GraphSolveStatus::singular_system, {"exact absorption equation is singular"}};
   }
+}
+GraphSolution SolveGraph(const ProbabilityGraph& graph, BattleSide observer,
+    std::optional<std::size_t> max_equation_nodes, CancellationToken stop) {
+  if (observer != BattleSide::attacker && observer != BattleSide::defender) throw std::invalid_argument("observer must be a BattleSide");
+  auto solution = SolveGraphNodes(graph, max_equation_nodes, stop);
+  if (const auto* unavailable = std::get_if<UnavailableGraph>(&solution)) return *unavailable;
+  const auto& root = std::get<std::vector<GraphNodeAbsorption>>(solution).at(graph.Root().value);
+  const auto win = observer == BattleSide::attacker ? root.attacker_win : root.defender_win;
+  const auto loss = observer == BattleSide::attacker ? root.defender_win : root.attacker_win;
+  std::variant<FiniteExpectedTurns, InfiniteExpectedTurns> expected = FiniteExpectedTurns{root.expected_steps_to_boundary};
+  if (root.closed_cycle > Rational{0}) expected = InfiniteExpectedTurns{};
+  return SolvedGraph{observer, win, loss, root.draw, root.closed_cycle, std::move(expected)};
 }
 } // namespace pbi

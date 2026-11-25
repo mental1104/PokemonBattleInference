@@ -2,21 +2,32 @@
 #include <algorithm>
 
 namespace pbi {
-ConfigurationAdmission DescribeConfigurationAdmission(const ConfigurationAdmissionInput& input) {
+ConfigurationRepositoryReconciliation ReconcileConfigurationRepository(const ConfigurationAdmissionInput& input) {
   if (input.mechanism_identifier.empty() || input.repository_reason.empty()) throw std::invalid_argument("admission identity and repository reason must be nonempty");
   auto coverage = DescribeConfigurationEffect(input.source, input.effect_identifier, input.factory);
   if (input.repository_mode != ConfigurationRepositoryMode::raw && input.repository_mode != ConfigurationRepositoryMode::factory_reconciled) {
     throw std::invalid_argument("unknown configuration repository mode");
   }
   auto repository_reason = input.repository_reason;
+  std::optional<ConfigurationAdmissionStatus> promoted_status;
   if (input.repository_mode == ConfigurationRepositoryMode::factory_reconciled) {
     const bool supported = coverage.status == ConfigurationEffectStatus::supported;
     const bool no_effect = coverage.status == ConfigurationEffectStatus::no_effect;
     const bool promoted = input.source == ConfigurationEffectSource::move
         ? input.base_executable && (supported || (input.allow_no_effect && !input.effect_identifier && no_effect))
         : input.source == ConfigurationEffectSource::ability ? supported : supported || (no_effect && !input.effect_identifier);
-    if (promoted) repository_reason += " Factory reconciliation: " + coverage.reason;
+    if (promoted) {
+      repository_reason += " Factory reconciliation: " + coverage.reason;
+      promoted_status = input.source == ConfigurationEffectSource::item && no_effect
+          ? ConfigurationAdmissionStatus::no_effect : ConfigurationAdmissionStatus::supported;
+    }
   }
+  return {std::move(coverage), promoted_status, std::move(repository_reason)};
+}
+ConfigurationAdmission DescribeConfigurationAdmission(const ConfigurationAdmissionInput& input) {
+  auto reconciled = ReconcileConfigurationRepository(input);
+  auto coverage = std::move(reconciled.coverage);
+  auto repository_reason = std::move(reconciled.repository_reason);
   std::vector<std::string> missing;
   for (const auto& value : coverage.missing_capabilities) {
     if (std::ranges::find(missing, value) == missing.end()) missing.push_back(value);

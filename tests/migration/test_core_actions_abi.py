@@ -78,8 +78,8 @@ class ActionsBatch(_Contract):
 class ActionsEnvelope(_Contract):
     """成功信封必须含准确引擎/规则版本和完整结果。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.10.0"]
-    rules_version: Literal["calculation-rules.v10"]
+    engine_version: Literal["0.11.0"]
+    rules_version: Literal["calculation-rules.v11"]
     results: tuple[ActionsResult, ...]
 
 

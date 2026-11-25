@@ -1,4 +1,5 @@
 #include "pbi/configuration_moves.hpp"
+#include "configuration_moves_internal.hpp"
 #include <algorithm>
 #include <array>
 #include <map>
@@ -153,8 +154,8 @@ std::string ConfigurationMoveOrderKey(const ConfigurationMove& configured) {
       "), " + Repr(configured.effect_identifier.value_or("none")) + ')';
 }
 
-ConfigurationMoveSpace EnumerateConfigurationMoves(const ConfigurationMoveInput& input,
-                                                   CancellationToken cancellation) {
+ConfigurationMoveSpace detail::EnumerateConfigurationMovesWithFactory(const ConfigurationMoveInput& input,
+    ConfigurationEffectFactory factory, CancellationToken cancellation) {
   if (input.max_raw_combinations == 0) throw std::invalid_argument("max_raw_combinations must be positive");
   CheckCancellation(cancellation);
   std::set<std::int64_t> requested;
@@ -194,7 +195,7 @@ ConfigurationMoveSpace EnumerateConfigurationMoves(const ConfigurationMoveInput&
     const auto spec_effect = candidate.move->View().effect_identifier;
     if (candidate_effect && spec_effect && candidate_effect != spec_effect) throw std::invalid_argument("candidate and MoveSpec effect identifiers must match");
     const auto effect_identifier = candidate_effect ? candidate_effect : spec_effect;
-    const auto effect = DescribeConfigurationEffect(ConfigurationEffectSource::move, effect_identifier);
+    const auto effect = DescribeConfigurationEffect(ConfigurationEffectSource::move, effect_identifier, factory);
     const bool status_move = candidate.move->View().move.category == DamageCategory::status;
     const bool complete_no_effect = !effect_identifier && !status_move && effect.status == ConfigurationEffectStatus::no_effect;
     const bool included = effect.status == ConfigurationEffectStatus::supported || complete_no_effect;
@@ -245,5 +246,8 @@ ConfigurationMoveSpace EnumerateConfigurationMoves(const ConfigurationMoveInput&
   };
   for (const auto count : slots) if (count <= options.size()) visit(visit, count, 0);
   return result;
+}
+ConfigurationMoveSpace EnumerateConfigurationMoves(const ConfigurationMoveInput& input, CancellationToken cancellation) {
+  return detail::EnumerateConfigurationMovesWithFactory(input, ConfigurationEffectFactory::standard, cancellation);
 }
 } // namespace pbi

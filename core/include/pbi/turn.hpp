@@ -80,10 +80,17 @@ struct FixedBattleComputation {
   GraphSolution solution;
   std::vector<UnsupportedAspect> unsupported_aspects;
 };
+/// 原任务轻量图和root额外事实；不改变现有完整图computation的内部布局。
+struct SummaryFixedBattleComputation { FixedBattleComputation computation; std::vector<RootActionEventSummary> root_summaries; };
 /// 将正式回合、玩家策略、不可变 BFS 和精确吸收解串成真实固定战斗闭环。
 /// @param initial 初始完整节点；@param knowledge 转移拥有的静态知识；@param options 全部策略与预算。
 /// @param progress 可空真实构图进度观察者；@param stop 同一次计算的只读取消令牌。
 /// @return 拥有图/精确解/明确机制边界的结果；预算未知保持 incomplete，非法或取消明确失败。
 [[nodiscard]] FixedBattleComputation InferFixedBattle(BattleState initial, TypeChartSnapshot knowledge,
     FixedBattleOptions options = {}, const GraphProgressObserver& progress = {}, CancellationToken stop = {});
+/// 原任务summary同源真实回合闭环，达到图预算即停止全部frontier，完整探索入口保持原状。
+/// @param initial 拥有初态；@param knowledge 拥有知识；@param options 明确策略/预算/原进度间隔。
+/// @param progress 同步实际进度；@param stop 同源取消；@return 轻量图、原精确解和独立root历史。
+[[nodiscard]] SummaryFixedBattleComputation InferSummaryFixedBattle(BattleState initial, TypeChartSnapshot knowledge,
+    FixedBattleOptions options, const GraphProgressObserver& progress = {}, CancellationToken stop = {});
 } // namespace pbi

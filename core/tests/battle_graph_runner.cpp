@@ -43,6 +43,10 @@ Json Run(const Json& input) {
   if (!values.at("max_nodes").is_null()) limits.max_nodes = values.at("max_nodes").get<std::size_t>();
   if (!values.at("max_edges").is_null()) limits.max_edges = values.at("max_edges").get<std::size_t>();
   if (!values.at("max_turns").is_null()) limits.max_turns = values.at("max_turns").get<std::int64_t>();
+  if (input.value("summary", false)) {
+    const auto summary = pbi::BuildSummaryBattleGraph(request.state, [mode](const pbi::BattleState& state) { return Expand(state, mode); }, limits);
+    return pbi::test_vectors::Graph(summary.graph);
+  }
   const auto graph = pbi::BuildBattleGraph(request.state, [mode](const pbi::BattleState& state) { return Expand(state, mode); }, limits);
   return pbi::test_vectors::Graph(graph);
 }

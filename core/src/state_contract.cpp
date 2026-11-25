@@ -17,8 +17,9 @@ constexpr std::array<std::string_view, 2> cycles{"declare-draw", "solve-absorpti
 std::optional<std::int64_t> ReadOptionalInt(const Json& value) { return value.is_null() ? std::nullopt : std::optional{ReadInteger(value)}; }
 /// @param value 可空字符串节点；@return 复制拥有的字符串/null。
 std::optional<std::string> ReadOptionalText(const Json& value) { return value.is_null() ? std::nullopt : std::optional{value.get<std::string>()}; }
+} // namespace
 /// @param value 只读状态对象；@return variant 约束的完整主/临时状态，重复种类由 Core 校验。
-CombatantStatus ReadStatus(const Json& value) {
+CombatantStatus ReadStatusValue(const Json& value) {
   RequireFields(value, {"major", "volatile"});
   std::optional<MajorStatus> major;
   if (!value.at("major").is_null()) {
@@ -76,6 +77,7 @@ Json StatusJson(const CombatantStatus& value) {
   }
   return {{"major", std::move(major)}, {"volatile", std::move(temporary)}};
 }
+namespace {
 /// @param value 七项整数数组；@return 已验证等级。
 StatStages ReadStages(const Json& value) {
   if (!value.is_array() || value.size() != 7) throw RequestError(PBI_INVALID_INPUT_V1, "stages must have seven entries");
@@ -149,7 +151,7 @@ BattlerState ReadBattler(const Json& value) {
   std::vector<MoveSlotState> slots;
   for (const auto& slot : value.at("move_slots")) slots.push_back(ReadSlot(slot));
   return BattlerState{{ReadSpec(value.at("spec")), ReadInt32(value.at("current_hp")), std::move(slots),
-      value.contains("stages") ? ReadStages(value.at("stages")) : StatStages{}, value.contains("status") ? ReadStatus(value.at("status")) : CombatantStatus{},
+      value.contains("stages") ? ReadStages(value.at("stages")) : StatStages{}, value.contains("status") ? ReadStatusValue(value.at("status")) : CombatantStatus{},
       value.contains("last_move_id") ? ReadOptionalInt(value.at("last_move_id")) : std::nullopt,
       value.contains("choice_lock_move_id") ? ReadOptionalInt(value.at("choice_lock_move_id")) : std::nullopt,
       value.contains("item_consumed") ? ReadBool(value.at("item_consumed")) : false,
@@ -242,7 +244,7 @@ StateUpdate ReadUpdate(const Json& value) {
   RequireFields(value, {"kind", "side", "value"});
   if (kind == "hp") return BattlerUpdate{side, HpUpdate{ReadInt32(value.at("value"))}};
   if (kind == "stages") return BattlerUpdate{side, StagesUpdate{ReadStages(value.at("value"))}};
-  if (kind == "status") return BattlerUpdate{side, StatusUpdate{ReadStatus(value.at("value"))}};
+  if (kind == "status") return BattlerUpdate{side, StatusUpdate{ReadStatusValue(value.at("value"))}};
   if (kind == "item_consumed") return BattlerUpdate{side, ItemUpdate{ReadBool(value.at("value"))}};
   if (kind == "slot") return BattlerUpdate{side, SlotUpdate{ReadSlot(value.at("value"))}};
   throw RequestError(PBI_UNSUPPORTED_V1, "unsupported state update kind");
@@ -333,7 +335,7 @@ StatusModifiersRequest ReadStatusModifiersRequest(const Json& value) {
   RequireSchema(value, {"kind", "status", "speed", "generation_id", "category", "base_multiplier", "burn_multiplier"}, {"paralysis_multiplier"});
   auto paralysis = ParalysisSpeedForGeneration(ReadInt32(value.at("generation_id")));
   if (value.contains("paralysis_multiplier") && !value.at("paralysis_multiplier").is_null()) paralysis = ReadFraction(value.at("paralysis_multiplier"));
-  return {ReadStatus(value.at("status")), ReadInteger(value.at("speed")), std::move(paralysis), ReadEnum<DamageCategory>(value.at("category"), categories),
+  return {ReadStatusValue(value.at("status")), ReadInteger(value.at("speed")), std::move(paralysis), ReadEnum<DamageCategory>(value.at("category"), categories),
           ReadFraction(value.at("base_multiplier")), ReadFraction(value.at("burn_multiplier"))};
 }
 Json EvaluateBattleState(const BattleStateRequest& request) {

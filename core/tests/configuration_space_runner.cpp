@@ -89,6 +89,16 @@ pbi::ConfigurationPokemonInput ReadSide(const Json& value) {
   result.items.clear();
   for (const auto& item : value.at("items")) result.items.push_back(Text(item));
   result.max_raw_configurations = value.at("max_raw_configurations").get<std::size_t>();
+  if (value.contains("factory")) {
+    const auto factory = value.at("factory").get<std::string>();
+    if (factory == "transparent_inference") result.factory = pbi::ConfigurationEffectFactory::transparent_inference;
+    else if (factory != "standard") throw std::invalid_argument("unknown configuration factory");
+  }
+  if (value.contains("repository_mode")) {
+    const auto mode = value.at("repository_mode").get<std::string>();
+    if (mode == "factory_reconciled") result.repository_mode = pbi::ConfigurationRepositoryMode::factory_reconciled;
+    else if (mode != "raw") throw std::invalid_argument("unknown configuration repository mode");
+  }
   return result;
 }
 /// @param space 已完整求出的单侧空间；@return 全部行为、第一代表、成员数与覆盖。

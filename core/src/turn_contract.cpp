@@ -1,5 +1,6 @@
 #include "turn_contract.hpp"
 #include "state_graph_projection_contract.hpp"
+#include "graph_explanation_contract.hpp"
 
 #include <algorithm>
 #include <array>
@@ -201,7 +202,7 @@ TurnRequest ReadTurnRequest(const Json& value, std::size_t remaining_rolls) {
 FixedBattleRequest ReadFixedBattleRequest(const Json& value, std::size_t remaining_rolls,
     std::size_t available_nodes, std::size_t available_edges) {
   RequireSchema(value, {"kind", "state", "type_chart", "attacker_policy", "defender_policy", "observer"},
-      {"turn_limits", "graph_limits", "max_equation_nodes", "include_graph", "progress_interval", "include_representative_paths"});
+      {"turn_limits", "graph_limits", "max_equation_nodes", "include_graph", "progress_interval", "include_representative_paths", "include_root_action_explanation", "graph_mode"});
   auto state = ReadInputState(value.at("state"), remaining_rolls);
   FixedBattleOptions options;
   options.attacker_policy = ReadEnum<ActionPolicy>(value.at("attacker_policy"), policies);
@@ -223,9 +224,17 @@ FixedBattleRequest ReadFixedBattleRequest(const Json& value, std::size_t remaini
   if (value.contains("max_equation_nodes") && !value.at("max_equation_nodes").is_null())
     options.max_equation_nodes = Limit(value.at("max_equation_nodes"), std::numeric_limits<std::size_t>::max());
   options.progress_interval = value.contains("progress_interval") ? Limit(value.at("progress_interval"), std::numeric_limits<std::size_t>::max()) : 100;
+  auto purpose = FixedGraphPurpose::exploration;
+  if (value.contains("graph_mode")) {
+    const auto mode = value.at("graph_mode").get<std::string>();
+    if (mode == "configuration_summary") purpose = FixedGraphPurpose::configuration_summary;
+    else if (mode != "full") throw RequestError(PBI_UNSUPPORTED_V1, "unsupported fixed graph mode");
+  }
+  if (purpose == FixedGraphPurpose::configuration_summary && !value.contains("progress_interval")) options.progress_interval = 200;
   return {std::move(state), ReadTypeChart(value.at("type_chart")), options,
       value.contains("include_graph") ? ReadBool(value.at("include_graph")) : false,
-      value.contains("include_representative_paths") ? ReadBool(value.at("include_representative_paths")) : false};
+      value.contains("include_representative_paths") ? ReadBool(value.at("include_representative_paths")) : false,
+      value.contains("include_root_action_explanation") ? ReadBool(value.at("include_root_action_explanation")) : false, purpose};
 }
 
 Json EvaluateTurn(const TurnRequest& request, CancellationToken stop) {
@@ -245,7 +254,13 @@ Json EvaluateTurn(const TurnRequest& request, CancellationToken stop) {
 }
 
 Json EvaluateFixedBattle(const FixedBattleRequest& request, const GraphProgressObserver& progress, CancellationToken stop) {
-  const auto computation = InferFixedBattle(request.initial, request.knowledge, request.options, progress, stop);
+  std::vector<RootActionEventSummary> root_summaries;
+  const auto computation = [&] {
+    if (request.graph_purpose == FixedGraphPurpose::exploration) return InferFixedBattle(request.initial, request.knowledge, request.options, progress, stop);
+    auto summary = InferSummaryFixedBattle(request.initial, request.knowledge, request.options, progress, stop);
+    root_summaries = std::move(summary.root_summaries);
+    return std::move(summary.computation);
+  }();
   CheckStop(stop);
   auto result = GraphSolutionJson(computation.solution);
   result["kind"] = "fixed_battle"; result["observer"] = sides.at(static_cast<std::size_t>(request.options.observer));
@@ -254,6 +269,14 @@ Json EvaluateFixedBattle(const FixedBattleRequest& request, const GraphProgressO
   result["unsupported_aspects"] = CoverageJson(computation.unsupported_aspects);
   result["graph"] = request.include_graph ? FullGraphJson(computation.graph, stop) : Json(nullptr);
   if (request.include_representative_paths) result["representative_paths"] = RepresentativeBattlePathsJson(ProjectRepresentativeBattlePaths(computation.graph, stop), stop);
+  if (request.include_root_action_explanation) {
+    result["root_action_explanation"] = nullptr;
+    if (std::holds_alternative<SolvedGraph>(computation.solution)) {
+      // 与原worker一致：解释为成功结果的可空增强，失败不抹掉已完整求得概率；取消仍整批失败。
+      try { result["root_action_explanation"] = RootActionPairExplanationJson(ExplainRootActionPairs(computation.graph, root_summaries, 12, stop), stop); }
+      catch (const std::exception&) { CheckStop(stop); }
+    }
+  }
   return result;
 }
 } // namespace pbi::contract

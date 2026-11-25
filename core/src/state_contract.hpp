@@ -5,6 +5,10 @@
 #include <variant>
 
 namespace pbi::contract {
+/// @param value 完整主要/临时状态JSON；@return 唯一验证后的状态快照，不复制reader。
+[[nodiscard]] CombatantStatus ReadStatusValue(const Json& value);
+/// @param status 原完整状态；@return 原规范状态JSON，不计算速度/伤害或更改状态。
+[[nodiscard]] Json StatusJson(const CombatantStatus& status);
 /// 新 HP；由领域方法检查范围。
 struct HpUpdate { std::int32_t value; };
 /// 指定招式剩余 PP。

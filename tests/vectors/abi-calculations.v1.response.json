@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.10.0",
+  "engine_version": "0.11.0",
   "results": [
     {
       "kind": "hp",
@@ -5412,8 +5412,2065 @@
       "query_complete": false,
       "traversal_truncated": false,
       "kind": "winning_paths"
+    },
+    {
+      "kind": "fixed_battle_snapshot",
+      "value": {
+        "graph_id": "fixed-one-on-one-snapshot",
+        "calculation_revision": "battle-inference.summary-exploration.v2",
+        "cursor": {
+          "steps": [
+            {
+              "source_node_id": "0",
+              "edge_id": "0",
+              "target_node_id": "10000"
+            }
+          ]
+        },
+        "node": {
+          "node_id": "10000",
+          "turn_number": 1,
+          "phase": "terminal",
+          "outcome": "attacker-win",
+          "termination_reason": "knockout",
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "ability": "unknown",
+            "item": "choice_band",
+            "current_hp": 1,
+            "max_hp": 177,
+            "moves": [
+              {
+                "move_id": 1,
+                "current_pp": 29,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": true
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": 1,
+            "choice_lock_move_id": 1,
+            "item_consumed": false,
+            "first_turn": false
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "ability": "unknown",
+            "item": "life_orb",
+            "current_hp": 0,
+            "max_hp": 202,
+            "moves": [
+              {
+                "move_id": 101,
+                "current_pp": 30,
+                "max_pp": 30,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": null,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": false
+          },
+          "field": {
+            "weather": null,
+            "terrain": null,
+            "attacker_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            },
+            "defender_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            }
+          },
+          "terminal": true,
+          "has_outgoing_edges": false
+        },
+        "transition_groups": [],
+        "cumulative_probability": {
+          "numerator": "1",
+          "denominator": "1",
+          "decimal": 1.0,
+          "percent": 100.0
+        },
+        "breadcrumbs": [
+          {
+            "source_node_id": "0",
+            "edge_id": "0",
+            "target_node_id": "10000"
+          }
+        ],
+        "battle_report": {
+          "graph_id": "fixed-one-on-one-snapshot",
+          "calculation_revision": "battle-inference.summary-exploration.v2",
+          "root_node_id": "0",
+          "current_node_id": "10000",
+          "depth": 1,
+          "cumulative_probability": {
+            "numerator": "1",
+            "denominator": "1",
+            "decimal": 1.0,
+            "percent": 100.0
+          },
+          "steps": [
+            {
+              "depth": 1,
+              "source_node_id": "0",
+              "edge_id": "0",
+              "target_node_id": "10000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-1-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "174"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "174",
+                      "actual_hp_loss": "1"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 1,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "30",
+                      "after_value": "29"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "damage",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "hp-changed",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "-1",
+                      "before_value": "1",
+                      "after_value": "0"
+                    },
+                    {
+                      "kind": "fainted",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 1,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "terminal": true
+      }
+    },
+    {
+      "kind": "fixed_battle_snapshot",
+      "value": {
+        "graph_id": "fixed-one-on-one-snapshot",
+        "calculation_revision": "battle-inference.summary-exploration.v2",
+        "cursor": {
+          "steps": [
+            {
+              "source_node_id": "0",
+              "edge_id": "0",
+              "target_node_id": "10000"
+            },
+            {
+              "source_node_id": "10000",
+              "edge_id": "0",
+              "target_node_id": "100010000"
+            },
+            {
+              "source_node_id": "100010000",
+              "edge_id": "0",
+              "target_node_id": "1000100010000"
+            },
+            {
+              "source_node_id": "1000100010000",
+              "edge_id": "0",
+              "target_node_id": "10001000100010000"
+            },
+            {
+              "source_node_id": "10001000100010000",
+              "edge_id": "0",
+              "target_node_id": "100010001000100010000"
+            },
+            {
+              "source_node_id": "100010001000100010000",
+              "edge_id": "0",
+              "target_node_id": "1000100010001000100010000"
+            }
+          ]
+        },
+        "node": {
+          "node_id": "1000100010001000100010000",
+          "turn_number": 7,
+          "phase": "action-selection",
+          "outcome": "non-terminal",
+          "termination_reason": null,
+          "attacker": {
+            "pokemon_id": 212,
+            "name": "scizor",
+            "ability": "unknown",
+            "item": "unknown",
+            "current_hp": 177,
+            "max_hp": 177,
+            "moves": [
+              {
+                "move_id": 1,
+                "current_pp": 994,
+                "max_pp": 1000,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": 1,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": false
+          },
+          "defender": {
+            "pokemon_id": 700,
+            "name": "sylveon",
+            "ability": "unknown",
+            "item": "unknown",
+            "current_hp": 202,
+            "max_hp": 202,
+            "moves": [
+              {
+                "move_id": 101,
+                "current_pp": 994,
+                "max_pp": 1000,
+                "disabled": false,
+                "locked": false
+              }
+            ],
+            "major_status": null,
+            "volatile_statuses": [],
+            "stat_stages": {
+              "attack": 0,
+              "defense": 0,
+              "special_attack": 0,
+              "special_defense": 0,
+              "speed": 0,
+              "accuracy": 0,
+              "evasion": 0
+            },
+            "last_move_id": 101,
+            "choice_lock_move_id": null,
+            "item_consumed": false,
+            "first_turn": false
+          },
+          "field": {
+            "weather": null,
+            "terrain": null,
+            "attacker_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            },
+            "defender_side_conditions": {
+              "reflect": false,
+              "light_screen": false,
+              "aurora_veil": false
+            }
+          },
+          "terminal": false,
+          "has_outgoing_edges": true
+        },
+        "transition_groups": [
+          {
+            "group_id": "tg-1000100010001000100010000-action-selection-ba0bcb95a170b813",
+            "kind": "action-selection",
+            "label_key": "battle.transition.action-selection",
+            "probability": {
+              "numerator": "1",
+              "denominator": "1",
+              "decimal": 1.0,
+              "percent": 100.0
+            },
+            "selection_probability": {
+              "numerator": "1",
+              "denominator": "1",
+              "decimal": 1.0,
+              "percent": 100.0
+            },
+            "attacker_action": {
+              "side": "attacker",
+              "action_type": "move",
+              "move_id": 1
+            },
+            "defender_action": {
+              "side": "defender",
+              "action_type": "move",
+              "move_id": 101
+            },
+            "raw_result_count": 1,
+            "distinct_outcome_count": 1,
+            "summary": {
+              "minimum_damage": "0",
+              "maximum_damage": "0",
+              "minimum_hp_loss": "0",
+              "maximum_hp_loss": "0"
+            },
+            "expanded": true,
+            "outcomes": [
+              {
+                "edge_id": "0",
+                "target_node_id": "10001000100010001000100010000",
+                "probability": {
+                  "numerator": "1",
+                  "denominator": "1",
+                  "decimal": 1.0,
+                  "percent": 100.0
+                },
+                "joint_probability": {
+                  "numerator": "1",
+                  "denominator": "1",
+                  "decimal": 1.0,
+                  "percent": 100.0
+                },
+                "cumulative_probability": {
+                  "numerator": "1",
+                  "denominator": "1",
+                  "decimal": 1.0,
+                  "percent": 100.0
+                },
+                "label_fields": {
+                  "selected_move_ids": [
+                    1,
+                    101
+                  ],
+                  "acting_sides": [
+                    "attacker",
+                    "defender"
+                  ],
+                  "target_sides": [
+                    "defender",
+                    "attacker"
+                  ],
+                  "result_keys": [
+                    "roll-0"
+                  ],
+                  "source_identifiers": [
+                    "move",
+                    "move-use",
+                    "accuracy"
+                  ]
+                },
+                "raw_random_values": [
+                  "100"
+                ],
+                "random_results": [
+                  {
+                    "event_type": "damage_roll",
+                    "event_id": "turn-7-attacker-move-1-damage",
+                    "outcome_id": "roll-0",
+                    "numeric_value": "0"
+                  },
+                  {
+                    "event_type": "damage_roll",
+                    "event_id": "turn-7-defender-move-101-damage",
+                    "outcome_id": "roll-0",
+                    "numeric_value": "0"
+                  }
+                ],
+                "damage_rolls": [
+                  {
+                    "raw_roll_index": 0,
+                    "raw_roll_value": "100",
+                    "final_damage": "0",
+                    "actual_hp_loss": "0"
+                  },
+                  {
+                    "raw_roll_index": 0,
+                    "raw_roll_value": "100",
+                    "final_damage": "0",
+                    "actual_hp_loss": "0"
+                  }
+                ],
+                "compact_results": [
+                  {
+                    "target_node_id": "10001000100010001000100010000",
+                    "action_resolutions": [
+                      {
+                        "side": "attacker",
+                        "move_id": 1,
+                        "action_type": "move",
+                        "order_position": "1",
+                        "status": "executed",
+                        "hit": true,
+                        "reason": null
+                      },
+                      {
+                        "side": "defender",
+                        "move_id": 101,
+                        "action_type": "move",
+                        "order_position": "2",
+                        "status": "executed",
+                        "hit": true,
+                        "reason": null
+                      }
+                    ],
+                    "order_reason": "priority-modifier-speed",
+                    "critical_hit": null,
+                    "raw_roll_values": [
+                      "100",
+                      "100"
+                    ],
+                    "final_damage_values": [
+                      "0",
+                      "0"
+                    ],
+                    "actual_hp_losses": [
+                      "0",
+                      "0"
+                    ],
+                    "status_effects": [],
+                    "path_count": 1
+                  }
+                ],
+                "battle_event_paths": [
+                  [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 7,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 7,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 7,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 7,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 7,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 7,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 7,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "994",
+                      "after_value": "993"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 7,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 7,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 7,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "994",
+                      "after_value": "993"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 7,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 7,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                ],
+                "event_paths": [
+                  {
+                    "random_results": [
+                      {
+                        "event_type": "damage_roll",
+                        "event_id": "turn-7-attacker-move-1-damage",
+                        "outcome_id": "roll-0",
+                        "numeric_value": "0"
+                      },
+                      {
+                        "event_type": "damage_roll",
+                        "event_id": "turn-7-defender-move-101-damage",
+                        "outcome_id": "roll-0",
+                        "numeric_value": "0"
+                      }
+                    ],
+                    "damage_rolls": [
+                      {
+                        "raw_roll_index": 0,
+                        "raw_roll_value": "100",
+                        "final_damage": "0",
+                        "actual_hp_loss": "0"
+                      },
+                      {
+                        "raw_roll_index": 0,
+                        "raw_roll_value": "100",
+                        "final_damage": "0",
+                        "actual_hp_loss": "0"
+                      }
+                    ],
+                    "battle_events": [
+                      {
+                        "kind": "turn-started",
+                        "turn_number": 7,
+                        "actor": null,
+                        "target": null,
+                        "move_id": null,
+                        "source_identifier": null,
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "move-selected",
+                        "turn_number": 7,
+                        "actor": "attacker",
+                        "target": "defender",
+                        "move_id": 1,
+                        "source_identifier": "move",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "move-selected",
+                        "turn_number": 7,
+                        "actor": "defender",
+                        "target": "attacker",
+                        "move_id": 101,
+                        "source_identifier": "move",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "action-ordered",
+                        "turn_number": 7,
+                        "actor": "attacker",
+                        "target": "defender",
+                        "move_id": 1,
+                        "source_identifier": "move",
+                        "value": "1",
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "action-ordered",
+                        "turn_number": 7,
+                        "actor": "defender",
+                        "target": "attacker",
+                        "move_id": 101,
+                        "source_identifier": "move",
+                        "value": "2",
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "move-used",
+                        "turn_number": 7,
+                        "actor": "attacker",
+                        "target": "defender",
+                        "move_id": 1,
+                        "source_identifier": "move",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "pp-changed",
+                        "turn_number": 7,
+                        "actor": "attacker",
+                        "target": null,
+                        "move_id": 1,
+                        "source_identifier": "move-use",
+                        "value": "-1",
+                        "before_value": "994",
+                        "after_value": "993"
+                      },
+                      {
+                        "kind": "hit",
+                        "turn_number": 7,
+                        "actor": "attacker",
+                        "target": "defender",
+                        "move_id": 1,
+                        "source_identifier": "accuracy",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "move-used",
+                        "turn_number": 7,
+                        "actor": "defender",
+                        "target": "attacker",
+                        "move_id": 101,
+                        "source_identifier": "move",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "pp-changed",
+                        "turn_number": 7,
+                        "actor": "defender",
+                        "target": null,
+                        "move_id": 101,
+                        "source_identifier": "move-use",
+                        "value": "-1",
+                        "before_value": "994",
+                        "after_value": "993"
+                      },
+                      {
+                        "kind": "hit",
+                        "turn_number": 7,
+                        "actor": "defender",
+                        "target": "attacker",
+                        "move_id": 101,
+                        "source_identifier": "accuracy",
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      },
+                      {
+                        "kind": "turn-ended",
+                        "turn_number": 7,
+                        "actor": null,
+                        "target": null,
+                        "move_id": null,
+                        "source_identifier": null,
+                        "value": null,
+                        "before_value": null,
+                        "after_value": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "cumulative_probability": {
+          "numerator": "1",
+          "denominator": "1",
+          "decimal": 1.0,
+          "percent": 100.0
+        },
+        "breadcrumbs": [
+          {
+            "source_node_id": "0",
+            "edge_id": "0",
+            "target_node_id": "10000"
+          },
+          {
+            "source_node_id": "10000",
+            "edge_id": "0",
+            "target_node_id": "100010000"
+          },
+          {
+            "source_node_id": "100010000",
+            "edge_id": "0",
+            "target_node_id": "1000100010000"
+          },
+          {
+            "source_node_id": "1000100010000",
+            "edge_id": "0",
+            "target_node_id": "10001000100010000"
+          },
+          {
+            "source_node_id": "10001000100010000",
+            "edge_id": "0",
+            "target_node_id": "100010001000100010000"
+          },
+          {
+            "source_node_id": "100010001000100010000",
+            "edge_id": "0",
+            "target_node_id": "1000100010001000100010000"
+          }
+        ],
+        "battle_report": {
+          "graph_id": "fixed-one-on-one-snapshot",
+          "calculation_revision": "battle-inference.summary-exploration.v2",
+          "root_node_id": "0",
+          "current_node_id": "1000100010001000100010000",
+          "depth": 6,
+          "cumulative_probability": {
+            "numerator": "1",
+            "denominator": "1",
+            "decimal": 1.0,
+            "percent": 100.0
+          },
+          "steps": [
+            {
+              "depth": 1,
+              "source_node_id": "0",
+              "edge_id": "0",
+              "target_node_id": "10000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-1-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-1-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 1,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "1000",
+                      "after_value": "999"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 1,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "1000",
+                      "after_value": "999"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 1,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 1,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "depth": 2,
+              "source_node_id": "10000",
+              "edge_id": "0",
+              "target_node_id": "100010000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-2-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-2-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 2,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "999",
+                      "after_value": "998"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 2,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "999",
+                      "after_value": "998"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 2,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 2,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "depth": 3,
+              "source_node_id": "100010000",
+              "edge_id": "0",
+              "target_node_id": "1000100010000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-3-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-3-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 3,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 3,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 3,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 3,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 3,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 3,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 3,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "998",
+                      "after_value": "997"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 3,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 3,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 3,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "998",
+                      "after_value": "997"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 3,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 3,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "depth": 4,
+              "source_node_id": "1000100010000",
+              "edge_id": "0",
+              "target_node_id": "10001000100010000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-4-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-4-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 4,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 4,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 4,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 4,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 4,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 4,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 4,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "997",
+                      "after_value": "996"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 4,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 4,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 4,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "997",
+                      "after_value": "996"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 4,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 4,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "depth": 5,
+              "source_node_id": "10001000100010000",
+              "edge_id": "0",
+              "target_node_id": "100010001000100010000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-5-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-5-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 5,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 5,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 5,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 5,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 5,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 5,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 5,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "996",
+                      "after_value": "995"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 5,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 5,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 5,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "996",
+                      "after_value": "995"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 5,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 5,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "depth": 6,
+              "source_node_id": "100010001000100010000",
+              "edge_id": "0",
+              "target_node_id": "1000100010001000100010000",
+              "edge_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "cumulative_probability": {
+                "numerator": "1",
+                "denominator": "1",
+                "decimal": 1.0,
+                "percent": 100.0
+              },
+              "event_paths": [
+                {
+                  "random_results": [
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-6-attacker-move-1-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    },
+                    {
+                      "event_type": "damage_roll",
+                      "event_id": "turn-6-defender-move-101-damage",
+                      "outcome_id": "roll-0",
+                      "numeric_value": "0"
+                    }
+                  ],
+                  "damage_rolls": [
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    },
+                    {
+                      "raw_roll_index": 0,
+                      "raw_roll_value": "100",
+                      "final_damage": "0",
+                      "actual_hp_loss": "0"
+                    }
+                  ],
+                  "battle_events": [
+                    {
+                      "kind": "turn-started",
+                      "turn_number": 6,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 6,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-selected",
+                      "turn_number": 6,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 6,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": "1",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "action-ordered",
+                      "turn_number": 6,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": "2",
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 6,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 6,
+                      "actor": "attacker",
+                      "target": null,
+                      "move_id": 1,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "995",
+                      "after_value": "994"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 6,
+                      "actor": "attacker",
+                      "target": "defender",
+                      "move_id": 1,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "move-used",
+                      "turn_number": 6,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "move",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "pp-changed",
+                      "turn_number": 6,
+                      "actor": "defender",
+                      "target": null,
+                      "move_id": 101,
+                      "source_identifier": "move-use",
+                      "value": "-1",
+                      "before_value": "995",
+                      "after_value": "994"
+                    },
+                    {
+                      "kind": "hit",
+                      "turn_number": 6,
+                      "actor": "defender",
+                      "target": "attacker",
+                      "move_id": 101,
+                      "source_identifier": "accuracy",
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    },
+                    {
+                      "kind": "turn-ended",
+                      "turn_number": 6,
+                      "actor": null,
+                      "target": null,
+                      "move_id": null,
+                      "source_identifier": null,
+                      "value": null,
+                      "before_value": null,
+                      "after_value": null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "terminal": false
+      }
+    },
+    {
+      "kind": "fixed_battle_snapshot",
+      "error": {
+        "http_status": 422,
+        "code": "fixed_battle_not_completely_solved",
+        "message": "snapshot cursor edge_id is not available from current state"
+      }
     }
   ],
-  "rules_version": "calculation-rules.v10",
+  "rules_version": "calculation-rules.v11",
   "schema_version": 1
 }

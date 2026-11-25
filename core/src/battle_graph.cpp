@@ -69,8 +69,40 @@ std::vector<GraphNodeId> BattleGraph::RepresentativePath(GraphNodeId target) con
   return result;
 }
 
-BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expand, GraphLimits limits,
-    const GraphProgressObserver& progress, std::size_t progress_interval, pbi::CancellationToken stop) {
+namespace {
+/// 两种原构图用途耦合各自预算/元数据语义，不通过零散bool改变正式探索行为。
+enum class GraphPurpose { exploration, configuration_summary };
+/// 同一BFS的完整拥有构建材料，仅两个正式friend入口可以封装为不可变BattleGraph。
+struct BuildData {
+  std::vector<BattleGraphNode> nodes;
+  std::vector<BattleGraphEdge> edges;
+  std::vector<StrongComponent> components;
+  GraphStatistics statistics;
+  std::vector<GraphTruncation> truncations;
+  std::vector<RootActionEventSummary> root_summaries;
+};
+/// @param transitions 原完整归一分布；@param stop 取消；@return 原首次StateKey顺序的概率归并，不复制事件。
+std::vector<BattleTransition> MergeSummary(std::span<const BattleTransition> transitions, CancellationToken stop) {
+  ValidateTransitions(transitions);
+  /// 仅保留首次状态及精确概率，不持有原路径，归并辅助内存与唯一状态数相关。
+  struct Accumulator { BattleState state; Rational probability; };
+  std::vector<Accumulator> states;
+  std::unordered_map<StateKey, std::size_t, StateKeyHash> by_key;
+  for (const auto& transition : transitions) {
+    CheckBuildStop(stop); const auto& value = transition.View();
+    const auto [position, inserted] = by_key.emplace(value.state.Key(), states.size());
+    if (inserted) states.push_back({value.state, value.probability});
+    else states[position->second].probability += value.probability;
+  }
+  std::vector<BattleTransition> result;
+  for (auto& state : states) result.emplace_back(BattleTransitionData{state.probability, std::move(state.state), EventSummary{}, std::nullopt});
+  return result;
+}
+/// @param initial 原初态；@param expand 原回合；@param limits 原预算；@param progress 原进度端口。
+/// @param progress_interval 原间隔；@param purpose 明确两种原用途；@param stop 同源取消。
+/// @return 同一分类/SCC/统计链产生的材料，summary和full只在原已不同的停止/元数据分支分开。
+BuildData Build(BattleState initial, const TransitionExpander& expand, GraphLimits limits,
+    const GraphProgressObserver& progress, std::size_t progress_interval, GraphPurpose purpose, CancellationToken stop) {
   CheckBuildStop(stop);
   if (!expand) throw std::invalid_argument("battle graph requires an actual transition expander");
   if ((limits.max_nodes && *limits.max_nodes == 0) || (limits.max_edges && *limits.max_edges == 0)
@@ -84,6 +116,7 @@ BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expa
   std::deque<GraphNodeId> queue;
   if (root_outcome == GraphOutcome::non_terminal) queue.push_back({0});
   std::vector<GraphTruncation> truncations;
+  std::vector<RootActionEventSummary> root_summaries;
   std::size_t expanded = 0;
   std::size_t next_progress = progress_interval;
   if (progress) progress({GraphBuildPhase::building, nodes.size(), edges.size(), expanded, queue.size()});
@@ -100,7 +133,7 @@ BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expa
         nodes[id.value].outcome = GraphOutcome::draw; nodes[id.value].reason = BattleTermination::no_legal_action;
         continue;
       }
-      const auto merged = MergeEquivalentTransitions(transitions);
+      const auto merged = purpose == GraphPurpose::exploration ? MergeEquivalentTransitions(transitions) : MergeSummary(transitions, stop);
       std::size_t new_count = 0;
       for (const auto& transition : merged) if (!by_key.contains(transition.View().state.Key())) ++new_count;
       if (limits.max_nodes && (nodes.size() > *limits.max_nodes || new_count > *limits.max_nodes - nodes.size()))
@@ -108,6 +141,11 @@ BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expa
       else if (limits.max_edges && (edges.size() > *limits.max_edges || merged.size() > *limits.max_edges - edges.size()))
         truncation = GraphTruncation::max_edges;
       else {
+        // 原summary执行端单独保留root完整历史；其他边不持有任何探索历史/来源/前驱。
+        const auto root_transitions = purpose == GraphPurpose::configuration_summary && id.value == 0
+            ? MergeEquivalentTransitions(transitions) : std::vector<BattleTransition>{};
+        std::unordered_map<StateKey, const EventSummary*, StateKeyHash> root_events;
+        for (const auto& transition : root_transitions) root_events.emplace(transition.View().state.Key(), &transition.View().events);
         // 每个节点的全部出边预算检查后一次性提交，不能保留有偏的部分分布。
         for (const auto& transition : merged) {
           CheckBuildStop(stop);
@@ -118,16 +156,26 @@ BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expa
           const auto target = position->second;
           if (inserted) {
             const auto [outcome, reason] = Classify(value.state);
-            nodes.push_back({target, value.state, key, outcome, reason, id, edge_id});
+            nodes.push_back({target, value.state, key, outcome, reason,
+                purpose == GraphPurpose::exploration ? std::optional{id} : std::nullopt,
+                purpose == GraphPurpose::exploration ? std::optional{edge_id} : std::nullopt});
             if (outcome == GraphOutcome::non_terminal) queue.push_back(target);
           }
           edges.push_back({edge_id, id, target, value.probability, value.events, value.source_key});
+          if (const auto original = root_events.find(key); original != root_events.end()) root_summaries.push_back({target, *original->second});
         }
       }
     }
     if (truncation) {
       nodes[id.value].outcome = GraphOutcome::unknown; nodes[id.value].reason = *truncation;
       if (std::find(truncations.begin(), truncations.end(), *truncation) == truncations.end()) truncations.push_back(*truncation);
+      if (purpose == GraphPurpose::configuration_summary && *truncation != GraphTruncation::max_turns) {
+        // 原SummaryStateGraphBuilder到节点/边预算时把全部尚未展开frontier标unknown并立即停止。
+        for (const auto pending : queue) if (nodes[pending.value].outcome == GraphOutcome::non_terminal) {
+          nodes[pending.value].outcome = GraphOutcome::unknown; nodes[pending.value].reason = *truncation;
+        }
+        queue.clear(); break;
+      }
     }
     if (progress && expanded >= next_progress) {
       progress({GraphBuildPhase::building, nodes.size(), edges.size(), expanded, queue.size()});
@@ -149,6 +197,17 @@ BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expa
   const auto statistics = Statistics(nodes, edges, components);
   if (progress) progress({GraphBuildPhase::built, nodes.size(), edges.size(), expanded, 0});
   CheckBuildStop(stop);
-  return BattleGraph{std::move(nodes), std::move(edges), components, statistics, std::move(truncations)};
+  return {std::move(nodes), std::move(edges), std::move(components), statistics, std::move(truncations), std::move(root_summaries)};
+}
+} // namespace
+BattleGraph BuildBattleGraph(BattleState initial, const TransitionExpander& expand, GraphLimits limits,
+    const GraphProgressObserver& progress, std::size_t progress_interval, CancellationToken stop) {
+  auto data = Build(std::move(initial), expand, limits, progress, progress_interval, GraphPurpose::exploration, stop);
+  return BattleGraph{std::move(data.nodes), std::move(data.edges), std::move(data.components), data.statistics, std::move(data.truncations)};
+}
+SummaryBattleGraph BuildSummaryBattleGraph(BattleState initial, const TransitionExpander& expand, GraphLimits limits,
+    const GraphProgressObserver& progress, std::size_t progress_interval, CancellationToken stop) {
+  auto data = Build(std::move(initial), expand, limits, progress, progress_interval, GraphPurpose::configuration_summary, stop);
+  return {BattleGraph{std::move(data.nodes), std::move(data.edges), std::move(data.components), data.statistics, std::move(data.truncations)}, std::move(data.root_summaries)};
 }
 } // namespace pbi

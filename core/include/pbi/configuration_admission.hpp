@@ -29,6 +29,15 @@ struct ConfigurationAdmission {
     return status == ConfigurationAdmissionStatus::supported || status == ConfigurationAdmissionStatus::no_effect;
   }
 };
+/// 原FactoryReconciled装饰器的独立结果；无promotion时保留调用者原repo状态，不冒充strict准入。
+struct ConfigurationRepositoryReconciliation {
+  ConfigurationEffectCoverage coverage;
+  std::optional<ConfigurationAdmissionStatus> promoted_status;
+  std::string repository_reason;
+};
+/// @param input 原候选基础可执行性、raw原因与明确factory/repository上下文。
+/// @return 原factory提升事实与原完整理由；strict和普通provider共同复用，不在Go拼机制理由。
+[[nodiscard]] ConfigurationRepositoryReconciliation ReconcileConfigurationRepository(const ConfigurationAdmissionInput& input);
 /// @param input 原候选基础字段和真实composition选择，不从Go接收预先裁定的strict状态。
 /// @return 透明占位子能力/partial/unknown/no_effect等完整准入，不修改候选或静默过滤。
 [[nodiscard]] ConfigurationAdmission DescribeConfigurationAdmission(const ConfigurationAdmissionInput& input);

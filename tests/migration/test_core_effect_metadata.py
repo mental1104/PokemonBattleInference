@@ -61,8 +61,8 @@ class MetadataResult(_Contract):
 class MetadataEnvelope(_Contract):
     """明确本批真实ABI版本，不接受旧二进制的缺字段响应。"""
     schema_version: Literal[1]
-    engine_version: Literal["0.10.0"]
-    rules_version: Literal["calculation-rules.v10"]
+    engine_version: Literal["0.11.0"]
+    rules_version: Literal["calculation-rules.v11"]
     results: tuple[MetadataResult, ...]
 
 

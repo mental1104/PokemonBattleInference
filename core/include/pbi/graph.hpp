@@ -85,11 +85,26 @@ enum class GraphSolveStatus { incomplete_graph, resource_limit_exceeded, singula
 struct UnavailableGraph { GraphSolveStatus status; std::vector<std::string> diagnostics; };
 /// 使用互斥结果使不可用状态不能被当作零胜率。
 using GraphSolution = std::variant<SolvedGraph, UnavailableGraph>;
+/// 同一次精确求解中一个节点的吸收值，固定按攻击方/防守方而非调用方视角表达。
+struct GraphNodeAbsorption {
+  Rational attacker_win;
+  Rational defender_win;
+  Rational draw;
+  Rational closed_cycle;
+  Rational expected_steps_to_boundary;
+};
+/// 全节点要么同时完整求解，要么整体不可用；归因不能混用部分或默认零值。
+using GraphNodeSolution = std::variant<std::vector<GraphNodeAbsorption>, UnavailableGraph>;
 
 /// 迭代 Kosaraju 分解，无递归深度限制，不修改输入图。
 /// @param graph 已验证只读图；@param stop 可空取消令牌，取消抛 runtime_error。
 /// @return 每节点恰好出现一次的稳定 SCC 列表。
 [[nodiscard]] std::vector<StrongComponent> AnalyzeComponents(const ProbabilityGraph& graph, pbi::CancellationToken stop = {});
+/// 复用唯一逆拓扑/高斯求解链，供原根概率与原根行动归因共用全节点事实。
+/// @param graph 只读完整图；@param max_equation_nodes 原高斯瞬态上限，null表示不限。
+/// @param stop 同源取消；@return 按原节点下标拥有的完整吸收向量或既有不可用结果。
+[[nodiscard]] GraphNodeSolution SolveGraphNodes(const ProbabilityGraph& graph,
+    std::optional<std::size_t> max_equation_nodes = std::nullopt, CancellationToken stop = {});
 /// 用逆拓扑递推或精确高斯消元求吸收概率，封闭 SCC 单独记录无限期望。
 /// @param graph 只读完整或明确截断图；@param observer 概率观察方。
 /// @param max_equation_nodes 高斯消元的瞬态节点上限，null 表示不限，不限制 DAG。

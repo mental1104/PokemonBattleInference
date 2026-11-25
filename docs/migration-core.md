@@ -1,6 +1,14 @@
 # P1 Core 迁移检查点
 
-P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗已有真实差分；配置候选生成正在独立验收，配置目标搜索及事件条件分析仍待迁移。正式 C ABI、跨语言链路与 Apple 构建各以对应真实验收为准。
+P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果、固定战斗、配置搜索及事件分析已有真实差分；最新组合与消费者证据如下。正式 C ABI、跨语言链路与 Apple 构建各以对应真实验收为准。
+
+## 2026-11-25 正式0.11组合验证
+
+独立登记的`abi11-verification`从b476d0f固定基线整合已冻结的Summary构图、根行动完整归因、透明上下文、原独立状态门禁、stateless snapshot及reference provider codec。`summary-snapshot-abi11-20261125/native-first.log`记录 **149/149 CTest PASS（14.45秒）**及 **111 Python差分/Go委托PASS（187.54秒）**；207项缺外部PG/HTTP/Swift环境明确SKIP。新共享样本42个，前39项数学结果保持不变；正式32MiB边界和Full图导航保持。
+
+统一入口为`make test-native CORE_BUILD_DIR=/build/root-summary-abi11`。该GCC14 archive冻结后不再覆盖；Swift须从相同源码另建GCC13兼容archive，不能链接GCC14/glibc2.41产物。当前.11 Apple构建与Swift实际服务复验尚未完成。根行动原参考缺少BattleSide导入的独立修复记录为BASE-EXPLANATION-001，差分使用明确修正后的oracle。
+
+串行消费者检查点`serial-resume-20261125/worker-abi11/`：新任务显式冻结`graph_mode=configuration_summary`及`include_root_action_explanation=true`，真实PG/独立child/daemon **11/11 race PASS（4.181秒）**且vet通过。成功说明核对另一次真实child完整归因对象，实际版本/输入SHA仍独立保存；显式graph没有归因时保持nil。公开HTTP完整结果及预算诊断的后续复验单独记录，不把该11项当作全API验证。
 
 ## 合法行动与有限概率图（2026-11-24）
 
@@ -197,3 +205,70 @@ P1 仍为 **IN_PROGRESS**。纯 Core 正式回合、动态效果与固定战斗�
 - 独立 `tests/vectors/reference-static-damage.v1.json` 两项完整 operation 带 context=reference_static。全部 expected 来自原 calculate_damage_rolls、原责任链 trace/base 和原 estimate_ko_chance（16 档概率可精确表示为 Fraction），然后才核对 Core；没有从 Core 输出反推预期。两个合法 Dragonite 静态快照分别覆盖 Multiscale 无实时 HP（OHKO=9/16）以及 InnerFocus/ExpertBelt/Reflect/多目标（OHKO=1/4）。
 
 七个源/测试/golden 文件的最终清单为该证据根 `frozen-sources.sha256`。依主 agent 指示，本批尚未自行修改 CMake、公共 ABI kind/optional context、版本或旧共享 golden；公共注册及 Go/Swift 消费由主 agent 统一接入，不将 typed 结果冒称已完成 HTTP 200 兼容验收。
+
+## 原透明工厂的 Pressure/Pickpocket 兼容（2026-11-24，待统一 v10 注册）
+
+实读并执行原 TransparentPokemonChampionEffectFactory、PokemonSpec 与 DamageAbility.from_identifier：原 pressure、pickpocket、unknown、none 和空能力均投影到同一个 UNKNOWN，SpecKey/StateKey 相同。既有 ABI 的 none 正是该 UNKNOWN 的 wire 拼写，不能为“保守”而改变原等价关系。新增显式 spec.ability_context=transparent_inference 仅对白名单 pressure/pickpocket 保留原始可重放标识，内部仍执行原 UNKNOWN 中性行为；raw 标记不参与 Spec/StateKey，相同图节点依原规则合并。StateJson 保留 raw/context；节点机械展示仍使用原 unknown。覆盖明确返回 missing real_ability_behavior，不实现原本不存在的 PP 加倍或道具偷取。默认严格输入、白名单外能力及未知 context 继续拒绝，原严格任务准入也不放宽。
+
+证据根 `transparent-abilities-20261124/`：新增纯域三项与正式 state codec 两项原生检查全部通过；`all-native.log` 为完整 **90/90 GoogleTest PASS**（51 毫秒），`all-san.log` 为完整 **90/90 ASan/UBSan/leak PASS**（1.718 秒），`contract-san.log` 另有正式 codec **2/2 PASS**。`differential.log` 的两项 pytest 包含原五种 UNKNOWN 别名实际 Key 证明，以及 **48 个真实透明工厂回合展开 + 12 个固定图/节点边回合截断**完整对照，2/2 PASS（2.35 秒）；同一套真实 sanitizer runner 的 `differential-san.log` 2/2 PASS（6.16 秒）。比较包含完整状态、事件、概率、SCC/解，并独立逐个后继/节点核验 raw/context 没有丢失。`strict-differential.log` 为原 transparent/standard 严格准入矩阵 **1/1 pytest PASS**（0.48 秒）。
+
+八个源/测试的清单为该根 `frozen-sources.sha256`。主树尚未登记 P2 提取的唯一 sha256.cpp，常规全测试 target 首次链接因此失败，原日志保留；本批完整测试使用相同 fresh 编译对象/库并显式链接该唯一共享源，没有复制 SHA 实现，也没有把这个链接失败冒称完整 CMake 绿灯。公共 CMake/ABI 及真实 HTTP 接入由主 agent/P2/P3 统一登记验收。
+
+## 原 winning_paths 完整算法链（2026-11-24，待统一公共 ABI/HTTP 注册）
+
+新增唯一 `ListWinningPathGroups` 纯用例，完整迁移原 ListWinningPathGroupsUseCase：按原正式边顺序的有限无重复节点 DFS、回边引用与原 100000 walk 预算、联合行动序列归并、配置/路径/前缀 SHA 身份、最大单 walk 代表路径、全部替代历史离散伤害与关键事件、精确图胜率、稳定 Top-K/分页、当前页前缀及不重归一的返回覆盖率。回合从 source 实际 state 读取，历史数量是各边原替代历史数的任意精度乘积，不是条件概率；主行动先读取整条历史的 MOVE_SELECTED，只有整条完全没有时才回退 MOVE_USED，各侧取首事件。这与节点 projection 的严格双方选招分组不同，未复制 P2 的另一套 groupID/分组器。
+
+配置使用机械 UNKNOWN、原无序招式组排序与原 JSON SHA，透明 raw 特性不偷偷改变配置身份。循环只截断有限 walk 展示，完整 winner_probability 仍复用唯一 Core 精确求解器。保留原传入 CLOSED_CYCLE 的吸收边界；原空 SCC 分类的开放环仍可求解，空分类的封闭环仍是奇异不可用，不能为了补充分类擅自返回零胜率。循环 component_id 使用输入原身份，原空列表保持 null。
+
+正式 `winning_paths_contract` 输入为 graph_id/calculation_revision/winner/limit/cursor/sort 与原完整 nodes/edges/components/truncations（可附 statistics，root 默认 0）；不接受 Go 算出的配置 SHA、offset、动作或胜率。Core 自己校验绑定图/版本/配置/胜者/排序的原 URL-safe base64 cursor，保留原错误文案、Python ensure_ascii 的 Unicode/DEL 字节和超机器整数 offset。JSON 数字词法在边界保留，500 位合法 offset 不经过 double 或 uint64；没有为此扩大原数学查询预算。复用 P2 唯一 ReadProjectionNodeValue / ReadProjectionEdgeValue / ExactProbabilityJson 与原事件 reader、唯一 sha256.cpp；没有复制状态读取、事件身份校验、ties-to-even 展示或 SHA 实现。
+
+证据根 `winning-paths-20261124/`：
+
+- `native.log` / `san-native.log`：新增 **5/5 GoogleTest PASS**（31 毫秒）及 **5/5 ASan/UBSan/leak PASS**（59 毫秒），含已经实际运行 30 毫秒的指数 walk 查询中途取消、原有限循环覆盖与完整吸收概率、缺失封闭 SCC、空根终局、未知截断与超大 offset。
+- `final-normal-differential.log`：**4/4 pytest PASS**（10.21 秒）。原两幅固定图与 **64** 随机图的双方、显式预算及全部分页逐字段比较原完整 HTTP DTO；另有 **54** 组全部 9 能力 × 6 道具/招式输入逆序/Unicode 展示名配置身份、**2^70** 历史组合计数、全部关键事件、500 位 offset、UTF8/DEL 精确 cursor、分类/未分类封闭环及 **16** 个原错误文案案例。
+- fresh Core/codec 原生输入复制到 `/build/p1-winning-frozen-source` 后独立 sanitizer 编译，`san-differential.log` 同四项完整原差分 **4/4 PASS**（82.70 秒），没有减少原 100000 walk 默认预算。初版 runner 链接遗漏 event reader 的 ReadGraphRequest 依赖曾失败；添加唯一既有 graph_contract.cpp 后完整真实 codec 通过，没有另写读取器。
+- 独立 `tests/vectors/winning-paths.v1.json` 三项完整 golden 来自原 ListWinningPathGroupsUseCase 与原 winning_path_groups_response，只有声明的任意精度整数字段做无损文本编码。`golden-normal.log` / `golden-san.log` 分别 **1/1 pytest PASS**（0.69 / 0.74 秒），严格比较完整 wire，包括概率分子分母、decimal/percent、分页 cursor、全部空值、组/前缀/循环身份与计数，不通过 HTTP 整数解析掩盖 wire 差异。
+
+八个成熟源/codec/测试/golden 的清单为该根 `frozen-sources.sha256`。P3 已按唯一 DTO 准备 HTTP adapter；公共 Registry/版本/CMake/Makefile 由主 agent 统一登记。此处证明纯 Core 与正式 codec 可运行且原行为完整等价，尚未将真实 PG/HTTP、Go/Swift 或 Apple CI 验收写成完成。
+
+真实基线完整 JSON 为约 565MB，不能为满足 JSON 通道预算而裁掉图或约 190 万条事件。按主 agent 指定的 frozen-request 按需重算方案，新增真实 `BattleGraph` producer 只读重载，与既有 owned-record 来源在编译期选择 span，同一个算法不复制任何节点状态或事件摘要。`ReadWinningPathQueryValue` 和 `WinningPathGroupsJson` 最窄提升为私有共用 codec，让 P2 的 fixed_graph_query 重建一次原 typed 图后直接查询并输出小 DTO；不通过完整图 JSON 往返，不增加 Core 文件 IO，不让 Go 计算 cursor/分组/概率。
+
+借用入口实际验证 `borrowed-final-native.log` / `borrowed-final-san-native.log` 为 **6/6 正常 PASS**（33 毫秒）与 **6/6 ASan/UBSan/leak PASS**（65 毫秒）。新增项真正运行 InferFixedBattle，再直接借用正式图查询，与同一图的小型 record 入口核对身份/概率/历史/离散值并确认原事件地址不变。`borrowed-differential.log` 完整原差分及严格 wire **5/5 pytest PASS**（10.29 秒）；固定输入 `borrowed-san-differential.log` 同五项 **5/5 PASS**（95.46 秒）。最后将两种原边 ID 都显式提升到同一 Integer 再验证，避免对原 size_t 做负数比较；两个最终原生日志覆盖此同义身份验证改动。八源 SHA 已更新，公共包装与 **841 节点/16095 边真实基线 HTTP** 仍由 P2/P3/主 agent 接入验证，此处没有将小图 native 结果冒称真实基线验收。
+
+## 根行动归因与原任务摘要图语义（2026-11-25，待统一公共注册）
+
+完整性审计发现两个实际任务兼容缺口：旧任务执行端使用 SummaryStateGraphBuilder，而既有 Core 固定入口始终采用完整探索图；Go worker 的 explanation_json 还存入引擎元数据，未保存原根行动业务归因。最小原图实证表明，边预算耗尽时摘要构图必须将当前节点和全部待处理前沿标为 unknown 并停止；完整探索构图仍继续处理其他前沿。两种行为不能互相替代。审计证据为 p1-completeness-audit-20261124/summary-vs-full.json。
+
+新增 BuildSummaryBattleGraph / InferSummaryFixedBattle 与原完整入口共用 BFS、StateKey、SCC 和精确求解器，但按原任务模式清空深层事件与 predecessor，仅独立保存根完整替代历史用于解释。默认完整入口行为保持原状。fixed_battle 显式 graph_mode=configuration_summary 选择原任务摘要语义；include_root_action_explanation=true 才添加 root_action_explanation 对象或 null。调用端需同时选择任务图模式并保存真实业务解释，不能用元数据对象替代。
+
+ExplainRootActionPairs 迁移原实际 MOVE_USED 联合行动桶、根事件覆盖、边绝对概率与历史条件概率、后继精确吸收价值、稳定 Top-K 和全部桶覆盖。归因固定使用攻击方/防守方价值轴，不随 observer 交换；没有以 MOVE_SELECTED 代替被阻断前实际使用的行动。SolveGraphNodes 提取既有唯一求解过程的全部节点价值，不另写矩阵或逐节点重复求解。完整输出保留原 explanation.v1 的概率、条件胜率、贡献、代表节点、path_count、遗漏桶数和实际图规模。
+
+首次原 oracle 因缺少 BattleSide 导入真实 NameError，正常 MOVE_USED 路径被旧 worker 的 catch 转为 None；该独立原基线缺陷 BASE-EXPLANATION-001 只补一行 import，与 Core 迁移分开登记。所有归因差分明确以这唯一修复后的原算法为准，未将旧原文件错误运行冒称通过。最初真实 RED 保留在 root-action-explanation-20261124/differential.log，修复后首轮证据为 corrected-differential.log。
+
+冻结证据根 root-action-explanation-20261124/：combined-ctest.log 为完整 126/126 CTest PASS（48.06 秒），含全部既有公开 ABI、256 次 ownership、并发、运行中取消和 C 头检查；combined-differential.log 为新增归因/摘要及原回合/完整图 8/8 pytest PASS（6.66 秒），包含 12 个合成归因、32 个真实固定图/同次解释与 40 个原摘要图预算/循环/空展开边界。solver-and-original-regression.log 为原图求解、模板、EV 与原 application/solver、stream_configuration 用例 35/35 pytest PASS（35.73 秒）。固定构建输入 san-ctest.log 为完整 126/126 ASan/UBSan/leak CTest PASS（1900.10 秒），其中原 TopologyBudget 检查完整执行 1389.24 秒，没有缩短原保护预算；同一 sanitizer runner 的 san-differential.log 为新增归因/摘要完整原差分 3/3 pytest PASS（11.88 秒）。18 个成熟源/codec/runner/测试清单见 frozen-sources.sha256；新 factory/context 和状态门禁不包含在本批。
+
+本批未自行修改公共 Registry、版本或共享 golden。主 agent 统一登记新 graph_explanation.cpp、graph_explanation_contract.cpp、两组原生测试与专属 runner，并由 worker 明确消费两个 opt-in 字段；此处不是 P1 全部完成声明，独立状态门禁及透明配置 provider 的实际入口迁移仍在推进。
+
+## 原透明配置 provider 与仓库对账上下文（2026-11-25，待后继公共注册）
+
+原 Dragonite 旅程先使用 FactoryReconciledBattleInferenceRepository，再调用 TransparentPokemonChampionEffectFactory 的普通配置 provider；它与 strict admission 的合同不同。透明 Pressure/Pickpocket 的 overall SUPPORTED 可在参考配置中纳入，但 missing real_ability_behavior 仍使严格任务 PARTIAL/拒绝。InnerFocus 工厂整体 PARTIAL 则在普通 provider 中也排除；不能因真实回合支持某子机制就在 Go 放行。新增单侧 factory、repository_mode 两个尾部字段，默认 standard/raw。两侧可各用其原 generator，组合、过滤、成员数、等价归并和权重全部继续在 Core 执行。
+
+ReconcileConfigurationRepository 提取现有严格准入的唯一原装饰器提升与理由逻辑，供 strict 和普通 provider 共用；没有让 provider 直接复用 strict Selectable。招式先核基础可执行事实，纯伤害 NO_EFFECT 允许按原条件提升，变化威力缺基础字段仍保留 unsupported。原始候选集合、原展示名和首代表均保留。新 context 的空维度错误按原 generator 使用 profile.name（不是 attacker/defender），已发布 standard/raw 的既有错误文本不擅改。
+
+configuration-context-20261125/differential.log 为新原 composition 与旧默认空间 4/4 pytest PASS（1.36 秒）：48 组完整双方混合工厂/仓库模式、raw 三态、命令过滤和双权重，另有 9 组原空特性维度/Pressure/Pickpocket 边界及 72 组旧默认空间。原预期真正运行 source repository 装饰器、原 _configuration_profile 与正式 generator/usecase，不在 Python 测试或 Go 实现 reconciliation。native-final.log 为 90/90 GoogleTest PASS（51 毫秒）；首轮两项原生夹具错误是漏指定默认两道具却断言一类，原 native.log 保留，修正为明确无道具输入后全通过。九源清单为同根 frozen-sources.sha256。
+
+该 context 后续已由下节固定 snapshot 的 95 项纯域 sanitizer 和 14 项完整差分覆盖；尚未报告真实 Dragonite HTTP 完成。P2 持有正式配置 codec 的两项可选 side 字段，后继公共注册与真实旅程消费由主 agent/P2 统一完成；本批不改旧默认输出、共享 golden 或默认回合。
+
+## 原五种独立状态门禁与 StatusRules（2026-11-25，待统一纯库登记）
+
+status_gates.hpp/.cpp 迁移原 SleepGate、FreezeGate、ParalysisGate、InfatuationGate、ConfusionGate 及默认/显式有序 ActionGatePipeline。睡眠按 turns_asleep 索引策略表并在末尾复用最后概率，未醒增加计数；解冻招式 flag 在允许 override 时直接解冻且不消费 RNG。麻痹和着迷阻断，混乱返回 replace_with_self_hit。管线保留前序全部事件和新状态，在首个非 allow 决定处短路；全部允许时清空单门禁 reason，保留醒来/解冻事件。混乱剩余计数、畏缩和其他不相关状态均按原函数保持，不补充原本没有的自伤伤害或残余伤害流程。
+
+完整 StatusGateRules 保留原睡眠、冰冻、麻痹速度/不能动、灼伤物理/残余、中毒/剧毒、混乱和着迷策略及其原验证。九个实际代际 profile 复用已有精确麻痹速度事实，其余字段逐项对照原 profile；零伤害/速度倍率和概率端点不被擅自拒绝。StatusChance 保留原 BattleRandom.chance 的随机端口，按原顺序请求精确概率；不发明跨语言随机种子算法，也不把测试 bool 队列注册为公共 ABI。原默认回合未调用这些独立门禁，因此本迁移同样不注入默认回合，既有覆盖声明保持该入口的真实语义。
+
+state_contract.hpp/.cpp 最窄提升唯一 ReadStatusValue / StatusJson 内部帮助函数，既有状态字段、规范顺序、验证与 wire 不变。诊断 runner 直接复用同一 codec，不用另一个状态解析器，亦不为编码状态额外计算速度或伤害。
+
+证据根 status-gates-20261125/：native.log 为新五项门禁与 context 三项加全部旧纯域 95/95 GoogleTest PASS（57 毫秒）；differential-final.log 为 14/14 pytest PASS（2.89 秒）。包含 1520 个原完整单门禁、默认/反序管线、九代际和自定义精确策略案例，以及 20 个原策略/空管线错误、原八项门禁测试、新透明 composition 和旧默认配置空间回归；每例比较完整 decision、状态、reason、events、全部 chance 请求概率、确切消费数量及剩余队列，不只比较能否行动。初次新测试编译的 nodiscard 警告和首轮 Python Enum 到 Literal 投影错误均保留在 build.log / differential.log，修正仅在测试边界，不改算法来匹配测试。
+
+158 个真实构建输入冻结至 /build/p1-status-frozen-source，同根 frozen-build-inputs.sha256 可复核。san-core-ctest.log 为完整 95/95 ASan/UBSan/leak CTest PASS（5.56 秒），san-final-differential.log 为同一 sanitizer runner 的 14/14 pytest PASS（5.39 秒），两者均使用 UBSAN halt_on_error=1。首个 wrapper 根目录没有 CTest 注册的 san-ctest.log 保留为 No tests were found 历史，不计成功；最终明确从实际 core 子目录运行并要求 --no-tests=error。此固定 sanitizer 同时覆盖前述 context 九源，未重复归因批已通过的原长公开预算检查。
+
+七个门禁/唯一 reader/runner/测试文件清单为 frozen-sources.sha256；context 九源清单与之前冻结值一致。主 agent 统一登记纯源、原生测试和 runner，生产接口仍为独立 typed Core API，不新增 C 回调或随机 ABI，不将本局部证据单独表述为完整 P1 或整个迁移交付完成。

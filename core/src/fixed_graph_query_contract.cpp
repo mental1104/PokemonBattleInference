@@ -133,7 +133,11 @@ FixedGraphQueryRequest ReadFixedGraphQueryRequest(const Json& value, std::size_t
     if (mode == "backtrack") return FixedGraphBacktrack{query.contains("depth") && !query.at("depth").is_null() ? std::optional{Identity(query.at("depth"), stop)} : std::nullopt};
     return FixedGraphExplore{};
   }();
-  return {ReadFixedBattleRequest(value.at("fixed_request"), remaining_rolls, available_nodes, available_edges),
+  auto fixed = ReadFixedBattleRequest(value.at("fixed_request"), remaining_rolls, available_nodes, available_edges);
+  // 查询缓存绑定完整探索图；摘要在预算处停止全部前沿，不能静默忽略该模式后返回另一幅图。
+  if (fixed.graph_purpose != FixedGraphPurpose::exploration)
+    throw RequestError(PBI_INVALID_INPUT_V1, "frozen graph queries require exploration mode");
+  return {std::move(fixed),
       value.at("expected_engine_version").get<std::string>(), value.at("expected_rules_version").get<std::string>(),
       Count(value.at("expected_nodes")), Count(value.at("expected_edges")),
       {query.at("graph_id").get<std::string>(), query.at("calculation_revision").get<std::string>()}, std::move(cursor), selection};

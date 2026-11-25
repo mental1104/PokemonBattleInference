@@ -2,6 +2,7 @@
 
 #include "pbi/configuration_moves.hpp"
 #include "pbi/configuration_stats.hpp"
+#include "pbi/configuration_admission.hpp"
 
 namespace pbi {
 /// 合法特性候选的repository基础覆盖，不意味着当前effect已完整实现。
@@ -24,6 +25,8 @@ struct ConfigurationPokemonInput {
   std::vector<std::string> requested_abilities;
   std::vector<std::optional<std::string>> items{std::nullopt, "choice-band"};
   std::size_t max_raw_configurations = 100000;
+  ConfigurationEffectFactory factory = ConfigurationEffectFactory::standard;
+  ConfigurationRepositoryMode repository_mode = ConfigurationRepositoryMode::raw;
 };
 /// 当前标准四维的完整代表；维度计数保留来源，但不参与行为相等性。
 struct ConfigurationPokemonClass {

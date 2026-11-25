@@ -23,7 +23,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 
 请求只有 `schema_version: 1` 和非空 `operations`，操作按数组顺序返回。任一成员错误、超限或取消，整批只返回 error，不提供部分 results。没有数据库/用户数据写入、任务 ID 或持久化副作用。可选同步进度回调仅观察真实构图计数，不能被解释为结果已成功提交。
 
-成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.10.0` / `calculation-rules.v10`，新增完整图投影、获胜路径及冻结事实按需查询；精确事件、配置加权、旧伤害与reference_static上下文保持。C ABI/schema仍v1，共享39个原oracle样本，前36个数学/投影结果保持不变；新查询说明见[图查询合同](graph-query.v1.md)。不表示完整官方规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
+成功/原生错误正文包括 `schema_version`、`engine_version`、`rules_version`。当前接入版本为 `0.11.0` / `calculation-rules.v11`，新增显式任务Summary构图、同次完整业务归因和无全局构图的单步快照；透明factory/context及原provider筛选由Core负责。C ABI/schema仍v1，共享42个原oracle样本，前39个数学/投影结果保持不变；查询说明见[图查询合同](graph-query.v1.md)和[快照合同](fixed-battle-snapshot.v1.md)。不表示完整官方规则已迁移。发布后的语义变更必须更新引擎/规则版本，不能让同一版本悄悄产生不同结果。
 
 | kind | 完整输入字段（均不含 kind 自身） | 结果 |
 | --- | --- | --- |
@@ -39,6 +39,7 @@ C++ 的协议、参数、溢出、分配及未知异常全部在 ABI 内捕获�
 | graph | nodes、edges、root、observer、truncations；可选 max_equation_nodes | 全部 SCC 与精确胜负/平局/闭环概率及有限/无限/不可用期望，详见 [图与行动合同](graph.v1.md) |
 | battle_turn | state、type_chart、selection；可选 turn_limits | 正式十一阶段、完整后继/状态/概率/条件事件路径，详见 [回合与固定战斗](turn.v1.md) |
 | fixed_battle | state、type_chart、attacker_policy、defender_policy、observer；可选保护/完整图开关 | 真实构图/精确解/实际统计/保护未知与可选完整图，详见 [回合与固定战斗](turn.v1.md) |
+| fixed_battle_snapshot | state、type_chart、attacker_policy、defender_policy、cursor；可选turn_limits | 原无状态单步重放与完整当前节点/行动组/战报，详见[快照合同](fixed-battle-snapshot.v1.md) |
 | configuration_stats | input：完整base/level、preset或受控枚举与原raw预算 | 全部实际能力类、第一IV/EV/五轴性格代表和精确原始成员，详见 [配置合同](configuration.v1.md) |
 | configuration_moves | input：全部合法候选、可选ID/槽数命令与原raw预算 | 原无序组合、具体招式ID/完整spec、原始成员和全覆盖，详见 [配置合同](configuration.v1.md) |
 | configuration_space | input：双方完整四维命令、权重假设和原pair预算 | 原等价分区、丰富代表、全部coverage、精确配置对权重，详见 [配置合同](configuration.v1.md) |
