@@ -274,3 +274,5 @@ Release首轮失败是新legacy Exact原地Boost移位在GCC14 -O3触发stringop
 用户已授权NAS部署及`pokemon.mental1104.xyz`反代，并明确批准现有库备份/恢复验证/保留。`nas-deployment-20261125/database/`保存155MiB现有库的一致性归档及校验，隔离PG17完整恢复成功；181张业务表的行数与完整有序行摘要逐字一致。恢复副本显式Go接管验证177个CSV表、1,051,052行成功，维护实例/网络已回收。无活动客户端后准备受限连接文件，原角色凭据另存私有回退文件；没有改变角色权限/HBA。
 
 完整sprites检出已完成：commit c0542f7c51215d9672439012838c99f520596cbd、树ec56a5fae60f2a6363083d7d0581271744673695、105,947实际文件、目录28,665,709,131字节，Git状态干净。`runtime-full-20261125/full-a3f0ff7/`已启动真正运行Compose全量导入/重启/回退/恢复，尚未终态，不能标PASS。NAS配置复用home/shared PG17，应用三服务、回环41110及版本化知识包；部署与HTTPS仍在准备，详见nas-deployment.md。最新b3b344d的Main Gate45555819043通过，Native45555819025仍在运行，未重启或取消。
+
+NAS实际部署推进：恢复验证通过后，真实PG17原库显式接管成功，源177 CSV共1,051,052行，原181张表完整有序行摘要逐字保留。home只定向启动pokemon-backend/worker/frontend，三个服务restart always，共享PG没有重建。`https://pokemon.mental1104.xyz/`已启用，App地址为同域`/api`。证书链+域名验证0、curl正常TLS、健康及42项Core全响应通过，DSM其他代理规则未变。真实知识包SHA、206 Range64字节及未知版本404通过。版本化包为真实现有数据，不冒充人工新版本更新验收。完整图片仍等待独立运行验证；手机继续不操作。
