@@ -26,7 +26,7 @@ PokemonBattleInference/
 ├── tests/                   # 原 Python 参考、迁移差分与共享测试向量
 ├── deploy/                  # Go 运行配置、构建镜像及 maintenance 验收
 ├── docs/                    # 迁移证据、benchmark、安装与回退说明
-├── pokeop/
+├── legacy/pokeop/            # 原Python行为参考；根pokeop是兼容导入软链
 │   ├── api/                 # 保留的原 FastAPI schema/router
 │   ├── application/         # 不依赖网关的业务用例与服务
 │   ├── assets_data/         # PokeAPI CSV 静态数据（symlink）
@@ -39,7 +39,7 @@ PokemonBattleInference/
 └── run.sh
 ```
 
-原 Python 仍在 `pokeop/`，替代能力验证后再迁到 `legacy/`；此阶段没有机械移动导入路径、CSV symlink 或运行数据。
+原 Python 实体位于 `legacy/pokeop/`，根 `pokeop` 软链保留原导入名；CSV软链与common/素材根定位已按新层级调整，运行数据不随源码移动。此布局在独立工作树验证，完整替代验收后再纳入主迁移分支。
 
 ## Go/C++ 与原生客户端开发
 

@@ -10,7 +10,8 @@ from sqlalchemy import text
 from pokeop.persistence.base import RawBase
 
 _DEFAULT_CSV_DIR = Path(__file__).resolve().parents[1] / "assets_data"
-_DEFAULT_SPRITES_DIR = Path(__file__).resolve().parents[2] / "submodules" / "pokeapi-sprites"
+# 默认素材仍属于仓库submodules，不能随参考实现迁入legacy目录。
+_DEFAULT_SPRITES_DIR = Path(__file__).resolve().parents[3] / "submodules" / "pokeapi-sprites"
 
 _init_lock = threading.Lock()
 _inited = False

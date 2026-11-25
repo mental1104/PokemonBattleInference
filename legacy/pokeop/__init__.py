@@ -11,13 +11,14 @@ from pathlib import Path
 
 
 def _inject_common_paths() -> None:
-    """
-    Prefer this repository's submodules/common checkout for shared libraries.
-    If it is unavailable, fall back to COMMON_ROOT, then ~/code/common. If none
-    exists, leave sys.path untouched so system-installed packages can be used.
+    """按仓库、COMMON_ROOT、~/code/common选择首个存在的common根目录。
+
+    无参数、返回None；把该根目录中存在的Python层加入sys.path，保持原有优先级。
+    所有根目录都不存在时不修改sys.path，仍允许原来的系统安装来源。
     """
 
-    repo_root = Path(__file__).resolve().parents[1]
+    # 源码实体归入legacy/pokeop；根兼容软链不改变resolve后的真实层级。
+    repo_root = Path(__file__).resolve().parents[2]
     roots = [repo_root / "submodules" / "common"]
 
     common_root = os.getenv("COMMON_ROOT")

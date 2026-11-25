@@ -25,7 +25,9 @@ RUN apt-get update \
     && apt-get purge -y --auto-remove gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt
 
-COPY pokeop /app/pokeop
+# Python仅作为保留的参考/兼容运行时；容器内保持相同真实布局和原导入名。
+COPY legacy/pokeop /app/legacy/pokeop
+RUN ln -s legacy/pokeop /app/pokeop
 COPY scripts /app/scripts
 COPY tool /app/tool
 COPY models_pokeapi.py pytest.ini /app/
