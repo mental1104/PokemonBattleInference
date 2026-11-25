@@ -27,6 +27,7 @@ func run() int {
 	adopt := flag.Bool("adopt-legacy-knowledge", false, "verify every legacy knowledge field before registering the fixed version")
 	sprites := flag.String("sprites-root", "", "optional complete PokeAPI sprites repository or sprites directory")
 	spritesCommit := flag.String("sprites-commit", "", "optional explicit sprites source commit marker")
+	spritesStorage := flag.String("sprites-storage", "filesystem", "sprite content storage: filesystem (default) or database (legacy reference)")
 	timeout := flag.Duration("timeout", 20*time.Minute, "positive maximum duration for complete CSV and sprite initialization")
 	flag.Parse()
 	if *root == "" {
@@ -35,6 +36,10 @@ func run() int {
 	}
 	if *timeout <= 0 {
 		fmt.Fprintln(os.Stderr, "--timeout must be positive")
+		return 2
+	}
+	if *spritesStorage != "filesystem" && *spritesStorage != "database" {
+		fmt.Fprintln(os.Stderr, "--sprites-storage must be filesystem or database")
 		return 2
 	}
 	signals, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -55,7 +60,14 @@ func run() int {
 	}
 	// 图片源只有显式传入才扫描；复用原完整来源失效规则，不用不完整下载静默覆盖历史图片库。
 	if *sprites != "" {
-		spriteReport, spriteErr := knowledge.InitializeSprites(ctx, dsn, *sprites, *spritesCommit)
+		var spriteReport knowledge.SpriteReport
+		var spriteErr error
+		// NAS默认只建立元数据；历史BYTEA仅保留为显式选择的参考/兼容入口。
+		if *spritesStorage == "filesystem" {
+			spriteReport, spriteErr = knowledge.InitializeSpriteFiles(ctx, dsn, *sprites, *spritesCommit)
+		} else {
+			spriteReport, spriteErr = knowledge.InitializeSprites(ctx, dsn, *sprites, *spritesCommit)
+		}
 		if spriteErr != nil {
 			fmt.Fprintf(os.Stderr, "sprite initialization failed: %v\n", spriteErr)
 			return 1

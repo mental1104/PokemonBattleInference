@@ -22,11 +22,15 @@ import PokemonAppSupport
                             .submitLabel(.done).onSubmit { editingName = false }.accessibilityIdentifier("configuration-name")
                     }
                     Section("攻击方") {
-                        Button(attackerName.isEmpty ? "选择宝可梦" : attackerName) { selecting = .attacker }.accessibilityIdentifier("select-attacker")
+                        Button { selecting = .attacker } label: {
+                            HStack { OfflineIconView(icon: .pokemon(model.configuration.attacker.pokemonId), label: attackerName); Text(attackerName.isEmpty ? "选择宝可梦" : attackerName) }
+                        }.accessibilityIdentifier("select-attacker")
                         PokemonEditor(value: $model.configuration.attacker, natures: model.natures, prefix: "attacker")
                     }
                     Section("防御方") {
-                        Button(defenderName.isEmpty ? "选择宝可梦" : defenderName) { selecting = .defender }.accessibilityIdentifier("select-defender")
+                        Button { selecting = .defender } label: {
+                            HStack { OfflineIconView(icon: .pokemon(model.configuration.defender.pokemonId), label: defenderName); Text(defenderName.isEmpty ? "选择宝可梦" : defenderName) }
+                        }.accessibilityIdentifier("select-defender")
                         PokemonEditor(value: $model.configuration.defender, natures: model.natures, prefix: "defender")
                     }
                     Section("招式与环境") {
@@ -90,7 +94,12 @@ import PokemonAppSupport
         DisclosureGroup("个体值") { StatEditor(values: $value.ivs, range: 0...31) }
         DisclosureGroup("努力值") { StatEditor(values: $value.evs, range: 0...252) }
         Picker("计算特性", selection: $value.ability) { ForEach(AbilityRule.allCases, id: \.self) { Text($0.displayName).tag($0) } }
-        Picker("携带道具", selection: $value.item) { ForEach(ItemRule.allCases, id: \.self) { Text($0.displayName).tag($0) } }
+        HStack {
+            OfflineIconView(icon: .item(value.item), label: value.item.displayName, size: 24)
+            Picker("携带道具", selection: $value.item) {
+                ForEach(ItemRule.allCases, id: \.self) { item in Text(item.displayName).tag(item) }
+            }.accessibilityIdentifier("\(prefix)-item-picker")
+        }
         Toggle("麻痹", isOn: $value.paralyzed).accessibilityIdentifier("\(prefix)-paralyzed")
     }
 }

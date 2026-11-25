@@ -26,10 +26,13 @@ RUN mkdir -p /out/rootfs/usr/local/bin /out/rootfs/etc/ssl/certs /out/rootfs/app
 
 # 运行镜像只有 Go 应用、对应原生运行库、TLS 根证书与来源许可，没有 shell/Python/编译器。
 FROM scratch AS runtime
+ARG PBI_SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=$PBI_SOURCE_REVISION
 COPY --from=build /out/rootfs/ /
 COPY server/internal/knowledge/LICENSE.pokeapi.txt /usr/share/licenses/pbi/PokeAPI.txt
 # API和初始化镜像共同保留项目许可及已登记的完整第三方声明，随最终运行产物交付。
 COPY LICENSE THIRD_PARTY_LICENSES.md /usr/share/licenses/pbi/
+COPY data/assets/scarlet-violet/NOTICE.txt /usr/share/licenses/pbi/PokeAPI-sprites.txt
 COPY server/internal/knowledge/manifest.json /usr/share/pbi/postgres-knowledge-manifest.json
 USER 1026:100
 WORKDIR /app
@@ -37,6 +40,8 @@ WORKDIR /app
 # 初始化镜像单独携带固定 CSV；不挂载或复制任何生产数据库状态。
 FROM runtime AS db-init
 COPY submodules/pokeapi/data/v2/csv /usr/share/pbi/csv
+# 只携带全图鉴每ID一份的小PNG包；NAS正文仍发布到HDD，只将元数据导入PG。
+COPY data/assets/scarlet-violet /usr/share/pbi/sprite-pack
 ENTRYPOINT ["/usr/local/bin/pbi-db-init"]
 CMD ["--csv-root", "/usr/share/pbi/csv"]
 

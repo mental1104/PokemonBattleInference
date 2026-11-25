@@ -20,9 +20,9 @@ enum CatalogKind: String, CaseIterable { case pokemon = "宝可梦", move = "招
                 Picker("类型", selection: $kind) { ForEach(CatalogKind.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
                 if let error { Text(error).foregroundStyle(.red) }
                 if kind == .pokemon {
-                    ForEach(pokemon) { item in NavigationLink { PokemonDetailView(knowledge: knowledge, id: item.id) } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id) }.accessibilityIdentifier("pokemon-\(item.id)") }
+                    ForEach(pokemon) { item in NavigationLink { PokemonDetailView(knowledge: knowledge, id: item.id) } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id, icon: .pokemon(item.id)) }.accessibilityIdentifier("pokemon-\(item.id)") }
                 } else {
-                    ForEach(moves) { item in NavigationLink { MoveDetailView(knowledge: knowledge, move: item) } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id) }.accessibilityIdentifier("move-\(item.id)") }
+                    ForEach(moves) { item in NavigationLink { MoveDetailView(knowledge: knowledge, move: item) } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id, icon: .elementType(item.typeId)) }.accessibilityIdentifier("move-\(item.id)") }
                 }
                 if (kind == .pokemon ? pokemon.count : moves.count) == limit {
                     Button("加载更多") { limit += 100 }
@@ -47,8 +47,14 @@ enum CatalogKind: String, CaseIterable { case pokemon = "宝可梦", move = "招
     let title: String
     let identifier: String
     let id: Int64
-    /// 编号保留真实知识 ID。
-    var body: some View { VStack(alignment: .leading) { Text(title); Text("#\(id) · \(identifier)").font(.caption).foregroundStyle(.secondary) } }
+    let icon: BundledIcon
+    /// 编号和名称仍来自知识库；icon只补充离线视觉识别，不参与搜索或规则计算。
+    var body: some View {
+        HStack {
+            OfflineIconView(icon: icon, label: title)
+            VStack(alignment: .leading) { Text(title); Text("#\(id) · \(identifier)").font(.caption).foregroundStyle(.secondary) }
+        }
+    }
 }
 
 /// 按稳定知识 ID 读取种族值、属性和特性，不从显示名称猜测数据。
@@ -62,6 +68,7 @@ enum CatalogKind: String, CaseIterable { case pokemon = "宝可梦", move = "招
         Form {
             if let details {
                 Section("资料") {
+                    HStack { Spacer(); OfflineIconView(icon: .pokemon(id), label: details.summary.name, size: 96); Spacer() }
                     Text(details.summary.identifier)
                     LabeledContent("编号", value: String(id))
                     LabeledContent("属性", value: details.types.map(\.name).joined(separator: " / "))
@@ -115,9 +122,9 @@ enum CatalogKind: String, CaseIterable { case pokemon = "宝可梦", move = "招
             List {
                 if failed { Text("无法读取离线图鉴") }
                 if kind == .pokemon {
-                    ForEach(pokemon) { item in Button { select(item.id); dismiss() } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id) }.accessibilityIdentifier("choose-pokemon-\(item.id)") }
+                    ForEach(pokemon) { item in Button { select(item.id); dismiss() } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id, icon: .pokemon(item.id)) }.accessibilityIdentifier("choose-pokemon-\(item.id)") }
                 } else {
-                    ForEach(moves) { item in Button { select(item.id); dismiss() } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id) }.accessibilityIdentifier("choose-move-\(item.id)") }
+                    ForEach(moves) { item in Button { select(item.id); dismiss() } label: { CatalogRow(title: item.name, identifier: item.identifier, id: item.id, icon: .elementType(item.typeId)) }.accessibilityIdentifier("choose-move-\(item.id)") }
                 }
             }.searchable(text: $query, prompt: "名称、英文或编号").navigationTitle("选择\(kind.rawValue)")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }

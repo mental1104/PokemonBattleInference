@@ -25,3 +25,7 @@ services:
     extends:
       file: ${PBI_STACK_VALIDATION_ROOT:?Set the validation checkout}/deploy/compose.go-stack-validation.yaml
       service: browser
+  asset-verifier:
+    extends:
+      file: ${PBI_STACK_VALIDATION_ROOT:?Set the validation checkout}/deploy/compose.asset-verification.yaml
+      service: asset-verifier

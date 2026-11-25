@@ -130,3 +130,21 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Selected PokeAPI sprite assets
+
+Source: https://github.com/PokeAPI/sprites at
+c0542f7c51215d9672439012838c99f520596cbd. The exact selected files and their
+SHA-256 values are recorded in data/assets/scarlet-violet/manifest.json.
+The package covers all 1,350 catalog records with one menu PNG per ID:
+Scarlet/Violet first, followed by explicitly selected other-game menu icons.
+It also includes the five current held-item icons and nineteen Scarlet/Violet
+type badges. PNG files are reproduced unchanged; animations and large artwork
+are excluded. Upstream attribution is retained in the accompanying NOTICE.txt
+and the Swift resource ICONS-NOTICE.txt. The upstream README credits rendered
+game assets to FallenDeity and lists additional contributors.
+
+Pokemon and character names remain trademarks of Nintendo, Game Freak,
+Creatures and The Pokemon Company. This application is not affiliated with
+or endorsed by those organizations. The PokeAPI data license above describes
+the CSV data; the image attribution is recorded separately here.

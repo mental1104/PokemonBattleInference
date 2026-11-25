@@ -1,7 +1,7 @@
 # NAS 正式入口由 homelab-services 的 home project include；复用共享 PG17，不创建第二个常驻数据库。
 # 私有连接文件只在 NAS 运行目录，固定镜像已通过独立 Go/Core 与真实 Web 验证。
 x-pokemon-runtime: &pokemon-runtime
-  image: pokemon-go-server:p6-a3f0ff7
+  image: pokemon-go-server:p6-sv-filesystem-r1
   pull_policy: never
   env_file: /volume2/docker/pokemon-battle-inference/settings.env
   restart: always
@@ -18,6 +18,13 @@ services:
     <<: *pokemon-runtime
     environment:
       PBI_LISTEN: 0.0.0.0:41104
+      PBI_SPRITES_ROOT: /sprites-storage
+    volumes:
+      - type: bind
+        source: /volume1/docker/pokemon-battle-inference/sprite-snapshots
+        target: /sprites-storage
+        read_only: true
+        bind: {create_host_path: false}
     healthcheck:
       test: [CMD, /usr/local/bin/pbi-healthcheck]
       interval: 10s
@@ -31,7 +38,7 @@ services:
     healthcheck:
       disable: true
   pokemon-frontend:
-    image: pokemon-go-frontend:p6-a3f0ff7
+    image: pokemon-go-frontend:p6-sv-filesystem-r1
     pull_policy: never
     restart: always
     read_only: true
@@ -54,14 +61,24 @@ services:
         read_only: true
         bind: {create_host_path: false}
       - type: bind
-        source: ../ios/Sources/PokemonAppSupport/Resources
-        target: /usr/share/nginx/knowledge
+        source: ../ios/Sources/PokemonAppSupport/Resources/knowledge.sqlite
+        target: /usr/share/nginx/knowledge/knowledge.sqlite
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ../ios/Sources/PokemonAppSupport/Resources/manifest.json
+        target: /usr/share/nginx/knowledge/manifest.json
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ../ios/Sources/PokemonAppSupport/Resources/POKEAPI-LICENSE.txt
+        target: /usr/share/nginx/knowledge/POKEAPI-LICENSE.txt
         read_only: true
         bind: {create_host_path: false}
     networks: [pokemon_net]
   pokemon-db-init:
     profiles: [maintenance]
-    image: pokemon-go-data:p6-a3f0ff7
+    image: pokemon-go-data:p6-sv-filesystem-r1
     pull_policy: never
     env_file: /volume2/docker/pokemon-battle-inference/settings.env
     command: [--csv-root, /usr/share/pbi/csv, --adopt-legacy-knowledge]
@@ -70,6 +87,12 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 1g
     networks: [database_net]
+    volumes:
+      - type: bind
+        source: /volume1/docker/pokemon-battle-inference/sprite-snapshots
+        target: /sprites-storage
+        read_only: true
+        bind: {create_host_path: false}
 
 networks:
   pokemon_net:

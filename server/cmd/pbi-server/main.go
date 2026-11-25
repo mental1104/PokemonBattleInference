@@ -46,8 +46,12 @@ func main() {
 		}
 		defer db.Close()
 	}
+	handler, err := httpapi.NewServerWithSpriteRoot(db, os.Getenv("PBI_SPRITES_ROOT"))
+	if err != nil {
+		log.Fatal("sprite filesystem configuration failed")
+	}
 	// 计算 handler 最长 30 秒；额外五秒用于可靠写出 504，socket 超时不能替代子进程取消。
-	server := &http.Server{Addr: address, Handler: httpapi.NewServer(db), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 35 * time.Second,
+	server := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 35 * time.Second,
 		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}
 	shutdownDone := make(chan struct{})

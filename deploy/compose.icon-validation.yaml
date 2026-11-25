@@ -1,0 +1,21 @@
+# 图标构建按全图鉴逐项选择朱紫优先的小PNG；输入仅供一次性构建，运行服务只获得成品包。
+services:
+  pokemon-icon-builder:
+    profiles: [maintenance]
+    image: pokemon-migration-validation:local
+    pull_policy: never
+    user: '1026:100'
+    working_dir: /source
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    mem_limit: 256m
+    environment: {PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: /source}
+    volumes:
+      - ${POKEOP_SOURCE_ROOT:?Set the source checkout}:/source:ro
+      - ${POKEOP_BUILD_ROOT:?Set the owned SSD build directory}:/build
+      - ${PBI_ICON_SOURCE:?Set the fixed input sprites directory}/pokemon:/sprite-input/pokemon:ro
+      - ${PBI_ICON_SOURCE}/items:/sprite-input/items:ro
+      - ${PBI_ICON_SOURCE}/types/generation-ix/scarlet-violet:/sprite-input/types/generation-ix/scarlet-violet:ro
+    entrypoint: [python, /source/tools/data/build_icon_pack.py]

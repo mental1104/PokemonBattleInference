@@ -16,6 +16,21 @@ import (
 // NewServer 组合原配置、知识读取和用户同步 API；db 的生命周期由进程拥有。
 // 未传数据库时保留原 Core-only Handler；不会退化到进程内假仓库。
 func NewServer(db *sql.DB) http.Handler {
+	return newServer(db, "")
+}
+
+// NewServerWithSpriteRoot 组合真实API和版本化HDD图片读取；root为已存在的只读快照父目录。
+// db仍由进程拥有；目录缺失/非法时返回错误，不以空图片降级，未配置目录时沿用历史BYTEA读取。
+func NewServerWithSpriteRoot(db *sql.DB, root string) (http.Handler, error) {
+	resolved, err := validateSpriteFileRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	return newServer(db, resolved), nil
+}
+
+// newServer 只组合调用方已核验的连接和图片目录；空root不读取宿主文件，保留原本地测试入口。
+func newServer(db *sql.DB, spriteRoot string) http.Handler {
 	mux := baseMux()
 	if db == nil {
 		return mux
@@ -142,7 +157,7 @@ func NewServer(db *sql.DB) http.Handler {
 	})
 	registerCatalog(mux, db)
 	registerCalculator(mux, db)
-	registerAssets(mux, db)
+	registerAssets(mux, db, spriteRoot)
 	registerJobs(mux, db)
 	registerConfigurationJobs(mux, db)
 	registerJobSubmission(mux, db)

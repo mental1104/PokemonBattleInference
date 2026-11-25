@@ -38,6 +38,13 @@ services:
     environment:
       <<: *go-environment
       PBI_LISTEN: 0.0.0.0:41104
+      PBI_SPRITES_ROOT: /sprites-storage
+    volumes:
+      - type: bind
+        source: ${PBI_GO_SPRITES_ROOT:?Set the verified versioned HDD snapshot parent directory}
+        target: /sprites-storage
+        read_only: true
+        bind: {create_host_path: false}
     healthcheck:
       test: [CMD, /usr/local/bin/pbi-healthcheck]
       interval: 10s
@@ -90,13 +97,13 @@ services:
         condition: service_healthy
     volumes:
       - type: bind
-        source: ${PBI_GO_SPRITES_ROOT:?Set the complete verified PokeAPI sprites source}
-        target: /sprites-source
+        source: ${PBI_GO_SPRITES_ROOT:?Set the verified versioned HDD snapshot parent directory}
+        target: /sprites-storage
         read_only: true
         bind:
           create_host_path: false
     # 完整28.7GB图库可显式增加初始化总时限；默认仍20分钟，不改变在线Core请求预算。
-    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, /sprites-source, --sprites-commit, "${PBI_GO_SPRITES_COMMIT:?Set the verified sprites source commit}", --timeout, "${PBI_GO_INIT_TIMEOUT:-20m}"]
+    command: [--csv-root, /usr/share/pbi/csv, --sprites-root, "/sprites-storage/${PBI_GO_SPRITES_COMMIT:?Set the verified sprites source commit}", --sprites-commit, "${PBI_GO_SPRITES_COMMIT}", --sprites-storage, filesystem, --timeout, "${PBI_GO_INIT_TIMEOUT:-20m}"]
 
 networks:
   default:

@@ -107,20 +107,31 @@ start_postgres() {
   return 1
 }
 
-# database为本次自有库，name为报告前缀；核对全部图片数量、真实BYTEA长度和服务端独立SHA。
-# 读取所有正文而非只信导入器计数；预期数量来自调用方已验证的Git树。
+# database为本次自有库，name为报告前缀；PG必须只有元数据，全部HDD正文由独立客户端核验。
+# 初次完整读取每个文件；重启/恢复逐字比较完整清单，正文由同一只读快照持有。
 verify_sprite_storage() {
   local database="$1" name="$2" count bytes bad_digest inactive
-  docker exec "$postgres_id" psql -U pokeop -d "$database" -Atc "SELECT count(*),coalesce(sum(octet_length(content)),0),count(*) FILTER(WHERE sha256<>encode(sha256(content),'hex') OR byte_size<>octet_length(content)),count(*) FILTER(WHERE NOT is_active) FROM poke_raw.sprite_assets" > "$POKEOP_REPORT_ROOT/$name.txt"
+  docker exec "$postgres_id" psql -U pokeop -d "$database" -Atc "SELECT count(*),coalesce(sum(byte_size),0),count(*) FILTER(WHERE content IS NOT NULL OR sha256 !~ '^[0-9a-f]{64}$' OR byte_size<0),count(*) FILTER(WHERE NOT is_active) FROM poke_raw.sprite_assets" > "$POKEOP_REPORT_ROOT/$name.txt"
   IFS='|' read -r count bytes bad_digest inactive < "$POKEOP_REPORT_ROOT/$name.txt"
   [[ "$count" == "$PBI_STACK_EXPECTED_SPRITE_COUNT" && "$bytes" -gt 0 && "$bad_digest" == 0 && "$inactive" == 0 ]]
+  docker exec "$postgres_id" psql -U pokeop -d "$database" -c "COPY (SELECT b.source_commit,a.relative_path,a.sha256,a.byte_size FROM poke_raw.sprite_assets a JOIN poke_raw.sprite_import_batches b ON b.id=a.last_seen_batch_id ORDER BY a.relative_path COLLATE \"C\") TO STDOUT WITH (FORMAT CSV, HEADER)" > "$POKEOP_REPORT_ROOT/$name.csv"
+  if [[ "$name" == sprites-initial ]]; then
+    compose run --rm --no-deps asset-verifier --manifest "/reports/$name.csv" --root /sprites-storage --expected-count "$PBI_STACK_EXPECTED_SPRITE_COUNT" --source-commit "$PBI_SPRITES_SOURCE_COMMIT" > "$POKEOP_REPORT_ROOT/$name-verification.json" 2> "$POKEOP_REPORT_ROOT/$name-verification.log"
+  else
+    cmp "$POKEOP_REPORT_ROOT/sprites-initial.csv" "$POKEOP_REPORT_ROOT/$name.csv"
+  fi
 }
 
 mkdir -p "$POKEOP_REPORT_ROOT" "$POKEOP_BUILD_ROOT/p6-browser"
 [[ -z "$(git -C "$POKEOP_SOURCE_ROOT" status --porcelain)" ]] || { echo 'Stack source must be a clean committed checkout' >&2; exit 2; }
 readonly previous_id="$(docker image inspect "$previous_image" --format '{{.Id}}')"
 trap cleanup EXIT
-compose build backend db-init frontend > "$POKEOP_REPORT_ROOT/build.log" 2>&1
+if [[ "${PBI_STACK_PREBUILT_IMAGES:-0}" == 1 ]]; then
+  # NAS镜像可先经统一nas-shared构建；显式复用后仍完整核验真实image ID和全部运行行为。
+  docker image inspect "$PBI_STACK_SERVER_IMAGE" "$PBI_STACK_DATA_IMAGE" "$PBI_STACK_FRONTEND_IMAGE" --format '{{.Id}}' > "$POKEOP_REPORT_ROOT/build.log"
+else
+  compose build backend db-init frontend > "$POKEOP_REPORT_ROOT/build.log" 2>&1
+fi
 readonly current_id="$(docker image inspect "$PBI_STACK_SERVER_IMAGE" --format '{{.Id}}')"
 [[ "$previous_id" != "$current_id" ]] || { echo 'Rollback requires two different verified image IDs' >&2; exit 2; }
 git -C "$POKEOP_SOURCE_ROOT" rev-parse HEAD > "$POKEOP_REPORT_ROOT/source-commit.txt"
@@ -128,7 +139,7 @@ docker image inspect "$current_id" "$previous_id" "$PBI_STACK_DATA_IMAGE" "$PBI_
 start_postgres
 compose run --rm --no-deps db-init > "$POKEOP_REPORT_ROOT/initialization.json" 2> "$POKEOP_REPORT_ROOT/initialization.log"
 if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
-  jq -e --argjson count "$PBI_STACK_EXPECTED_SPRITE_COUNT" '.sprites.files_seen == $count and .sprites.inserted == $count and .sprites.skipped == false' "$POKEOP_REPORT_ROOT/initialization.json" > /dev/null
+  jq -e --argjson count "$PBI_STACK_EXPECTED_SPRITE_COUNT" '.sprites.storage == "filesystem" and .sprites.files_seen == $count and .sprites.inserted == $count and .sprites.skipped == false' "$POKEOP_REPORT_ROOT/initialization.json" > /dev/null
   verify_sprite_storage pokeop sprites-initial
 fi
 worker_id="$(compose run --rm --no-deps -d --name "$project-worker" worker)"
@@ -206,10 +217,34 @@ if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
 fi
 docker exec "$postgres_id" pg_dump -U pokeop -d pokeop -Fc > "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump"
 sha256sum "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump" > "$POKEOP_REPORT_ROOT/database-backup.sha256"
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  # 图片已经外置，旧BYTEA镜像不再是合法回退目标；保存真正可用版本的正文作为准入依据。
+  curl -fsS "$endpoint/v1/assets/pokemon/212/sprite" -D "$POKEOP_REPORT_ROOT/sprite-before-candidate.headers" -o "$POKEOP_REPORT_ROOT/sprite-before-candidate.png"
+  [[ -s "$POKEOP_REPORT_ROOT/sprite-before-candidate.png" ]]
+fi
 docker logs "$server_id" > "$POKEOP_REPORT_ROOT/api-current.log" 2>&1
 docker stop "$server_id" > /dev/null
 server_id=""
-start_api "$previous_id" pokeop health-rollback
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  # 用真实旧镜像证明仅healthy不足以放行升级：它不认识HDD正文，必须被图片验收拒绝。
+  start_api "$previous_id" pokeop health-incompatible-candidate
+  request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-incompatible-candidate 200
+  curl -fsS "$endpoint/v1/assets/pokemon/212/sprite" -D "$POKEOP_REPORT_ROOT/sprite-incompatible-candidate.headers" -o "$POKEOP_REPORT_ROOT/sprite-incompatible-candidate.png"
+  if cmp -s "$POKEOP_REPORT_ROOT/sprite-before-candidate.png" "$POKEOP_REPORT_ROOT/sprite-incompatible-candidate.png"; then
+    echo 'Expected the legacy BYTEA-only candidate to fail filesystem image acceptance' >&2
+    exit 1
+  fi
+  printf 'Rejected legacy candidate despite healthy API: filesystem sprite body differs.\n' > "$POKEOP_REPORT_ROOT/candidate-rejection.txt"
+  docker logs "$server_id" > "$POKEOP_REPORT_ROOT/api-incompatible-candidate.log" 2>&1
+  docker stop "$server_id" > /dev/null
+  server_id=""
+  # 拒绝不兼容候选后回到已完整验收的文件存储版本；数据/URL/正文都必须恢复。
+  start_api "$current_id" pokeop health-rollback
+  curl -fsS "$endpoint/v1/assets/pokemon/212/sprite" -o "$POKEOP_REPORT_ROOT/sprite-after-rollback.png"
+  cmp "$POKEOP_REPORT_ROOT/sprite-before-candidate.png" "$POKEOP_REPORT_ROOT/sprite-after-rollback.png"
+else
+  start_api "$previous_id" pokeop health-rollback
+fi
 request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-rollback 200
 docker logs "$server_id" > "$POKEOP_REPORT_ROOT/api-rollback.log" 2>&1
 docker stop "$server_id" > /dev/null
@@ -218,7 +253,11 @@ docker exec "$postgres_id" createdb -U pokeop recovered
 docker exec -i "$postgres_id" pg_restore -U pokeop -d recovered --exit-on-error < "$POKEOP_REPORT_ROOT/pokeop-before-rollback.dump"
 start_api "$current_id" recovered health-restored
 request GET '/v1/stat-configurations?role=attacker&pokemon_id=212' configurations-restored 200
-if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then verify_sprite_storage recovered sprites-restored; fi
+if [[ "${PBI_STACK_RUNTIME_COMPOSE:-0}" == 1 ]]; then
+  verify_sprite_storage recovered sprites-restored
+  curl -fsS "$endpoint/v1/assets/pokemon/212/sprite" -o "$POKEOP_REPORT_ROOT/sprite-restored.png"
+  cmp "$POKEOP_REPORT_ROOT/sprite-before-candidate.png" "$POKEOP_REPORT_ROOT/sprite-restored.png"
+fi
 python3 - "$POKEOP_REPORT_ROOT" <<'PY'
 """验证旧镜像回退和独立恢复库保留完整用户读取模型，不能只比较行数。"""
 import json

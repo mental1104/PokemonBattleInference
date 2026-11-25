@@ -32,7 +32,25 @@ final class PokemonAppUITests: XCTestCase {
         XCTAssertTrue(item.waitForExistence(timeout: 10), "Bundled database must return Scizor")
         item.tap()
         XCTAssertTrue(app.staticTexts["scizor"].waitForExistence(timeout: 10), "Detail must read real identifier")
+        XCTAssertTrue(app.images["offline-icon-pokemon-212"].waitForExistence(timeout: 10), "Scizor detail must render its bundled Scarlet Violet icon")
         capture("first-install-knowledge")
+    }
+    /// 首装在未配置服务器时选择生命宝珠，真实界面必须呈现随包道具PNG，不能只测试资源存在。
+    @MainActor func testFirstInstallHeldItemIcon() {
+        launchCleanApp()
+        selectTab("计算")
+        let picker = app.descendants(matching: .any)["attacker-item-picker"].firstMatch
+        reveal(picker)
+        XCTAssertTrue(picker.waitForExistence(timeout: 10), "Held-item picker must exist")
+        picker.tap()
+        let option = app.buttons["生命宝珠"].firstMatch
+        let value = option.exists ? option : app.staticTexts["生命宝珠"].firstMatch
+        XCTAssertTrue(value.waitForExistence(timeout: 10), "Life Orb must be a supported item option")
+        value.tap()
+        let image = app.images["offline-icon-item-life-orb"].firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 10), "Selected held item must render its bundled icon")
+        XCTAssertTrue(app.windows.firstMatch.frame.intersects(image.frame), "The selected item icon must be visible")
+        capture("first-install-held-item-icon")
     }
     /// 首装直接在离线图鉴切换招式、中文搜索并进入真实SQLite详情，避免仅证明宝可梦查询可用。
     @MainActor func testFirstInstallChineseMoveSearch() {

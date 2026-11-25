@@ -14,7 +14,7 @@
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
 | P3 Go 服务端 | IN_PROGRESS | 99% | 原41/41 API、正式.11 Go/PG 68通过/1专用serve SKIP及恢复10/10、race/vet与真实Vue闭环已验证。原Python库显式接管及历史raw/runtime数据/序列保留通过。固定完整图库105,947条路径的全部元数据与MIME差分通过，独立修复原WebP类型缺项；完整正文导入及新运行入口最终验收仍待。 |
-| P4 iOS/iPadOS | PASS | 95% | 9eac125 Apple45548203813完整成功，两端各10/10、macOS149/149及112差分/委托通过，247外部SKIP单列；双SDK/device App及真实Swift→Go/PG27/27零SKIP。官方产物SHA匹配，首装招式和重启重算缺口已实际补齐。PASS限自动化标准，双真机HUMAN_PENDING、安装暂停。 |
+| P4 iOS/iPadOS | IN_PROGRESS | 95% | 9eac125 Apple45548203813完整成功，两端各10/10、macOS149/149及112差分/委托通过，247外部SKIP单列；双SDK/device App及真实Swift→Go/PG27/27零SKIP。官方产物SHA匹配，首装招式和重启重算缺口已实际补齐。PASS限自动化标准，双真机HUMAN_PENDING、安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 87% | d3fbb97正式.11四角色普通模式复验通过，新增实时快照ROOT/前进、12事件战报折叠及回退清空，原图祖先回退/聚合切换/改选边保留。新运行配置PG TCP探针、独占bind/Vue回环/42项Core预检通过。项目Skill与README补齐真实多语言入口及素材来源；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
 
@@ -286,3 +286,15 @@ NAS实际部署推进：恢复验证通过后，真实PG17原库显式接管成�
 已通过专用、无网络维护服务精确清理该失败验证PGDATA：控制文件实际shut down且无postmaster.pid，源码SHA/超时证据均匹配才清理。释放14,976,337,841字节物理目录，源素材、原库备份和全部失败日志保留，SSD回到94GiB可用。首次维护配置相对挂载解析错误原文保留；改为已登记绝对源码路径后成功。旧Python迁移legacy分支仍独立未集成，577/577原回归和6/6布局/知识包回归已通过，等待替代能力验收后再归并。
 
 最新b3b344d的Main Gate45555819043和Native45555819025全部success，apple-core139007480479所有实际步骤成功。部署配置/初始化CLI后续提交尚待最新CI，不把旧绿灯当作新代码验证。
+
+## 最新范围：HDD正文、全图鉴朱紫优先图标
+
+用户明确批准正文存HDD、PG仅存元数据、URL兼容，且Swift与服务端都要全图鉴；朱紫缺图用其他游戏菜单小图补齐。先前27只范围已撤销，105,947文件/28.7GB全部正文导入也已撤出当前部署范围，不继续把全量源挂入运行服务。
+
+全1,350条记录已找到同ID真实菜单PNG，缺图0。朱紫869，其余Champions140、Z-A88、阿尔宙斯39、BDSP60、剑盾132、第七世代22。另5道具+19朱紫属性，共1,374张20,079,618字节。两端资源逐字节相同，来源和SHA清单完整，未加入动画/大立绘。全量HDD试制快照已移到Backup的full-source-snapshot-not-deployed，应用快照目录不含它；原输入保留。
+
+新Go文件存储代码及r2已通过76 PASS/2专用SKIP、race/vet，恢复10/10。实际PG证明正文NULL、稳定ID、幂等、拒绝隐式回灌BYTEA、DDL及旧正文失败回滚；原三图片URL/ETag、缺失和同长度损坏、朱紫属性优先与剑盾兼容均验证。Python四文件Ruff/strict mypy通过，13测试PASS。SwiftSPM原字节复制后真实1374文件SHA/PNG/尺寸/总量核验2/2，71.96秒；App界面与新11用例待Apple CI。P4旧自动化PASS证据保留，但新图标版本尚未PASS。
+
+新版本真实运行栈、NAS升级及Apple CI仍待；NAS当前a3f0ff7服务健康。详见asset-storage.md。整体95%是原工程估算，不能把新路径实现或资源生成算成已部署/人工验收。
+
+本轮源码检查点：全图鉴新包Ruff/strict mypy及13项Python测试通过，Swift2/2逐项核验1374份PNG通过，Go类型朱紫优先后的r2整入口PASS（76+恢复10，2专用SKIP）。新建图标支持API与实际SwiftUI接入，增加首装宝可梦详情图像断言及道具选择图像用例，Apple实际11项尚待。历史全量/27只记录只表示早期尝试，最新范围以本节和asset-storage.md为准。
