@@ -183,6 +183,33 @@ compose-logs:
 compose-reset:
 	$(COMPOSE) down -v --remove-orphans
 
+# Go/C++发布入口独立于旧Python项目；目录和素材必须由调用方显式准备，down不删除数据库。
+GO_COMPOSE_PROJECT ?= pokemon-go-preview
+export PBI_GO_SOURCE_ROOT ?= $(REPO_ROOT)
+GO_COMPOSE := docker compose --project-name "$(GO_COMPOSE_PROJECT)" -f "$(REPO_ROOT)/deploy/compose.go-runtime.yaml"
+.PHONY: go-compose-config go-compose-build go-compose-init go-compose-up go-compose-down go-compose-ps go-compose-logs
+go-compose-config:
+	$(GO_COMPOSE) --profile ops config --services
+
+go-compose-build: go-compose-config
+	$(GO_COMPOSE) --profile ops build backend db-init frontend
+
+go-compose-init: go-compose-build
+	$(GO_COMPOSE) up -d postgres
+	$(GO_COMPOSE) --profile ops run --rm db-init
+
+go-compose-up: go-compose-init
+	$(GO_COMPOSE) up -d backend worker frontend
+
+go-compose-down:
+	$(GO_COMPOSE) down
+
+go-compose-ps:
+	$(GO_COMPOSE) ps
+
+go-compose-logs:
+	$(GO_COMPOSE) logs --tail=100
+
 clean:
 	@echo "Removing common build/cache artifacts (only if gitignored when git metadata is present)"
 	@for pattern in $(CLEAN_PATTERNS); do \

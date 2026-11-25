@@ -13,12 +13,14 @@
 | P0 基线 | PASS | 100% | `migration-baseline.md`、41 项 HTTP/185 表快照、原测试结果及真实有界 benchmark 已记录；Web 既有一项失败单独登记。 |
 | P1 C++ Core | PASS | 100% | .11 Linux149/149及111差分/委托、macOS149/149及112差分/委托通过；外部SKIP单列。12组同语义benchmark精确对照通过，原规则缺口及基线修复明确。完整产物已保存，逐项依据见migration-core-bindings-acceptance.md。 |
 | P2 跨语言集成 | PASS | 100% | 版本化C ABI及42共享样本；Linux和macOS真实Go/Swift服务各27/27零SKIP，所有权/错误/并发/取消实测，设备/模拟器静态库及未签名device App实际构建成功。产物SHA与官方记录一致，阶段审查已记录。 |
-| P3 Go 服务端 | IN_PROGRESS | 97% | 原41/41 API实际验证覆盖；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。真实Vue任务完成/取消、归因/Full图/root和沿正式边前进、配置CRUD及刷新持久化通过。新增速度preset/spread求解及候选保存通过；组合伤害目标页面、全量图片整体收口仍待补。 |
+| P3 Go 服务端 | IN_PROGRESS | 97% | 原41/41 API实际验证覆盖；正式.11全Go/PG 66通过/1专用serve SKIP及恢复10/10通过。真实Vue任务完成/取消、归因/Full图/root和沿边前进、配置CRUD/刷新、速度preset/spread和候选保存通过；新增攻/防/速度组合、移除速度及编辑为不可达均通过。全量图片、Python历史库安全接管及整体收口仍待补。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 85% | a4bc9f4 iPhone9/9通过，iPad7项通过后在约45分钟job限额处取消，余2项未完成；未见已完成用例断言失败。仅将整体job时限改为75分钟后完整复验。双真机体验仍HUMAN_PENDING，后续手机操作暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
 | P6 部署与回归 | IN_PROGRESS | 78% | 最新5529a82正式.11四角色栈通过42共享HTTP、Vue计算114–135/390px、配置CRUD及刷新、速度preset/spread求解和保存、实际任务完成/归因/图分支导航/运行取消、健康故障恢复、旧镜像回退及独立PG恢复，运行许可cmp通过。完整图片、其余组合目标交互及正式升级待补。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- `web-mixed-goals-first/`完整入口PASS：原Vue构造攻防与速度三目标，114×3=342/HP330、防御4/HP145、速度85/75均满足；删速度后纯伤害证据完整相同，编辑攻击次数1后真实不可达及失败UI通过。保留既有全部浏览器及健康/回退/恢复断言。本轮新增独立Go运行Compose和Make入口，原配置约束3/3通过，Compose2.20解析及Make dry-run通过；尚未启动新入口，完整运行验收仍待做。审查确认知识初始化会拒绝Python未知非空库，安全接管是明确剩余开发项，不能把空库初始化/两个Go镜像回退冒充完成此项。
 
 - `web-solver-first/`新增速度preset/spread及候选保存后完整入口再次PASS：85对75、margin10、1个preset候选、10个满足速度目标的spread候选；从实际页面保存第一候选201，212/both及EV/IV完整核对通过。此前配置CRUD/刷新、真实图沿边前进、运行取消、健康/回退/恢复均再次PASS。node --check、bash -n、diff检查通过。全量图片Git进程已复核存活且持续写入HDD；尚未检出完成，不启动全图库导入。最新空间快照NAS SSD100GiB可用/77%，Mac数据卷16GiB可用/92%；未据此追加清理。
 

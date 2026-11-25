@@ -1,0 +1,36 @@
+# Go/C++ 独立运行入口
+
+状态：IN_PROGRESS。`deploy/compose.go-runtime.yaml`已经通过本机Compose2.20解析，Make启动/停止顺序dry-run通过，原Compose约束测试3/3通过。**尚未通过该新配置启动完整图库实例**；已有四角色浏览器、任务、回退/恢复证据来自`go-stack-validation.md`，不能冒充新入口已完成运行验收。
+
+该入口保留frontend、backend、worker、postgres职责，另有一次性ops/db-init。API和Worker使用`deploy/Dockerfile.go`的Go/C++镜像，初始化器使用独立CSV镜像；运行时不含Python。默认项目为`pokemon-go-preview`、Web仅绑定`127.0.0.1:41110`，API与PG不发布宿主端口。原`docker-compose.yaml`及`make compose-*`保持原Python路径。
+
+## 显式输入
+
+| 变量 | 用途 |
+| --- | --- |
+| `PBI_GO_SOURCE_ROOT` | 干净的固定源码checkout；Make默认本仓库根目录。 |
+| `PBI_GO_POSTGRES_ROOT` | 预先准备的、归属明确的独占PG目录；bind禁止自动创建缺失路径。NAS运行状态放`/volume2/docker/`所属应用目录。 |
+| `PBI_GO_SPRITES_ROOT` | 已完整检出并校验的PokeAPI sprites源；只读bind，不进入镜像。 |
+| `PBI_GO_SPRITES_COMMIT` | 已核实的素材commit，不根据目录名猜测来源。 |
+| `PBI_GO_SUBNET` | 已与宿主路由和Docker IPAM核对的空闲子网。 |
+| `PBI_GO_SERVER_IMAGE` / `PBI_GO_DATA_IMAGE` / `PBI_GO_FRONTEND_IMAGE` | 本次构建/发布镜像标签；默认各自的preview标签，回退应传入留存的已验证版本。 |
+| `GO_COMPOSE_PROJECT` | Make项目名，默认`pokemon-go-preview`；不得复用未知或旧生产项目名。 |
+| `PBI_GO_BIND` / `PBI_GO_PORT` | Web监听，默认回环41110；实际HomeLab发布地址仍待Human确认。 |
+
+编译阶段需要已验证的`pokemon-migration-validation:local`工具镜像，或通过Docker build参数提供等价工具链。初始来源固定PokeAPI1567d530和sprites c0542f7；不得用五图验收样本代替完整素材。
+
+## 启动、停止与数据保留
+
+准备上述显式输入后，`make go-compose-config`只输出服务名。`make go-compose-build`构建API、数据和Vue镜像；`make go-compose-init`启动PG、等其健康后执行一次性纯Go初始化。`make go-compose-up`在初始化成功后启动API、独立Worker和Vue，API探针通过后前端才启动。任何初始化失败都会阻止后续角色启动。
+
+Worker版本固定为原公开任务的`battle-inference.summary-exploration.v2`，默认lease120秒、heartbeat20秒，不能改成任意验收版本号。SIGTERM清理实际计算子进程，未确认租约由恢复路径处理。
+
+`make go-compose-ps`和`make go-compose-logs`检查本项目。`make go-compose-down`只停止该项目并移除网络，不删除PG目录；没有Go自动reset目标。新启动后仍使用同一显式PG目录，完整图库无需放入2GiB tmpfs。
+
+## 升级及回退边界
+
+当前Go知识初始化仅自动接受空库或相同Go版本标记的库。**未知非空的Python历史库会被拒绝，安全接管尚待实现和隔离副本验收。** 不应删除版本表、清空raw表或复用新建目录的名称绕过该保护。更换知识版本也不能被本入口自动视为已支持的升级。
+
+隔离演练已证明两个已验证Go镜像之间回退、真实pg_dump及恢复到独立库后，用户配置完整JSON不变。新运行入口仍需完整素材导入、重复初始化、实例重启、当前镜像/旧镜像及独立恢复库的同轮验收。镜像回退应保留数据库，不能用down -v或清空目录实现。
+
+正式数据库备份、生产切换和最终合并仍按原Goal由Human确认；本文不表示已执行这些操作。手机安装暂停，不把临时验证容器当成已提供给双设备的长期测试服务。

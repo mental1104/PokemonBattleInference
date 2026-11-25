@@ -160,7 +160,88 @@ async function verifySolver(page, reports) {
   assert.deepEqual(saved.ivs, spread.candidates[0].ivs);
   await page.getByRole('button', { name: '已添加到专属配置', exact: true }).first().waitFor();
   await page.screenshot({ path: `${reports}/solver-spread-saved.png`, fullPage: true });
-  return { presetCandidates: preset.candidates.length, spreadCandidates: spread.candidates.length, savedConfiguration: saved.id };
+  const damageGoals = await verifyDamageGoals(page, reports);
+  return { presetCandidates: preset.candidates.length, spreadCandidates: spread.candidates.length, savedConfiguration: saved.id, damageGoals };
+}
+
+/** page为已有212及242速度目标的求解页面，reports保留攻防草稿/提交和最终结果证据。
+ * 返回组合目标与纯伤害目标的真实候选数；同时验证编辑次数导致不可达时页面正确显示拒绝。
+ */
+async function verifyDamageGoals(page, reports) {
+  await page.getByTestId('spread-mode-toggle').click();
+  await page.locator('.solver-side .preset-button').filter({ hasText: '无投入' }).click();
+  for (const goal of [
+    { kind: 'attack', move: '子弹拳', repetitions: '3', label: '击倒次数' },
+    { kind: 'defense', move: '拍击', repetitions: '1', label: '承受次数' },
+  ]) {
+    await page.getByTestId(`open-${goal.kind}-goal-dialog`).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByTestId('pokemon-search-input').fill('幸福蛋');
+    await dialog.locator('[data-pokemon-id="242"]').click();
+    await dialog.locator('.preset-button').filter({ hasText: '无投入' }).click();
+    await dialog.getByLabel(goal.label, { exact: true }).fill(goal.repetitions);
+    await dialog.getByTestId('move-search-input').fill(goal.move);
+    await dialog.getByTestId('embedded-move-list').getByRole('button', { name: new RegExp(goal.move) }).click();
+    await page.getByTestId('confirm-goal-dialog').click();
+  }
+  const mixedReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/configuration_solver/solve'));
+  await page.getByRole('button', { name: '开始求解', exact: true }).click();
+  const mixedResponse = await mixedReceived;
+  assert.equal(mixedResponse.status(), 200);
+  const mixed = await mixedResponse.json();
+  await writeFile(`${reports}/solver-mixed-request.json`, mixedResponse.request().postData());
+  await writeFile(`${reports}/solver-mixed-result.json`, JSON.stringify(mixed, null, 2));
+  assert.equal(mixed.reachable, true);
+  assert.equal(mixed.candidates.length, 1);
+  const candidate = mixed.candidates[0];
+  assert.equal(candidate.goals.length, 2);
+  const attack = candidate.goals.find(goal => goal.kind === 'attack');
+  const defense = candidate.goals.find(goal => goal.kind === 'defense');
+  assert.equal(attack.move.move_id, 418);
+  assert.equal(attack.selected_damage, 114);
+  assert.equal(attack.total_damage, 342);
+  assert.equal(attack.hp_threshold, 330);
+  assert.equal(attack.satisfied, true);
+  assert.equal(defense.move.move_id, 1);
+  assert.equal(defense.selected_damage, 4);
+  assert.equal(defense.hp_threshold, 145);
+  assert.equal(defense.satisfied, true);
+  assert.equal(candidate.speed_goals.length, 1);
+  assert.equal(candidate.speed_goals[0].satisfied, true);
+  await page.locator('.evidence-row').filter({ hasText: '3 次 × 114' }).waitFor();
+  await page.screenshot({ path: `${reports}/solver-mixed.png`, fullPage: true });
+  // 从页面删除速度目标，确保不携带扩展字段的原纯伤害调用路径也得到相同攻防证据。
+  await page.getByRole('button', { name: '删除速度目标', exact: true }).click();
+  const damageReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/configuration_solver/solve'));
+  await page.getByRole('button', { name: '开始求解', exact: true }).click();
+  const damageResponse = await damageReceived;
+  assert.equal(damageResponse.status(), 200);
+  const damage = await damageResponse.json();
+  await writeFile(`${reports}/solver-damage-request.json`, damageResponse.request().postData());
+  await writeFile(`${reports}/solver-damage-result.json`, JSON.stringify(damage, null, 2));
+  assert.equal(damage.reachable, true);
+  assert.deepEqual(damage.candidates[0].goals, candidate.goals);
+  assert.equal(Object.hasOwn(damageResponse.request().postDataJSON(), 'speed_goals'), false);
+  await page.getByRole('button', { name: '查看并编辑攻目标 幸福蛋', exact: true }).click();
+  await page.getByRole('dialog').getByLabel('击倒次数', { exact: true }).fill('1');
+  await page.getByTestId('confirm-goal-dialog').click();
+  const rejectedReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/configuration_solver/solve'));
+  await page.getByRole('button', { name: '开始求解', exact: true }).click();
+  const rejectedResponse = await rejectedReceived;
+  assert.equal(rejectedResponse.status(), 200);
+  const rejected = await rejectedResponse.json();
+  await writeFile(`${reports}/solver-unreachable-request.json`, rejectedResponse.request().postData());
+  await writeFile(`${reports}/solver-unreachable-result.json`, JSON.stringify(rejected, null, 2));
+  assert.equal(rejected.reachable, false);
+  assert.equal(rejected.candidates.length, 0);
+  const failed = rejected.rejected_goals.find(goal => goal.kind === 'attack');
+  assert.equal(failed.satisfied, false);
+  assert.equal(failed.repetitions, 1);
+  assert.equal(failed.total_damage, 114);
+  await page.getByRole('heading', { name: '当前不可达', exact: true }).waitFor();
+  await page.locator('.evidence-row.failed').filter({ hasText: '1 次 × 114' }).waitFor();
+  await page.screenshot({ path: `${reports}/solver-unreachable.png`, fullPage: true });
+  return { mixedCandidates: mixed.candidates.length, damageCandidates: damage.candidates.length, editedUnreachable: true };
 }
 
 /** page借用浏览器HTTP客户端；base为真实代理根，jobId为本次服务返回身份。
