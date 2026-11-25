@@ -1,6 +1,6 @@
 # Go/C++ 独立运行入口
 
-状态：IN_PROGRESS。`deploy/compose.go-runtime.yaml`已经通过本机Compose2.20解析，Make启动/停止顺序dry-run通过，原Compose约束测试3/3通过。**尚未通过该新配置启动完整图库实例**；已有四角色浏览器、任务、回退/恢复证据来自`go-stack-validation.md`，不能冒充新入口已完成运行验收。
+状态：IN_PROGRESS。`deploy/compose.go-runtime.yaml`已经通过维护入口当前Compose2.40.3解析，Make启动/停止顺序dry-run通过，原Compose约束测试3/3通过。此前sprites overlay的2.20记录属于历史检查点。**尚未通过该新配置启动完整图库实例**；已有四角色浏览器、任务、回退/恢复证据来自`go-stack-validation.md`，不能冒充新入口已完成运行验收。
 
 该入口保留frontend、backend、worker、postgres职责，另有一次性ops/db-init。API和Worker使用`deploy/Dockerfile.go`的Go/C++镜像，初始化器使用独立CSV镜像；运行时不含Python。默认项目为`pokemon-go-preview`、Web仅绑定`127.0.0.1:41110`，API与PG不发布宿主端口。原`docker-compose.yaml`及`make compose-*`保持原Python路径。
 
@@ -29,7 +29,11 @@ Worker版本固定为原公开任务的`battle-inference.summary-exploration.v2`
 
 ## 升级及回退边界
 
-当前Go知识初始化仅自动接受空库或相同Go版本标记的库。**未知非空的Python历史库会被拒绝，安全接管尚待实现和隔离副本验收。** 不应删除版本表、清空raw表或复用新建目录的名称绕过该保护。更换知识版本也不能被本入口自动视为已支持的升级。
+默认Go知识初始化仍仅接受空库或相同Go版本标记的库。原Python历史库必须使用新增的显式`pbi-db-init --csv-root <固定CSV目录> --adopt-legacy-knowledge`入口：在同一事务里按固定生成模型比较列顺序、类型、可空性及主键/唯一/CHECK/FK，再流式构造自有临时期望表，双向EXCEPT ALL比较每个字段和重复行语义。SHARE锁阻止核对后、登记前的并发写入；历史raw数据和序列不被改写。任何不一致或中断都回滚，默认入口不会隐式接管。
+
+接管输出`legacy_adopted=true`，`inserted_rows`是已核验的规范数据行数，不表示重新插入历史表。后续普通初始化可按版本正常复用。该入口只识别当前固定PokeAPI来源；不同知识版本仍明确拒绝，尚不是任意版本迁移器。不应删除版本表或清空raw表绕过保护。
+
+`tools/migration/accept-go-legacy-adoption.sh`在专属空PG用原Python的RawBase和CSV importer建立177表、1,051,800条来源记录及五张上游图片样本，加入原用户配置和任务后实际接管Go。全部接管前已有raw/runtime表及序列的导出，在接管前/后/再次复用三个时点逐字节一致，统一SHA-256为`e7bed0bac2e45a6cf494f6db1d6afde015d013e001859ed81e77862fc41284d8`。这里只去除pg_dump随机执行令牌，不删除业务字段。五图是历史BYTEA保留样本，不替代完整图库导入。原始证据位于`Backup/PokemonBattleInference/legacy-adoption-20261125/python-first/`。
 
 隔离演练已证明两个已验证Go镜像之间回退、真实pg_dump及恢复到独立库后，用户配置完整JSON不变。新运行入口仍需完整素材导入、重复初始化、实例重启、当前镜像/旧镜像及独立恢复库的同轮验收。镜像回退应保留数据库，不能用down -v或清空目录实现。
 

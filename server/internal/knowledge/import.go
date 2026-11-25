@@ -17,14 +17,15 @@ var ErrNonempty = errors.New("knowledge target contains unversioned data; explic
 // ErrVersion 表示已导入库的固定来源与本程序不同，禁止混合静态版本。
 var ErrVersion = errors.New("knowledge target uses a different version")
 
-// TableReport 保存原始 CSV 行数和按旧主键冲突规则实际插入的行数。
+// TableReport 保存原始CSV行数与原主键冲突规则下的规范行数。
+// 普通导入是实际插入数；显式历史接管时是临时期望表的行数，不表示重写历史数据。
 type TableReport struct {
 	Name         string `json:"name"`
 	SourceRows   int64  `json:"source_rows"`
 	InsertedRows int64  `json:"inserted_rows"`
 }
 
-// Report 是可独立归档的初始化结果，版本来源、总数和复用状态均显式保留。
+// Report 是可独立归档的初始化结果，版本来源、总数、复用及历史接管来源均显式保留。
 type Report struct {
 	ImportVersion     string        `json:"import_version"`
 	SourceCommit      string        `json:"source_commit"`
@@ -36,6 +37,7 @@ type Report struct {
 	Reused            bool          `json:"reused"`
 	Tables            []TableReport `json:"tables"`
 	Sprites           *SpriteReport `json:"sprites,omitempty"`
+	LegacyAdopted     bool          `json:"legacy_adopted,omitempty"`
 }
 
 // columnsSQL 只引用嵌入模型的列名，用驱动转义而不是拼接外部 CSV header。
@@ -50,8 +52,14 @@ func columnsSQL(table Table) string {
 // importTable 使用二进制 COPY 流入无约束临时表，再按旧 DAO 的主键规则去重插入。
 // tx 和 root 由调用方拥有；每表结束即释放临时表与文件，不加载整个 CSV 到内存。
 func importTable(ctx context.Context, tx pgx.Tx, root string, table Table) (TableReport, error) {
+	return importTableInto(ctx, tx, root, table, pgx.Identifier{"poke_raw", table.Name})
+}
+
+// importTableInto 将固定CSV按原去重规则流式写入target；target只能是调用方拥有的表。
+// ctx控制取消，tx/root/table与importTable相同；返回来源行数及该目标实际写入行数。
+func importTableInto(ctx context.Context, tx pgx.Tx, root string, table Table, destination pgx.Identifier) (TableReport, error) {
 	report := TableReport{Name: table.Name}
-	target := pgx.Identifier{"poke_raw", table.Name}.Sanitize()
+	target := destination.Sanitize()
 	stage := pgx.Identifier{"pg_temp", "pbi_knowledge_stage"}
 	if _, err := tx.Exec(ctx, `CREATE TEMP TABLE pbi_knowledge_stage(LIKE `+target+` INCLUDING DEFAULTS) ON COMMIT DROP`); err != nil {
 		return report, err
@@ -112,6 +120,20 @@ func refreshViews(ctx context.Context, tx pgx.Tx) error {
 // dsn 必须显式提供；先核验全部文件再连接，任何失败回滚整个数据/schema/版本写入。
 // 同版本重跑验证行数后复用；refresh 才刷新已有视图，不清空任何表，也不替换未知非空库。
 func Initialize(ctx context.Context, dsn, root string, refresh bool) (Report, error) {
+	return initialize(ctx, dsn, root, refresh, initializeEmpty)
+}
+
+// initializationMode 明确区分空库导入与显式历史库接管；默认入口绝不隐式认领未知非空数据。
+type initializationMode uint8
+
+const (
+	initializeEmpty initializationMode = iota
+	adoptLegacy
+)
+
+// initialize 共用版本锁及事务；mode为显式入口选择，refresh仅刷新兼容视图。
+// ctx/dsn/root与Initialize相同；只有所有固定表完整一致才允许历史数据登记，失败全部回滚。
+func initialize(ctx context.Context, dsn, root string, refresh bool, mode initializationMode) (Report, error) {
 	manifest, version, err := Contract()
 	report := Report{ImportVersion: version, SourceCommit: manifest.SourceCommit, RawTables: manifest.RawTableCount, CSVTables: len(manifest.Tables), MaterializedViews: 8, Tables: []TableReport{}}
 	if err != nil {
@@ -159,17 +181,25 @@ func Initialize(ctx context.Context, dsn, root string, refresh bool) (Report, er
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return report, err
 	} else {
-		for _, table := range manifest.Tables {
-			var populated bool
-			if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM `+pgx.Identifier{"poke_raw", table.Name}.Sanitize()+` LIMIT 1)`).Scan(&populated); err != nil {
-				return report, err
-			}
-			if populated {
-				return report, ErrNonempty
+		if mode == initializeEmpty {
+			for _, table := range manifest.Tables {
+				var populated bool
+				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM `+pgx.Identifier{"poke_raw", table.Name}.Sanitize()+` LIMIT 1)`).Scan(&populated); err != nil {
+					return report, err
+				}
+				if populated {
+					return report, ErrNonempty
+				}
 			}
 		}
 		for _, table := range manifest.Tables {
-			item, copyErr := importTable(ctx, tx, root, table)
+			var item TableReport
+			var copyErr error
+			if mode == adoptLegacy {
+				item, copyErr = verifyLegacyTable(ctx, tx, root, table)
+			} else {
+				item, copyErr = importTable(ctx, tx, root, table)
+			}
 			if copyErr != nil {
 				return report, copyErr
 			}
@@ -177,6 +207,7 @@ func Initialize(ctx context.Context, dsn, root string, refresh bool) (Report, er
 			report.SourceRows += item.SourceRows
 			report.InsertedRows += item.InsertedRows
 		}
+		report.LegacyAdopted = mode == adoptLegacy
 	}
 	if _, err = tx.Exec(ctx, viewSchema); err != nil {
 		return report, err

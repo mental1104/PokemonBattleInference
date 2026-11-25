@@ -31,6 +31,14 @@ cd web && npm run build
 
 Use local tests and the repository's four-stage workflow while developing. GitHub Actions is the Ready PR correctness gate and the integrated `main` verification, not an uncontrolled branch-level debugging loop.
 
+## Monorepo migration validation
+
+The separately authorized `native-core.yml` validates native Core/Go/Swift and unsigned iOS device/simulator targets on a Ready PR. Its App and simulator results do not constitute physical-device acceptance. Missing external integration environments remain explicit SKIP results.
+
+The independent `deploy/compose.go-runtime.yaml` and `make go-compose-*` prepare the Go/C++ runtime under the distinct `pokemon-go-preview` project. They do not change the legacy Compose default. `tools/migration/validate-go-stack.sh` runs the isolated Vue/API/Worker/PG browser, health, rollback and restore scenarios; complete sprites remain an explicit read-only asset input rather than a routine CI checkout.
+
+Legacy database adoption is an explicit `pbi-db-init --adopt-legacy-knowledge` operation after complete fixed-source/schema/data verification. The default initializer must continue rejecting unversioned nonempty targets. `tools/migration/accept-go-legacy-adoption.sh` validates the real Python-to-Go path only on its own temporary PostgreSQL instance; its five-image preservation fixture does not replace full-corpus acceptance. See `docs/go-runtime.md` and `docs/migration-progress.md` for actual verified scope and remaining Human approval items.
+
 ## Failure email
 
 Automatic PR and `main` failures are visible in GitHub but do not send SMTP mail. Email is sent only when a manual `main` run fails.

@@ -159,3 +159,14 @@ Go服务及真实child重新构建、go vet、Pythonruff/strictmypy、bash synta
 该原入口取job header规则轴和spec预算，双方等级只取canonical攻击方；nil max_turns与超过同步公开schema但仍在原job合同内的500001/2000001/201预算完整保留。无Go definition仍可重算，不拿已存case结果/任务Summary统计生成Full图或缓存守卫。原job→spec→精确pair→succeeded→canonical/form→当前知识/provider顺序保留，包括side ID不能当pair、普通provider对partial的维度筛选以及原字符串detail。
 
 原reference只捕获ValueError；缺当前Pokemon/version/ruleset的LookupError及损坏canonical原返回安全plain500，此行为有真实原HTTP证明。`lookup-red/`保留新适配最初误套fixed专用404/422的三项失败，窄修后`front-final/` **13/13 PASS**，随后完整20项再验证。没有改变公开fixed路由404或将原错误当成功计算。Go强制重链/vet、Pythonruff/strictmypy、bash syntax/diff通过，自有PG/API均已清理；复现`PBI_VALIDATION_CORE_DIRECTORY=/build/root-summary-abi11 bash tools/migration/accept-go-configuration-case-graph.sh`。
+## Python历史库的显式安全接管（2026-11-25）
+
+新增`knowledge.AdoptLegacy`及`pbi-db-init --adopt-legacy-knowledge`，默认Initialize的未知非空拒绝不变。接管在原事务锁中，用固定生成SQL建立独立临时期望表，逐表比较列顺序/类型/可空性、PK/unique/CHECK/FK，再按原解析和主键去重规则流入固定CSV，双向EXCEPT ALL比较全部字段和重复行。SHARE锁保留到登记完成；不重写历史raw行，不消费历史SERIAL序列，不替换用户表。当前只支持固定1567d530知识来源，其他知识版本继续拒绝。
+
+`legacy-adoption-20261125/knowledge/`首轮知识/资料race与vet全部通过。补充真实运行中取消后，`knowledge-cancellation/`再次完整PASS：在后段types表的核验锁上实际观察到等待后才取消，返回context.Canceled且版本表完全回滚；同数量异值、额外schema列的拒绝及用户记录/raw行xmin/ctid/序列保留、正常接管及普通复用均通过。该新集成场景60.17秒，知识包69.671秒，全部固定177 CSV/1,051,800来源记录解析差分也再次通过。没有跳过取消场景或仅检查取消前置状态。
+
+`python-first/`是独立原Python→Go演练：专属空PG由原reset脚本/RawBase创建并导入全部CSV、八MV及五张上游图片样本，加入原用户配置和任务。默认Go初始化实际拒绝，显式接管成功后普通初始化复用成功。接管前全部已有raw/runtime表及序列的三份35MB数据导出逐字节一致，SHA-256均为`e7bed0bac2e45a6cf494f6db1d6afde015d013e001859ed81e77862fc41284d8`。只过滤pg_dump随机执行限制令牌，保留业务COPY原文和序列。此演练没有通过删除Go标记来冒充Python来源。
+
+复现脚本`tools/migration/accept-go-legacy-adoption.sh`显式要求私有报告及素材源，只创建自己tmpfs PG并精确停止。`legacy_adopted=true`表示接管来源；其inserted_rows计数为已核验的1,051,052规范行，不表示重写历史行。五图只证明已有BYTEA保留，不替代完整图库导入，也未连接生产库。
+
+最新`full-server/`完整回归入口PASS：当前源码重新链接不可变正式Core0.11，全部Go/PG **68 PASS / 1专用Swift serve夹具SKIP**，额外停机恢复 **10/10 PASS**，race/vet、API构建及六个独立公开HTTP读取通过。接管/运行取消场景61.20秒通过。本轮不重复构建或改写正式Core archive，不将专用Swift SKIP算作本轮跨语言通过。

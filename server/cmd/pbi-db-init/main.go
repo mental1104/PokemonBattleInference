@@ -23,6 +23,7 @@ func main() { os.Exit(run()) }
 func run() int {
 	root := flag.String("csv-root", "", "fixed PokeAPI CSV root directory")
 	refresh := flag.Bool("refresh-views", false, "refresh existing compatible materialized views")
+	adopt := flag.Bool("adopt-legacy-knowledge", false, "verify every legacy knowledge field before registering the fixed version")
 	sprites := flag.String("sprites-root", "", "optional complete PokeAPI sprites repository or sprites directory")
 	spritesCommit := flag.String("sprites-commit", "", "optional explicit sprites source commit marker")
 	flag.Parse()
@@ -35,7 +36,13 @@ func run() int {
 	ctx, cancel := context.WithTimeout(signals, 20*time.Minute)
 	defer cancel()
 	dsn := os.Getenv("PBI_POSTGRES_DSN")
-	report, err := knowledge.Initialize(ctx, dsn, *root, *refresh)
+	var report knowledge.Report
+	var err error
+	if *adopt {
+		report, err = knowledge.AdoptLegacy(ctx, dsn, *root, *refresh)
+	} else {
+		report, err = knowledge.Initialize(ctx, dsn, *root, *refresh)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "knowledge initialization failed: %v\n", err)
 		return 1
