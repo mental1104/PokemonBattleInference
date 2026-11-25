@@ -16,9 +16,11 @@
 | P3 Go 服务端 | IN_PROGRESS | 98% | 原41/41 API实际验证覆盖；接管补充后的正式.11全Go/PG 68通过/1专用serve SKIP及额外恢复10/10、race/vet和六个公开HTTP读取通过。真实Vue配置/求解/组合目标/任务/图/取消通过。固定版本原Python库显式接管、异值/schema拒绝、中断回滚与所有历史raw/runtime数据和序列逐字节保留通过。全量图库和新运行入口最终验收仍待收口。 |
 | P4 iOS/iPadOS | IN_PROGRESS | 90% | b797c19完整双模拟器各9/9及完整原生/绑定证据保留。6bd30c9两端各9/10，重启后实际重算通过；招式威力定位按真实合并字段修正。9eac125当前Apple45548203813原生合同/双SDK通过，App及新10项双模拟器运行中；双真机仍HUMAN_PENDING，安装暂停。 |
 | P5 数据同步 | PASS | 90% | 自动化标准已逐项核对：.9真实Swift→Go/PG整包25/25零SKIP，后续真实双SQLite补齐keepRemote后同步4/4零SKIP；幂等、两种冲突恢复、删除、重启收敛、中断更新保护及在线离线一致均有实测。c0双模拟器各9/9含跨设备同步通过；此PASS限自动化标准，双真机人工体验仍HUMAN_PENDING。 |
-| P6 部署与回归 | IN_PROGRESS | 83% | d3fbb97正式.11四角色普通模式复验通过，新增图祖先回退/聚合切换/改选边及精确概率恢复。新运行配置PG正式TCP健康探针、独占bind/Vue回环/42项Core预检通过，代理有界就绪等待实测，项目Skill补齐多语言入口和证据映射；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
+| P6 部署与回归 | IN_PROGRESS | 84% | d3fbb97正式.11四角色普通模式复验通过，新增实时快照ROOT/前进、12事件战报折叠及回退清空，原图祖先回退/聚合切换/改选边保留。新运行配置PG TCP探针、独占bind/Vue回环/42项Core预检通过。项目Skill与README补齐真实多语言入口及素材来源；完整图库重启/恢复、其余交互和正式生产升级仍待。旧生产保持原状。 |
 
 ## 已确认的边界与决策
+
+- `web-live-snapshot-20261125/`完整入口PASS：通过原首页“打开实时树状图”实际请求step，ROOT 1组192条outcome/1/1；正式cursor前进node10000/1/256，节点卡与战报精确一致。12条实际事件折叠/展开后数量不变，ROOT回退清空事件和后继列；全部既有业务/健康/回退/恢复继续通过，原始请求响应/截图/trace/工具SHA归档，自有实例/网络已清理。README更新实际Monorepo和四角色入口，修正BASE-DOC-001不存在的sprites submodule初始化命令，与当前.gitmodules核对；不伪称legacy目录已完成搬迁。P6工程估算83%→84%。完整图片检出进程仍活跃、持续写入HDD；Apple45548203813仍在App/双模拟器步骤，不据等待状态算通过。
 
 - `web-branch-revisit-20261125-r3/`最终脚本完整入口PASS，实际node1的1/256→ROOT仅一列1/1→改选node2的1/128，聚合/原始视图切换通过；完整outcomes稳定、cursor/edge_id及节点卡严格核对，原全部配置/求解/任务/取消/健康/回退/恢复也通过。首次构建固定pgx依赖下载EOF，原失败保留，相同源码重试成功；新三镜像r2实际ID及工具SHA归档。生产PG健康探针同步改为正式TCP SELECT 1，`preflight-health-ready/`Docker探针healthy/输出1及完整运行预检退出0；前一次Nginx首连接reset保留，有界代理就绪等待经r3复验。项目Skill映射补齐Canonical Make→CTest/pytest→Go/Swift、真实PG与Apple/人工边界，引用文件逐项存在。P6工程估算82%→83%，全量图库模式仍未执行。当前9eac125 Apple run45548203813在App/双模拟器步骤，未推送取消该run。
 

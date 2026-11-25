@@ -416,6 +416,73 @@ async function verifyRunningCancellation(page, reports) {
   return { jobId, status: terminal.status };
 }
 
+/** page为任务取消后返回的真实推演首页，reports保存快照请求/响应和战报截图。
+ * 返回实际快照图标识、前进节点及精确概率；所有选择、折叠和回退均经可见控件，不注入状态。
+ */
+async function verifyLiveSnapshotTree(page, reports) {
+  await page.getByRole('button', { name: '载入双快龙龙爪示例', exact: true }).click();
+  const combinationsReceived = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/v1/inference/move-set-combinations'));
+  await page.getByRole('button', { name: '生成技能组合', exact: true }).click();
+  assert.equal((await combinationsReceived).status(), 200);
+  await page.locator('input[name="attacker-move-set"]').first().check();
+  await page.locator('input[name="defender-move-set"]').first().check();
+  // response为真实网络响应；只接收POST step，避免组合查询或任务轮询被误当作快照。
+  const isSnapshot = response => response.request().method() === 'POST' && response.url().endsWith('/v1/inference/fixed-one-on-one/step');
+  const rootReceived = page.waitForResponse(isSnapshot);
+  await page.getByRole('button', { name: '打开实时树状图', exact: true }).click();
+  const rootResponse = await rootReceived;
+  assert.equal(rootResponse.status(), 200);
+  const root = await rootResponse.json();
+  await writeFile(`${reports}/snapshot-root-request.json`, rootResponse.request().postData());
+  await writeFile(`${reports}/snapshot-root.json`, JSON.stringify(root, null, 2));
+  assert.equal(root.graph_id, 'fixed-one-on-one-snapshot');
+  assert.deepEqual(root.cursor.steps, []);
+  assert.equal(root.cumulative_probability.numerator, '1');
+  assert.equal(root.cumulative_probability.denominator, '1');
+  await page.getByTestId('battle-current-node').getByText(`当前节点 · #${root.node.node_id}`, { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), '1 / 1');
+  await page.locator('.battle-report-panel__empty').waitFor();
+  // 快照已携带当前层outcomes，点击分组后仍通过正式step请求重放cursor并计算下一层。
+  const outcome = root.transition_groups[0].outcomes[0];
+  assert.ok(outcome);
+  await page.locator('.battle-tree-group > button').first().click();
+  await page.getByRole('button', { name: '原始', exact: true }).click();
+  const advancedReceived = page.waitForResponse(isSnapshot);
+  await page.locator('.battle-tree-exact-edge').first().click();
+  const advancedResponse = await advancedReceived;
+  assert.equal(advancedResponse.status(), 200);
+  const advanced = await advancedResponse.json();
+  await writeFile(`${reports}/snapshot-advanced-request.json`, advancedResponse.request().postData());
+  await writeFile(`${reports}/snapshot-advanced.json`, JSON.stringify(advanced, null, 2));
+  assert.deepEqual(advanced.cursor.steps, [{ source_node_id: root.node.node_id, edge_id: outcome.edge_id, target_node_id: outcome.target_node_id }]);
+  assert.equal(advanced.node.node_id, outcome.target_node_id);
+  assert.deepEqual(advanced.cumulative_probability, outcome.cumulative_probability);
+  assert.equal(advanced.battle_report.depth, 1);
+  assert.deepEqual(advanced.battle_report.cumulative_probability, advanced.cumulative_probability);
+  const fraction = `${advanced.cumulative_probability.numerator} / ${advanced.cumulative_probability.denominator}`;
+  await page.getByTestId('battle-current-node').getByText(`当前节点 · #${advanced.node.node_id}`, { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), fraction);
+  await page.locator('.battle-report-probability').getByText(fraction, { exact: true }).waitFor();
+  const turn = page.locator('.battle-report-turn').first();
+  await turn.locator('.battle-report-turn__body').waitFor();
+  const events = await turn.locator('.battle-report-event').count();
+  assert.ok(events > 0, 'the real snapshot must render structured battle events');
+  await turn.locator('.battle-report-turn__header').click();
+  assert.equal(await turn.locator('.battle-report-turn__body').count(), 0);
+  await turn.locator('.battle-report-turn__header').click();
+  await turn.locator('.battle-report-turn__body').waitFor();
+  assert.equal(await turn.locator('.battle-report-event').count(), events);
+  await page.screenshot({ path: `${reports}/snapshot-advanced-report.png`, fullPage: true });
+  // ROOT回退必须同时清除战报及后继列，不能残留刚才折叠/展开的历史事件。
+  await page.locator('.battle-tree-column__node').first().click();
+  await page.locator('.battle-report-panel__empty').waitFor();
+  assert.equal(await page.locator('.battle-tree-column').count(), 1);
+  assert.equal(await page.locator('.battle-report-turn').count(), 0);
+  assert.equal(await page.getByTestId('battle-current-node').locator('footer small').innerText(), '1 / 1');
+  await page.screenshot({ path: `${reports}/snapshot-returned-root.png`, fullPage: true });
+  return { graph: root.graph_id, advancedNode: advanced.node.node_id, probability: advanced.cumulative_probability, events };
+}
+
 /** 验收原 Vue→Nginx→Go→独立 Core 的真实选择与计算；报告只写本次私有目录。 */
 async function main() {
   const endpoint = process.env.PBI_STACK_WEB_URL;
@@ -464,8 +531,9 @@ async function main() {
     const solver = await verifySolver(page, reports);
     const task = await verifyPersistentTask(page, reports);
     const cancellation = await verifyRunningCancellation(page, reports);
+    const snapshot = await verifyLiveSnapshotTree(page, reports);
     assert.deepEqual(errors, [], 'task pages must not raise JavaScript errors');
-    await writeFile(`${reports}/acceptance.json`, JSON.stringify({ status: 'PASS', pokemon: [212, 242], move: 418, damage, dimensions, configuration, solver, task, cancellation, errors }, null, 2));
+    await writeFile(`${reports}/acceptance.json`, JSON.stringify({ status: 'PASS', pokemon: [212, 242], move: 418, damage, dimensions, configuration, solver, task, cancellation, snapshot, errors }, null, 2));
   } catch (error) {
     await page.screenshot({ path: `${reports}/failure.png`, fullPage: true });
     await writeFile(`${reports}/failure.txt`, `${error.stack}\n${errors.join('\n')}`);
